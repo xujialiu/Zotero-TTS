@@ -1,0 +1,3 @@
+node_modules/
+build/
+addon/content/zotero-tts.js
