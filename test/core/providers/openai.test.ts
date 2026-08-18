@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { SynthesisError } from '../../../src/core/providers/errors';
-import { createOpenAIProvider } from '../../../src/core/providers/openai';
+import { createOpenAIProvider, OPENAI_VOICES, OPENAI_LOCALES } from '../../../src/core/providers/openai';
 
 const cfg = {
   apiKey: 'sk-test',
@@ -12,7 +12,8 @@ function provider(fetchImpl: typeof fetch) {
   return createOpenAIProvider(cfg, { fetch: fetchImpl });
 }
 
-const opts = { voice: 'alloy', speed: 1, signal: new AbortController().signal };
+const signalController = new AbortController();
+const opts = { voice: 'alloy', speed: 1, signal: signalController.signal };
 
 describe('createOpenAIProvider', () => {
   it('declares that it cannot produce word timestamps', () => {
@@ -28,6 +29,7 @@ describe('createOpenAIProvider', () => {
     expect(url).toBe('https://api.openai.com/v1/audio/speech');
     expect(init.method).toBe('POST');
     expect(init.headers.Authorization).toBe('Bearer sk-test');
+    expect(init.signal).toBe(opts.signal);
     expect(JSON.parse(init.body)).toEqual({
       model: 'gpt-4o-mini-tts',
       voice: 'alloy',
@@ -41,6 +43,7 @@ describe('createOpenAIProvider', () => {
   it('never returns timestamps, so highlighting falls back to sentence level', async () => {
     const fetchImpl = vi.fn(async () => new Response(new Blob(['x']), { status: 200 }));
     const result = await provider(fetchImpl as unknown as typeof fetch).synthesize('Hi', opts);
+    expect('timestamps' in result).toBe(false);
     expect(result.timestamps).toBeUndefined();
   });
 
@@ -60,9 +63,9 @@ describe('createOpenAIProvider', () => {
 
   it('maps other non-2xx responses to unknown', async () => {
     const fetchImpl = vi.fn(async () => new Response('bad request', { status: 400 }));
-    await expect(provider(fetchImpl as unknown as typeof fetch).synthesize('Hi', opts)).rejects.toBeInstanceOf(
-      SynthesisError,
-    );
+    await expect(provider(fetchImpl as unknown as typeof fetch).synthesize('Hi', opts)).rejects.toMatchObject({
+      kind: 'unknown',
+    });
   });
 
   it('maps a thrown fetch into a network error', async () => {
@@ -76,11 +79,16 @@ describe('createOpenAIProvider', () => {
 
   it('lists one entry per voice and locale combination', async () => {
     const voices = await provider(vi.fn()).listVoices();
-    const ids = new Set(voices.map((v) => v.id));
-    const locales = new Set(voices.map((v) => v.locale));
-    expect(ids.has('alloy')).toBe(true);
-    expect(locales.has('en-US')).toBe(true);
-    expect(locales.has('zh-CN')).toBe(true);
-    expect(voices).toHaveLength(ids.size * locales.size);
+    expect(voices).toHaveLength(OPENAI_VOICES.length * OPENAI_LOCALES.length);
+
+    const expectedPairs = new Set<string>();
+    for (const voice of OPENAI_VOICES) {
+      for (const locale of OPENAI_LOCALES) {
+        expectedPairs.add(`${voice}|${locale}`);
+      }
+    }
+
+    const actualPairs = new Set(voices.map((v) => `${v.id}|${v.locale}`));
+    expect(actualPairs).toEqual(expectedPairs);
   });
 });
