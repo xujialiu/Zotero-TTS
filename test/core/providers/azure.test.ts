@@ -27,29 +27,38 @@ class FakeSocket {
   }
   close() {
     this.closed = true;
+    // Real sockets fire `close` asynchronously, and only after `close()` is
+    // called -- never synchronously within the call itself. Mirror that so
+    // tests can exercise the "onclose after we already settled" ordering.
+    queueMicrotask(() => this.onclose?.());
   }
 
-  /** 模拟服务端回一段音频与词边界，然后结束这一轮。 */
-  respond(words: unknown[], audio: number[]) {
+  /**
+   * 模拟服务端回一段词边界，然后按顺序回若干段音频，最后结束这一轮。
+   * 可传多个 audio chunk 来模拟多帧到达。
+   */
+  respond(words: unknown[], ...audioChunks: number[][]) {
     this.onmessage?.({
       data: buildTextFrame({ Path: 'audio.metadata' }, JSON.stringify({ Metadata: words })),
     });
 
-    const headerBytes = new TextEncoder().encode('Path: audio\r\n');
-    const payload = new Uint8Array(audio);
-    const buf = new Uint8Array(2 + headerBytes.length + payload.length);
-    new DataView(buf.buffer).setUint16(0, headerBytes.length, false);
-    buf.set(headerBytes, 2);
-    buf.set(payload, 2 + headerBytes.length);
-    this.onmessage?.({ data: buf.buffer });
+    for (const audio of audioChunks) {
+      const headerBytes = new TextEncoder().encode('Path: audio\r\n');
+      const payload = new Uint8Array(audio);
+      const buf = new Uint8Array(2 + headerBytes.length + payload.length);
+      new DataView(buf.buffer).setUint16(0, headerBytes.length, false);
+      buf.set(headerBytes, 2);
+      buf.set(payload, 2 + headerBytes.length);
+      this.onmessage?.({ data: buf.buffer });
+    }
 
     this.onmessage?.({ data: buildTextFrame({ Path: 'turn.end' }, '{}') });
   }
 }
 
-function provider() {
+function provider(fetchImpl: typeof fetch = vi.fn() as unknown as typeof fetch) {
   return createAzureProvider(cfg, {
-    fetch: vi.fn() as unknown as typeof fetch,
+    fetch: fetchImpl,
     getWebSocket: () => FakeSocket as unknown as typeof WebSocket,
     newRequestId: () => 'req-1',
   });
@@ -67,6 +76,22 @@ describe('createAzureProvider', () => {
       { fetch: vi.fn() as unknown as typeof fetch, getWebSocket: getWebSocket as never, newRequestId: () => 'r' },
     );
     await expect(p.synthesize('Hi', opts)).rejects.toMatchObject({ kind: 'no-key' });
+    expect(getWebSocket).not.toHaveBeenCalled();
+  });
+
+  it('rejects immediately without opening a socket when the signal is already aborted', async () => {
+    const getWebSocket = vi.fn();
+    const controller = new AbortController();
+    controller.abort();
+    const p = createAzureProvider(cfg, {
+      fetch: vi.fn() as unknown as typeof fetch,
+      getWebSocket: getWebSocket as never,
+      newRequestId: () => 'req-1',
+    });
+
+    await expect(p.synthesize('Hi', { ...opts, signal: controller.signal })).rejects.toMatchObject({
+      kind: 'unknown',
+    });
     expect(getWebSocket).not.toHaveBeenCalled();
   });
 
@@ -95,6 +120,19 @@ describe('createAzureProvider', () => {
     const result = await pending;
     const bytes = new Uint8Array(await result.audio.arrayBuffer());
     expect(Array.from(bytes)).toEqual([7, 8, 9]);
+  });
+
+  it('concatenates multiple audio frames in arrival order', async () => {
+    const pending = provider().synthesize('Hello', opts);
+    await Promise.resolve();
+    // Three chunks of differing lengths: an off-by-one in the offset
+    // accumulation (`at += c.length`) would misplace or drop bytes here,
+    // even though it could pass a single-chunk test.
+    FakeSocket.last.respond([], [1, 2], [3, 4, 5], [6]);
+
+    const result = await pending;
+    const bytes = new Uint8Array(await result.audio.arrayBuffer());
+    expect(Array.from(bytes)).toEqual([1, 2, 3, 4, 5, 6]);
   });
 
   it('converts word boundaries into timestamps aligned to the source text', async () => {
@@ -134,6 +172,53 @@ describe('createAzureProvider', () => {
     await expect(pending).rejects.toMatchObject({ kind: 'network' });
   });
 
+  it('rejects instead of hanging when onopen throws while sending the handshake', async () => {
+    class ThrowOnSendSocket extends FakeSocket {
+      send(): void {
+        throw new Error('send failed');
+      }
+    }
+    const p = createAzureProvider(cfg, {
+      fetch: vi.fn() as unknown as typeof fetch,
+      getWebSocket: () => ThrowOnSendSocket as unknown as typeof WebSocket,
+      newRequestId: () => 'req-1',
+    });
+
+    await expect(p.synthesize('Hello', opts)).rejects.toMatchObject({ kind: 'unknown' });
+  });
+
+  it('rejects with a SynthesisError instead of a raw value when the WebSocket constructor throws', async () => {
+    class ThrowingSocket {
+      constructor() {
+        throw new Error('bad url');
+      }
+    }
+    const p = createAzureProvider(cfg, {
+      fetch: vi.fn() as unknown as typeof fetch,
+      getWebSocket: () => ThrowingSocket as unknown as typeof WebSocket,
+      newRequestId: () => 'req-1',
+    });
+
+    await expect(p.synthesize('Hello', opts)).rejects.toMatchObject({ kind: 'unknown' });
+  });
+
+  it(
+    'rejects with a SynthesisError instead of hanging when a binary frame is truncated',
+    async () => {
+      const pending = provider().synthesize('Hello', opts);
+      await Promise.resolve();
+      const socket = FakeSocket.last;
+
+      // A 1-byte buffer cannot even hold the 2-byte header-length prefix that
+      // parseBinaryFrame reads first -- it throws a RangeError. The onmessage
+      // try/catch must turn that into a rejection, not a hang.
+      socket.onmessage?.({ data: new ArrayBuffer(1) });
+
+      await expect(pending).rejects.toMatchObject({ kind: 'unknown' });
+    },
+    1000,
+  );
+
   it('closes the socket once the turn ends', async () => {
     const pending = provider().synthesize('Hello', opts);
     await Promise.resolve();
@@ -141,5 +226,71 @@ describe('createAzureProvider', () => {
     socket.respond([], [1]);
     await pending;
     expect(socket.closed).toBe(true);
+  });
+
+  it('resolves rather than rejecting when onclose fires after a successful resolve', async () => {
+    const pending = provider().synthesize('Hello', opts);
+    await Promise.resolve();
+    const socket = FakeSocket.last;
+    socket.respond([], [1]);
+
+    const result = await pending;
+    expect(socket.closed).toBe(true);
+
+    // Flush the queued onclose (fired by finish()'s own socket.close() call)
+    // and prove it does not flip the already-settled promise to rejected.
+    await new Promise((r) => setTimeout(r, 0));
+    await expect(pending).resolves.toBe(result);
+  });
+
+  describe('listVoices', () => {
+    it('maps ShortName/LocalName/Locale into VoiceInfo', async () => {
+      const body = [
+        { ShortName: 'en-US-AvaNeural', LocalName: 'Ava', Locale: 'en-US' },
+        { ShortName: 'ja-JP-NanamiNeural', Locale: 'ja-JP' },
+      ];
+      const fetchImpl = vi.fn(async () => new Response(JSON.stringify(body), { status: 200 }));
+
+      const voices = await provider(fetchImpl as unknown as typeof fetch).listVoices();
+
+      expect(voices).toEqual([
+        { id: 'en-US-AvaNeural', label: 'Ava', locale: 'en-US' },
+        { id: 'ja-JP-NanamiNeural', label: 'ja-JP-NanamiNeural', locale: 'ja-JP' },
+      ]);
+
+      const [url, init] = (fetchImpl as any).mock.calls[0];
+      expect(url).toBe('https://eastasia.tts.speech.microsoft.com/cognitiveservices/voices/list');
+      expect(init.headers['Ocp-Apim-Subscription-Key']).toBe('key-1');
+    });
+
+    it('rejects with no-key before fetching when the key is empty', async () => {
+      const fetchImpl = vi.fn();
+      const p = createAzureProvider(
+        { ...cfg, apiKey: '' },
+        {
+          fetch: fetchImpl as unknown as typeof fetch,
+          getWebSocket: () => FakeSocket as unknown as typeof WebSocket,
+          newRequestId: () => 'r',
+        },
+      );
+      await expect(p.listVoices()).rejects.toMatchObject({ kind: 'no-key' });
+      expect(fetchImpl).not.toHaveBeenCalled();
+    });
+
+    it('maps a non-2xx response to unknown', async () => {
+      const fetchImpl = vi.fn(async () => new Response('nope', { status: 500 }));
+      await expect(provider(fetchImpl as unknown as typeof fetch).listVoices()).rejects.toMatchObject({
+        kind: 'unknown',
+      });
+    });
+
+    it('maps a thrown fetch into a network error', async () => {
+      const fetchImpl = vi.fn(async () => {
+        throw new TypeError('failed to fetch');
+      });
+      await expect(provider(fetchImpl as unknown as typeof fetch).listVoices()).rejects.toMatchObject({
+        kind: 'network',
+      });
+    });
   });
 });

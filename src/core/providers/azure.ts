@@ -65,6 +65,14 @@ export function createAzureProvider(cfg: AzureConfig, deps: AzureDeps): TTSProvi
       if (!cfg.apiKey) {
         return Promise.reject(new SynthesisError('no-key', 'Azure API key is not set'));
       }
+      // An already-aborted signal must short-circuit before we ever open a
+      // socket or run the handshake. The abort listener registered below only
+      // fires on a FUTURE abort event, not a signal that was already aborted
+      // when passed in, so without this guard we would still pay for a full
+      // connect and handshake before ever noticing the abort.
+      if (o.signal.aborted) {
+        return Promise.reject(new SynthesisError('unknown', 'aborted'));
+      }
 
       const WS = deps.getWebSocket();
       const requestId = deps.newRequestId();
@@ -74,7 +82,18 @@ export function createAzureProvider(cfg: AzureConfig, deps: AzureDeps): TTSProvi
         `&X-ConnectionId=${requestId}`;
 
       return new Promise<SynthesisResult>((resolve, reject) => {
-        const socket = new WS(url);
+        // The constructor itself can throw synchronously (e.g. a malformed
+        // URL). The Promise executor would auto-reject with that raw thrown
+        // value, which is not a SynthesisError -- and the hijack mode's
+        // toZoteroError maps anything that is not a SynthesisError to
+        // "unknown", silently discarding the real reason. Convert explicitly.
+        let socket: WebSocket;
+        try {
+          socket = new WS(url);
+        } catch (e) {
+          reject(new SynthesisError('unknown', String(e)));
+          return;
+        }
         socket.binaryType = 'arraybuffer';
 
         const chunks: Uint8Array[] = [];
@@ -89,7 +108,15 @@ export function createAzureProvider(cfg: AzureConfig, deps: AzureDeps): TTSProvi
           } catch {
             // 已经关了
           }
-          fn();
+          try {
+            fn();
+          } catch (e) {
+            // fn() is the resolve/reject call itself. settled is already true
+            // at this point, so a nested finish() call from some other catch
+            // would just no-op and the promise would never settle. Reject
+            // directly instead, bypassing the settled guard.
+            reject(new SynthesisError('unknown', String(e)));
+          }
         };
 
         o.signal.addEventListener('abort', () =>
@@ -101,35 +128,45 @@ export function createAzureProvider(cfg: AzureConfig, deps: AzureDeps): TTSProvi
           finish(() => reject(new SynthesisError('network', 'Azure socket closed before turn.end')));
 
         socket.onopen = () => {
-          const headers = (path: string, contentType: string) => ({
-            Path: path,
-            'X-RequestId': requestId,
-            'X-Timestamp': new Date().toISOString(),
-            'Content-Type': contentType,
-          });
+          // Sending the handshake frames can throw synchronously. A throw
+          // from an event-handler property does not propagate back to
+          // whatever triggered the event, and there is no .catch() on the
+          // promise this function returns -- so an unguarded throw here would
+          // leave synthesize() hanging forever, exactly like an unguarded
+          // onmessage would.
+          try {
+            const headers = (path: string, contentType: string) => ({
+              Path: path,
+              'X-RequestId': requestId,
+              'X-Timestamp': new Date().toISOString(),
+              'Content-Type': contentType,
+            });
 
-          socket.send(
-            buildTextFrame(
-              headers('speech.config', 'application/json'),
-              JSON.stringify({ context: { system: { name: 'zotero-tts' } } }),
-            ),
-          );
-          socket.send(
-            buildTextFrame(
-              headers('synthesis.context', 'application/json'),
-              JSON.stringify({
-                synthesis: {
-                  audio: {
-                    metadataOptions: { wordBoundaryEnabled: true, sentenceBoundaryEnabled: false },
-                    outputFormat: OUTPUT_FORMAT,
+            socket.send(
+              buildTextFrame(
+                headers('speech.config', 'application/json'),
+                JSON.stringify({ context: { system: { name: 'zotero-tts' } } }),
+              ),
+            );
+            socket.send(
+              buildTextFrame(
+                headers('synthesis.context', 'application/json'),
+                JSON.stringify({
+                  synthesis: {
+                    audio: {
+                      metadataOptions: { wordBoundaryEnabled: true, sentenceBoundaryEnabled: false },
+                      outputFormat: OUTPUT_FORMAT,
+                    },
                   },
-                },
-              }),
-            ),
-          );
-          socket.send(
-            buildTextFrame(headers('ssml', 'application/ssml+xml'), buildSSML(text, o.voice, o.speed)),
-          );
+                }),
+              ),
+            );
+            socket.send(
+              buildTextFrame(headers('ssml', 'application/ssml+xml'), buildSSML(text, o.voice, o.speed)),
+            );
+          } catch (e) {
+            finish(() => reject(new SynthesisError('unknown', String(e))));
+          }
         };
 
         socket.onmessage = (event: MessageEvent) => {
