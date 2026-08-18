@@ -61,11 +61,12 @@ export function createRemoteInterface(deps: RemoteInterfaceDeps): RemoteInterfac
         return { audio: null, error: 'unknown' };
       }
 
-      const text = segment === 'sample' ? SAMPLE_TEXT : segment.text;
-      const speed = deps.getSpeed();
-      const key = [deps.cacheVersion(), decoded.provider, decoded.voiceId, speed, text].join(' ');
-
       try {
+        const text = segment === 'sample' ? SAMPLE_TEXT : segment.text;
+        const speed = deps.getSpeed();
+        const cacheVersion = deps.cacheVersion();
+        const key = JSON.stringify([cacheVersion, decoded.provider, decoded.voiceId, speed, text]);
+
         const hit = await deps.cache?.match(key);
         if (hit) return { audio: hit.audio, timestamps: hit.timestamps };
 

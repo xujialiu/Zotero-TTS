@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { SynthesisError } from '../../../src/core/providers/errors';
 import type { TTSProvider } from '../../../src/core/providers/types';
-import { createRemoteInterface } from '../../../src/modes/hijack/remote-interface';
+import { createRemoteInterface, SAMPLE_TEXT } from '../../../src/modes/hijack/remote-interface';
 import { encodeVoiceId } from '../../../src/modes/hijack/voice-catalog';
 
 function fakeProvider(overrides: Partial<TTSProvider> = {}): TTSProvider {
@@ -30,8 +30,8 @@ describe('getVoices', () => {
     const result = await createRemoteInterface(deps()).getVoices();
     expect(result.standardCreditsRemaining).toBeNull();
     expect(result.premiumCreditsRemaining).toBeNull();
-    expect(result.voices.standard).toHaveLength(1);
     expect(result.error).toBeUndefined();
+    expect(result.voices!.standard).toHaveLength(1);
   });
 
   it('reports an error field instead of throwing when listing fails', async () => {
@@ -74,8 +74,60 @@ describe('getAudio', () => {
     await iface.getAudio('sample', voice);
 
     expect(synthesize).toHaveBeenCalledOnce();
-    expect((synthesize as any).mock.calls[0][0]).toEqual(expect.any(String));
-    expect((synthesize as any).mock.calls[0][0].length).toBeGreaterThan(0);
+    expect((synthesize as any).mock.calls[0][0]).toBe(SAMPLE_TEXT);
+  });
+
+  it('resolves with error when cacheVersion throws', async () => {
+    const iface = createRemoteInterface({
+      ...deps(),
+      cacheVersion: () => {
+        throw new Error('cache error');
+      },
+    });
+    const result = await iface.getAudio({ text: 'Hello' }, voice);
+    expect(result.audio).toBeNull();
+    expect(result.error).toBe('unknown');
+  });
+
+  it('resolves with error when getSpeed throws', async () => {
+    const iface = createRemoteInterface({
+      ...deps(),
+      getSpeed: () => {
+        throw new Error('speed error');
+      },
+    });
+    const result = await iface.getAudio({ text: 'Hello' }, voice);
+    expect(result.audio).toBeNull();
+    expect(result.error).toBe('unknown');
+  });
+
+  it('handles null voice argument gracefully', async () => {
+    const iface = createRemoteInterface(deps());
+    const result = await iface.getAudio({ text: 'Hello' }, null as any);
+    expect(result.audio).toBeNull();
+    expect(result.error).toBe('unknown');
+  });
+
+  it('uses JSON.stringify for cache keys to prevent collisions', async () => {
+    const put = vi.fn(async () => {});
+    const iface = createRemoteInterface({
+      ...deps(),
+      cache: { match: async () => null, put },
+    });
+
+    // Two requests that would collide with space-joined keys:
+    // Old: "v1 openai alloy 1 5 hi" and "v1 openai alloy 1 5 hi"
+    // New: JSON.stringify distinguishes them
+    await iface.getAudio({ text: '5 hi' }, { id: encodeVoiceId('openai', 'alloy 1') });
+    const key1 = (put as any).mock.calls[0][0] as string;
+
+    put.mockClear();
+
+    await iface.getAudio({ text: 'hi' }, { id: encodeVoiceId('openai', 'alloy') });
+    const key2 = (put as any).mock.calls[0][0] as string;
+
+    // Keys should be different despite what would have been a collision in space-joined format
+    expect(key1).not.toBe(key2);
   });
 
   it('returns a Zotero error string rather than rejecting', async () => {
