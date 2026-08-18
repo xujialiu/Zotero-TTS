@@ -110,24 +110,40 @@ describe('getAudio', () => {
 
   it('uses JSON.stringify for cache keys to prevent collisions', async () => {
     const put = vi.fn(async () => {});
-    const iface = createRemoteInterface({
-      ...deps(),
+    const cacheVersion = 'v1';
+    const provider = 'openai' as const;
+
+    // Request A: voiceId='alloy 1', speed=5, text='hi'
+    const iface1 = createRemoteInterface({
+      listCatalog: async () => [{ provider, voices: [] }],
+      getProvider: () => fakeProvider(),
+      getSpeed: () => 5,
+      cacheVersion: () => cacheVersion,
       cache: { match: async () => null, put },
     });
-
-    // Two requests that would collide with space-joined keys:
-    // Old: "v1 openai alloy 1 5 hi" and "v1 openai alloy 1 5 hi"
-    // New: JSON.stringify distinguishes them
-    await iface.getAudio({ text: '5 hi' }, { id: encodeVoiceId('openai', 'alloy 1') });
-    const key1 = (put as any).mock.calls[0][0] as string;
+    await iface1.getAudio({ text: 'hi' }, { id: encodeVoiceId(provider, 'alloy 1') });
+    const keyA = (put as any).mock.calls[0][0] as string;
 
     put.mockClear();
 
-    await iface.getAudio({ text: 'hi' }, { id: encodeVoiceId('openai', 'alloy') });
-    const key2 = (put as any).mock.calls[0][0] as string;
+    // Request B: voiceId='alloy', speed=1, text='5 hi'
+    const iface2 = createRemoteInterface({
+      listCatalog: async () => [{ provider, voices: [] }],
+      getProvider: () => fakeProvider(),
+      getSpeed: () => 1,
+      cacheVersion: () => cacheVersion,
+      cache: { match: async () => null, put },
+    });
+    await iface2.getAudio({ text: '5 hi' }, { id: encodeVoiceId(provider, 'alloy') });
+    const keyB = (put as any).mock.calls[0][0] as string;
 
-    // Keys should be different despite what would have been a collision in space-joined format
-    expect(key1).not.toBe(key2);
+    // Prove these inputs would have collided under the old space-joined scheme
+    const oldSchemeKeyA = [cacheVersion, provider, 'alloy 1', 5, 'hi'].join(' ');
+    const oldSchemeKeyB = [cacheVersion, provider, 'alloy', 1, '5 hi'].join(' ');
+    expect(oldSchemeKeyA).toBe(oldSchemeKeyB);
+
+    // But they differ under JSON.stringify
+    expect(keyA).not.toBe(keyB);
   });
 
   it('returns a Zotero error string rather than rejecting', async () => {
