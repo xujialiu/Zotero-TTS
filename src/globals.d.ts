@@ -2,6 +2,7 @@
 // Zotero 的整个 API 建模，只在用到的地方就地收窄。
 declare const Zotero: any;
 declare const Services: any;
+declare const Components: any;
 
 interface Document {
   createXULElement(name: string): HTMLElement;
