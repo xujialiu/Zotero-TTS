@@ -22,11 +22,11 @@ export function localeForKokoroVoice(voiceId: string): string {
   return LOCALE_BY_PREFIX[voiceId[0]] ?? 'en-US';
 }
 
-function base64ToBytes(b64: string): Uint8Array {
+function base64ToBytes(b64: string): ArrayBuffer {
   const binary = atob(b64);
   const bytes = new Uint8Array(binary.length);
   for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-  return bytes;
+  return bytes.buffer;
 }
 
 type CaptionedResponse = {
@@ -66,7 +66,12 @@ function createKokoroProvider(baseURL: string, deps: { fetch: typeof fetch }): T
       if (!response.ok) {
         throw new SynthesisError('unknown', `Kokoro voices returned ${response.status}`);
       }
-      const body = (await response.json()) as { voices?: unknown };
+      let body: { voices?: unknown };
+      try {
+        body = (await response.json()) as { voices?: unknown };
+      } catch (e) {
+        throw new SynthesisError('decode-failed', `Kokoro voices response is not valid JSON: ${e}`);
+      }
       const ids = Array.isArray(body.voices) ? body.voices.filter((v): v is string => typeof v === 'string') : [];
       return ids.map((id) => ({ id, label: id, locale: localeForKokoroVoice(id) }));
     },
@@ -90,12 +95,23 @@ function createKokoroProvider(baseURL: string, deps: { fetch: typeof fetch }): T
       const captioned = await call('/dev/captioned_speech', init);
 
       if (captioned.ok) {
-        const body = (await captioned.json()) as CaptionedResponse;
+        let body: CaptionedResponse;
+        try {
+          body = (await captioned.json()) as CaptionedResponse;
+        } catch (e) {
+          throw new SynthesisError('decode-failed', `Kokoro captioned response is not valid JSON: ${e}`);
+        }
         if (typeof body.audio === 'string') {
+          let audioBlob: Blob;
+          try {
+            audioBlob = new Blob([base64ToBytes(body.audio)], { type: 'audio/mpeg' });
+          } catch (e) {
+            throw new SynthesisError('decode-failed', `Kokoro audio is not valid base64: ${e}`);
+          }
           const words = toTimedWords(body.timestamps);
           const timestamps = words.length ? alignWordsToText(words, text) : undefined;
           return {
-            audio: new Blob([base64ToBytes(body.audio)], { type: 'audio/mpeg' }),
+            audio: audioBlob,
             ...(timestamps?.length ? { timestamps } : {}),
           };
         }

@@ -100,4 +100,31 @@ describe('kokoroAdapter', () => {
       kind: 'local-server-down',
     });
   });
+
+  it('reports invalid base64 audio as decode-failed', async () => {
+    const fetchImpl = vi.fn(async () => Response.json({ audio: 'not-valid-base64!!!', timestamps: [] }));
+    await expect(provider(fetchImpl).synthesize('Hello', opts)).rejects.toMatchObject({
+      kind: 'decode-failed',
+    });
+  });
+
+  it('reports non-JSON listVoices response as decode-failed', async () => {
+    const fetchImpl = vi.fn(async () => new Response('not json', { status: 200 }));
+    await expect(provider(fetchImpl).listVoices()).rejects.toMatchObject({
+      kind: 'decode-failed',
+    });
+  });
+
+  it('falls back to plain endpoint when captioned response has no audio field', async () => {
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValueOnce(Response.json({ timestamps: [] }))
+      .mockResolvedValueOnce(new Response(new Blob([new Uint8Array([7])]), { status: 200 }));
+
+    const result = await provider(fetchImpl).synthesize('Hello', opts);
+
+    expect((fetchImpl as any).mock.calls[1][0]).toBe('http://localhost:8880/v1/audio/speech');
+    expect(Array.from(new Uint8Array(await result.audio.arrayBuffer()))).toEqual([7]);
+    expect('timestamps' in result).toBe(false);
+  });
 });
