@@ -1,0 +1,74 @@
+<!-- 不要在这里加 onload：面板初始化只由 preferences-shim.js 一处触发，
+     两处都调会重复注册事件监听器。 -->
+<vbox>
+  <groupbox>
+    <label><html:h2>Mode</html:h2></label>
+    <radiogroup id="ztts-mode" preference="extensions.zotero.zotero-tts.mode">
+      <radio value="hijack" label="Use Zotero's built-in player"/>
+      <radio value="standalone" label="Use the plugin's own player"/>
+    </radiogroup>
+    <description>Reopen any open reader tabs after changing this.</description>
+  </groupbox>
+
+  <groupbox>
+    <label><html:h2>Provider</html:h2></label>
+    <radiogroup id="ztts-provider" preference="extensions.zotero.zotero-tts.provider">
+      <radio value="openai" label="OpenAI"/>
+      <radio value="azure" label="Azure"/>
+      <radio value="local" label="Local"/>
+    </radiogroup>
+    <description id="ztts-capability"/>
+
+    <hbox align="center">
+      <label value="OpenAI API key"/>
+      <html:input type="password" preference="extensions.zotero.zotero-tts.openai.apiKey"/>
+    </hbox>
+    <hbox align="center">
+      <label value="OpenAI base URL"/>
+      <html:input type="text" preference="extensions.zotero.zotero-tts.openai.baseURL"/>
+    </hbox>
+    <hbox align="center">
+      <label value="OpenAI model"/>
+      <html:input type="text" preference="extensions.zotero.zotero-tts.openai.model"/>
+    </hbox>
+
+    <hbox align="center">
+      <label value="Azure API key"/>
+      <html:input type="password" preference="extensions.zotero.zotero-tts.azure.apiKey"/>
+    </hbox>
+    <hbox align="center">
+      <label value="Azure region"/>
+      <html:input type="text" preference="extensions.zotero.zotero-tts.azure.region"/>
+    </hbox>
+  </groupbox>
+
+  <groupbox>
+    <label><html:h2>Local engine</html:h2></label>
+    <hbox align="center">
+      <label value="Engine"/>
+      <menulist id="ztts-engine" preference="extensions.zotero.zotero-tts.local.engine">
+        <menupopup id="ztts-engine-popup"/>
+      </menulist>
+    </hbox>
+    <hbox align="center">
+      <label value="Address"/>
+      <html:input type="text" preference="extensions.zotero.zotero-tts.local.baseURL"/>
+      <button id="ztts-test" label="Test connection"/>
+    </hbox>
+    <description id="ztts-test-result"/>
+  </groupbox>
+
+  <groupbox>
+    <label><html:h2>Reading</html:h2></label>
+    <hbox align="center">
+      <label value="Speed"/>
+      <html:input type="number" min="0.5" max="3" step="0.1"
+                  preference="extensions.zotero.zotero-tts.speed"/>
+    </hbox>
+    <hbox align="center">
+      <label value="Prefetch (sentences)"/>
+      <html:input type="number" min="1" max="10" step="1"
+                  preference="extensions.zotero.zotero-tts.prefetch"/>
+    </hbox>
+  </groupbox>
+</vbox>
