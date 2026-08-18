@@ -120,8 +120,17 @@ async function startup({ id, version, rootURI }: StartupParams): Promise<void> {
   pluginVersion = version;
   await registerPrefsPane(rootURI, id);
 
-  if (loadSettings(prefs).mode === 'hijack') {
-    startHijack();
+  // 主动捕获：_readers 或其它我们伸手进去的 Zotero 内部一旦改名/挪动就会
+  // 在这里抛出。不接住的话 startup() 会 reject 且没有任何提示 ——
+  // 设置面板已经注册好、看着正常，朗读却悄无声息地不出音色。宁可劫持
+  // 装不上，也要让插件的其余部分（至少是设置面板）照常可用。
+  try {
+    if (loadSettings(prefs).mode === 'hijack') {
+      startHijack();
+    }
+  } catch (e) {
+    Zotero.logError(e);
+    Zotero.debug('[zotero-tts] failed to start hijack mode');
   }
   Zotero.debug('[zotero-tts] started');
 }
