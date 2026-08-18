@@ -66,4 +66,37 @@ describe('alignWordsToText', () => {
   it('returns an empty array when there are no words', () => {
     expect(alignWordsToText([], 'anything')).toEqual([]);
   });
+
+  it('handles Turkish, exercising length-changing fold (İ → i̇)', () => {
+    const sourceText = 'İstanbul is great';
+    const out = alignWordsToText(
+      [
+        { text: 'İstanbul', start: 0, end: 0.5 },
+        { text: 'is', start: 0.5, end: 0.7 },
+        { text: 'great', start: 0.7, end: 1.2 },
+      ],
+      sourceText,
+    );
+    expect(out).toHaveLength(3);
+    expect(out.map((t) => t.charStart)).toEqual([0, 9, 12]);
+    expect(out.map((t) => t.charEnd)).toEqual([8, 11, 17]);
+    // Verify that slicing the source gives us the correct words
+    expect(sourceText.slice(out[0].charStart, out[0].charEnd)).toBe('İstanbul');
+    expect(sourceText.slice(out[1].charStart, out[1].charEnd)).toBe('is');
+    expect(sourceText.slice(out[2].charStart, out[2].charEnd)).toBe('great');
+  });
+
+  it('handles Greek final sigma, guarding per-code-point folding', () => {
+    const sourceText = 'ΟΔΟΣ ΑΣ';
+    const out = alignWordsToText(
+      [
+        { text: 'ΟΔΟΣ', start: 0, end: 0.5 },
+        { text: 'ΑΣ', start: 0.5, end: 1.0 },
+      ],
+      sourceText,
+    );
+    expect(out).toHaveLength(2);
+    expect(out.map((t) => t.charStart)).toEqual([0, 5]);
+    expect(out.map((t) => t.charEnd)).toEqual([4, 7]);
+  });
 });
