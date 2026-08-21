@@ -131,12 +131,10 @@ async function startup({ id, version, rootURI }: StartupParams): Promise<void> {
   // 设置面板已经注册好、看着正常，朗读却悄无声息地不出音色。宁可劫持
   // 装不上，也要让插件的其余部分（至少是设置面板）照常可用。
   try {
-    if (loadSettings(prefs).mode === 'hijack') {
-      startHijack();
-    }
+    startHijack();
   } catch (e) {
     Zotero.logError(e);
-    Zotero.debug('[zotero-tts] failed to start hijack mode');
+    Zotero.debug('[zotero-tts] failed to install the Read Aloud hook');
   }
   Zotero.debug('[zotero-tts] started');
 }

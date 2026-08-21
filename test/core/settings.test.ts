@@ -17,6 +17,17 @@ describe('loadSettings', () => {
     expect(loadSettings(fakePrefs())).toEqual(DEFAULTS);
   });
 
+  // The plugin has exactly one way of working: it drives Zotero's built-in
+  // Read Aloud player. The earlier "mode" switch (hijack vs. a standalone
+  // player) was removed once the hijack was confirmed live in a real Zotero,
+  // and a leftover pref from that era must be ignored, not surfaced.
+  it('has no mode field, and ignores a stale mode pref from an older build', () => {
+    const prefs = fakePrefs({ 'extensions.zotero.zotero-tts.mode': 'standalone' });
+    const s = loadSettings(prefs);
+    expect('mode' in s).toBe(false);
+    expect('mode' in DEFAULTS).toBe(false);
+  });
+
   it('reads stored values using the extensions.zotero.zotero-tts. prefix', () => {
     const prefs = fakePrefs({
       'extensions.zotero.zotero-tts.provider': 'azure',

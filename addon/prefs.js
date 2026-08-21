@@ -1,5 +1,4 @@
 /* eslint-disable no-undef */
-pref('extensions.zotero.zotero-tts.mode', 'hijack');
 pref('extensions.zotero.zotero-tts.provider', 'openai');
 pref('extensions.zotero.zotero-tts.openai.apiKey', '');
 pref('extensions.zotero.zotero-tts.openai.baseURL', 'https://api.openai.com');

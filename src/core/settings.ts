@@ -1,9 +1,6 @@
 import type { ProviderId } from './providers/types';
 
-export type Mode = 'hijack' | 'standalone';
-
 export interface Settings {
-  mode: Mode;
   provider: ProviderId;
   openai: { apiKey: string; baseURL: string; model: string; voice: string };
   azure: { apiKey: string; region: string; voice: string };
@@ -20,7 +17,6 @@ export interface PrefsBackend {
 const PREFIX = 'extensions.zotero.zotero-tts.';
 
 export const DEFAULTS: Settings = {
-  mode: 'hijack',
   provider: 'openai',
   openai: {
     apiKey: '',
@@ -34,7 +30,6 @@ export const DEFAULTS: Settings = {
   prefetch: 3,
 };
 
-const MODES: readonly Mode[] = ['hijack', 'standalone'];
 const PROVIDERS: readonly ProviderId[] = ['openai', 'azure', 'local'];
 
 function str(prefs: PrefsBackend, key: string, fallback: string): string {
@@ -55,7 +50,6 @@ function oneOf<T extends string>(prefs: PrefsBackend, key: string, allowed: read
 
 export function loadSettings(prefs: PrefsBackend): Settings {
   return {
-    mode: oneOf(prefs, 'mode', MODES, DEFAULTS.mode),
     provider: oneOf(prefs, 'provider', PROVIDERS, DEFAULTS.provider),
     openai: {
       apiKey: str(prefs, 'openai.apiKey', DEFAULTS.openai.apiKey),
@@ -79,7 +73,6 @@ export function loadSettings(prefs: PrefsBackend): Settings {
 }
 
 export function saveSettings(prefs: PrefsBackend, s: Settings): void {
-  prefs.set(PREFIX + 'mode', s.mode);
   prefs.set(PREFIX + 'provider', s.provider);
   for (const [k, v] of Object.entries(s.openai)) prefs.set(PREFIX + 'openai.' + k, v);
   for (const [k, v] of Object.entries(s.azure)) prefs.set(PREFIX + 'azure.' + k, v);
