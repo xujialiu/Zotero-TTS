@@ -46,6 +46,13 @@ export type RemoteInterfaceDeps = {
    * so unit tests can omit it; when absent, no signal is passed at all.
    */
   newAbortController?(): AbortController;
+  /**
+   * Re-creates the provider's Blob in whatever compartment the caller needs it
+   * to live in (in Zotero: the chrome window). Applied before the audio is
+   * cached or returned, so nothing outside this module ever touches the
+   * sandbox-owned original. Optional: unit tests run in one compartment.
+   */
+  adoptAudio?(blob: Blob): Blob;
 };
 
 type ZoteroSegment = { text: string } | 'sample';
@@ -103,11 +110,17 @@ export function createRemoteInterface(deps: RemoteInterfaceDeps): RemoteInterfac
         if (hit) return { audio: hit.audio, timestamps: hit.timestamps };
 
         const provider = deps.getProvider(decoded.provider);
-        const result = await provider.synthesize(text, {
+        const synthesized = await provider.synthesize(text, {
           voice: decoded.voiceId,
           speed,
           signal: (deps.newAbortController?.() ?? neverAbort()).signal,
         });
+        // Move the audio into the caller's compartment BEFORE it is cached or
+        // handed back; the provider's sandbox-owned Blob must not leak past
+        // this line (see RemoteInterfaceDeps.adoptAudio).
+        const result = deps.adoptAudio
+          ? { ...synthesized, audio: deps.adoptAudio(synthesized.audio) }
+          : synthesized;
 
         await deps.cache?.put(key, result);
         return { audio: result.audio, timestamps: result.timestamps };

@@ -12,3 +12,4 @@ pref('extensions.zotero.zotero-tts.local.baseURL', 'http://localhost:8880');
 pref('extensions.zotero.zotero-tts.local.voice', 'af_bella');
 pref('extensions.zotero.zotero-tts.speed', 1);
 pref('extensions.zotero.zotero-tts.prefetch', 3);
+pref('extensions.zotero.zotero-tts.cacheAudio', true);

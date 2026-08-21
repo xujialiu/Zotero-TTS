@@ -85,8 +85,20 @@ function startHijack(): void {
         getProvider: (id) => createProvider({ ...loadSettings(prefs), provider: id }, providerDeps()),
         getSpeed: () => loadSettings(prefs).speed,
         cacheVersion,
-        cache: makeCache(reader._window),
+        cache: loadSettings(prefs).cacheAudio ? makeCache(reader._window) : undefined,
         log: (e) => Zotero.logError(e),
+        // Every provider builds its audio Blob inside the plugin sandbox. It
+        // then crosses two compartment boundaries: Cu.cloneInto into the
+        // reader iframe, and new win.Response(...) + caches.put on the chrome
+        // window. Native Zotero never does this — its Blob is created in the
+        // chrome window, the same compartment as Response and caches. A
+        // sandbox-owned Blob handed to the Cache API's IO thread is exactly
+        // the ownership violation Gecko guards with a release assert
+        // (observed as an EXCEPTION_BREAKPOINT crash in xul.dll on first
+        // playback, before the cache was warm). Re-create the Blob in the
+        // chrome window first; the bytes are copied, the sandbox object is
+        // never seen by anything outside the plugin.
+        adoptAudio: (blob) => new reader._window.Blob([blob], { type: blob.type || 'audio/mpeg' }),
         // AbortController is not on the sandbox whitelist (spec §2.10); take
         // it from the reader's chrome window, the same way WebSocket and
         // caches are obtained. Per call, never cached, so a closed window is

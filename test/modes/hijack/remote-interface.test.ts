@@ -68,6 +68,29 @@ describe('getAudio', () => {
     }
   });
 
+  // Providers build their Blob inside the plugin sandbox. In Zotero it must be
+  // re-created in the chrome window BEFORE it is cached or returned, because a
+  // sandbox-owned Blob reaching the Cache API's IO thread trips a Gecko release
+  // assert and takes the whole process down. Pin that the adopter sees the
+  // provider's Blob and that both the cache and the caller get the adopted one.
+  it('routes the audio through adoptAudio before caching and before returning it', async () => {
+    const original = new Blob(['from-provider']);
+    const adopted = new Blob(['adopted']);
+    const adoptAudio = vi.fn(() => adopted);
+    const put = vi.fn(async () => {});
+    const iface = createRemoteInterface({
+      ...deps(fakeProvider({ synthesize: async () => ({ audio: original }) })),
+      adoptAudio,
+      cache: { match: async () => null, put },
+    });
+
+    const result = await iface.getAudio({ text: 'Hello' }, voice);
+
+    expect(adoptAudio).toHaveBeenCalledWith(original);
+    expect(result.audio).toBe(adopted);
+    expect((put as any).mock.calls[0][1].audio).toBe(adopted);
+  });
+
   it('passes the signal from the injected factory to the provider', async () => {
     const controller = new AbortController();
     const synthesize = vi.fn(async () => ({ audio: new Blob(['x']) }));

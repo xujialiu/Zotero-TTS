@@ -7,6 +7,8 @@ export interface Settings {
   local: { engine: string; baseURL: string; voice: string };
   speed: number;
   prefetch: number;
+  /** Cache synthesized audio in the chrome window's Cache API. */
+  cacheAudio: boolean;
 }
 
 export interface PrefsBackend {
@@ -28,6 +30,7 @@ export const DEFAULTS: Settings = {
   local: { engine: 'kokoro', baseURL: 'http://localhost:8880', voice: 'af_bella' },
   speed: 1,
   prefetch: 3,
+  cacheAudio: true,
 };
 
 const PROVIDERS: readonly ProviderId[] = ['openai', 'azure', 'local'];
@@ -41,6 +44,11 @@ function num(prefs: PrefsBackend, key: string, fallback: number, min: number, ma
   const v = prefs.get(PREFIX + key);
   if (typeof v !== 'number' || Number.isNaN(v)) return fallback;
   return Math.min(max, Math.max(min, v));
+}
+
+function bool(prefs: PrefsBackend, key: string, fallback: boolean): boolean {
+  const v = prefs.get(PREFIX + key);
+  return typeof v === 'boolean' ? v : fallback;
 }
 
 function oneOf<T extends string>(prefs: PrefsBackend, key: string, allowed: readonly T[], fallback: T): T {
@@ -69,6 +77,7 @@ export function loadSettings(prefs: PrefsBackend): Settings {
     },
     speed: num(prefs, 'speed', DEFAULTS.speed, 0.5, 3),
     prefetch: num(prefs, 'prefetch', DEFAULTS.prefetch, 1, 10),
+    cacheAudio: bool(prefs, 'cacheAudio', DEFAULTS.cacheAudio),
   };
 }
 
@@ -79,6 +88,7 @@ export function saveSettings(prefs: PrefsBackend, s: Settings): void {
   for (const [k, v] of Object.entries(s.local)) prefs.set(PREFIX + 'local.' + k, v);
   prefs.set(PREFIX + 'speed', s.speed);
   prefs.set(PREFIX + 'prefetch', s.prefetch);
+  prefs.set(PREFIX + 'cacheAudio', s.cacheAudio);
 }
 
 /** 唯一接触 Zotero 全局的地方，故意隔离在此，其余代码只依赖 PrefsBackend。 */
