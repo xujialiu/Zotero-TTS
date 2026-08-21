@@ -26,4 +26,27 @@ describe('build', () => {
     expect(manifest.applications.zotero.id).toBe('zotero-tts@xujialiu.top');
     expect(manifest.applications.zotero.strict_min_version).toBe('10.0');
   });
+
+  // Zotero 10's Extension.sys.mjs (parseManifest) hard-rejects any extension
+  // whose applications.zotero lacks id, update_url, or strict_max_version —
+  // the install dialog then shows only "may be incompatible", with no detail.
+  // These three are therefore install-blocking, not cosmetic.
+  it('carries every field Zotero 10 refuses to install without', () => {
+    execFileSync('node', ['scripts/build.mjs'], { cwd: root, stdio: 'pipe' });
+    const entry = new AdmZip(xpi).getEntry('manifest.json');
+    const { zotero } = JSON.parse(entry!.getData().toString('utf8')).applications;
+    expect(typeof zotero.id).toBe('string');
+    expect(zotero.update_url).toMatch(/^https:\/\//);
+    expect(zotero.strict_max_version).toMatch(/^\d+\.\*$/);
+  });
+
+  it('packages every runtime file the plugin loads by path', () => {
+    execFileSync('node', ['scripts/build.mjs'], { cwd: root, stdio: 'pipe' });
+    const names = new AdmZip(xpi).getEntries().map((e) => e.entryName);
+    // prefs.js supplies every default; the two content files are loaded by
+    // registerPrefsPane. Dropping any of them breaks the pane or all defaults.
+    expect(names).toContain('prefs.js');
+    expect(names).toContain('content/preferences.xhtml');
+    expect(names).toContain('content/preferences-shim.js');
+  });
 });
