@@ -1,9 +1,10 @@
 import { getChromeWebSocket, newRequestId } from './core/providers/azure';
 import { createProvider } from './core/providers/factory';
-import type { ProviderId, SynthesisResult, VoiceInfo } from './core/providers/types';
+import type { ProviderId, VoiceInfo } from './core/providers/types';
+import { createMemoryCache } from './core/memory-cache';
 import { createZoteroPrefs, loadSettings } from './core/settings';
 import { installHijack } from './modes/hijack';
-import { createRemoteInterface, type AudioCache, type RemoteInterface } from './modes/hijack/remote-interface';
+import { createRemoteInterface, type RemoteInterface } from './modes/hijack/remote-interface';
 import { onPaneLoad, registerPrefsPane } from './ui/prefs-pane';
 
 export interface StartupParams {
@@ -24,42 +25,13 @@ function cacheVersion(): string {
 }
 
 /**
- * `caches` 不在插件沙箱的全局白名单里（spec §2.10），从 reader 所在的
- * chrome 窗口取。取不到就不缓存 —— 少一层缓存不影响正确性。
+ * One process-wide audio cache, in memory. Replaces the Cache API: driving
+ * `win.caches` from the plugin sandbox crashed Zotero with a Gecko release
+ * assert on the DOMCacheThread on every playback (see core/memory-cache.ts).
+ * 64 MiB is roughly forty minutes of 48 kbit/s speech — enough to make
+ * re-reading a paragraph free, small enough to never matter.
  */
-function makeCache(win: any): AudioCache | undefined {
-  if (!win?.caches) return undefined;
-  const opened = win.caches.open('zotero-tts');
-  const urlFor = (key: string) => 'https://zotero-tts.invalid/audio?k=' + encodeURIComponent(key);
-
-  return {
-    async match(key) {
-      try {
-        const cache = await opened;
-        const hit = await cache.match(urlFor(key));
-        if (!hit) return null;
-        const header = hit.headers.get('X-ZTTS-Timestamps');
-        return {
-          audio: await hit.blob(),
-          timestamps: header ? JSON.parse(header) : undefined,
-        } as SynthesisResult;
-      } catch (e) {
-        Zotero.logError(e);
-        return null;
-      }
-    },
-    async put(key, value) {
-      try {
-        const cache = await opened;
-        const headers: Record<string, string> = {};
-        if (value.timestamps) headers['X-ZTTS-Timestamps'] = JSON.stringify(value.timestamps);
-        await cache.put(urlFor(key), new win.Response(value.audio, { headers }));
-      } catch (e) {
-        Zotero.logError(e);
-      }
-    },
-  };
-}
+const audioCache = createMemoryCache({ maxBytes: 64 * 1024 * 1024 });
 
 function providerDeps() {
   return { fetch, getWebSocket: getChromeWebSocket, newRequestId };
@@ -85,19 +57,17 @@ function startHijack(): void {
         getProvider: (id) => createProvider({ ...loadSettings(prefs), provider: id }, providerDeps()),
         getSpeed: () => loadSettings(prefs).speed,
         cacheVersion,
-        cache: loadSettings(prefs).cacheAudio ? makeCache(reader._window) : undefined,
+        cache: loadSettings(prefs).cacheAudio ? audioCache : undefined,
         log: (e) => Zotero.logError(e),
-        // Every provider builds its audio Blob inside the plugin sandbox. It
-        // then crosses two compartment boundaries: Cu.cloneInto into the
-        // reader iframe, and new win.Response(...) + caches.put on the chrome
-        // window. Native Zotero never does this — its Blob is created in the
-        // chrome window, the same compartment as Response and caches. A
-        // sandbox-owned Blob handed to the Cache API's IO thread is exactly
-        // the ownership violation Gecko guards with a release assert
-        // (observed as an EXCEPTION_BREAKPOINT crash in xul.dll on first
-        // playback, before the cache was warm). Re-create the Blob in the
-        // chrome window first; the bytes are copied, the sandbox object is
-        // never seen by anything outside the plugin.
+        // Every provider builds its audio Blob inside the plugin sandbox, and
+        // it is then Cu.cloneInto'd into the reader iframe. Native Zotero's
+        // Blob is created in the chrome window (syncAPIClient.js), so the
+        // compartment hop native performs is chrome -> reader, never
+        // sandbox -> reader. Re-create the Blob in the chrome window first so
+        // the hop we make is the one native makes; the bytes are copied and
+        // the sandbox object never leaves the plugin. (Kept after the Cache
+        // API was removed: it was not the crash cause, but parity with the
+        // native path is cheap and removes a difference we cannot test.)
         adoptAudio: (blob) => new reader._window.Blob([blob], { type: blob.type || 'audio/mpeg' }),
         // AbortController is not on the sandbox whitelist (spec §2.10); take
         // it from the reader's chrome window, the same way WebSocket and
