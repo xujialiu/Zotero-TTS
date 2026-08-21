@@ -4,6 +4,28 @@ import { buildVoicesResponse, decodeVoiceId } from './voice-catalog';
 
 export const SAMPLE_TEXT = 'The quick brown fox jumps over the lazy dog.';
 
+/**
+ * A stand-in used only when no AbortController factory was injected. It is a
+ * plain object shaped like an AbortController whose signal can never fire, so
+ * providers that call `signal.aborted` / `addEventListener` keep working. It
+ * deliberately does NOT construct a real AbortController — that global does
+ * not exist in the plugin sandbox, which is the whole reason this exists.
+ */
+function neverAbort(): { signal: AbortSignal } {
+  const signal = {
+    aborted: false,
+    reason: undefined,
+    onabort: null,
+    throwIfAborted() {},
+    addEventListener() {},
+    removeEventListener() {},
+    dispatchEvent() {
+      return false;
+    },
+  };
+  return { signal: signal as unknown as AbortSignal };
+}
+
 export interface AudioCache {
   match(key: string): Promise<SynthesisResult | null>;
   put(key: string, value: SynthesisResult): Promise<void>;
@@ -17,6 +39,13 @@ export type RemoteInterfaceDeps = {
   cache?: AudioCache;
   /** Receives the raw error before it is collapsed to a Zotero error string. */
   log?(e: unknown): void;
+  /**
+   * Supplies the AbortController for each synthesis. Injected, never a bare
+   * global: the plugin sandbox's whitelist (spec §2.10) has no AbortController,
+   * so `new AbortController()` throws there — exactly like WebSocket. Optional
+   * so unit tests can omit it; when absent, no signal is passed at all.
+   */
+  newAbortController?(): AbortController;
 };
 
 type ZoteroSegment = { text: string } | 'sample';
@@ -77,7 +106,7 @@ export function createRemoteInterface(deps: RemoteInterfaceDeps): RemoteInterfac
         const result = await provider.synthesize(text, {
           voice: decoded.voiceId,
           speed,
-          signal: new AbortController().signal,
+          signal: (deps.newAbortController?.() ?? neverAbort()).signal,
         });
 
         await deps.cache?.put(key, result);

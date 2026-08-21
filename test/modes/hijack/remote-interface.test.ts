@@ -48,6 +48,37 @@ describe('getVoices', () => {
 });
 
 describe('getAudio', () => {
+  // The plugin sandbox's global whitelist has no AbortController — reaching
+  // for it as a bare global threw "AbortController is not defined" on every
+  // synthesis in a real Zotero, while getVoices (which never needed one)
+  // worked. The signal must come from an injected factory, exactly as the
+  // WebSocket constructor does.
+  it('does not touch the AbortController global', async () => {
+    const original = globalThis.AbortController;
+    // @ts-expect-error — simulating the plugin sandbox, which lacks it
+    delete globalThis.AbortController;
+    try {
+      const synthesize = vi.fn(async () => ({ audio: new Blob(['bytes']) }));
+      const iface = createRemoteInterface(deps(fakeProvider({ synthesize })));
+      const result = await iface.getAudio({ text: 'Hello' }, voice);
+      expect(result.error).toBeUndefined();
+      expect(await result.audio!.text()).toBe('bytes');
+    } finally {
+      globalThis.AbortController = original;
+    }
+  });
+
+  it('passes the signal from the injected factory to the provider', async () => {
+    const controller = new AbortController();
+    const synthesize = vi.fn(async () => ({ audio: new Blob(['x']) }));
+    const iface = createRemoteInterface({
+      ...deps(fakeProvider({ synthesize })),
+      newAbortController: () => controller,
+    });
+    await iface.getAudio({ text: 'Hello' }, voice);
+    expect((synthesize as any).mock.calls[0][1].signal).toBe(controller.signal);
+  });
+
   it('synthesises the segment text with the decoded provider and voice', async () => {
     const synthesize = vi.fn(async () => ({ audio: new Blob(['bytes']) }));
     const iface = createRemoteInterface(deps(fakeProvider({ synthesize })));

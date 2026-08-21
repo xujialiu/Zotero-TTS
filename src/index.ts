@@ -87,6 +87,11 @@ function startHijack(): void {
         cacheVersion,
         cache: makeCache(reader._window),
         log: (e) => Zotero.logError(e),
+        // AbortController is not on the sandbox whitelist (spec §2.10); take
+        // it from the reader's chrome window, the same way WebSocket and
+        // caches are obtained. Per call, never cached, so a closed window is
+        // never retained.
+        newAbortController: () => new reader._window.AbortController(),
       }),
     ),
   );
