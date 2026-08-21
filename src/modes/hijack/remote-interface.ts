@@ -15,6 +15,8 @@ export type RemoteInterfaceDeps = {
   getSpeed(): number;
   cacheVersion(): string;
   cache?: AudioCache;
+  /** Receives the raw error before it is collapsed to a Zotero error string. */
+  log?(e: unknown): void;
 };
 
 type ZoteroSegment = { text: string } | 'sample';
@@ -51,6 +53,7 @@ export function createRemoteInterface(deps: RemoteInterfaceDeps): RemoteInterfac
       } catch (e) {
         // RemoteReadAloudProvider 检查 `error || !voices` 并抛出，
         // 所以这里返回错误字段而不是自己抛。
+        deps.log?.(e);
         return { error: toZoteroError(e), ...NO_CREDITS };
       }
     },
@@ -80,6 +83,10 @@ export function createRemoteInterface(deps: RemoteInterfaceDeps): RemoteInterfac
         await deps.cache?.put(key, result);
         return { audio: result.audio, timestamps: result.timestamps };
       } catch (e) {
+        // toZoteroError collapses every failure into the three strings
+        // Zotero's UI understands, so the real cause is gone by the time the
+        // user sees "unknown error". Record it before collapsing.
+        deps.log?.(e);
         return { audio: null, error: toZoteroError(e) };
       }
     },

@@ -86,6 +86,7 @@ function startHijack(): void {
         getSpeed: () => loadSettings(prefs).speed,
         cacheVersion,
         cache: makeCache(reader._window),
+        log: (e) => Zotero.logError(e),
       }),
     ),
   );
