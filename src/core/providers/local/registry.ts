@@ -10,8 +10,9 @@ export type LocalEngineAdapter = {
 };
 
 /**
- * 新增一个本地引擎 = 写一个适配器文件 + 在这里加一行。
- * 设置面板从这个数组渲染下拉，不写死任何引擎名。
+ * Adding a new local engine = write an adapter file + add one line here.
+ * The preferences pane renders its dropdown from this array; no engine
+ * name is hardcoded.
  */
 export const LOCAL_ENGINES: readonly LocalEngineAdapter[] = [kokoroAdapter];
 

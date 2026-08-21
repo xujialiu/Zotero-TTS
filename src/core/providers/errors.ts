@@ -26,9 +26,10 @@ export class SynthesisError extends Error {
 }
 
 /**
- * 收敛到 Zotero 原生 Read Aloud UI 认识的错误字符串
- * （syncAPIClient.js:715-733）。细节由调用方另行记日志 —— 这里
- * 必然丢失信息，因为原生 UI 的词汇表就这么大。
+ * Collapse down to the error strings the native Zotero Read Aloud UI
+ * recognizes (syncAPIClient.js:715-733). Details are logged separately
+ * by the caller — some information loss here is unavoidable, because
+ * the native UI's vocabulary is only this large.
  */
 export function toZoteroError(e: unknown): 'network' | 'quota-exceeded' | 'unknown' {
   if (!(e instanceof SynthesisError)) return 'unknown';

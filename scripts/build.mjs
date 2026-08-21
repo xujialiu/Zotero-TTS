@@ -16,7 +16,7 @@ await esbuild.build({
   format: 'iife',
   target: 'es2022',
   platform: 'browser',
-  // Zotero 注入这些全局；不要让 esbuild 试图打包它们
+  // Zotero injects these globals; don't let esbuild try to bundle them
   external: [],
   logLevel: 'warning',
 });
@@ -25,7 +25,7 @@ rmSync(buildDir, { recursive: true, force: true });
 mkdirSync(buildDir, { recursive: true });
 
 const zip = new AdmZip();
-// 打包 addon/ 的内容而非 addon/ 目录本身 —— xpi 根目录必须直接是 manifest.json
+// Package the contents of addon/, not the addon/ directory itself — the xpi root must be manifest.json directly
 zip.addLocalFolder(addonDir);
 zip.writeZip(join(buildDir, 'zotero-tts.xpi'));
 

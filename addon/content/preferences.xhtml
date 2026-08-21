@@ -1,5 +1,6 @@
-<!-- 不要在这里加 onload：面板初始化只由 preferences-shim.js 一处触发，
-     两处都调会重复注册事件监听器。 -->
+<!-- Do not add an onload here: pane initialization is triggered from
+     exactly one place, preferences-shim.js. Calling it from both places
+     would register the event listener twice. -->
 <vbox>
   <groupbox>
     <label><html:h2>Provider</html:h2></label>

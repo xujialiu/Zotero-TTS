@@ -8,7 +8,8 @@ export type OpenAIConfig = {
 };
 
 /**
- * OpenAI 没有列举音色的接口，只能写死。取自 gpt-4o-mini-tts 支持的音色。
+ * OpenAI has no endpoint to list voices, so this list is hardcoded. Taken
+ * from the voices supported by gpt-4o-mini-tts.
  */
 export const OPENAI_VOICES = [
   'alloy',
@@ -25,16 +26,17 @@ export const OPENAI_VOICES = [
 ] as const;
 
 /**
- * 这些音色是多语种的，模型按输入文本自动切换。Zotero 的语音列表
- * 按 locale 分组（spec §2.5），所以这里做叉积，每个音色在每个
- * locale 下各出现一次。
+ * These voices are multilingual; the model switches automatically based
+ * on the input text. Zotero's voice list is grouped by locale (spec
+ * §2.5), so we take the cross product here: each voice appears once
+ * under every locale.
  */
 export const OPENAI_LOCALES = ['en-US', 'zh-CN', 'ja-JP', 'de-DE', 'fr-FR', 'es-ES'] as const;
 
 export function createOpenAIProvider(cfg: OpenAIConfig, deps: { fetch: typeof fetch }): TTSProvider {
   return {
     id: 'openai',
-    // OpenAI 的语音接口不返回任何时间信息。按 spec §4.1，不估算。
+    // OpenAI's speech endpoint returns no timing information at all. Per spec §4.1, we don't estimate.
     capabilities: { wordTimestamps: false },
 
     async listVoices(): Promise<VoiceInfo[]> {

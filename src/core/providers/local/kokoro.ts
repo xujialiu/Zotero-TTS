@@ -3,7 +3,7 @@ import type { TimedWord } from '../../align';
 import { SynthesisError } from '../errors';
 import type { SynthesisOptions, SynthesisResult, TTSProvider, VoiceInfo } from '../types';
 
-/** Kokoro 的音色 id 用前缀编码语言与性别，例如 af_bella = American Female。 */
+/** Kokoro voice ids encode language and gender via a prefix, e.g. af_bella = American Female. */
 const LOCALE_BY_PREFIX: Record<string, string> = {
   a: 'en-US',
   b: 'en-GB',
@@ -51,8 +51,9 @@ function createKokoroProvider(baseURL: string, deps: { fetch: typeof fetch }): T
     try {
       return await deps.fetch(baseURL + path, init);
     } catch (e) {
-      // 本地服务没起来时 fetch 直接抛。这里必须区分出来，
-      // 否则用户只会看到"网络错误"，去查自己的宽带（spec §8）。
+      // fetch throws outright when the local server isn't up. This must be
+      // distinguished here, otherwise the user would just see a "network
+      // error" and go check their own broadband (spec §8).
       throw new SynthesisError('local-server-down', `Cannot reach Kokoro at ${baseURL}: ${e}`);
     }
   };
@@ -117,8 +118,10 @@ function createKokoroProvider(baseURL: string, deps: { fetch: typeof fetch }): T
         }
       }
 
-      // 旧版本或精简部署可能没有 /dev/captioned_speech。退回普通端点，
-      // 代价是失去词级时间戳 —— 按 spec §4.1，退回句级而不是估算。
+      // Older versions or minimal deployments may not have
+      // /dev/captioned_speech. Fall back to the plain endpoint, at the cost
+      // of losing word-level timestamps — per spec §4.1, fall back to
+      // sentence-level rather than estimating.
       const plain = await call('/v1/audio/speech', init);
       if (!plain.ok) {
         throw new SynthesisError('unknown', `Kokoro speech returned ${plain.status}`);

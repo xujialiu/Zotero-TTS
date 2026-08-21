@@ -91,7 +91,7 @@ export function saveSettings(prefs: PrefsBackend, s: Settings): void {
   prefs.set(PREFIX + 'cacheAudio', s.cacheAudio);
 }
 
-/** 唯一接触 Zotero 全局的地方，故意隔离在此，其余代码只依赖 PrefsBackend。 */
+/** The only place that touches the Zotero global; deliberately isolated here so the rest of the code depends only on PrefsBackend. */
 export function createZoteroPrefs(): PrefsBackend {
   return {
     get: (key) => Zotero.Prefs.get(key, true),

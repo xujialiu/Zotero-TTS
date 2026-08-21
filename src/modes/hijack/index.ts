@@ -1,19 +1,24 @@
 export type ReaderLike = { _getReadAloudRemoteInterface?: unknown };
 
 /**
- * 拦截 Zotero.Reader._readers.push。
+ * Intercept Zotero.Reader._readers.push.
  *
- * open() 中 `new ReaderTab(...)` 之后同步 push（reader.js:2963、2991），
- * 而 _getReadAloudRemoteInterface() 要等 async 的 _open() 走过若干
- * await 才被调用（reader.js:267）。因此在 push 时替换实例方法必定
- * 早于它被读取。
+ * In open(), the push happens synchronously right after
+ * `new ReaderTab(...)` (reader.js:2963, 2991), while
+ * _getReadAloudRemoteInterface() isn't called until the async _open()
+ * has passed through several awaits (reader.js:267). So replacing the
+ * instance method at push time is guaranteed to happen before it is
+ * ever read.
  *
- * 替换的是**实例**属性而非原型，卸载时 delete 掉即可让原型方法复活，
- * 也不会与其它插件互相踩踏。
+ * What gets replaced is an **instance** property, not the prototype, so
+ * on uninstall a simple delete revives the prototype method — and this
+ * never stomps on other plugins either.
  *
- * makeInterface 是在 Zotero **调用**该方法时才执行的，不是在 push 时。
- * push 发生在 `new ReaderTab()` 之后、`_open()` 之前，那时 _iframeWindow
- * 还不存在；Zotero 调用时会把它作为参数传进来，我们透传给工厂。
+ * makeInterface only runs when Zotero **calls** the method, not at push
+ * time. push happens after `new ReaderTab()` and before `_open()`, at
+ * which point _iframeWindow doesn't exist yet; Zotero passes it in as
+ * an argument when it calls the method, and we pass it straight through
+ * to the factory.
  */
 export function installHijack(
   readers: ReaderLike[],

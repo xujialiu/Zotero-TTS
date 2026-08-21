@@ -20,7 +20,7 @@ describe('SynthesisError', () => {
 });
 
 describe('toZoteroError', () => {
-  // Zotero 原生 UI 只认这几个字符串（syncAPIClient.js:715-733）
+  // The native Zotero UI only recognizes these few strings (syncAPIClient.js:715-733)
   it('maps connectivity failures to network', () => {
     expect(toZoteroError(new SynthesisError('network'))).toBe('network');
     expect(toZoteroError(new SynthesisError('local-server-down'))).toBe('network');

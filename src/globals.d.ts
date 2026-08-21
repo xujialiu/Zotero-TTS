@@ -1,5 +1,6 @@
-// Zotero 插件沙箱注入的全局。类型故意保持宽松 —— 我们不试图为
-// Zotero 的整个 API 建模，只在用到的地方就地收窄。
+// Globals injected by the Zotero plugin sandbox. Types are deliberately
+// kept loose — we don't try to model the whole Zotero API, only narrow
+// it in place where it's actually used.
 declare const Zotero: any;
 declare const Services: any;
 declare const Components: any;

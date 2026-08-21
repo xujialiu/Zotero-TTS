@@ -24,7 +24,7 @@ describe('voice id encoding', () => {
 });
 
 describe('tierForProvider', () => {
-  // 合法取值只有 standard | premium | local（reader.js:39248）
+  // The only valid values are standard | premium | local (reader.js:39248)
   it('puts cloud providers in standard and local engines in local', () => {
     expect(tierForProvider('openai')).toBe('standard');
     expect(tierForProvider('azure')).toBe('standard');

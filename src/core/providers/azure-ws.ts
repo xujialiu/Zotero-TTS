@@ -1,6 +1,6 @@
 import type { TimedWord } from '../align';
 
-/** Azure 的时间单位是 100 纳秒 tick。 */
+/** Azure's time unit is a 100-nanosecond tick. */
 const TICKS_PER_SECOND = 10_000_000;
 
 export function buildTextFrame(headers: Record<string, string>, body: string): string {
@@ -44,7 +44,7 @@ function escapeXML(s: string): string {
 }
 
 export function buildSSML(text: string, voice: string, speed: number): string {
-  // Azure 的 rate 是相对百分比：1.0 → "0%"，1.5 → "50%"，0.5 → "-50%"
+  // Azure's rate is a relative percentage: 1.0 -> "0%", 1.5 -> "50%", 0.5 -> "-50%"
   const rate = `${Math.round((speed - 1) * 100)}%`;
   return (
     '<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="en-US">' +
@@ -60,10 +60,12 @@ type MetadataEntry = {
 };
 
 /**
- * 解析 audio.metadata 帧里的词边界。
+ * Parse the word boundaries out of an audio.metadata frame.
  *
- * 这个结构未经实机核对，因此完全容错：任何看不懂的输入都返回空数组，
- * 让本次合成退化成句级高亮，而不是整体失败。
+ * This structure hasn't been verified against a real device, so it's
+ * fully fault-tolerant: any input we can't make sense of returns an
+ * empty array, degrading this synthesis to sentence-level highlighting
+ * instead of failing outright.
  */
 export function parseWordBoundaries(body: string): TimedWord[] {
   let parsed: { Metadata?: MetadataEntry[] };

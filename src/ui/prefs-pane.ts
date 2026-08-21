@@ -8,7 +8,7 @@ export function engineOptions(): { value: string; label: string }[] {
   return LOCAL_ENGINES.map((e) => ({ value: e.id, label: e.label }));
 }
 
-/** 设置面板里每个服务商下方那行能力说明的来源。 */
+/** Source for the capability line shown under each provider in the preferences pane. */
 export function highlightCapabilityLabel(provider: ProviderId, engineId: string): 'word' | 'sentence' {
   if (provider === 'azure') return 'word';
   if (provider === 'openai') return 'sentence';

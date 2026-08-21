@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { installHijack } from '../../../src/modes/hijack';
 
 function fakeReaders() {
-  // 真实对象是 Zotero.Reader._readers，一个普通数组
+  // The real object is Zotero.Reader._readers, a plain array
   return [] as any[];
 }
 
@@ -104,7 +104,7 @@ describe('installHijack', () => {
     expect(reader._getReadAloudRemoteInterface).toBeDefined();
 
     uninstall();
-    // 删掉自有属性后，原型上的方法重新生效
+    // Once the own property is deleted, the prototype's method takes effect again
     expect(Object.hasOwn(reader, '_getReadAloudRemoteInterface')).toBe(false);
   });
 

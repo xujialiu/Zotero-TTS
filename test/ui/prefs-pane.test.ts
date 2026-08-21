@@ -10,7 +10,7 @@ describe('engineOptions', () => {
 });
 
 describe('highlightCapabilityLabel', () => {
-  // 这是设置面板里"仅句级高亮 / 词级高亮"那行字的来源
+  // This is the source of the "sentence-level highlighting only / word-level highlighting" line in the preferences pane
   it('reports sentence for OpenAI and word for Azure', () => {
     expect(highlightCapabilityLabel('openai', 'kokoro')).toBe('sentence');
     expect(highlightCapabilityLabel('azure', 'kokoro')).toBe('word');
@@ -42,7 +42,7 @@ describe('testConnection', () => {
       }),
     );
     expect(result.ok).toBe(false);
-    expect(result.message).toMatch(/not running|未启动/i);
+    expect(result.message).toMatch(/not running/i);
   });
 
   it('surfaces a missing key as its own message', async () => {

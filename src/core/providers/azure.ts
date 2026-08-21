@@ -21,8 +21,10 @@ export type AzureDeps = {
 const OUTPUT_FORMAT = 'audio-24khz-48kbitrate-mono-mp3';
 
 /**
- * 插件沙箱不含 WebSocket（spec §2.10），从 chrome 窗口取构造器。
- * 按需取得而非启动时缓存，避免持有已关闭窗口的引用。
+ * The plugin sandbox has no WebSocket (spec §2.10), so we get the
+ * constructor from the chrome window. Fetched on demand rather than
+ * cached at startup, to avoid holding a reference to a window that has
+ * since closed.
  */
 export function getChromeWebSocket(): typeof WebSocket {
   const win = Zotero.getMainWindow() ?? Services.wm.getMostRecentWindow(null);
@@ -106,7 +108,7 @@ export function createAzureProvider(cfg: AzureConfig, deps: AzureDeps): TTSProvi
           try {
             socket.close();
           } catch {
-            // 已经关了
+            // Already closed
           }
           try {
             fn();

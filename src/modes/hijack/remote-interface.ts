@@ -87,8 +87,8 @@ export function createRemoteInterface(deps: RemoteInterfaceDeps): RemoteInterfac
           devMode: false,
         };
       } catch (e) {
-        // RemoteReadAloudProvider 检查 `error || !voices` 并抛出，
-        // 所以这里返回错误字段而不是自己抛。
+        // RemoteReadAloudProvider checks `error || !voices` and throws,
+        // so we return an error field here instead of throwing ourselves.
         deps.log?.(e);
         return { error: toZoteroError(e), ...NO_CREDITS };
       }

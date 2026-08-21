@@ -5,7 +5,7 @@ import { buildTextFrame, parseTextFrame } from '../../../src/core/providers/azur
 const cfg = { apiKey: 'key-1', region: 'eastasia' };
 const opts = { voice: 'en-US-AvaNeural', speed: 1, signal: new AbortController().signal };
 
-/** 一个可以由测试驱动的假 socket。 */
+/** A fake socket that tests can drive. */
 class FakeSocket {
   static last: FakeSocket;
   url: string;
@@ -34,8 +34,9 @@ class FakeSocket {
   }
 
   /**
-   * 模拟服务端回一段词边界，然后按顺序回若干段音频，最后结束这一轮。
-   * 可传多个 audio chunk 来模拟多帧到达。
+   * Simulates the server replying with a word-boundary segment, then a
+   * number of audio segments in order, then ending the turn. Multiple
+   * audio chunks can be passed to simulate several frames arriving.
    */
   respond(words: unknown[], ...audioChunks: number[][]) {
     this.onmessage?.({

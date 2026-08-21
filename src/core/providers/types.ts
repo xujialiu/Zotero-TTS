@@ -1,8 +1,10 @@
 export type ProviderId = 'openai' | 'azure' | 'local';
 
 /**
- * 形状照抄 Zotero 原生（spec §2.2），使劫持模式可零转换透传。
- * start/end 单位为秒；charStart/charEnd 是段文本内的字符偏移。
+ * Shape copied verbatim from native Zotero (spec §2.2), so hijack mode
+ * can pass it through with zero conversion.
+ * start/end are in seconds; charStart/charEnd are character offsets
+ * within the segment text.
  */
 export type Timestamp = {
   start: number;
@@ -13,12 +15,12 @@ export type Timestamp = {
 
 export type SynthesisResult = {
   audio: Blob;
-  /** 省略即表示该 provider 无词级时间戳，高亮自动退回句级。绝不插值估算。 */
+  /** Omitted means this provider has no word-level timestamps; highlighting automatically falls back to sentence level. Never interpolate or estimate. */
   timestamps?: Timestamp[];
 };
 
 export type VoiceInfo = {
-  /** provider 内的原始 id，不含 provider 前缀 */
+  /** The raw id within the provider, without the provider prefix */
   id: string;
   label: string;
   /** BCP-47 */

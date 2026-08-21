@@ -12,25 +12,29 @@ export function decodeVoiceId(encoded: string): { provider: ProviderId; voiceId:
   if (at === -1) return null;
   const provider = encoded.slice(0, at);
   if (!(PROVIDERS as readonly string[]).includes(provider)) return null;
-  // 只切第一个分隔符，音色 id 里再出现分隔符也不会被截断
+  // Split only on the first separator so a voice id that itself contains the separator isn't truncated
   return { provider: provider as ProviderId, voiceId: encoded.slice(at + SEPARATOR.length) };
 }
 
 /**
- * tier 合法取值仅 standard | premium | local（reader.js:39248）。
- * ftl 里 local 的说明是"无需账号、免费"，standard 是"需要 Zotero 账号"，
- * 因此云端 provider 归 standard、本地引擎归 local 最接近实情。
+ * The only valid tier values are standard | premium | local
+ * (reader.js:39248). The ftl copy describes local as "no account
+ * needed, free" and standard as "requires a Zotero account", so filing
+ * cloud providers under standard and the local engine under local is
+ * the closest match to reality.
  */
 export function tierForProvider(provider: ProviderId): 'standard' | 'local' {
   return provider === 'local' ? 'local' : 'standard';
 }
 
 /**
- * 构造 Zotero parseVoicesResponse（reader.js:40499）认识的 format=2 结构。
+ * Build the format=2 structure that Zotero's parseVoicesResponse
+ * (reader.js:40499) recognizes.
  *
- * locale 下的音色列表用**纯数组**形式。对象形式 { default, other } 会被
- * 无保护地展开（`...localeConfig.default`），少写一个字段就会抛异常；
- * 数组形式是被显式容忍的，更稳。
+ * The voice list under each locale uses the **plain array** form. The
+ * object form { default, other } gets spread without any guard
+ * (`...localeConfig.default`), and missing a field throws an exception;
+ * the array form is explicitly tolerated and is more robust.
  */
 export function buildVoicesResponse(
   entries: { provider: ProviderId; voices: VoiceInfo[] }[],
@@ -53,12 +57,13 @@ export function buildVoicesResponse(
     const config = {
       voices,
       locales,
-      // 词级高亮的前置条件（reader.js:53332）
+      // Prerequisite for word-level highlighting (reader.js:53332)
       segmentGranularity: 'sentence',
       sentenceDelay: 0,
       cacheVersion,
-      // 刻意不写 creditsPerMinute：它一旦存在，原生就会算出剩余分钟数
-      // 并显示积分与购买入口（reader.js:39242）。
+      // Deliberately omit creditsPerMinute: once it's present, native
+      // code computes remaining minutes and shows a credits display
+      // with a purchase entry point (reader.js:39242).
     };
 
     const tier = tierForProvider(entry.provider);

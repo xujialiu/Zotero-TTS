@@ -18,7 +18,7 @@ let pluginVersion = '0.0.0';
 
 const prefs = createZoteroPrefs();
 
-/** 缓存键含配置指纹，改了服务商或音色后旧音频自动失效。 */
+/** The cache key includes a config fingerprint, so old audio automatically invalidates after the provider or voice changes. */
 function cacheVersion(): string {
   const s = loadSettings(prefs);
   return [pluginVersion, s.provider, s.openai.model, s.azure.region, s.local.engine, s.local.baseURL].join('|');
@@ -45,15 +45,17 @@ async function listCatalog(): Promise<{ provider: ProviderId; voices: VoiceInfo[
 
 function startHijack(): void {
   uninstallHijack?.();
-  // makeInterface 在 Zotero 调用时才执行，targetWindow 是它传进来的
-  // reader iframe window —— push 时它还不存在（见 Task 13）。
+  // makeInterface only runs when Zotero calls it; targetWindow is the
+  // reader iframe window it passes in — it doesn't exist yet at push
+  // time (see Task 13).
   uninstallHijack = installHijack(Zotero.Reader._readers, (reader: any, targetWindow: any) =>
     wrapForWindow(
       targetWindow,
       createRemoteInterface({
         listCatalog,
-        // 必须尊重传入的 id：Zotero 会记住上次选的音色，用户在设置里换了
-        // 服务商之后，残留的选择仍可能指向另一个 provider。
+        // Must honor the passed-in id: Zotero remembers the last-selected
+        // voice, and after the user switches provider in settings, that
+        // leftover selection may still point at a different provider.
         getProvider: (id) => createProvider({ ...loadSettings(prefs), provider: id }, providerDeps()),
         getSpeed: () => loadSettings(prefs).speed,
         cacheVersion,
@@ -80,15 +82,18 @@ function startHijack(): void {
 }
 
 /**
- * Zotero 原生实现把每个返回值包成 `new targetWindow.Promise(...)` 并
- * `Cu.cloneInto` 到 reader iframe，否则跨作用域读取会触发权限错误
- * （reader.js:1746 的注释）。我们的接口是普通 Promise，在这里补上同样的包装。
+ * The native Zotero implementation wraps every return value in
+ * `new targetWindow.Promise(...)` and `Cu.cloneInto`s it into the reader
+ * iframe, because reading across scopes otherwise triggers a permission
+ * error (comment at reader.js:1746). Our interface returns a plain
+ * Promise, so we add the same wrapping here.
  */
 function wrapForWindow(targetWindow: any, iface: RemoteInterface): unknown {
   const Cu = Components.utils;
   const wrapped: Record<string, unknown> = {};
-  // RemoteInterface 是具名 interface，没有索引签名，不能直接赋给
-  // Record<string, ...>，所以这里显式转一次再遍历。
+  // RemoteInterface is a named interface with no index signature, so it
+  // can't be assigned directly to Record<string, ...>; hence the
+  // explicit cast here before iterating.
   const methods = iface as unknown as Record<string, (...args: any[]) => Promise<any>>;
   for (const [name, fn] of Object.entries(methods)) {
     wrapped[name] = (...args: any[]) =>
@@ -108,10 +113,13 @@ async function startup({ id, version, rootURI }: StartupParams): Promise<void> {
   pluginVersion = version;
   await registerPrefsPane(rootURI, id);
 
-  // 主动捕获：_readers 或其它我们伸手进去的 Zotero 内部一旦改名/挪动就会
-  // 在这里抛出。不接住的话 startup() 会 reject 且没有任何提示 ——
-  // 设置面板已经注册好、看着正常，朗读却悄无声息地不出音色。宁可劫持
-  // 装不上，也要让插件的其余部分（至少是设置面板）照常可用。
+  // Caught deliberately: if _readers or any other Zotero internal we
+  // reach into gets renamed or moved, it will throw here. Without
+  // catching it, startup() would reject with no indication at all — the
+  // preferences pane would already be registered and look fine, while
+  // read-aloud silently produces no voices. Better to have the hijack
+  // fail to install than to take down the rest of the plugin (at least
+  // the preferences pane) with it.
   try {
     startHijack();
   } catch (e) {

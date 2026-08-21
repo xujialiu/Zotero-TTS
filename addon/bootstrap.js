@@ -1,7 +1,7 @@
 /* eslint-env browser */
 /* global Zotero, Services */
 
-// 沙箱全局见 spec §2.10。这里只允许用白名单内的东西。
+// See spec §2.10 for the sandbox globals. Only whitelisted items may be used here.
 
 function install() {}
 
