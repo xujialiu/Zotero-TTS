@@ -5,7 +5,7 @@ OpenAI-compatible server), Azure Speech, and a local
 [Kokoro-FastAPI](https://github.com/remsky/Kokoro-FastAPI) server.
 Zotero's own Standard and Premium voices keep working; the plugin's voices
 join the **Local** tier of the Read Aloud popup, named `TTS-<Provider>-<voice>`
-(for example `TTS-Azure-Ava Multilingual`, `TTS-Local-af_bella`).
+(for example `TTS-Azure-Ava Multilingual`, `TTS-Kokoro-af_bella`).
 
 - Word-level highlighting with Azure and Kokoro (both report word timings);
   sentence-level with OpenAI.
@@ -31,10 +31,12 @@ Requires Zotero 10 (tested with 10.0.1-beta).
 
 ## Install the plugin
 
-1. Build the package: `npm install` then `npm run build` → `build/zotero-tts.xpi`
-   (or take a released `.xpi`).
+1. Download `zotero-tts.xpi` from the [latest release](https://github.com/xujialiu/Zotero-TTS/releases/latest).
+   (Firefox users: right-click → Save Link As…, or Firefox tries to install
+   it as a browser extension.)
 2. In Zotero: **Tools → Plugins → ⚙ → Install Plugin From File…**, pick the
-   `.xpi`, restart Zotero.
+   `.xpi`, restart Zotero. Zotero checks for plugin updates on its own, so
+   later releases install themselves.
 3. **Edit → Settings → TTS** (macOS: **Zotero → Settings**): tick the providers
    you want, enter keys, and press **Test connection** under each one.
 4. Open a PDF, start Read Aloud, and in its popup choose the tier **Local**; the
@@ -127,7 +129,7 @@ The first run downloads a few GB; later starts take seconds.
 In Zotero, *Settings → TTS → Local engine*, tick **Enable Kokoro-FastAPI**
 and press **Test connection**; it should say `Connected. 68 voices
 available.` Then open Read Aloud, choose the Local tier, and pick a
-`TTS-Local-…` voice (`af_bella` and `af_heart` are good English voices;
+`TTS-Kokoro-…` voice (`af_bella` and `af_heart` are good English voices;
 `zf_xiaobei` / `zm_yunxi` speak Chinese).
 
 ### Troubleshooting

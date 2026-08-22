@@ -42,7 +42,25 @@ npm run build         # esbuild → addon/content/zotero-tts.js, zip → build/z
 ```
 
 After any change: tests, typecheck, build — then the user installs the xpi
-(Tools → Plugins → Install from file) and restarts Zotero. Zotero cannot be
+(Tools → Plugins → Install from file) and restarts Zotero.
+
+## Releasing
+
+Installed copies auto-update through the manifest's `update_url`, which
+points at `update.json` on `main`. A release is these three steps, and
+skipping the third strands every installed copy on the old version:
+
+1. Bump the version in **both** `package.json` and `addon/manifest.json`
+   (run `npm install --package-lock-only`); tests, typecheck, build.
+2. Commit (`chore: release X.Y.Z`), tag `vX.Y.Z`, push with the tag, then
+   `gh release create vX.Y.Z build/zotero-tts.xpi` — the asset must be
+   named `zotero-tts.xpi`.
+3. Update `update.json` on `main`: `version`, and `update_link` to
+   `https://github.com/xujialiu/Zotero-TTS/releases/download/vX.Y.Z/zotero-tts.xpi`.
+
+Verify: the `update_link` answers 200 and the raw `update_url` serves the
+new version; Zotero's Tools → Plugins → gear → "Check for Plugin Updates"
+should then offer it. Zotero cannot be
 driven from here; when something fails in Zotero, ask for Help → Debug Output
 Logging → View Output (the user saves it as an .htm) and grep it for
 `[zotero-tts]` and `JavaScript Error`.
