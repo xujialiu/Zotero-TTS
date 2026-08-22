@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { SynthesisError } from '../../../src/core/providers/errors';
-import { createOpenAIProvider, OPENAI_VOICES, OPENAI_LOCALES } from '../../../src/core/providers/openai';
+import { createOpenAIProvider, OPENAI_VOICES } from '../../../src/core/providers/openai';
+import { ANY_LANGUAGE } from '../../../src/core/providers/types';
 
 const cfg = {
   apiKey: 'sk-test',
@@ -77,18 +78,12 @@ describe('createOpenAIProvider', () => {
     });
   });
 
-  it('lists one entry per voice and locale combination', async () => {
+  // The voices are multilingual, so each is listed once under Zotero's
+  // wildcard locale and appears for every language, instead of under a
+  // hand-picked subset of locales
+  it('lists every voice once, under the wildcard locale', async () => {
     const voices = await provider(vi.fn()).listVoices();
-    expect(voices).toHaveLength(OPENAI_VOICES.length * OPENAI_LOCALES.length);
-
-    const expectedPairs = new Set<string>();
-    for (const voice of OPENAI_VOICES) {
-      for (const locale of OPENAI_LOCALES) {
-        expectedPairs.add(`${voice}|${locale}`);
-      }
-    }
-
-    const actualPairs = new Set(voices.map((v) => `${v.id}|${v.locale}`));
-    expect(actualPairs).toEqual(expectedPairs);
+    expect(voices.map((v) => v.id)).toEqual([...OPENAI_VOICES]);
+    for (const voice of voices) expect(voice.locale).toBe(ANY_LANGUAGE);
   });
 });

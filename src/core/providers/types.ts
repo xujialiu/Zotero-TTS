@@ -19,11 +19,19 @@ export type SynthesisResult = {
   timestamps?: Timestamp[];
 };
 
+/**
+ * Zotero's wildcard locale: a voice listed under it is offered for every
+ * language (reader isLanguageSupported) without adding a selectable
+ * language of its own (getSupportedLanguages skips it). Meant for
+ * language-agnostic voices — OpenAI's, Azure's "Multilingual" ones.
+ */
+export const ANY_LANGUAGE = '*';
+
 export type VoiceInfo = {
   /** The raw id within the provider, without the provider prefix */
   id: string;
   label: string;
-  /** BCP-47 */
+  /** BCP-47, or ANY_LANGUAGE for a voice that speaks whatever it is given */
   locale: string;
 };
 

@@ -249,6 +249,11 @@ describe('createAzureProvider', () => {
       const body = [
         { ShortName: 'en-US-AvaNeural', LocalName: 'Ava', Locale: 'en-US' },
         { ShortName: 'ja-JP-NanamiNeural', Locale: 'ja-JP' },
+        // Multilingual voices — named so in the ShortName, the DisplayName,
+        // or a localized LocalName — go under the wildcard locale so every
+        // language offers them
+        { ShortName: 'en-US-AvaMultilingualNeural', DisplayName: 'Ava Multilingual', LocalName: 'Ava Multilingual', Locale: 'en-US' },
+        { ShortName: 'zh-CN-XiaoxiaoMultilingualNeural', LocalName: '晓晓 多语言', Locale: 'zh-CN' },
       ];
       const fetchImpl = vi.fn(async () => new Response(JSON.stringify(body), { status: 200 }));
 
@@ -257,6 +262,8 @@ describe('createAzureProvider', () => {
       expect(voices).toEqual([
         { id: 'en-US-AvaNeural', label: 'Ava', locale: 'en-US' },
         { id: 'ja-JP-NanamiNeural', label: 'ja-JP-NanamiNeural', locale: 'ja-JP' },
+        { id: 'en-US-AvaMultilingualNeural', label: 'Ava Multilingual', locale: '*' },
+        { id: 'zh-CN-XiaoxiaoMultilingualNeural', label: '晓晓 多语言', locale: '*' },
       ]);
 
       const [url, init] = (fetchImpl as any).mock.calls[0];

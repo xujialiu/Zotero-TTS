@@ -1,5 +1,5 @@
 import { SynthesisError } from './errors';
-import type { SynthesisOptions, SynthesisResult, TTSProvider, VoiceInfo } from './types';
+import { ANY_LANGUAGE, type SynthesisOptions, type SynthesisResult, type TTSProvider, type VoiceInfo } from './types';
 
 export type OpenAIConfig = {
   apiKey: string;
@@ -25,13 +25,9 @@ export const OPENAI_VOICES = [
   'verse',
 ] as const;
 
-/**
- * These voices are multilingual; the model switches automatically based
- * on the input text. Zotero's voice list is grouped by locale (spec
- * §2.5), so we take the cross product here: each voice appears once
- * under every locale.
- */
-export const OPENAI_LOCALES = ['en-US', 'zh-CN', 'ja-JP', 'de-DE', 'fr-FR', 'es-ES'] as const;
+// These voices are multilingual — the model speaks whatever language the
+// text is in — so they are listed under Zotero's wildcard locale and show
+// up for every language (ANY_LANGUAGE in ./types).
 
 export function createOpenAIProvider(cfg: OpenAIConfig, deps: { fetch: typeof fetch }): TTSProvider {
   return {
@@ -40,9 +36,7 @@ export function createOpenAIProvider(cfg: OpenAIConfig, deps: { fetch: typeof fe
     capabilities: { wordTimestamps: false },
 
     async listVoices(): Promise<VoiceInfo[]> {
-      return OPENAI_LOCALES.flatMap((locale) =>
-        OPENAI_VOICES.map((id) => ({ id, label: id, locale })),
-      );
+      return OPENAI_VOICES.map((id) => ({ id, label: id, locale: ANY_LANGUAGE }));
     },
 
     async synthesize(text: string, o: SynthesisOptions): Promise<SynthesisResult> {

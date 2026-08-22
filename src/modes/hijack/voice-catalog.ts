@@ -45,9 +45,26 @@ export function tierForProvider(_provider: ProviderId): typeof PLUGIN_TIER {
   return PLUGIN_TIER;
 }
 
+// Chinese collation orders Han characters by pinyin instead of code point
+// and places them before Latin letters, which keep their usual order: a
+// mixed list reads as 晓…, 云…, then A…Z, instead of Han in code-point order
+// somewhere after Z.
+const collator = typeof Intl !== 'undefined' ? new Intl.Collator(['zh', 'en'], { numeric: true, sensitivity: 'base' }) : null;
+
+export function compareVoiceLabels(a: string, b: string): number {
+  if (collator) return collator.compare(a, b);
+  return a < b ? -1 : a > b ? 1 : 0;
+}
+
 /**
  * Build the format=2 structure that Zotero's parseVoicesResponse
  * (reader.js:40499) recognizes.
+ *
+ * One config per voice, in label order. Zotero shows voices in the order
+ * it is given (buildVoiceOptions sorts only by creditsPerMinute, which we
+ * never set) and flattens configs in order, locale by locale, so that is
+ * the only shape that yields an alphabetical dropdown across a language's
+ * several locales and the '*' wildcard alike.
  *
  * The voice list under each locale uses the **plain array** form. The
  * object form { default, other } gets spread without any guard
@@ -58,23 +75,26 @@ export function buildVoicesResponse(
   entries: { provider: ProviderId; voices: VoiceInfo[] }[],
   cacheVersion: string,
 ): Record<string, unknown[]> {
-  const out: Record<string, unknown[]> = {};
-
+  const all: { id: string; label: string; locale: string }[] = [];
   for (const entry of entries) {
-    if (!entry.voices.length) continue;
-
-    const voices: Record<string, { label: string }> = {};
-    const locales: Record<string, string[]> = {};
-
     for (const voice of entry.voices) {
-      const id = encodeVoiceId(entry.provider, voice.id);
-      voices[id] = { label: pluginVoiceLabel(entry.provider, voice.label) };
-      (locales[voice.locale] ??= []).push(id);
+      all.push({
+        id: encodeVoiceId(entry.provider, voice.id),
+        label: pluginVoiceLabel(entry.provider, voice.label),
+        locale: voice.locale,
+      });
     }
+  }
+  if (!all.length) return {};
 
-    const config = {
-      voices,
-      locales,
+  all.sort(
+    (a, b) => compareVoiceLabels(a.label, b.label) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0) || a.locale.localeCompare(b.locale),
+  );
+
+  return {
+    [PLUGIN_TIER]: all.map((voice) => ({
+      voices: { [voice.id]: { label: voice.label } },
+      locales: { [voice.locale]: [voice.id] },
       // Prerequisite for word-level highlighting (reader.js:53332)
       segmentGranularity: 'sentence',
       sentenceDelay: 0,
@@ -82,11 +102,6 @@ export function buildVoicesResponse(
       // Deliberately omit creditsPerMinute: once it's present, native
       // code computes remaining minutes and shows a credits display
       // with a purchase entry point (reader.js:39242).
-    };
-
-    const tier = tierForProvider(entry.provider);
-    (out[tier] ??= []).push(config);
-  }
-
-  return out;
+    })),
+  };
 }

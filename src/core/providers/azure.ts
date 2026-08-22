@@ -8,7 +8,21 @@ import {
   parseWordBoundaries,
 } from './azure-ws';
 import { SynthesisError } from './errors';
-import type { SynthesisOptions, SynthesisResult, TTSProvider, VoiceInfo } from './types';
+import { ANY_LANGUAGE, type SynthesisOptions, type SynthesisResult, type TTSProvider, type VoiceInfo } from './types';
+
+type AzureVoice = { ShortName: string; DisplayName?: string; LocalName?: string; Locale: string };
+
+const MULTILINGUAL_NAME = /multilingual|多语言/i;
+
+/**
+ * Azure's multilingual voices speak any language; their names say so in
+ * every form the API returns ("en-US-AvaMultilingualNeural", "Ava
+ * Multilingual", "晓晓 多语言"). They go under Zotero's wildcard locale so
+ * they are offered for every language, not only their home locale.
+ */
+export function isMultilingualAzureVoice(v: AzureVoice): boolean {
+  return MULTILINGUAL_NAME.test([v.ShortName, v.DisplayName, v.LocalName].filter(Boolean).join(' '));
+}
 
 export type AzureConfig = { apiKey: string; region: string };
 
@@ -59,8 +73,12 @@ export function createAzureProvider(cfg: AzureConfig, deps: AzureDeps): TTSProvi
         throw new SynthesisError('unknown', `Azure voices returned ${response.status}`);
       }
 
-      const list = (await response.json()) as { ShortName: string; LocalName?: string; Locale: string }[];
-      return list.map((v) => ({ id: v.ShortName, label: v.LocalName ?? v.ShortName, locale: v.Locale }));
+      const list = (await response.json()) as AzureVoice[];
+      return list.map((v) => ({
+        id: v.ShortName,
+        label: v.LocalName ?? v.ShortName,
+        locale: isMultilingualAzureVoice(v) ? ANY_LANGUAGE : v.Locale,
+      }));
     },
 
     synthesize(text: string, o: SynthesisOptions): Promise<SynthesisResult> {

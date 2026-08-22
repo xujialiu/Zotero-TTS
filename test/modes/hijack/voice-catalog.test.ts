@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
+import { ANY_LANGUAGE } from '../../../src/core/providers/types';
 import {
   buildVoicesResponse,
+  compareVoiceLabels,
   decodeVoiceId,
   encodeVoiceId,
   PLUGIN_TIER,
@@ -40,14 +42,37 @@ describe('tierForProvider', () => {
   });
 });
 
+describe('pluginVoiceLabel', () => {
+  // The local tier also holds the operating system's voices, and every
+  // enabled provider's voices are listed together: the label names both
+  it('reads TTS-<Provider>-<name>', () => {
+    expect(pluginVoiceLabel('openai', 'Alloy')).toBe('TTS-OpenAI-Alloy');
+    expect(pluginVoiceLabel('azure', 'Ava Multilingual')).toBe('TTS-Azure-Ava Multilingual');
+    expect(pluginVoiceLabel('local', 'af_bella')).toBe('TTS-Local-af_bella');
+  });
+});
+
+describe('compareVoiceLabels', () => {
+  it('is alphabetical, case-insensitive, numeric-aware, and orders Han by pinyin', () => {
+    expect(['Zoe', 'alloy', 'Ava'].sort(compareVoiceLabels)).toEqual(['alloy', 'Ava', 'Zoe']);
+    expect(['Voice 10', 'Voice 9'].sort(compareVoiceLabels)).toEqual(['Voice 9', 'Voice 10']);
+    // 云 (yún) follows 晓 (xiǎo) in pinyin, although it precedes it by code point
+    expect(['云希', '晓晓'].sort(compareVoiceLabels)).toEqual(['晓晓', '云希']);
+  });
+});
+
 describe('buildVoicesResponse', () => {
   const entries = [
     {
       provider: 'openai' as const,
+      voices: [{ id: 'nova', label: 'nova', locale: ANY_LANGUAGE }, { id: 'alloy', label: 'alloy', locale: ANY_LANGUAGE }],
+    },
+    {
+      provider: 'azure' as const,
       voices: [
-        { id: 'alloy', label: 'Alloy', locale: 'en-US' },
-        { id: 'alloy', label: 'Alloy', locale: 'zh-CN' },
-        { id: 'nova', label: 'Nova', locale: 'en-US' },
+        { id: 'zh-CN-YunxiNeural', label: '云希', locale: 'zh-CN' },
+        { id: 'zh-CN-XiaoxiaoMultilingualNeural', label: '晓晓 多语言', locale: ANY_LANGUAGE },
+        { id: 'en-US-AvaNeural', label: 'Ava', locale: 'en-US' },
       ],
     },
     {
@@ -55,47 +80,67 @@ describe('buildVoicesResponse', () => {
       voices: [{ id: 'af_bella', label: 'af_bella', locale: 'en-US' }],
     },
   ];
-  const openaiConfig = () => buildVoicesResponse(entries, 'v1').local[0] as any;
+  const configs = () => buildVoicesResponse(entries, 'v1').local as any[];
+  const labelOf = (config: any) => (Object.values(config.voices)[0] as { label: string }).label;
 
-  it('puts every provider under the local tier, one config per provider', () => {
+  it('puts every voice under the local tier, one config per voice', () => {
     const out = buildVoicesResponse(entries, 'v1');
     expect(Object.keys(out)).toEqual(['local']);
-    expect(out.local).toHaveLength(2);
+    expect(out.local).toHaveLength(6);
+    for (const config of out.local as any[]) {
+      expect(Object.keys(config.voices)).toHaveLength(1);
+    }
   });
 
-  it('lists locale ids as a plain array, which parseVoicesResponse tolerates', () => {
-    const config = openaiConfig();
-    expect(Array.isArray(config.locales['en-US'])).toBe(true);
-    expect(config.locales['en-US']).toEqual([encodeVoiceId('openai', 'alloy'), encodeVoiceId('openai', 'nova')]);
-    expect(config.locales['zh-CN']).toEqual([encodeVoiceId('openai', 'alloy')]);
+  // Zotero shows voices in the order given, flattening configs locale by
+  // locale, so only a per-voice ordering sorts a language's dropdown across
+  // its locales (zh-CN, zh-HK, the wildcard, ...)
+  // Chinese collation puts Han names first (by pinyin), then Latin names (A–Z)
+  it('orders the configs by label: Han by pinyin, then Latin alphabetically', () => {
+    expect(configs().map(labelOf)).toEqual([
+      'TTS-Azure-晓晓 多语言',
+      'TTS-Azure-云希',
+      'TTS-Azure-Ava',
+      'TTS-Local-af_bella',
+      'TTS-OpenAI-alloy',
+      'TTS-OpenAI-nova',
+    ]);
   });
 
-  // The local tier also holds the operating system's voices, and every
-  // enabled provider's voices are listed together: the label names both
-  it('labels every voice TTS-<Provider>-<name> under its encoded id', () => {
-    expect(pluginVoiceLabel('openai', 'Alloy')).toBe('TTS-OpenAI-Alloy');
-    expect(pluginVoiceLabel('azure', 'Ava Multilingual')).toBe('TTS-Azure-Ava Multilingual');
-    expect(pluginVoiceLabel('local', 'af_bella')).toBe('TTS-Local-af_bella');
+  it('lists each voice under its locale as a plain array, which parseVoicesResponse tolerates', () => {
+    const ava = configs().find((c) => labelOf(c) === 'TTS-Azure-Ava');
+    expect(ava.locales).toEqual({ 'en-US': [encodeVoiceId('azure', 'en-US-AvaNeural')] });
+    expect(Array.isArray(ava.locales['en-US'])).toBe(true);
+  });
 
-    const out = buildVoicesResponse(entries, 'v1');
-    expect((out.local[0] as any).voices[encodeVoiceId('openai', 'alloy')]).toEqual({ label: 'TTS-OpenAI-Alloy' });
-    expect((out.local[0] as any).voices[encodeVoiceId('openai', 'nova')]).toEqual({ label: 'TTS-OpenAI-Nova' });
-    expect((out.local[1] as any).voices[encodeVoiceId('local', 'af_bella')]).toEqual({ label: 'TTS-Local-af_bella' });
+  // A multilingual voice is offered for every language through Zotero's
+  // wildcard locale rather than by repeating it under each one
+  it('passes the wildcard locale through untouched', () => {
+    const xiaoxiao = configs().find((c) => labelOf(c) === 'TTS-Azure-晓晓 多语言');
+    expect(xiaoxiao.locales).toEqual({ '*': [encodeVoiceId('azure', 'zh-CN-XiaoxiaoMultilingualNeural')] });
+    const alloy = configs().find((c) => labelOf(c) === 'TTS-OpenAI-alloy');
+    expect(alloy.locales).toEqual({ '*': [encodeVoiceId('openai', 'alloy')] });
+  });
+
+  it('declares every voice under its encoded id with its label', () => {
+    const bella = configs().find((c) => labelOf(c) === 'TTS-Local-af_bella');
+    expect(bella.voices).toEqual({ [encodeVoiceId('local', 'af_bella')]: { label: 'TTS-Local-af_bella' } });
   });
 
   it('asks for sentence segments, the prerequisite for word-level highlighting', () => {
-    expect(openaiConfig().segmentGranularity).toBe('sentence');
+    for (const config of configs()) expect(config.segmentGranularity).toBe('sentence');
   });
 
   it('never includes creditsPerMinute, which would switch on the credits UI', () => {
-    expect('creditsPerMinute' in openaiConfig()).toBe(false);
+    for (const config of configs()) expect('creditsPerMinute' in config).toBe(false);
   });
 
-  it('carries the cache version through', () => {
-    expect((buildVoicesResponse(entries, 'abc123').local[0] as any).cacheVersion).toBe('abc123');
+  it('carries the cache version through to every config', () => {
+    for (const config of buildVoicesResponse(entries, 'abc123').local as any[]) expect(config.cacheVersion).toBe('abc123');
   });
 
   it('produces no tier at all when there are no voices', () => {
     expect(buildVoicesResponse([{ provider: 'openai', voices: [] }], 'v1')).toEqual({});
+    expect(buildVoicesResponse([], 'v1')).toEqual({});
   });
 });
