@@ -2,7 +2,6 @@ node_modules/
 build/
 addon/content/zotero-tts.js
 
-# Private working notes and agent scratch space — never committed.
-notes.md
+# Agent scratch space — never committed.
 .superpowers/
 docs/
