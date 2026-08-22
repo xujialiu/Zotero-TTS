@@ -184,3 +184,37 @@ describe('testConnection synthesis probe', () => {
     expect(result.message).toMatch(/Connected, but synthesis failed/);
   });
 });
+
+describe('testConnection probeSynthesis', () => {
+  it('probes with the first listed voice when no voice is configured', async () => {
+    const check = vi.fn(async () => {});
+    const provider = {
+      id: 'openai',
+      capabilities: { wordTimestamps: false },
+      listVoices: async () => [
+        { id: 'Emily.wav', label: 'Emily.wav', locale: 'mul' },
+        { id: 'Adrian.wav', label: 'Adrian.wav', locale: 'mul' },
+      ],
+      synthesize: vi.fn(),
+      checkSynthesis: check,
+    } as unknown as TTSProvider;
+    const result = await testConnection(provider, { probeSynthesis: true });
+    expect(check).toHaveBeenCalledWith('Emily.wav');
+    expect(result.ok).toBe(true);
+    expect(result.message).toContain('Synthesis works');
+  });
+
+  it('skips the probe when the server lists no voices at all', async () => {
+    const check = vi.fn(async () => {});
+    const provider = {
+      id: 'openai',
+      capabilities: { wordTimestamps: false },
+      listVoices: async () => [],
+      synthesize: vi.fn(),
+      checkSynthesis: check,
+    } as unknown as TTSProvider;
+    const result = await testConnection(provider, { probeSynthesis: true });
+    expect(check).not.toHaveBeenCalled();
+    expect(result.ok).toBe(true);
+  });
+});

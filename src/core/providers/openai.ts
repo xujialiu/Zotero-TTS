@@ -141,6 +141,10 @@ export function createOpenAIProvider(cfg: OpenAIConfig, deps: { fetch: typeof fe
       }
       const url = `${base()}/v1/models`;
       const response = await get('/v1/models');
+      // Not every OpenAI-compatible server has a model list (Chatterbox-TTS-
+      // Server answers 404); that is "no models published", not a failure —
+      // the voice list and the synthesis probe still prove the connection.
+      if (response.status === 404 || response.status === 405) return [];
       if (!response.ok) throw statusError(response.status, url);
       try {
         return parseModelList(await response.json());

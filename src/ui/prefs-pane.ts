@@ -40,13 +40,14 @@ export function rankModelsForSpeech(ids: string[]): string[] {
  * whose voice list does not need the key), then the voice list. Bounded by a
  * timeout, because a server that never answers must read as a failure here,
  * not as "Testing…" forever. When the server has a model list and a model
- * was chosen, says whether the server lists it. With `synthesisVoice` set,
- * also proves the account can synthesize (checkSynthesis) — a key lists
- * voices fine after its quota ran out, and only this stage would say so.
+ * was chosen, says whether the server lists it. With `synthesisVoice` set
+ * (or `probeSynthesis`, which uses the first listed voice), also proves the
+ * account can synthesize (checkSynthesis) — a key lists voices fine after
+ * its quota ran out, and only this stage would say so.
  */
 export async function testConnection(
   provider: TTSProvider,
-  options: { timeoutMs?: number; model?: string; synthesisVoice?: string } = {},
+  options: { timeoutMs?: number; model?: string; synthesisVoice?: string; probeSynthesis?: boolean } = {},
 ): Promise<ConnectionResult> {
   const timeoutMs = options.timeoutMs ?? TEST_CONNECTION_TIMEOUT_MS;
   const timeout = () => new SynthesisError('network', `No reply within ${Math.round(timeoutMs / 1000)} s`);
@@ -62,9 +63,13 @@ export async function testConnection(
       timeout,
     );
     let synthesisPart = '';
-    if (options.synthesisVoice && provider.checkSynthesis) {
+    // Probe with the configured voice, else the first voice the server just
+    // listed — a fixed name like "alloy" is wrong on servers with their own
+    // voice library, and the listed voices are ground truth everywhere.
+    const probeVoice = options.synthesisVoice ?? (options.probeSynthesis ? listed.voices[0]?.id : undefined);
+    if (probeVoice && provider.checkSynthesis) {
       try {
-        await withTimeout(provider.checkSynthesis(options.synthesisVoice), timeoutMs, timeout);
+        await withTimeout(provider.checkSynthesis(probeVoice), timeoutMs, timeout);
         synthesisPart = ' Synthesis works.';
       } catch (e) {
         // The server answered; what failed is spending, not connecting —
@@ -175,7 +180,10 @@ export function onPaneLoad(doc: Document): void {
           model: id === 'openai' ? settings.openai.model : undefined,
           // Azure and OpenAI cost money and have quotas, so their test also
           // proves the account can spend; the local engine has neither.
-          synthesisVoice: id === 'azure' ? settings.azure.voice : id === 'openai' ? settings.openai.voice : undefined,
+          // Azure probes its configured voice; OpenAI-compatible servers get
+          // the first voice they list, since a fixed name would be wrong.
+          synthesisVoice: id === 'azure' ? settings.azure.voice : undefined,
+          probeSynthesis: id === 'openai',
         });
       } catch (e) {
         outcome = { ok: false, message: `Connection failed: ${String(e)}` };

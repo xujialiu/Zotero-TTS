@@ -234,3 +234,19 @@ describe('checkSynthesis', () => {
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 });
+
+describe('listModels on servers without a model list', () => {
+  // Chatterbox-TTS-Server and friends answer 404 on /v1/models; that is
+  // "no models published", not a broken connection
+  it('treats 404/405 as an empty model list instead of a failure', async () => {
+    for (const status of [404, 405]) {
+      const fetchImpl = vi.fn(async () => new Response('', { status }));
+      await expect(provider(fetchImpl).listModels!()).resolves.toEqual([]);
+    }
+  });
+
+  it('still reports a rejected key', async () => {
+    const fetchImpl = vi.fn(async () => new Response('', { status: 401 }));
+    await expect(provider(fetchImpl).listModels!()).rejects.toMatchObject({ kind: 'auth' });
+  });
+});

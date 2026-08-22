@@ -5,3 +5,6 @@ addon/content/zotero-tts.js
 # Agent scratch space — never committed.
 .superpowers/
 docs/
+
+# Private notes (billing account ids, cloud setup) — never committed.
+secret/
