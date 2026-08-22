@@ -48,6 +48,11 @@ describe('pluginVoiceLabel', () => {
   it('reads TTS-<Provider>-<name>', () => {
     expect(pluginVoiceLabel('openai', 'Alloy')).toBe('TTS-OpenAI-Alloy');
     expect(pluginVoiceLabel('azure', 'Ava Multilingual')).toBe('TTS-Azure-Ava Multilingual');
+  });
+
+  it('names local voices after their engine, falling back to "Local" without one', () => {
+    expect(pluginVoiceLabel('local', 'af_bella', 'Kokoro')).toBe('TTS-Kokoro-af_bella');
+    expect(pluginVoiceLabel('local', 'voice', 'Piper')).toBe('TTS-Piper-voice');
     expect(pluginVoiceLabel('local', 'af_bella')).toBe('TTS-Local-af_bella');
   });
 });
@@ -77,6 +82,7 @@ describe('buildVoicesResponse', () => {
     },
     {
       provider: 'local' as const,
+      name: 'Kokoro',
       voices: [{ id: 'af_bella', label: 'af_bella', locale: 'en-US' }],
     },
   ];
@@ -101,7 +107,7 @@ describe('buildVoicesResponse', () => {
       'TTS-Azure-晓晓 多语言',
       'TTS-Azure-云希',
       'TTS-Azure-Ava',
-      'TTS-Local-af_bella',
+      'TTS-Kokoro-af_bella',
       'TTS-OpenAI-alloy',
       'TTS-OpenAI-nova',
     ]);
@@ -123,8 +129,8 @@ describe('buildVoicesResponse', () => {
   });
 
   it('declares every voice under its encoded id with its label', () => {
-    const bella = configs().find((c) => labelOf(c) === 'TTS-Local-af_bella');
-    expect(bella.voices).toEqual({ [encodeVoiceId('local', 'af_bella')]: { label: 'TTS-Local-af_bella' } });
+    const bella = configs().find((c) => labelOf(c) === 'TTS-Kokoro-af_bella');
+    expect(bella.voices).toEqual({ [encodeVoiceId('local', 'af_bella')]: { label: 'TTS-Kokoro-af_bella' } });
   });
 
   it('asks for sentence segments, the prerequisite for word-level highlighting', () => {

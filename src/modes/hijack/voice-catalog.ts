@@ -18,10 +18,13 @@ const PROVIDER_NAMES: Record<ProviderId, string> = { openai: 'OpenAI', azure: 'A
 /**
  * "TTS-Azure-Ava Multilingual": tells plugin voices from the system voices
  * in the same tier, and the providers from each other, since every enabled
- * provider's voices are listed together.
+ * provider's voices are listed together. The local provider passes the
+ * engine's name ("Kokoro", "Piper") as `providerName`, so its voices are
+ * named after the engine that serves them; "Local" is only the fallback
+ * when no engine is known.
  */
-export function pluginVoiceLabel(provider: ProviderId, label: string): string {
-  return `TTS-${PROVIDER_NAMES[provider]}-${label}`;
+export function pluginVoiceLabel(provider: ProviderId, label: string, providerName?: string): string {
+  return `TTS-${providerName ?? PROVIDER_NAMES[provider]}-${label}`;
 }
 
 export function encodeVoiceId(provider: ProviderId, voiceId: string): string {
@@ -72,7 +75,7 @@ export function compareVoiceLabels(a: string, b: string): number {
  * the array form is explicitly tolerated and is more robust.
  */
 export function buildVoicesResponse(
-  entries: { provider: ProviderId; voices: VoiceInfo[] }[],
+  entries: { provider: ProviderId; name?: string; voices: VoiceInfo[] }[],
   cacheVersion: string,
 ): Record<string, unknown[]> {
   const all: { id: string; label: string; locale: string }[] = [];
@@ -80,7 +83,7 @@ export function buildVoicesResponse(
     for (const voice of entry.voices) {
       all.push({
         id: encodeVoiceId(entry.provider, voice.id),
-        label: pluginVoiceLabel(entry.provider, voice.label),
+        label: pluginVoiceLabel(entry.provider, voice.label, entry.name),
         locale: voice.locale,
       });
     }

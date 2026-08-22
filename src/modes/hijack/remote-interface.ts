@@ -49,7 +49,7 @@ export interface NativeRemoteInterface {
 }
 
 export type RemoteInterfaceDeps = {
-  listCatalog(): Promise<{ provider: ProviderId; voices: VoiceInfo[] }[]>;
+  listCatalog(): Promise<{ provider: ProviderId; name?: string; voices: VoiceInfo[] }[]>;
   getProvider(provider: ProviderId): TTSProvider;
   getSpeed(): number;
   cacheVersion(): string;

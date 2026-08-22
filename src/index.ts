@@ -2,6 +2,7 @@ import { getChromeWebSocket, newRequestId } from './core/providers/azure';
 import { createProvider } from './core/providers/factory';
 import type { ProviderId, VoiceInfo } from './core/providers/types';
 import { createMemoryCache } from './core/memory-cache';
+import { getLocalEngine } from './core/providers/local/registry';
 import { createZoteroPrefs, enabledProviders, loadSettings, migrateLegacyProviderPref } from './core/settings';
 import { installHijack } from './modes/hijack';
 import { createReadAloudMemorySync, type ReadAloudMemorySync } from './modes/hijack/memory-sync';
@@ -56,13 +57,17 @@ function providerDeps() {
 }
 
 /** The voices of every enabled provider; one failing is logged and skipped, not fatal. */
-async function listCatalog(): Promise<{ provider: ProviderId; voices: VoiceInfo[] }[]> {
+async function listCatalog(): Promise<{ provider: ProviderId; name?: string; voices: VoiceInfo[] }[]> {
   const settings = loadSettings(prefs);
-  return collectCatalog(
+  const entries = await collectCatalog(
     enabledProviders(settings),
     (id) => createProvider(id, settings, providerDeps()),
     (e) => Zotero.logError(e),
   );
+  // Local voices are named after the engine serving them ("TTS-Kokoro-…"),
+  // since "Local" says nothing once several engines exist.
+  const engineName = getLocalEngine(settings.local.engine)?.voiceName;
+  return entries.map((e) => (e.provider === 'local' && engineName ? { ...e, name: engineName } : e));
 }
 
 function startHijack(): void {

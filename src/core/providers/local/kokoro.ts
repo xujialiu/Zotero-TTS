@@ -151,6 +151,7 @@ function createKokoroProvider(rawBaseURL: string, deps: { fetch: typeof fetch })
 export const kokoroAdapter = {
   id: 'kokoro',
   label: 'Kokoro-FastAPI',
+  voiceName: 'Kokoro',
   defaultBaseURL: 'http://localhost:8880',
   capabilities: { wordTimestamps: true },
   create: createKokoroProvider,

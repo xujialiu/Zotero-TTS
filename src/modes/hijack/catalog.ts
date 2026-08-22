@@ -1,6 +1,7 @@
 import type { ProviderId, TTSProvider, VoiceInfo } from '../../core/providers/types';
 
-export type CatalogEntry = { provider: ProviderId; voices: VoiceInfo[] };
+/** `name` overrides the provider's display name in voice labels; the local provider sets it to its engine's name. */
+export type CatalogEntry = { provider: ProviderId; name?: string; voices: VoiceInfo[] };
 
 /**
  * List the voices of every enabled provider, in the given order. Providers
