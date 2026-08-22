@@ -126,3 +126,61 @@ describe('testConnection', () => {
     expect(result.message).toMatch(/0 s/);
   });
 });
+
+describe('testConnection synthesis probe', () => {
+  const provider = (checkSynthesis: (voice: string) => Promise<void>) =>
+    ({
+      id: 'azure',
+      capabilities: { wordTimestamps: true },
+      listVoices: async () => [{ id: 'a', label: 'a', locale: 'en-US' }],
+      synthesize: vi.fn(),
+      checkSynthesis,
+    }) as unknown as TTSProvider;
+
+  it('appends that synthesis works when the probe passes', async () => {
+    const check = vi.fn(async () => {});
+    const result = await testConnection(provider(check), { synthesisVoice: 'en-US-AvaNeural' });
+    expect(result.ok).toBe(true);
+    expect(result.message).toContain('Synthesis works');
+    expect(check).toHaveBeenCalledWith('en-US-AvaNeural');
+  });
+
+  // The point of the probe: an exhausted quota must not read as a broken
+  // connection — the connection is fine, the account cannot spend
+  it('reports "Connected, but synthesis failed" when only synthesis is refused', async () => {
+    const result = await testConnection(
+      provider(async () => {
+        throw new SynthesisError('quota', 'Azure refused to synthesize (403): the quota is likely used up');
+      }),
+      { synthesisVoice: 'v' },
+    );
+    expect(result.ok).toBe(false);
+    expect(result.message).toMatch(/^Connected, but synthesis failed/);
+    expect(result.message).toMatch(/quota/i);
+  });
+
+  it('skips the probe without a voice, and without provider support', async () => {
+    const check = vi.fn(async () => {});
+    await testConnection(provider(check));
+    expect(check).not.toHaveBeenCalled();
+
+    const bare = {
+      id: 'azure',
+      capabilities: { wordTimestamps: true },
+      listVoices: async () => [],
+      synthesize: vi.fn(),
+    } as unknown as TTSProvider;
+    const result = await testConnection(bare, { synthesisVoice: 'v' });
+    expect(result.ok).toBe(true);
+    expect(result.message).not.toContain('Synthesis');
+  });
+
+  it('bounds the probe by the timeout instead of hanging', async () => {
+    const result = await testConnection(
+      provider(() => new Promise(() => {})),
+      { synthesisVoice: 'v', timeoutMs: 10 },
+    );
+    expect(result.ok).toBe(false);
+    expect(result.message).toMatch(/Connected, but synthesis failed/);
+  });
+});

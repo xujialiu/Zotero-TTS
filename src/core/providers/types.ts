@@ -58,4 +58,12 @@ export interface TTSProvider {
   checkConnection?(): Promise<void>;
   /** The model ids the server offers, for servers that have a model list (OpenAI and its look-alikes). Rejects like checkConnection. */
   listModels?(): Promise<string[]>;
+  /**
+   * Prove the account can actually synthesize — quota not exhausted, voice
+   * accepted — with the smallest possible request (a couple of characters).
+   * checkConnection cannot see this: a key lists voices fine long after its
+   * quota ran out. Rejects with a SynthesisError whose kind tells quota
+   * from auth from network.
+   */
+  checkSynthesis?(voice: string): Promise<void>;
 }

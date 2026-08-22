@@ -40,31 +40,46 @@ export function rankModelsForSpeech(ids: string[]): string[] {
  * whose voice list does not need the key), then the voice list. Bounded by a
  * timeout, because a server that never answers must read as a failure here,
  * not as "Testing…" forever. When the server has a model list and a model
- * was chosen, says whether the server lists it.
+ * was chosen, says whether the server lists it. With `synthesisVoice` set,
+ * also proves the account can synthesize (checkSynthesis) — a key lists
+ * voices fine after its quota ran out, and only this stage would say so.
  */
 export async function testConnection(
   provider: TTSProvider,
-  options: { timeoutMs?: number; model?: string } = {},
+  options: { timeoutMs?: number; model?: string; synthesisVoice?: string } = {},
 ): Promise<ConnectionResult> {
   const timeoutMs = options.timeoutMs ?? TEST_CONNECTION_TIMEOUT_MS;
+  const timeout = () => new SynthesisError('network', `No reply within ${Math.round(timeoutMs / 1000)} s`);
+  let models: string[] | undefined;
   try {
-    const { models, voices } = await withTimeout(
+    const listed = await withTimeout(
       (async () => {
-        let models: string[] | undefined;
         if (provider.listModels) models = await provider.listModels();
         else await provider.checkConnection?.();
-        return { models, voices: await provider.listVoices() };
+        return { voices: await provider.listVoices() };
       })(),
       timeoutMs,
-      () => new SynthesisError('network', `No reply within ${Math.round(timeoutMs / 1000)} s`),
+      timeout,
     );
-    const voicesPart = `${voices.length} voices available.`;
+    let synthesisPart = '';
+    if (options.synthesisVoice && provider.checkSynthesis) {
+      try {
+        await withTimeout(provider.checkSynthesis(options.synthesisVoice), timeoutMs, timeout);
+        synthesisPart = ' Synthesis works.';
+      } catch (e) {
+        // The server answered; what failed is spending, not connecting —
+        // say so instead of the generic "Connection failed".
+        const detail = e instanceof Error ? e.message : String(e);
+        return { ok: false, models, message: `Connected, but synthesis failed: ${detail}` };
+      }
+    }
+    const voicesPart = `${listed.voices.length} voices available.`;
     if (models?.length && options.model) {
       return models.includes(options.model)
-        ? { ok: true, models, message: `Connected. Model ${options.model} available. ${voicesPart}` }
-        : { ok: true, models, message: `Connected, but model "${options.model}" is not listed by this server. ${voicesPart}` };
+        ? { ok: true, models, message: `Connected. Model ${options.model} available. ${voicesPart}${synthesisPart}` }
+        : { ok: true, models, message: `Connected, but model "${options.model}" is not listed by this server. ${voicesPart}${synthesisPart}` };
     }
-    return { ok: true, models, message: `Connected. ${voicesPart}` };
+    return { ok: true, models, message: `Connected. ${voicesPart}${synthesisPart}` };
   } catch (e) {
     const kind = (e as { kind?: string })?.kind;
     const detail = e instanceof Error ? e.message : String(e);
@@ -156,7 +171,12 @@ export function onPaneLoad(doc: Document): void {
           getWebSocket: getChromeWebSocket,
           newRequestId,
         });
-        outcome = await testConnection(provider, { model: id === 'openai' ? settings.openai.model : undefined });
+        outcome = await testConnection(provider, {
+          model: id === 'openai' ? settings.openai.model : undefined,
+          // Azure and OpenAI cost money and have quotas, so their test also
+          // proves the account can spend; the local engine has neither.
+          synthesisVoice: id === 'azure' ? settings.azure.voice : id === 'openai' ? settings.openai.voice : undefined,
+        });
       } catch (e) {
         outcome = { ok: false, message: `Connection failed: ${String(e)}` };
       }

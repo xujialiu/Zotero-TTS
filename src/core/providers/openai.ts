@@ -153,6 +153,35 @@ export function createOpenAIProvider(cfg: OpenAIConfig, deps: { fetch: typeof fe
       await provider.listModels!();
     },
 
+    /**
+     * A two-character speech request, discarded. listModels proves the key
+     * is accepted; only an actual synthesis proves the account can spend.
+     * OpenAI reports an exhausted balance as 429 with code
+     * "insufficient_quota" — same status as rate limiting, told apart only
+     * by the body.
+     */
+    async checkSynthesis(voice: string): Promise<void> {
+      if (!cfg.apiKey) throw new SynthesisError('no-key', 'OpenAI API key is not set');
+      let response: Response;
+      try {
+        response = await deps.fetch(`${base()}/v1/audio/speech`, {
+          method: 'POST',
+          headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+          body: JSON.stringify({ model: cfg.model, voice, input: 'Hi', response_format: 'mp3' }),
+        });
+      } catch (e) {
+        throw new SynthesisError('network', String(e));
+      }
+      if (response.ok) return;
+      if (response.status === 429) {
+        const body = await response.text().catch(() => '');
+        if (/insufficient_quota|exceeded your current quota/i.test(body)) {
+          throw new SynthesisError('quota', 'The server refused to synthesize: quota exceeded (insufficient_quota)');
+        }
+      }
+      throw statusError(response.status, 'OpenAI speech');
+    },
+
     async synthesize(text: string, o: SynthesisOptions): Promise<SynthesisResult> {
       if (!cfg.apiKey) {
         throw new SynthesisError('no-key', 'OpenAI API key is not set');

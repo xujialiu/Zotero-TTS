@@ -302,3 +302,47 @@ describe('createAzureProvider', () => {
     });
   });
 });
+
+describe('checkSynthesis', () => {
+  it('posts a tiny SSML request to the REST endpoint with the key', async () => {
+    const fetchImpl = vi.fn(async () => new Response(new Blob(['mp3']), { status: 200 }));
+    await provider(fetchImpl as unknown as typeof fetch).checkSynthesis!('en-US-AvaNeural');
+    const [url, init] = (fetchImpl as any).mock.calls[0];
+    expect(url).toBe('https://eastasia.tts.speech.microsoft.com/cognitiveservices/v1');
+    expect(init.method).toBe('POST');
+    expect(init.headers['Ocp-Apim-Subscription-Key']).toBe('key-1');
+    expect(init.body).toContain('en-US-AvaNeural');
+    expect(init.body).toContain('Hi');
+  });
+
+  // 403 is Azure's answer when the free tier's monthly characters are used
+  // up (and for a key without synthesis permission); the WebSocket path
+  // cannot see this distinction, which is why the probe is REST
+  it('maps the statuses: 403 is quota, 401 auth, 429 rate-limit, else unknown', async () => {
+    const cases: [number, string][] = [
+      [403, 'quota'],
+      [401, 'auth'],
+      [429, 'rate-limit'],
+      [500, 'unknown'],
+    ];
+    for (const [status, kind] of cases) {
+      const fetchImpl = vi.fn(async () => new Response('', { status }));
+      await expect(provider(fetchImpl as unknown as typeof fetch).checkSynthesis!('v')).rejects.toMatchObject({ kind });
+    }
+  });
+
+  it('maps a thrown fetch to network, and an empty key to no-key without fetching', async () => {
+    const failing = vi.fn(async () => {
+      throw new TypeError('failed to fetch');
+    });
+    await expect(provider(failing as unknown as typeof fetch).checkSynthesis!('v')).rejects.toMatchObject({ kind: 'network' });
+
+    const fetchImpl = vi.fn();
+    const p = createAzureProvider(
+      { ...cfg, apiKey: '' },
+      { fetch: fetchImpl as unknown as typeof fetch, getWebSocket: vi.fn() as never, newRequestId: () => 'r' },
+    );
+    await expect(p.checkSynthesis!('v')).rejects.toMatchObject({ kind: 'no-key' });
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+});

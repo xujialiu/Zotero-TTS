@@ -81,6 +81,38 @@ export function createAzureProvider(cfg: AzureConfig, deps: AzureDeps): TTSProvi
       }));
     },
 
+    /**
+     * The REST endpoint, not the WebSocket the plugin plays through: a
+     * refused WebSocket upgrade only surfaces as onerror, so quota-out,
+     * bad key and network failure would all read as "socket error". REST
+     * answers with a status: 403 is Azure's quota-exhausted (and
+     * permission-denied) answer, 401 a bad key. Costs two characters.
+     */
+    async checkSynthesis(voice: string): Promise<void> {
+      if (!cfg.apiKey) throw new SynthesisError('no-key', 'Azure API key is not set');
+      let response: Response;
+      try {
+        response = await deps.fetch(`https://${cfg.region}.tts.speech.microsoft.com/cognitiveservices/v1`, {
+          method: 'POST',
+          headers: {
+            'Ocp-Apim-Subscription-Key': cfg.apiKey,
+            'Content-Type': 'application/ssml+xml',
+            'X-Microsoft-OutputFormat': OUTPUT_FORMAT,
+          },
+          body: buildSSML('Hi', voice, 1),
+        });
+      } catch (e) {
+        throw new SynthesisError('network', String(e));
+      }
+      if (response.ok) return;
+      if (response.status === 401) throw new SynthesisError('auth', 'Azure rejected the API key (401)');
+      if (response.status === 403) {
+        throw new SynthesisError('quota', 'Azure refused to synthesize (403): the quota is likely used up');
+      }
+      if (response.status === 429) throw new SynthesisError('rate-limit', 'Azure rate-limited the request (429)');
+      throw new SynthesisError('unknown', `Azure synthesis returned ${response.status}`);
+    },
+
     synthesize(text: string, o: SynthesisOptions): Promise<SynthesisResult> {
       if (!cfg.apiKey) {
         return Promise.reject(new SynthesisError('no-key', 'Azure API key is not set'));

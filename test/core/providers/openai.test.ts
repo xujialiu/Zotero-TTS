@@ -205,3 +205,32 @@ describe('SynthesisError', () => {
     expect(new SynthesisError('auth').kind).toBe('auth');
   });
 });
+
+describe('checkSynthesis', () => {
+  it('posts a tiny request to the speech endpoint with the configured model', async () => {
+    const fetchImpl = vi.fn(async () => new Response(new Blob(['mp3']), { status: 200 }));
+    await provider(fetchImpl).checkSynthesis!('alloy');
+    const [url, init] = (fetchImpl as any).mock.calls[0];
+    expect(url).toBe('https://api.openai.com/v1/audio/speech');
+    expect(JSON.parse(init.body)).toMatchObject({ model: 'gpt-4o-mini-tts', voice: 'alloy', input: 'Hi' });
+  });
+
+  // OpenAI reports an exhausted balance as 429 insufficient_quota — the
+  // same status as rate limiting, told apart only by the body
+  it('tells quota exhaustion apart from rate limiting on 429', async () => {
+    const quota = vi.fn(async () => new Response(JSON.stringify({ error: { code: 'insufficient_quota' } }), { status: 429 }));
+    await expect(provider(quota).checkSynthesis!('alloy')).rejects.toMatchObject({ kind: 'quota' });
+
+    const rate = vi.fn(async () => new Response('slow down', { status: 429 }));
+    await expect(provider(rate).checkSynthesis!('alloy')).rejects.toMatchObject({ kind: 'rate-limit' });
+  });
+
+  it('maps 401 to auth and an empty key to no-key without fetching', async () => {
+    const rejected = vi.fn(async () => new Response('', { status: 401 }));
+    await expect(provider(rejected).checkSynthesis!('alloy')).rejects.toMatchObject({ kind: 'auth' });
+
+    const fetchImpl = vi.fn();
+    await expect(provider(fetchImpl, { apiKey: '' }).checkSynthesis!('alloy')).rejects.toMatchObject({ kind: 'no-key' });
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+});
