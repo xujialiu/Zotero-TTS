@@ -15,15 +15,16 @@
       <label value="Base URL" style="width: 8em"/>
       <html:input type="text" preference="extensions.zotero.zotero-tts.openai.baseURL"/>
     </hbox>
+    <!-- Free text: any OpenAI-compatible server names its models as it
+         likes. Test connection fills the datalist with the server's list. -->
     <hbox align="center">
       <label value="Model" style="width: 8em"/>
-      <menulist preference="extensions.zotero.zotero-tts.openai.model" native="true">
-        <menupopup>
-          <menuitem label="gpt-4o-mini-tts" value="gpt-4o-mini-tts"/>
-          <menuitem label="tts-1" value="tts-1"/>
-          <menuitem label="tts-1-hd" value="tts-1-hd"/>
-        </menupopup>
-      </menulist>
+      <html:input type="text" list="ztts-openai-models" preference="extensions.zotero.zotero-tts.openai.model"/>
+      <html:datalist id="ztts-openai-models"/>
+    </hbox>
+    <hbox align="center">
+      <label value="Voices" style="width: 8em"/>
+      <html:input type="text" placeholder="auto-detect" preference="extensions.zotero.zotero-tts.openai.voices"/>
     </hbox>
     <hbox align="center">
       <button id="ztts-test-openai" label="Test connection"/>

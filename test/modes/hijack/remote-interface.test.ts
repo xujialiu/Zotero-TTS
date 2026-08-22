@@ -325,6 +325,39 @@ describe('credits', () => {
   });
 });
 
+// A request that never settles would show in Zotero as a spinner that never
+// stops; every one of ours is bounded and surfaces as an error instead
+describe('timeouts', () => {
+  it('turns a synthesis that never finishes into a network error and aborts the request', async () => {
+    const controller = new AbortController();
+    const synthesize = vi.fn(() => new Promise<never>(() => {}));
+    const log = vi.fn();
+    const iface = createRemoteInterface({
+      ...deps(fakeProvider({ synthesize: synthesize as never })),
+      newAbortController: () => controller,
+      synthesisTimeoutMs: 20,
+      log,
+    });
+    const result = await iface.getAudio({ text: 'Hello' }, voice);
+    expect(result).toEqual({ audio: null, error: 'network' });
+    expect(controller.signal.aborted).toBe(true);
+    expect(log).toHaveBeenCalledWith(expect.objectContaining({ kind: 'network' }));
+  });
+
+  it('gives up on a plugin voice catalog that never arrives', async () => {
+    const log = vi.fn();
+    const iface = createRemoteInterface({
+      ...deps(),
+      listCatalog: () => new Promise(() => {}),
+      catalogTimeoutMs: 20,
+      log,
+    });
+    const result = await iface.getVoices();
+    expect(result.error).toBe('network');
+    expect(log).toHaveBeenCalled();
+  });
+});
+
 // Zotero's own interface (ReaderInstance.prototype._getReadAloudRemoteInterface)
 // is kept alongside ours: its Standard and Premium cloud voices, credits and
 // audio stay exactly as they were, and the plugin's voices are added under

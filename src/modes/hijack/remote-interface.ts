@@ -1,5 +1,6 @@
-import { toZoteroError } from '../../core/providers/errors';
+import { SynthesisError, toZoteroError } from '../../core/providers/errors';
 import type { ProviderId, SynthesisResult, Timestamp, TTSProvider, VoiceInfo } from '../../core/providers/types';
+import { withTimeout } from '../../core/timeout';
 import { buildVoicesResponse, decodeVoiceId } from './voice-catalog';
 
 export const SAMPLE_TEXT = 'The quick brown fox jumps over the lazy dog.';
@@ -11,7 +12,7 @@ export const SAMPLE_TEXT = 'The quick brown fox jumps over the lazy dog.';
  * deliberately does NOT construct a real AbortController — that global does
  * not exist in the plugin sandbox, which is the whole reason this exists.
  */
-function neverAbort(): { signal: AbortSignal } {
+function neverAbort(): Pick<AbortController, 'signal' | 'abort'> {
   const signal = {
     aborted: false,
     reason: undefined,
@@ -23,7 +24,7 @@ function neverAbort(): { signal: AbortSignal } {
       return false;
     },
   };
-  return { signal: signal as unknown as AbortSignal };
+  return { signal: signal as unknown as AbortSignal, abort() {} };
 }
 
 export interface AudioCache {
@@ -84,11 +85,18 @@ export type RemoteInterfaceDeps = {
    * one failure there would freeze the voice list forever.
    */
   nativeTimeoutMs?: number;
+  /** How long one segment may take to synthesize before it is reported as a network error. */
+  synthesisTimeoutMs?: number;
+  /** How long listing the plugin's voices may take before the plugin's side of the catalog is given up. */
+  catalogTimeoutMs?: number;
 };
 
 const NO_CREDITS = { standardCreditsRemaining: null, premiumCreditsRemaining: null };
 const DEFAULT_NATIVE_TIMEOUT_MS = 20_000;
-const TIMED_OUT = Symbol('timed out');
+const DEFAULT_SYNTHESIS_TIMEOUT_MS = 60_000;
+const DEFAULT_CATALOG_TIMEOUT_MS = 30_000;
+
+const seconds = (ms: number) => `${Math.round(ms / 1000)} s`;
 
 /**
  * End time of the whole-segment timestamp. Zotero drops a timestamp whose
@@ -126,14 +134,6 @@ export interface RemoteInterface {
   resetCredits(): Promise<{ standardCreditsRemaining: number | null; premiumCreditsRemaining: number | null }>;
 }
 
-function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T | typeof TIMED_OUT> {
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  const expiry = new Promise<typeof TIMED_OUT>((resolve) => {
-    timer = setTimeout(() => resolve(TIMED_OUT), ms);
-  });
-  return Promise.race([promise, expiry]).finally(() => clearTimeout(timer));
-}
-
 export function createRemoteInterface(deps: RemoteInterfaceDeps): RemoteInterface {
   const log = (e: unknown) => deps.log?.(e);
 
@@ -157,8 +157,13 @@ export function createRemoteInterface(deps: RemoteInterfaceDeps): RemoteInterfac
   type VoicesResult = Awaited<ReturnType<RemoteInterface['getVoices']>>;
 
   async function ownVoices(): Promise<{ voices: Record<string, unknown[]> } | { error: string }> {
+    const timeoutMs = deps.catalogTimeoutMs ?? DEFAULT_CATALOG_TIMEOUT_MS;
     try {
-      const catalog = await deps.listCatalog();
+      const catalog = await withTimeout(
+        deps.listCatalog(),
+        timeoutMs,
+        () => new SynthesisError('network', `Listing the plugin's voices took longer than ${seconds(timeoutMs)}`),
+      );
       return { voices: buildVoicesResponse(catalog, deps.cacheVersion()) };
     } catch (e) {
       log(e);
@@ -170,12 +175,13 @@ export function createRemoteInterface(deps: RemoteInterfaceDeps): RemoteInterfac
   async function nativeVoices(): Promise<VoicesResult | null> {
     const iface = native();
     if (!iface) return null;
+    const timeoutMs = deps.nativeTimeoutMs ?? DEFAULT_NATIVE_TIMEOUT_MS;
     try {
-      const result = await withTimeout(iface.getVoices(), deps.nativeTimeoutMs ?? DEFAULT_NATIVE_TIMEOUT_MS);
-      if (result === TIMED_OUT) {
-        log(new Error("Zotero's Read Aloud voices did not arrive in time; continuing without them"));
-        return null;
-      }
+      const result = await withTimeout(
+        iface.getVoices(),
+        timeoutMs,
+        () => new Error(`Zotero's Read Aloud voices did not arrive within ${seconds(timeoutMs)}; continuing without them`),
+      );
       if (!result || result.error || !result.voices) {
         log(new Error(`Zotero's Read Aloud voices are unavailable: ${result?.error ?? 'no voices'}`));
         return null;
@@ -195,11 +201,16 @@ export function createRemoteInterface(deps: RemoteInterfaceDeps): RemoteInterfac
     cacheKey: string,
   ): Promise<SynthesisResult> {
     const provider = deps.getProvider(providerId);
-    const synthesized = await provider.synthesize(text, {
-      voice: voiceId,
-      speed,
-      signal: (deps.newAbortController?.() ?? neverAbort()).signal,
-    });
+    const controller = deps.newAbortController?.() ?? neverAbort();
+    const timeoutMs = deps.synthesisTimeoutMs ?? DEFAULT_SYNTHESIS_TIMEOUT_MS;
+    // A provider that never answers must surface as an error, not as a
+    // spinner that never stops; the abort also stops the request itself.
+    const synthesized = await withTimeout(
+      provider.synthesize(text, { voice: voiceId, speed, signal: controller.signal }),
+      timeoutMs,
+      () => new SynthesisError('network', `${providerId}: no audio within ${seconds(timeoutMs)}`),
+      () => controller.abort(),
+    );
     // Move the audio into the caller's compartment BEFORE it is cached or
     // handed back; the provider's sandbox-owned Blob must not leak past
     // this line (see RemoteInterfaceDeps.adoptAudio).

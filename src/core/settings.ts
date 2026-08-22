@@ -5,7 +5,15 @@ export const PROVIDER_IDS: readonly ProviderId[] = ['openai', 'azure', 'local'];
 
 export interface Settings {
   /** Each provider is switched on independently; every enabled one contributes voices. */
-  openai: { enabled: boolean; apiKey: string; baseURL: string; model: string; voice: string };
+  openai: {
+    enabled: boolean;
+    apiKey: string;
+    baseURL: string;
+    model: string;
+    voice: string;
+    /** Comma-separated voice ids to offer; empty means "ask the server, else OpenAI's defaults". */
+    voices: string;
+  };
   azure: { enabled: boolean; apiKey: string; region: string; voice: string };
   local: { enabled: boolean; engine: string; baseURL: string; voice: string };
   speed: number;
@@ -35,6 +43,7 @@ export const DEFAULTS: Settings = {
     baseURL: 'https://api.openai.com',
     model: 'gpt-4o-mini-tts',
     voice: 'alloy',
+    voices: '',
   },
   azure: { enabled: false, apiKey: '', region: 'eastasia', voice: 'zh-CN-XiaoxiaoNeural' },
   local: { enabled: false, engine: 'kokoro', baseURL: 'http://localhost:8880', voice: 'af_bella' },
@@ -68,6 +77,7 @@ export function loadSettings(prefs: PrefsBackend): Settings {
       baseURL: str(prefs, 'openai.baseURL', DEFAULTS.openai.baseURL),
       model: str(prefs, 'openai.model', DEFAULTS.openai.model),
       voice: str(prefs, 'openai.voice', DEFAULTS.openai.voice),
+      voices: str(prefs, 'openai.voices', DEFAULTS.openai.voices),
     },
     azure: {
       enabled: bool(prefs, 'azure.enabled', DEFAULTS.azure.enabled),

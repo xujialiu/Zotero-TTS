@@ -1,5 +1,7 @@
 export type SynthesisErrorKind =
   | 'no-key'
+  /** The server answered 401/403: the key is wrong, expired, or not authorised. */
+  | 'auth'
   | 'network'
   | 'local-server-down'
   | 'rate-limit'

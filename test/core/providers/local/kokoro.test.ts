@@ -54,6 +54,12 @@ describe('kokoroAdapter', () => {
     ]);
   });
 
+  it("accepts an address written with the OpenAI SDK's /v1 suffix", async () => {
+    const fetchImpl = vi.fn(async () => Response.json({ voices: [] }));
+    await kokoroAdapter.create('http://localhost:8880/v1/', { fetch: fetchImpl as unknown as typeof fetch }).listVoices();
+    expect((fetchImpl as any).mock.calls[0][0]).toBe('http://localhost:8880/v1/audio/voices');
+  });
+
   it('posts to the captioned endpoint and decodes base64 audio', async () => {
     const fetchImpl = vi.fn(async () => Response.json({ audio: AUDIO_B64, timestamps: [] }));
     const result = await provider(fetchImpl).synthesize('Hello', opts);

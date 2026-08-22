@@ -1,5 +1,6 @@
 import { alignWordsToText } from '../../align';
 import type { TimedWord } from '../../align';
+import { normalizeBaseURL } from '../base-url';
 import { SynthesisError } from '../errors';
 import type { SynthesisOptions, SynthesisResult, TTSProvider, VoiceInfo } from '../types';
 
@@ -46,7 +47,10 @@ function toTimedWords(raw: CaptionedResponse['timestamps']): TimedWord[] {
   return words;
 }
 
-function createKokoroProvider(baseURL: string, deps: { fetch: typeof fetch }): TTSProvider {
+function createKokoroProvider(rawBaseURL: string, deps: { fetch: typeof fetch }): TTSProvider {
+  // "http://localhost:8880/v1/" is what the OpenAI SDK docs teach; the paths
+  // below already start with /v1 or /dev
+  const baseURL = normalizeBaseURL(rawBaseURL);
   const call = async (path: string, init: RequestInit): Promise<Response> => {
     try {
       return await deps.fetch(baseURL + path, init);

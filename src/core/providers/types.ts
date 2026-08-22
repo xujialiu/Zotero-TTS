@@ -46,4 +46,14 @@ export interface TTSProvider {
   readonly capabilities: { wordTimestamps: boolean };
   listVoices(): Promise<VoiceInfo[]>;
   synthesize(text: string, o: SynthesisOptions): Promise<SynthesisResult>;
+  /**
+   * One cheap request that proves the configuration works — server
+   * reachable, key accepted. Rejects with a SynthesisError saying what is
+   * wrong. Providers whose listVoices already makes such a request (Azure,
+   * Kokoro) leave this out; OpenAI needs it because its voice list is
+   * static and would "succeed" against any URL and any key.
+   */
+  checkConnection?(): Promise<void>;
+  /** The model ids the server offers, for servers that have a model list (OpenAI and its look-alikes). Rejects like checkConnection. */
+  listModels?(): Promise<string[]>;
 }
