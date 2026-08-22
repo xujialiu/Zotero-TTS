@@ -1,6 +1,20 @@
 export type ReaderLike = { _getReadAloudRemoteInterface?: unknown };
 
 /**
+ * Builds the interface Zotero will use for a reader. `native` builds
+ * Zotero's own interface for the same reader and window (the prototype
+ * method the override shadows), or returns null when there is none; the
+ * factory merges the two.
+ */
+export type InterfaceFactory = (reader: ReaderLike, targetWindow: unknown, native: () => unknown) => unknown;
+
+/** Call the original prototype method with the reader as `this`, if there is one. */
+function callOriginal(reader: ReaderLike, targetWindow: unknown): unknown {
+  const original = (Object.getPrototypeOf(reader) as ReaderLike | null)?._getReadAloudRemoteInterface;
+  return typeof original === 'function' ? original.call(reader, targetWindow) : null;
+}
+
+/**
  * Intercept Zotero.Reader._readers.push.
  *
  * In open(), the push happens synchronously right after
@@ -12,7 +26,9 @@ export type ReaderLike = { _getReadAloudRemoteInterface?: unknown };
  *
  * What gets replaced is an **instance** property, not the prototype, so
  * on uninstall a simple delete revives the prototype method — and this
- * never stomps on other plugins either.
+ * never stomps on other plugins either. The prototype method stays
+ * reachable through the instance's prototype chain, which is how the
+ * factory's `native` thunk reaches Zotero's own interface.
  *
  * makeInterface only runs when Zotero **calls** the method, not at push
  * time. push happens after `new ReaderTab()` and before `_open()`, at
@@ -20,10 +36,7 @@ export type ReaderLike = { _getReadAloudRemoteInterface?: unknown };
  * an argument when it calls the method, and we pass it straight through
  * to the factory.
  */
-export function installHijack(
-  readers: ReaderLike[],
-  makeInterface: (reader: ReaderLike, targetWindow: unknown) => unknown,
-): () => void {
+export function installHijack(readers: ReaderLike[], makeInterface: InterfaceFactory): () => void {
   const originalPush = readers.push;
   const patched: ReaderLike[] = [];
   let installed = true;
@@ -31,7 +44,7 @@ export function installHijack(
   readers.push = function (this: ReaderLike[], ...items: ReaderLike[]): number {
     for (const reader of items) {
       reader._getReadAloudRemoteInterface = (targetWindow: unknown) =>
-        makeInterface(reader, targetWindow);
+        makeInterface(reader, targetWindow, () => callOriginal(reader, targetWindow));
       patched.push(reader);
     }
     return originalPush.apply(this, items);

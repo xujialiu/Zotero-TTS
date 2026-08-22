@@ -3,10 +3,27 @@ import type { ProviderId, VoiceInfo } from '../../core/providers/types';
 const SEPARATOR = '::';
 const PROVIDERS: readonly ProviderId[] = ['openai', 'azure', 'local'];
 
+/**
+ * The tier every plugin voice is filed under. Zotero's tier dropdown is
+ * hard-coded to standard / premium / local (TierSelect, reader.js:38826-
+ * 38853) and parseVoicesResponse drops any other key (reader.js:40522), so a
+ * tier of the plugin's own is impossible. standard and premium are Zotero's
+ * cloud voices, which the composite interface keeps intact; that leaves
+ * local, shared with the operating system's voices.
+ */
+export const PLUGIN_TIER = 'local';
+
+/** Distinguishes plugin voices from the system voices in the same tier. */
+export const PLUGIN_LABEL_PREFIX = 'Zotero TTS · ';
+
 export function encodeVoiceId(provider: ProviderId, voiceId: string): string {
   return provider + SEPARATOR + voiceId;
 }
 
+/**
+ * Decode one of our ids; null for anything else — including Zotero's own
+ * voice ids, which getAudio routes back to Zotero on that basis.
+ */
 export function decodeVoiceId(encoded: string): { provider: ProviderId; voiceId: string } | null {
   const at = encoded.indexOf(SEPARATOR);
   if (at === -1) return null;
@@ -16,15 +33,8 @@ export function decodeVoiceId(encoded: string): { provider: ProviderId; voiceId:
   return { provider: provider as ProviderId, voiceId: encoded.slice(at + SEPARATOR.length) };
 }
 
-/**
- * The only valid tier values are standard | premium | local
- * (reader.js:39248). The ftl copy describes local as "no account
- * needed, free" and standard as "requires a Zotero account", so filing
- * cloud providers under standard and the local engine under local is
- * the closest match to reality.
- */
-export function tierForProvider(provider: ProviderId): 'standard' | 'local' {
-  return provider === 'local' ? 'local' : 'standard';
+export function tierForProvider(_provider: ProviderId): typeof PLUGIN_TIER {
+  return PLUGIN_TIER;
 }
 
 /**
@@ -50,7 +60,7 @@ export function buildVoicesResponse(
 
     for (const voice of entry.voices) {
       const id = encodeVoiceId(entry.provider, voice.id);
-      voices[id] = { label: voice.label };
+      voices[id] = { label: PLUGIN_LABEL_PREFIX + voice.label };
       (locales[voice.locale] ??= []).push(id);
     }
 

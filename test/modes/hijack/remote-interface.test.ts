@@ -31,7 +31,8 @@ describe('getVoices', () => {
     expect(result.standardCreditsRemaining).toBeNull();
     expect(result.premiumCreditsRemaining).toBeNull();
     expect(result.error).toBeUndefined();
-    expect(result.voices!.standard).toHaveLength(1);
+    expect(result.voices!.local).toHaveLength(1);
+    expect(result.voices!.standard).toBeUndefined();
   });
 
   it('reports an error field instead of throwing when listing fails', async () => {
@@ -256,7 +257,7 @@ describe('getAudio', () => {
 });
 
 describe('credits', () => {
-  it('always reports null, because we do not meter anything', async () => {
+  it("reports null without Zotero's interface, because we do not meter anything", async () => {
     const iface = createRemoteInterface(deps());
     expect(await iface.getCreditsRemaining()).toEqual({
       standardCreditsRemaining: null,
@@ -266,5 +267,186 @@ describe('credits', () => {
       standardCreditsRemaining: null,
       premiumCreditsRemaining: null,
     });
+  });
+});
+
+// Zotero's own interface (ReaderInstance.prototype._getReadAloudRemoteInterface)
+// is kept alongside ours: its Standard and Premium cloud voices, credits and
+// audio stay exactly as they were, and the plugin's voices are added under
+// the local tier. Every method of the fake resolves like the real one does.
+describe("alongside Zotero's own interface", () => {
+  const standardConfig = { voices: { s1: { label: 'Zotero standard' } }, locales: { 'en-US': ['s1'] } };
+
+  function fakeNative(over: Partial<Record<'getVoices' | 'getAudio' | 'getCreditsRemaining' | 'resetCredits', any>> = {}) {
+    return {
+      getVoices: vi.fn(async () => ({
+        voices: { standard: [standardConfig], premium: [] },
+        standardCreditsRemaining: 120,
+        premiumCreditsRemaining: 30,
+        devMode: true,
+      })),
+      getAudio: vi.fn(async () => ({ audio: new Blob(['native']), timestamps: [{ start: 0, end: 1, charStart: 0, charEnd: 3 }] })),
+      getCreditsRemaining: vi.fn(async () => ({ standardCreditsRemaining: 100, premiumCreditsRemaining: 20 })),
+      resetCredits: vi.fn(async () => ({ standardCreditsRemaining: 999, premiumCreditsRemaining: 999 })),
+      ...over,
+    };
+  }
+
+  function withNative(native: ReturnType<typeof fakeNative> | null, extra: Record<string, unknown> = {}) {
+    const log = vi.fn();
+    const synthesize = vi.fn(async () => ({ audio: new Blob(['plugin']) }));
+    const iface = createRemoteInterface({ ...deps(fakeProvider({ synthesize })), native: () => native, log, ...extra });
+    return { iface, log, synthesize };
+  }
+
+  it("keeps Zotero's tiers and credits and adds the plugin voices under local", async () => {
+    const native = fakeNative();
+    const result = await withNative(native).iface.getVoices();
+    expect(result.error).toBeUndefined();
+    expect(result.voices!.standard).toEqual([standardConfig]);
+    expect(result.voices!.premium).toEqual([]);
+    expect(result.voices!.local).toHaveLength(1);
+    expect(result.standardCreditsRemaining).toBe(120);
+    expect(result.premiumCreditsRemaining).toBe(30);
+    expect(result.devMode).toBe(true);
+  });
+
+  it('appends to, rather than replaces, a local tier Zotero itself reports', async () => {
+    const theirs = { voices: { l1: { label: 'theirs' } }, locales: { 'en-US': ['l1'] } };
+    const native = fakeNative({ getVoices: vi.fn(async () => ({ voices: { local: [theirs] } })) });
+    const result = await withNative(native).iface.getVoices();
+    expect(result.voices!.local).toHaveLength(2);
+    expect(result.voices!.local[0]).toEqual(theirs);
+  });
+
+  it("still lists the plugin voices when Zotero's side fails, and records why", async () => {
+    const native = fakeNative({ getVoices: vi.fn(async () => { throw new Error('offline'); }) });
+    const { iface, log } = withNative(native);
+    const result = await iface.getVoices();
+    expect(result.error).toBeUndefined();
+    expect(result.voices!.local).toHaveLength(1);
+    expect(result.voices!.standard).toBeUndefined();
+    expect(result.standardCreditsRemaining).toBeNull();
+    expect(log).toHaveBeenCalledWith(expect.any(Error));
+  });
+
+  it('treats an error field from Zotero the same as a failure', async () => {
+    const native = fakeNative({ getVoices: vi.fn(async () => ({ error: 'network', standardCreditsRemaining: null, premiumCreditsRemaining: null })) });
+    const { iface, log } = withNative(native);
+    const result = await iface.getVoices();
+    expect(result.error).toBeUndefined();
+    expect(result.voices!.local).toHaveLength(1);
+    expect(log).toHaveBeenCalled();
+  });
+
+  // The real interface's promises never reject: an exception inside them
+  // leaves the promise pending forever, which would freeze the popup
+  it("gives up on Zotero's side after the timeout instead of hanging", async () => {
+    const native = fakeNative({ getVoices: vi.fn(() => new Promise(() => {})) });
+    const { iface, log } = withNative(native, { nativeTimeoutMs: 20 });
+    const result = await iface.getVoices();
+    expect(result.voices!.local).toHaveLength(1);
+    expect(log).toHaveBeenCalled();
+  });
+
+  it("still lists Zotero's voices when the plugin catalog fails", async () => {
+    const native = fakeNative();
+    const log = vi.fn();
+    const iface = createRemoteInterface({
+      ...deps(),
+      listCatalog: async () => {
+        throw new SynthesisError('network');
+      },
+      native: () => native,
+      log,
+    });
+    const result = await iface.getVoices();
+    expect(result.error).toBeUndefined();
+    expect(result.voices!.standard).toEqual([standardConfig]);
+    expect(result.voices!.local).toBeUndefined();
+    expect(result.standardCreditsRemaining).toBe(120);
+    expect(log).toHaveBeenCalled();
+  });
+
+  it('reports an error only when both sides fail', async () => {
+    const native = fakeNative({ getVoices: vi.fn(async () => { throw new Error('offline'); }) });
+    const iface = createRemoteInterface({
+      ...deps(),
+      listCatalog: async () => {
+        throw new SynthesisError('network');
+      },
+      native: () => native,
+    });
+    const result = await iface.getVoices();
+    expect(result.error).toBe('network');
+    expect(result.voices).toBeUndefined();
+  });
+
+  it("routes a voice that is not the plugin's to Zotero, untouched", async () => {
+    const native = fakeNative();
+    const { iface, synthesize } = withNative(native);
+    const segment = { text: 'Hi' };
+    const result = await iface.getAudio(segment, { id: 's1' });
+    expect(native.getAudio).toHaveBeenCalledWith(segment, { id: 's1' });
+    expect(await result.audio!.text()).toBe('native');
+    expect(result.timestamps).toEqual([{ start: 0, end: 1, charStart: 0, charEnd: 3 }]);
+    expect(synthesize).not.toHaveBeenCalled();
+  });
+
+  it('still synthesises plugin voices itself', async () => {
+    const native = fakeNative();
+    const { iface, synthesize } = withNative(native);
+    const result = await iface.getAudio({ text: 'Hi' }, voice);
+    expect(synthesize).toHaveBeenCalledOnce();
+    expect(native.getAudio).not.toHaveBeenCalled();
+    expect(await result.audio!.text()).toBe('plugin');
+  });
+
+  it("collapses a failure on Zotero's side into the unknown error", async () => {
+    const native = fakeNative({ getAudio: vi.fn(async () => { throw new Error('offline'); }) });
+    const { iface, log } = withNative(native);
+    const result = await iface.getAudio({ text: 'Hi' }, { id: 's1' });
+    expect(result).toEqual({ audio: null, error: 'unknown' });
+    expect(log).toHaveBeenCalledWith(expect.any(Error));
+  });
+
+  it('passes credit calls through', async () => {
+    const native = fakeNative();
+    const { iface } = withNative(native);
+    expect(await iface.getCreditsRemaining()).toEqual({ standardCreditsRemaining: 100, premiumCreditsRemaining: 20 });
+    expect(await iface.resetCredits()).toEqual({ standardCreditsRemaining: 999, premiumCreditsRemaining: 999 });
+  });
+
+  it("obtains Zotero's interface lazily and only once", async () => {
+    const native = fakeNative();
+    const thunk = vi.fn(() => native);
+    const iface = createRemoteInterface({ ...deps(), native: thunk });
+    expect(thunk).not.toHaveBeenCalled();
+    await iface.getVoices();
+    await iface.getCreditsRemaining();
+    await iface.getAudio({ text: 'Hi' }, { id: 's1' });
+    expect(thunk).toHaveBeenCalledTimes(1);
+  });
+
+  it('behaves as before when there is no interface to wrap', async () => {
+    const { iface } = withNative(null);
+    const result = await iface.getVoices();
+    expect(result.voices!.local).toHaveLength(1);
+    expect(result.standardCreditsRemaining).toBeNull();
+    expect(await iface.getAudio({ text: 'Hi' }, { id: 's1' })).toEqual({ audio: null, error: 'unknown' });
+  });
+
+  it('treats a thunk that throws as no interface, and records it', async () => {
+    const log = vi.fn();
+    const iface = createRemoteInterface({
+      ...deps(),
+      native: () => {
+        throw new Error('no window');
+      },
+      log,
+    });
+    const result = await iface.getVoices();
+    expect(result.voices!.local).toHaveLength(1);
+    expect(log).toHaveBeenCalledWith(expect.any(Error));
   });
 });

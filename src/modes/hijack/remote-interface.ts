@@ -31,6 +31,22 @@ export interface AudioCache {
   put(key: string, value: SynthesisResult): Promise<void>;
 }
 
+type ZoteroSegment = { text: string } | 'sample';
+type ZoteroVoice = { id: string };
+
+/**
+ * Zotero's own interface for the same reader, as built by
+ * ReaderInstance.prototype._getReadAloudRemoteInterface. Its methods return
+ * promises of the reader window that resolve with objects cloned into that
+ * window; they are awaited, never inspected.
+ */
+export interface NativeRemoteInterface {
+  getVoices(): Promise<any>;
+  getAudio(segment: ZoteroSegment, voice: ZoteroVoice): Promise<any>;
+  getCreditsRemaining(): Promise<any>;
+  resetCredits(): Promise<any>;
+}
+
 export type RemoteInterfaceDeps = {
   listCatalog(): Promise<{ provider: ProviderId; voices: VoiceInfo[] }[]>;
   getProvider(provider: ProviderId): TTSProvider;
@@ -53,51 +69,136 @@ export type RemoteInterfaceDeps = {
    * sandbox-owned original. Optional: unit tests run in one compartment.
    */
   adoptAudio?(blob: Blob): Blob;
+  /**
+   * Builds Zotero's own interface for this reader, or returns null when
+   * there is none. Called lazily, once. With it present, Zotero's Standard
+   * and Premium voices, credits and audio pass straight through and the
+   * plugin's voices are merged in under the local tier.
+   */
+  native?(): NativeRemoteInterface | null;
+  /**
+   * How long to wait for Zotero's side of getVoices. Its promises never
+   * reject — an exception inside leaves them pending — so without a limit
+   * one failure there would freeze the voice list forever.
+   */
+  nativeTimeoutMs?: number;
 };
 
-type ZoteroSegment = { text: string } | 'sample';
-type ZoteroVoice = { id: string };
-
 const NO_CREDITS = { standardCreditsRemaining: null, premiumCreditsRemaining: null };
+const DEFAULT_NATIVE_TIMEOUT_MS = 20_000;
+const TIMED_OUT = Symbol('timed out');
 
 export interface RemoteInterface {
   getVoices(): Promise<{
     voices?: Record<string, unknown[]>;
     error?: string;
-    standardCreditsRemaining: null;
-    premiumCreditsRemaining: null;
+    standardCreditsRemaining: number | null;
+    premiumCreditsRemaining: number | null;
     devMode?: boolean;
   }>;
   getAudio(
     segment: ZoteroSegment,
     voice: ZoteroVoice,
   ): Promise<{ audio: Blob | null; timestamps?: unknown; error?: string; noStore?: boolean }>;
-  getCreditsRemaining(): Promise<typeof NO_CREDITS>;
-  resetCredits(): Promise<typeof NO_CREDITS>;
+  getCreditsRemaining(): Promise<{ standardCreditsRemaining: number | null; premiumCreditsRemaining: number | null }>;
+  resetCredits(): Promise<{ standardCreditsRemaining: number | null; premiumCreditsRemaining: number | null }>;
+}
+
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T | typeof TIMED_OUT> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const expiry = new Promise<typeof TIMED_OUT>((resolve) => {
+    timer = setTimeout(() => resolve(TIMED_OUT), ms);
+  });
+  return Promise.race([promise, expiry]).finally(() => clearTimeout(timer));
 }
 
 export function createRemoteInterface(deps: RemoteInterfaceDeps): RemoteInterface {
+  const log = (e: unknown) => deps.log?.(e);
+
+  // Zotero's interface, built on first use and kept: building it opens
+  // Zotero's audio cache, which there is no reason to do twice.
+  let nativeResolved = false;
+  let nativeInterface: NativeRemoteInterface | null = null;
+  const native = (): NativeRemoteInterface | null => {
+    if (!nativeResolved) {
+      nativeResolved = true;
+      try {
+        nativeInterface = deps.native?.() ?? null;
+      } catch (e) {
+        log(e);
+        nativeInterface = null;
+      }
+    }
+    return nativeInterface;
+  };
+
+  type VoicesResult = Awaited<ReturnType<RemoteInterface['getVoices']>>;
+
+  async function ownVoices(): Promise<{ voices: Record<string, unknown[]> } | { error: string }> {
+    try {
+      const catalog = await deps.listCatalog();
+      return { voices: buildVoicesResponse(catalog, deps.cacheVersion()) };
+    } catch (e) {
+      log(e);
+      return { error: toZoteroError(e) };
+    }
+  }
+
+  /** Zotero's voices, or null when they are unavailable for any reason (logged). */
+  async function nativeVoices(): Promise<VoicesResult | null> {
+    const iface = native();
+    if (!iface) return null;
+    try {
+      const result = await withTimeout(iface.getVoices(), deps.nativeTimeoutMs ?? DEFAULT_NATIVE_TIMEOUT_MS);
+      if (result === TIMED_OUT) {
+        log(new Error("Zotero's Read Aloud voices did not arrive in time; continuing without them"));
+        return null;
+      }
+      if (!result || result.error || !result.voices) {
+        log(new Error(`Zotero's Read Aloud voices are unavailable: ${result?.error ?? 'no voices'}`));
+        return null;
+      }
+      return result;
+    } catch (e) {
+      log(e);
+      return null;
+    }
+  }
+
   return {
     async getVoices() {
-      try {
-        const catalog = await deps.listCatalog();
-        return {
-          voices: buildVoicesResponse(catalog, deps.cacheVersion()),
-          ...NO_CREDITS,
-          devMode: false,
-        };
-      } catch (e) {
+      const [theirs, mine] = await Promise.all([nativeVoices(), ownVoices()]);
+      if (!theirs && 'error' in mine) {
         // RemoteReadAloudProvider checks `error || !voices` and throws,
         // so we return an error field here instead of throwing ourselves.
-        deps.log?.(e);
-        return { error: toZoteroError(e), ...NO_CREDITS };
+        return { error: mine.error, ...NO_CREDITS };
       }
+      const voices: Record<string, unknown[]> = { ...(theirs?.voices ?? {}) };
+      if ('voices' in mine) {
+        for (const [tier, configs] of Object.entries(mine.voices)) {
+          voices[tier] = [...(voices[tier] ?? []), ...configs];
+        }
+      }
+      return {
+        voices,
+        standardCreditsRemaining: theirs?.standardCreditsRemaining ?? null,
+        premiumCreditsRemaining: theirs?.premiumCreditsRemaining ?? null,
+        devMode: theirs?.devMode ?? false,
+      };
     },
 
     async getAudio(segment, voice) {
       const decoded = decodeVoiceId(voice?.id ?? '');
       if (!decoded) {
-        return { audio: null, error: 'unknown' };
+        // Not one of ours: Zotero's own voice, handled by Zotero's own code
+        const iface = native();
+        if (!iface) return { audio: null, error: 'unknown' };
+        try {
+          return await iface.getAudio(segment, voice);
+        } catch (e) {
+          log(e);
+          return { audio: null, error: 'unknown' };
+        }
       }
 
       try {
@@ -128,17 +229,31 @@ export function createRemoteInterface(deps: RemoteInterfaceDeps): RemoteInterfac
         // toZoteroError collapses every failure into the three strings
         // Zotero's UI understands, so the real cause is gone by the time the
         // user sees "unknown error". Record it before collapsing.
-        deps.log?.(e);
+        log(e);
         return { audio: null, error: toZoteroError(e) };
       }
     },
 
     async getCreditsRemaining() {
-      return NO_CREDITS;
+      const iface = native();
+      if (!iface) return NO_CREDITS;
+      try {
+        return await iface.getCreditsRemaining();
+      } catch (e) {
+        log(e);
+        return NO_CREDITS;
+      }
     },
 
     async resetCredits() {
-      return NO_CREDITS;
+      const iface = native();
+      if (!iface) return NO_CREDITS;
+      try {
+        return await iface.resetCredits();
+      } catch (e) {
+        log(e);
+        return NO_CREDITS;
+      }
     },
   };
 }

@@ -39,7 +39,7 @@ describe('installHijack', () => {
     const targetWindow = { marker: 'iframe window' };
     reader._getReadAloudRemoteInterface(targetWindow);
 
-    expect(makeInterface).toHaveBeenCalledWith(reader, targetWindow);
+    expect(makeInterface).toHaveBeenCalledWith(reader, targetWindow, expect.any(Function));
   });
 
   it('still pushes the reader onto the array', () => {
@@ -113,5 +113,55 @@ describe('installHijack', () => {
     const uninstall = installHijack(readers, () => ({}));
     uninstall();
     expect(() => uninstall()).not.toThrow();
+  });
+});
+
+// Zotero's own interface is still wanted (its Standard and Premium voices are
+// merged with ours), so the factory gets a way to build it: the prototype's
+// original method, which the instance override shadows.
+describe("access to Zotero's original interface", () => {
+  class ReaderBase {
+    _getReadAloudRemoteInterface(win: unknown) {
+      return { native: true, self: this as unknown, win };
+    }
+  }
+
+  it('hands the factory a thunk that calls the original with the reader and the target window', () => {
+    const readers = fakeReaders();
+    const makeInterface = vi.fn((_reader: unknown, _win: unknown, native: () => unknown) => native());
+    installHijack(readers, makeInterface);
+
+    const reader: any = new ReaderBase();
+    readers.push(reader);
+    const win = { marker: 'iframe window' };
+
+    expect(reader._getReadAloudRemoteInterface(win)).toEqual({ native: true, self: reader, win });
+  });
+
+  it('does not call the original until the thunk is used', () => {
+    const spy = vi.spyOn(ReaderBase.prototype, '_getReadAloudRemoteInterface');
+    try {
+      const readers = fakeReaders();
+      installHijack(readers, () => ({}));
+      const reader: any = new ReaderBase();
+      readers.push(reader);
+      reader._getReadAloudRemoteInterface({});
+      expect(spy).not.toHaveBeenCalled();
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it('yields null when the reader has no original method', () => {
+    const readers = fakeReaders();
+    let native: (() => unknown) | null = null;
+    installHijack(readers, (_reader, _win, n) => {
+      native = n;
+      return {};
+    });
+    const reader: any = {};
+    readers.push(reader);
+    reader._getReadAloudRemoteInterface({});
+    expect(native!()).toBeNull();
   });
 });

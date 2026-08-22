@@ -4,7 +4,11 @@ import type { ProviderId, VoiceInfo } from './core/providers/types';
 import { createMemoryCache } from './core/memory-cache';
 import { createZoteroPrefs, loadSettings } from './core/settings';
 import { installHijack } from './modes/hijack';
-import { createRemoteInterface, type RemoteInterface } from './modes/hijack/remote-interface';
+import {
+  createRemoteInterface,
+  type NativeRemoteInterface,
+  type RemoteInterface,
+} from './modes/hijack/remote-interface';
 import { onPaneLoad, registerPrefsPane } from './ui/prefs-pane';
 import {
   createSpeedShortcuts,
@@ -58,10 +62,16 @@ function startHijack(): void {
   // makeInterface only runs when Zotero calls it; targetWindow is the
   // reader iframe window it passes in — it doesn't exist yet at push
   // time (see Task 13).
-  uninstallHijack = installHijack(Zotero.Reader._readers, (reader: any, targetWindow: any) =>
+  uninstallHijack = installHijack(Zotero.Reader._readers, (reader: any, targetWindow: any, native) =>
     wrapForWindow(
       targetWindow,
       createRemoteInterface({
+        // Zotero's own interface is kept: its Standard and Premium voices,
+        // credits and audio pass through untouched, and ours are merged in
+        // under the local tier. Zotero's code runs in its own compartment
+        // (including its use of the chrome window's Cache API, which only
+        // ever crashed when driven from this sandbox).
+        native: () => native() as NativeRemoteInterface | null,
         listCatalog,
         // Must honor the passed-in id: Zotero remembers the last-selected
         // voice, and after the user switches provider in settings, that
