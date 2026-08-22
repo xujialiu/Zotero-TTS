@@ -1,0 +1,127 @@
+# CLAUDE.md — zotero-tts
+
+Zotero 10 plugin that adds voices to Zotero's built-in **Read Aloud**: OpenAI
+(or any OpenAI-compatible server), Azure Speech, and a local Kokoro-FastAPI.
+Zotero's own Standard/Premium voices keep working; ours join the Local tier as
+`TTS-<Provider>-<voice>`. Also: speed shortcuts (Shift+Z/X/C), one voice and
+speed across documents, settings backup/restore.
+
+- `README.md` — user-facing docs (install, providers, Kokoro setup, troubleshooting).
+- `notes.md` — engineering notes: every production incident, and the Zotero
+  internals verified by reading its source. **Read it before touching Read
+  Aloud internals; append to it (English) whenever something non-obvious is
+  learned or broken.**
+
+## Working with the user
+
+- Reply in **Chinese**, always, whatever language the input (logs, source,
+  instructions) is in. Code, identifiers, comments, commit messages, README
+  and notes.md are English.
+- Architecture-level forks: present the options with concrete costs and a
+  recommendation, then wait. Implementation details: pick the sane default,
+  state it in one line, move on.
+- Research first when asked ("先调研"): report findings, do not change code.
+- Commit only when told ("commit"); work on a `feat/...` branch; merge into
+  `main` with `--ff-only` only when told; push only when told. Commit subject
+  style: `feat: …` / `fix: …` / `docs: …` / `chore: …`, body explains why.
+  End commit messages with `Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>`.
+- Before any push: scan the history for keys (`sk-…`, 32-hex, `ghp_…`).
+  Never echo an API key into the conversation or a file. Zotero's
+  `prefs.js` holds the user's keys in plaintext — grep it only for the exact
+  pref you need, never print whole lines.
+
+## Commands (Node 22, ESM)
+
+```
+npm test              # vitest, ~340 tests, includes test/build.test.ts which runs the build
+npm run typecheck     # tsc --noEmit
+npm run build         # esbuild → addon/content/zotero-tts.js, zip → build/zotero-tts.xpi
+```
+
+After any change: tests, typecheck, build — then the user installs the xpi
+(Tools → Plugins → Install from file) and restarts Zotero. Zotero cannot be
+driven from here; when something fails in Zotero, ask for Help → Debug Output
+Logging → View Output (the user saves it as an .htm) and grep it for
+`[zotero-tts]` and `JavaScript Error`.
+
+Platform notes:
+- Windows: the Bash tool is Git Bash; long `cat <<'EOF'` heredocs have failed
+  with "unexpected EOF" — write files with the Write tool or a Python
+  heredoc. Paths: `$HOME/Works/...` in Bash, `C:\Users\...` for tools that need it.
+- macOS: zsh; same npm commands; no Git Bash quirks.
+- Zotero source for verification: unpack the installed `omni.ja` into the
+  scratch directory (`unzip -q` or Python `zipfile`) —
+  Windows `C:\Program Files\Zotero\app\omni.ja`,
+  macOS `/Applications/Zotero.app/Contents/Resources/app/omni.ja`.
+  Reader bundle: `resource/reader/reader.js` (~85k lines; grep, then `sed -n`
+  ranges); chrome side: `chrome/content/zotero/xpcom/reader.js`; prefs:
+  `defaults/preferences/zotero.js`; plugin sandbox: `xpcom/plugins.js`.
+- Zotero profile prefs: Windows `%APPDATA%\Zotero\Zotero\Profiles\*\prefs.js`,
+  macOS `~/Library/Application Support/Zotero/Profiles/*/prefs.js`.
+- Kokoro-FastAPI for local testing: on the Windows machine it runs in Docker
+  Desktop (container `kokoro`, GPU image, http://localhost:8880). On macOS use
+  the CPU image or the native `start-gpu_mac.sh` (see README).
+
+## Layout and rules
+
+```
+src/core/           pure logic, no Zotero globals: settings (DEFAULTS ↔ addon/prefs.js,
+                    pinned by test/prefs-defaults.test.ts), providers/{openai,azure,local/kokoro},
+                    shortcuts, read-aloud-speed, settings-backup, timeout
+src/modes/hijack/   the Read Aloud integration: index (intercepts Zotero.Reader._readers and
+                    overrides _getReadAloudRemoteInterface per reader), remote-interface
+                    (composite of Zotero's native interface + our voices), voice-catalog,
+                    catalog, read-aloud-memory (+ memory-sync: one voice/speed across documents)
+src/ui/             prefs pane (prefs-pane, shortcut-rows, backup-rows, shortcut-recorder),
+                    speed-shortcuts, speed-toast
+src/index.ts        bootstrap wiring; with core/settings.createZoteroPrefs and ui/prefs-pane the
+                    only code that touches Zotero globals (declared in src/globals.d.ts)
+addon/              manifest.json, bootstrap.js, prefs.js (defaults), content/preferences.xhtml
+test/               mirrors src/; vitest
+```
+
+- TDD: write the failing test first. Zotero-facing code takes its Zotero
+  bits as injected deps so the logic is unit-testable (see `memory-sync.ts`,
+  `backup-rows.ts`, `speed-shortcuts.ts` for the pattern).
+- Every network call goes through `core/timeout.withTimeout`; failures are
+  reported as errors, never left hanging ("有问题应该是报错, 而不是卡住").
+- Never fabricate per-word timestamps; a voice without them falls back to
+  sentence highlighting (`remote-interface.wholeSegmentTimestamp`).
+- Providers are enabled independently; OpenAI voices/models are never
+  hard-coded as the only option (many servers are OpenAI-compatible).
+- Preference pane: no `scripts` in the pane registration — Zotero runs them
+  before the markup exists. Everything initializes from the root
+  `<vbox onload="Zotero.ZoteroTTS.prefsPane.onPaneLoad(document)">`.
+  `preference=`-bound inputs redraw themselves on pref change; unbound rows
+  (shortcuts) expose a `refresh()`.
+
+## Zotero pitfalls that have already cost a round-trip
+
+- **Sandbox whitelist**: the plugin scope has no `WebSocket`, `AbortController`
+  or `caches`; take them from `reader._window`. It does get `Zotero`,
+  `Services`, `ChromeUtils`, `IOUtils`, `PathUtils`, `setTimeout`, `fetch`.
+- **Compartments**: the reader iframe may not call a bare sandbox function
+  (export it with `Components.utils.exportFunction`) nor read a sandbox object
+  ("Permission denied to access property …"). Hand reader code primitives
+  only; call reader functions with `Reflect.apply`, not `fn.apply`, so the
+  argument array stays on our side. Never call `fn.apply` on a reader
+  function with sandbox arguments.
+- **`Zotero.Prefs.set`** picks the pref type from `typeof value`; a value whose
+  type differs from the `prefs.js` default throws, and numbers go through
+  `setIntPref` (floats truncate). Undeclared prefs read as `undefined`.
+  `Zotero.Prefs.registerObserver(name, fn)` takes names relative to
+  `extensions.zotero.`; observers fire synchronously inside `set`.
+- **`FilePicker`** (`chrome://zotero/content/modules/filePicker.mjs`): the
+  chosen path is `fp.file` (a string); there is no `fp.path`.
+- **Read Aloud**: `reader._internalReader._readAloudManager` — `active` means
+  "session open" (paused keeps it true), speaking is `active && !paused`;
+  `setSpeed(speed, persist)` — never persist on an idle manager, it starts
+  playback. Choices persist in `extensions.zotero.reader.readAloudVoices`,
+  keyed by the *detected* base language (`mul` for "Multiple languages");
+  `_syncPersistedVoicesToManager` restores them. Tiers are hard-coded
+  standard/premium/local; unknown tiers are dropped. Word mode draws only
+  real word timestamps.
+- **Kokoro-FastAPI**: `/dev/captioned_speech` needs `stream: false`;
+  `/v1/audio/voices` returns `{ voices: [{ id, name }] }`.
+- The Zotero 9 internals used by the user's older standalone plugin
+  (`view._readAloud.state.controller.speed`) do not exist in Zotero 10.
