@@ -33,14 +33,17 @@ export function nextSpeed(current: number, action: SpeedAction): number {
   return Math.min(SPEED_MAX, Math.max(SPEED_MIN, next));
 }
 
-type VoiceEntry = Record<string, unknown>;
+/** One language's entry in the pref: `{ region, voice, speed, tierVoices }`, any of which may be missing. */
+export type VoiceEntry = Record<string, unknown>;
+export type VoicesMap = Record<string, VoiceEntry>;
 
-function readVoices(prefs: PrefsBackend): Record<string, VoiceEntry> {
+/** Zotero's pref, parsed; an unset or damaged value reads as empty. */
+export function readReadAloudVoices(prefs: PrefsBackend): VoicesMap {
   try {
     const raw = prefs.get(READ_ALOUD_VOICES_PREF);
     if (typeof raw !== 'string' || !raw) return {};
     const parsed: unknown = JSON.parse(raw);
-    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? (parsed as Record<string, VoiceEntry>) : {};
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? (parsed as VoicesMap) : {};
   } catch {
     return {};
   }
@@ -58,7 +61,7 @@ export function resolveVoiceLang(lang: string | null, keys: string[]): string | 
 
 /** The speed Zotero last persisted for the language, else for any language, else 1. */
 export function readPersistedSpeed(prefs: PrefsBackend, lang: string | null): number {
-  const voices = readVoices(prefs);
+  const voices = readReadAloudVoices(prefs);
   const key = resolveVoiceLang(lang, Object.keys(voices));
   const candidates = key ? [voices[key], ...Object.values(voices)] : Object.values(voices);
   for (const entry of candidates) {
@@ -75,7 +78,7 @@ export function readPersistedSpeed(prefs: PrefsBackend, lang: string | null): nu
  * or no manager at all).
  */
 export function persistSpeed(prefs: PrefsBackend, lang: string | null, speed: number): void {
-  const voices = readVoices(prefs);
+  const voices = readReadAloudVoices(prefs);
   const key = resolveVoiceLang(lang, Object.keys(voices));
   if (key) {
     voices[key] = { ...voices[key], speed };

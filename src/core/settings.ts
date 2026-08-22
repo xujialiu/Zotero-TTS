@@ -25,6 +25,8 @@ export interface Settings {
    * text understood by core/shortcuts.ts ("Shift+Z"). Empty disables one.
    */
   shortcuts: Record<SpeedAction, string>;
+  /** Keep one Read Aloud voice and speed across documents (modes/hijack/read-aloud-memory.ts). */
+  readAloud: { sameForAllDocuments: boolean };
 }
 
 export interface PrefsBackend {
@@ -51,6 +53,7 @@ export const DEFAULTS: Settings = {
   prefetch: 3,
   cacheAudio: true,
   shortcuts: { speedReset: 'Shift+Z', speedDown: 'Shift+X', speedUp: 'Shift+C' },
+  readAloud: { sameForAllDocuments: true },
 };
 
 function str(prefs: PrefsBackend, key: string, fallback: string): string {
@@ -99,6 +102,9 @@ export function loadSettings(prefs: PrefsBackend): Settings {
       speedDown: str(prefs, 'shortcuts.speedDown', DEFAULTS.shortcuts.speedDown),
       speedUp: str(prefs, 'shortcuts.speedUp', DEFAULTS.shortcuts.speedUp),
     },
+    readAloud: {
+      sameForAllDocuments: bool(prefs, 'readAloud.sameForAllDocuments', DEFAULTS.readAloud.sameForAllDocuments),
+    },
   };
 }
 
@@ -115,6 +121,7 @@ export function saveSettings(prefs: PrefsBackend, s: Settings): void {
   prefs.set(PREF_PREFIX + 'prefetch', s.prefetch);
   prefs.set(PREF_PREFIX + 'cacheAudio', s.cacheAudio);
   for (const [k, v] of Object.entries(s.shortcuts)) prefs.set(PREF_PREFIX + 'shortcuts.' + k, v);
+  for (const [k, v] of Object.entries(s.readAloud)) prefs.set(PREF_PREFIX + 'readAloud.' + k, v);
 }
 
 /**

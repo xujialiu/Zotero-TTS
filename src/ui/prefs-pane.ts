@@ -6,6 +6,7 @@ import { getChromeWebSocket, newRequestId } from '../core/providers/azure';
 import { SynthesisError } from '../core/providers/errors';
 import { withTimeout } from '../core/timeout';
 import { initShortcutRows } from './shortcut-rows';
+import { initBackupRows, type BackupFileIO } from './backup-rows';
 
 const XHTML = 'http://www.w3.org/1999/xhtml';
 
@@ -89,7 +90,10 @@ export async function testConnection(
  * root <vbox> of preferences.xhtml instead calls onPaneLoad from its
  * `onload`, which Zotero dispatches after insertion and pref binding.
  */
-export async function registerPrefsPane(rootURI: string, pluginID: string): Promise<void> {
+let pluginVersion = '';
+
+export async function registerPrefsPane(rootURI: string, pluginID: string, version = ''): Promise<void> {
+  pluginVersion = version;
   await Zotero.PreferencePanes.register({
     pluginID,
     id: 'zotero-tts-pane',
@@ -98,9 +102,45 @@ export async function registerPrefsPane(rootURI: string, pluginID: string): Prom
   });
 }
 
+/** File dialogs and file access for the Backup group, on Zotero's own helpers. */
+function backupFileIO(win: any): BackupFileIO {
+  const pick = async (title: string, mode: 'open' | 'save', defaultName?: string): Promise<string | null> => {
+    const { FilePicker } = ChromeUtils.importESModule('chrome://zotero/content/modules/filePicker.mjs');
+    const fp = new FilePicker();
+    fp.init(win, title, mode === 'save' ? fp.modeSave : fp.modeOpen);
+    fp.appendFilter('JSON', '*.json');
+    fp.defaultExtension = 'json';
+    if (defaultName) fp.defaultString = defaultName;
+    const rv = await fp.show();
+    // The chosen path is `file` (a string, despite the name); there is no `path`
+    const chosen = rv === fp.returnOK || rv === fp.returnReplace ? fp.file : null;
+    return typeof chosen === 'string' && chosen ? chosen : null;
+  };
+  return {
+    pickSavePath: (defaultName) => pick('Backup Zotero TTS settings', 'save', defaultName),
+    pickOpenPath: () => pick('Restore Zotero TTS settings', 'open'),
+    // IOUtils is handed to the plugin scope by Zotero's plugin loader
+    writeFile: async (path, text) => {
+      await IOUtils.writeUTF8(path, text);
+    },
+    readFile: (path) => IOUtils.readUTF8(path),
+  };
+}
+
 export function onPaneLoad(doc: Document): void {
   const prefs = createZoteroPrefs();
-  initShortcutRows(doc, prefs, Zotero.isMac ? 'Cmd' : Zotero.isWin ? 'Win' : 'Super');
+  const shortcutRows = initShortcutRows(doc, prefs, Zotero.isMac ? 'Cmd' : Zotero.isWin ? 'Win' : 'Super');
+
+  const win = doc.defaultView;
+  initBackupRows(doc, {
+    ...backupFileIO(win),
+    prefs,
+    pluginVersion,
+    now: () => new Date().toISOString(),
+    confirm: (message) => Services.prompt.confirm(win, 'Zotero TTS', message),
+    // Bound inputs redraw themselves (Zotero observes every bound pref); the shortcut rows do not
+    onRestored: () => shortcutRows.refresh(),
+  });
 
   doc.getElementById('ztts-local-enable')?.setAttribute('label', `Enable ${engineLabel(loadSettings(prefs).local.engine)}`);
 

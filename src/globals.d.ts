@@ -4,6 +4,8 @@
 declare const Zotero: any;
 declare const Services: any;
 declare const Components: any;
+declare const ChromeUtils: any;
+declare const IOUtils: any;
 
 interface Document {
   createXULElement(name: string): HTMLElement;

@@ -4,6 +4,7 @@ import type { ProviderId, VoiceInfo } from './core/providers/types';
 import { createMemoryCache } from './core/memory-cache';
 import { createZoteroPrefs, enabledProviders, loadSettings, migrateLegacyProviderPref } from './core/settings';
 import { installHijack } from './modes/hijack';
+import { createReadAloudMemorySync, type ReadAloudMemorySync } from './modes/hijack/memory-sync';
 import { collectCatalog } from './modes/hijack/catalog';
 import {
   createRemoteInterface,
@@ -31,6 +32,7 @@ let uninstallHijack: (() => void) | null = null;
 let pluginVersion = '0.0.0';
 let speedShortcuts: SpeedShortcuts | null = null;
 let readerOpenedListener: ((event: any) => void) | null = null;
+let readAloudMemory: ReadAloudMemorySync | null = null;
 
 const prefs = createZoteroPrefs();
 
@@ -78,6 +80,11 @@ function startHijack(): void {
         // (including its use of the chrome window's Cache API, which only
         // ever crashed when driven from this sandbox).
         native: () => native() as NativeRemoteInterface | null,
+        // The internal reader exists by the time Zotero asks for voices,
+        // and Zotero restores the remembered voice on the same tick.
+        onVoicesRequested: () => {
+          readAloudMemory?.attach(reader);
+        },
         listCatalog,
         // Built from the voice id, not from the enabled flags: Zotero
         // remembers the last-selected voice, which may belong to a provider
@@ -189,6 +196,7 @@ function watchWindow(win: any): void {
 function watchReader(reader: any): void {
   if (!reader || !speedShortcuts) return;
   watchWindow(reader._window);
+  readAloudMemory?.attach(reader);
   const iframe = reader._iframeWindow;
   if (iframe) {
     speedShortcuts.listen(iframe, () => reader, {
@@ -250,6 +258,34 @@ function stopSpeedShortcuts(): void {
   }
 }
 
+// ---- One voice and speed across documents ----------------------------------
+//
+// Zotero remembers the Read Aloud voice and speed per detected document
+// language; see modes/hijack/read-aloud-memory.ts for what is kept instead.
+
+function startReadAloudMemory(): void {
+  stopReadAloudMemory();
+  readAloudMemory = createReadAloudMemorySync({
+    prefs,
+    enabled: () => loadSettings(prefs).readAloud.sameForAllDocuments,
+    registerObserver: (name, handler) => Zotero.Prefs.registerObserver(name, handler),
+    unregisterObserver: (token) => Zotero.Prefs.unregisterObserver(token),
+    readers: () => Zotero.Reader._readers ?? [],
+    // The reader iframe may not call a bare sandbox function (the call
+    // throws there and takes the Read Aloud button with it); export it into
+    // the iframe's compartment, as Zotero does with its own interface.
+    exportFunction: (fn, target) => Components.utils.exportFunction(fn, target),
+    error: (e) => Zotero.logError(e),
+    debug: (message) => Zotero.debug('[zotero-tts] ' + message),
+  });
+  for (const reader of Zotero.Reader._readers ?? []) readAloudMemory.attach(reader);
+}
+
+function stopReadAloudMemory(): void {
+  readAloudMemory?.dispose();
+  readAloudMemory = null;
+}
+
 async function startup({ id, version, rootURI }: StartupParams): Promise<void> {
   pluginVersion = version;
   try {
@@ -257,8 +293,14 @@ async function startup({ id, version, rootURI }: StartupParams): Promise<void> {
   } catch (e) {
     Zotero.logError(e);
   }
-  await registerPrefsPane(rootURI, id);
+  await registerPrefsPane(rootURI, id, version);
 
+  try {
+    startReadAloudMemory();
+  } catch (e) {
+    Zotero.logError(e);
+    Zotero.debug('[zotero-tts] failed to install the Read Aloud memory');
+  }
   // Caught deliberately: if _readers or any other Zotero internal we
   // reach into gets renamed or moved, it will throw here. Without
   // catching it, startup() would reject with no indication at all — the
@@ -285,6 +327,7 @@ async function shutdown(): Promise<void> {
   uninstallHijack?.();
   uninstallHijack = null;
   stopSpeedShortcuts();
+  stopReadAloudMemory();
   Zotero.debug('[zotero-tts] stopped');
 }
 
