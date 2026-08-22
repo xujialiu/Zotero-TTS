@@ -81,6 +81,7 @@ function startHijack(): void {
         cacheVersion,
         cache: loadSettings(prefs).cacheAudio ? audioCache : undefined,
         log: (e) => Zotero.logError(e),
+        debug: (message) => Zotero.debug('[zotero-tts] ' + message),
         // Every provider builds its audio Blob inside the plugin sandbox, and
         // it is then Cu.cloneInto'd into the reader iframe. Native Zotero's
         // Blob is created in the chrome window (syncAPIClient.js), so the

@@ -1,5 +1,5 @@
 import { toZoteroError } from '../../core/providers/errors';
-import type { ProviderId, SynthesisResult, TTSProvider, VoiceInfo } from '../../core/providers/types';
+import type { ProviderId, SynthesisResult, Timestamp, TTSProvider, VoiceInfo } from '../../core/providers/types';
 import { buildVoicesResponse, decodeVoiceId } from './voice-catalog';
 
 export const SAMPLE_TEXT = 'The quick brown fox jumps over the lazy dog.';
@@ -55,6 +55,8 @@ export type RemoteInterfaceDeps = {
   cache?: AudioCache;
   /** Receives the raw error before it is collapsed to a Zotero error string. */
   log?(e: unknown): void;
+  /** One line per synthesized segment, for the debug output: which provider, how many word timestamps. */
+  debug?(message: string): void;
   /**
    * Supplies the AbortController for each synthesis. Injected, never a bare
    * global: the plugin sandbox's whitelist (spec §2.10) has no AbortController,
@@ -87,6 +89,26 @@ export type RemoteInterfaceDeps = {
 const NO_CREDITS = { standardCreditsRemaining: null, premiumCreditsRemaining: null };
 const DEFAULT_NATIVE_TIMEOUT_MS = 20_000;
 const TIMED_OUT = Symbol('timed out');
+
+/**
+ * End time of the whole-segment timestamp. Zotero drops a timestamp whose
+ * end lies before the playback offset (RemoteReadAloudController
+ * _scheduleWordEvents), so after a pause-and-resume the marker must still
+ * be "in the future"; a day is longer than any segment.
+ */
+export const WHOLE_SEGMENT_END_SECONDS = 86_400;
+
+/**
+ * Zotero's word mode highlights the active word and nothing else — reader
+ * _resolvePrimarySelector() returns the active word's position or null; it
+ * never falls back to the sentence. So a segment without word timestamps
+ * shows no highlight at all. One timestamp spanning the whole segment makes
+ * word mode show the sentence, exactly what sentence mode shows. It is not
+ * an estimate of any word's timing.
+ */
+function wholeSegmentTimestamp(text: string): Timestamp[] {
+  return [{ start: 0, end: WHOLE_SEGMENT_END_SECONDS, charStart: 0, charEnd: text.length }];
+}
 
 export interface RemoteInterface {
   getVoices(): Promise<{
@@ -165,6 +187,27 @@ export function createRemoteInterface(deps: RemoteInterfaceDeps): RemoteInterfac
     }
   }
 
+  async function synthesize(
+    providerId: ProviderId,
+    voiceId: string,
+    text: string,
+    speed: number,
+    cacheKey: string,
+  ): Promise<SynthesisResult> {
+    const provider = deps.getProvider(providerId);
+    const synthesized = await provider.synthesize(text, {
+      voice: voiceId,
+      speed,
+      signal: (deps.newAbortController?.() ?? neverAbort()).signal,
+    });
+    // Move the audio into the caller's compartment BEFORE it is cached or
+    // handed back; the provider's sandbox-owned Blob must not leak past
+    // this line (see RemoteInterfaceDeps.adoptAudio).
+    const result = deps.adoptAudio ? { ...synthesized, audio: deps.adoptAudio(synthesized.audio) } : synthesized;
+    await deps.cache?.put(cacheKey, result);
+    return result;
+  }
+
   return {
     async getVoices() {
       const [theirs, mine] = await Promise.all([nativeVoices(), ownVoices()]);
@@ -207,24 +250,18 @@ export function createRemoteInterface(deps: RemoteInterfaceDeps): RemoteInterfac
         const cacheVersion = deps.cacheVersion();
         const key = JSON.stringify([cacheVersion, decoded.provider, decoded.voiceId, speed, text]);
 
+        // The cache holds exactly what the provider produced; the sentence
+        // fallback below is applied on the way out, never stored.
         const hit = await deps.cache?.match(key);
-        if (hit) return { audio: hit.audio, timestamps: hit.timestamps };
+        const result = hit ?? (await synthesize(decoded.provider, decoded.voiceId, text, speed, key));
 
-        const provider = deps.getProvider(decoded.provider);
-        const synthesized = await provider.synthesize(text, {
-          voice: decoded.voiceId,
-          speed,
-          signal: (deps.newAbortController?.() ?? neverAbort()).signal,
-        });
-        // Move the audio into the caller's compartment BEFORE it is cached or
-        // handed back; the provider's sandbox-owned Blob must not leak past
-        // this line (see RemoteInterfaceDeps.adoptAudio).
-        const result = deps.adoptAudio
-          ? { ...synthesized, audio: deps.adoptAudio(synthesized.audio) }
-          : synthesized;
-
-        await deps.cache?.put(key, result);
-        return { audio: result.audio, timestamps: result.timestamps };
+        const words = result.timestamps?.length ?? 0;
+        deps.debug?.(
+          words
+            ? `${decoded.provider}: ${words} word timestamp${words === 1 ? '' : 's'} for ${text.length} chars${hit ? ' (cached)' : ''}`
+            : `${decoded.provider}: no word timestamps for ${text.length} chars, highlighting the sentence${hit ? ' (cached)' : ''}`,
+        );
+        return { audio: result.audio, timestamps: words ? result.timestamps : wholeSegmentTimestamp(text) };
       } catch (e) {
         // toZoteroError collapses every failure into the three strings
         // Zotero's UI understands, so the real cause is gone by the time the

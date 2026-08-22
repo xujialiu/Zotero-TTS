@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { SynthesisError } from '../../../src/core/providers/errors';
 import type { TTSProvider } from '../../../src/core/providers/types';
-import { createRemoteInterface, SAMPLE_TEXT } from '../../../src/modes/hijack/remote-interface';
+import { createRemoteInterface, SAMPLE_TEXT, WHOLE_SEGMENT_END_SECONDS } from '../../../src/modes/hijack/remote-interface';
 import { encodeVoiceId } from '../../../src/modes/hijack/voice-catalog';
 
 function fakeProvider(overrides: Partial<TTSProvider> = {}): TTSProvider {
@@ -120,6 +120,61 @@ describe('getAudio', () => {
     );
     const result = await iface.getAudio({ text: 'Hello' }, voice);
     expect(result.timestamps).toBe(timestamps);
+  });
+
+  // In word mode Zotero highlights the active word and nothing else, and it
+  // has no fallback of its own: a segment without timestamps shows no
+  // highlight at all. One timestamp spanning the whole segment makes word
+  // mode show the sentence — what sentence mode shows — without inventing
+  // any per-word timing.
+  describe('sentence fallback for voices without word timestamps', () => {
+    const whole = (text: string) => [{ start: 0, end: WHOLE_SEGMENT_END_SECONDS, charStart: 0, charEnd: text.length }];
+
+    it('supplies one timestamp spanning the whole segment', async () => {
+      const iface = createRemoteInterface(deps(fakeProvider({ synthesize: async () => ({ audio: new Blob(['x']) }) })));
+      const result = await iface.getAudio({ text: 'Hello world' }, voice);
+      expect(result.timestamps).toEqual(whole('Hello world'));
+    });
+
+    it('treats an empty timestamp list the same as none', async () => {
+      const iface = createRemoteInterface(
+        deps(fakeProvider({ synthesize: async () => ({ audio: new Blob(['x']), timestamps: [] }) })),
+      );
+      const result = await iface.getAudio({ text: 'Hello' }, voice);
+      expect(result.timestamps).toEqual(whole('Hello'));
+    });
+
+    it('applies to cache hits as well, without altering what is cached', async () => {
+      const cached = { audio: new Blob(['cached']) };
+      const iface = createRemoteInterface({
+        ...deps(),
+        cache: { match: async () => cached, put: async () => {} },
+      });
+      const result = await iface.getAudio({ text: 'Hello' }, voice);
+      expect(result.timestamps).toEqual(whole('Hello'));
+      expect('timestamps' in cached).toBe(false);
+    });
+
+    it('outlasts any segment, so resuming mid-segment still highlights it', () => {
+      // Zotero skips timestamps whose end is before the resume offset
+      expect(WHOLE_SEGMENT_END_SECONDS).toBeGreaterThan(3600);
+    });
+  });
+
+  it('reports what reached Zotero for each segment through the debug hook', async () => {
+    const debug = vi.fn();
+    const timestamps = [{ start: 0, end: 1, charStart: 0, charEnd: 5 }];
+    const withWords = createRemoteInterface({
+      ...deps(fakeProvider({ synthesize: async () => ({ audio: new Blob(['x']), timestamps }) })),
+      debug,
+    });
+    await withWords.getAudio({ text: 'Hello' }, voice);
+    expect(debug).toHaveBeenCalledWith(expect.stringMatching(/openai.*1 word timestamp/));
+
+    debug.mockClear();
+    const without = createRemoteInterface({ ...deps(fakeProvider({ synthesize: async () => ({ audio: new Blob(['x']) }) })), debug });
+    await without.getAudio({ text: 'Hello' }, voice);
+    expect(debug).toHaveBeenCalledWith(expect.stringMatching(/openai.*no word timestamps.*sentence/));
   });
 
   it('synthesises a fixed sample when asked for the sample segment', async () => {
