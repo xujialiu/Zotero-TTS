@@ -7,7 +7,7 @@ Zotero's own Standard/Premium voices keep working; ours join the Local tier as
 speed across documents, settings backup/restore.
 
 - `README.md` — user-facing docs (install, providers, Kokoro setup, troubleshooting).
-- `notes.md` — engineering notes: every production incident, and the Zotero
+- `NOTES.md` — engineering notes: every production incident, and the Zotero
   internals verified by reading its source. **Read it before touching Read
   Aloud internals; append to it (English) whenever something non-obvious is
   learned or broken.**
@@ -15,12 +15,15 @@ speed across documents, settings backup/restore.
 ## Working with the user
 
 - Reply in **Chinese**, always, whatever language the input (logs, source,
-  instructions) is in. Code, identifiers, comments, commit messages, README
-  and notes.md are English.
+  instructions) is in. Everything else is **English only** — code,
+  identifiers, comments, commit messages, README, NOTES.md. Verbatim
+  product strings (Azure's "多语言" voice names, the rendered "多语种"
+  label) and test fixtures for the Chinese collation are data, not prose,
+  and stay as they are.
 - Architecture-level forks: present the options with concrete costs and a
   recommendation, then wait. Implementation details: pick the sane default,
   state it in one line, move on.
-- Research first when asked ("先调研"): report findings, do not change code.
+- Research first when asked to: report findings, do not change code.
 - Commit only when told ("commit"); work on a `feat/...` branch; merge into
   `main` with `--ff-only` only when told; push only when told. Commit subject
   style: `feat: …` / `fix: …` / `docs: …` / `chore: …`, body explains why.
@@ -84,7 +87,7 @@ test/               mirrors src/; vitest
   bits as injected deps so the logic is unit-testable (see `memory-sync.ts`,
   `backup-rows.ts`, `speed-shortcuts.ts` for the pattern).
 - Every network call goes through `core/timeout.withTimeout`; failures are
-  reported as errors, never left hanging ("有问题应该是报错, 而不是卡住").
+  reported as errors, never left hanging (user rule: fail loudly, never hang).
 - Never fabricate per-word timestamps; a voice without them falls back to
   sentence highlighting (`remote-interface.wholeSegmentTimestamp`).
 - Providers are enabled independently; OpenAI voices/models are never

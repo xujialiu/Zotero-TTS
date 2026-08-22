@@ -248,8 +248,9 @@ which did exactly that). `'*'` remains Zotero's wildcard if ever wanted:
 Zotero picks the document's language on open, so a multilingual voice has to
 be chosen by switching the dropdown to "Multiple languages".
 
-OpenAI provider = any OpenAI-compatible server (2026-08-22, after "写死的那
-11 个 OpenAI 名字, 不要写死"): voices come, in order of trust, from the
+OpenAI provider = any OpenAI-compatible server (2026-08-22, after the user
+rejected hard-coding the 11 OpenAI voice names): voices come, in order of
+trust, from the
 `openai.voices` pref the user typed (comma-separated), else from
 `GET /v1/audio/voices` (a de-facto extension; OpenAI itself answers 404;
 shapes `{voices:[{id,name}]}`, `{voices:[..]}`, `{data:[..]}`, bare array are
@@ -263,7 +264,7 @@ gets them from Zotero's server, `api.zotero.org/tts/speak` with
 `timestamps: 1`). A transcription-based (whisper word timestamps) option was
 described to the user and not requested.
 
-Nothing may hang (2026-08-22, after "有问题应该是报错, 而不是卡住"): every
+Nothing may hang (2026-08-22, user rule: fail loudly, never hang): every
 request is bounded by `core/timeout.ts` — synthesis 60 s (aborts the
 injected controller), plugin voice catalog 30 s, Zotero's own voices 20 s,
 Test connection 15 s — and a timeout surfaces as `'network'`, which Zotero
@@ -419,7 +420,8 @@ file and the key appeared in tool output. It should be rotated.
 
 ## One voice and speed across documents (added 2026-08-22)
 
-Report: "每次打开, 语音和速度都会变化". Verified in the 10.0.1-beta.1 bundle:
+Report: the voice and speed change every time a document is opened.
+Verified in the 10.0.1-beta.1 bundle:
 
 - `reader.readAloudVoices` is keyed by the *detected* base language
   (`sdt_segments_getSDTLang`, ~71241: PDF `Language` metadata, else ELD
@@ -506,3 +508,72 @@ own shim, `chrome/content/zotero/osfile.mjs`).
 Bound `preference=` inputs redraw on their own after a restore
 (preferences.js registers an observer per bound element); the shortcut rows
 are redrawn through the `refresh` that `initShortcutRows` now returns.
+
+## Incident: speed shortcuts routed to a hidden tab (2026-08-23)
+
+Report: the speed shortcuts work on Windows but do nothing on macOS — with
+a telltale screenshot: the plugin's toast climbing to 1.5× while the
+visible popup's slider sat at 1.2×.
+
+**Cause — not macOS.** `pickReader` treated `manager.active` as "playing".
+In Zotero (verified in the 10.0.1-beta.2 bundle), `active` means *the Read
+Aloud session is open*: `activate()` sets `_active = true, _paused = false`
+(~82263), `pause()` sets only `_paused = true` (~82283), and only
+`deactivate()` (~82441) — called when the popup is closed (~83922) — clears
+`_active`. A background tab whose popup was left open paused therefore
+stays `active` indefinitely, and `find(isActive)` routed every speed key to
+it: its speed climbed (the toast), the visible reader never moved (the
+slider). Windows "worked" only because that session had a single reader
+tab. Confirmed live via Run JavaScript: three readers; `_readers[0]`
+(hidden tab) `active: true, paused: true, speed: 1.5`; the selected tab's
+manager untouched at 1.2.
+
+**Fix.** "Playing" is `active && !paused` (`isSpeaking`,
+ui/speed-shortcuts.ts); a manager without a `paused` field counts as
+speaking while active. With nothing speaking, the keys fall through to the
+selected tab's reader as designed.
+
+**Diagnostic notes.** `setSpeed()` always ends in `_stateChanged()`, so a
+popup slider that does not move proves the manager being driven is not the
+visible one — that single observation localized the bug. And "works on
+platform A, dead on platform B" was a coincidence of session state (how
+many reader tabs were open); the platform framing pointed at the keyboard
+layer, which the on-screen toast had already exonerated.
+
+## Local voices named after their engine (2026-08-23)
+
+`TTS-Local-af_bella` → `TTS-Kokoro-af_bella`: `LocalEngineAdapter` gains
+`voiceName` ("Kokoro"; a future Piper adapter brings `TTS-Piper-…` for
+free), catalog entries carry an optional display `name` which
+`pluginVoiceLabel` prefers, and "Local" remains the fallback when the
+engine id is unknown. Voice *ids* (`local::af_bella`) are unchanged, so
+persisted choices and cached audio survive the rename.
+
+## Test connection proves the account can spend (2026-08-23)
+
+Trigger: the user asked whether their Azure free quota was used up —
+nothing in the plugin could answer that. checkConnection/listVoices
+cannot: a key lists voices fine long after its quota ran out.
+
+`TTSProvider.checkSynthesis(voice)` — a two-character synthesis ("Hi"),
+result discarded — now runs inside `testConnection` after the voice list,
+for Azure and OpenAI only (local engines have no quota; pass
+`synthesisVoice` to enable). Failures render as `Connected, but synthesis
+failed: …`, deliberately distinct from connection errors.
+
+- **Azure is probed over REST** (`POST /cognitiveservices/v1`), *not* the
+  WebSocket the plugin plays through: a refused WS upgrade surfaces only as
+  `onerror`, so quota-out, bad key and network failure are
+  indistinguishable there. REST answers 403 when the F0 monthly characters
+  are gone (also for a key without synthesis permission), 401 for a bad
+  key, 429 for rate limiting. Verified live against the user's eastasia
+  key (token + 2-char synthesis both 200 — the quota was not, in fact,
+  used up). Exact remaining characters are not queryable with the speech
+  key at all; that needs the Azure portal's metrics.
+- **OpenAI reports an exhausted balance as 429 `insufficient_quota`** —
+  the same status as rate limiting; only the response body tells them
+  apart. `checkSynthesis` reads the body on 429 and maps quota to the
+  `quota` kind; everything else goes through `statusError` as before.
+- Open item 1 (a playback-time 429 maps to `'quota-exceeded'`, which
+  Zotero renders silently) is still open; the probe only fixes visibility
+  at test time.
