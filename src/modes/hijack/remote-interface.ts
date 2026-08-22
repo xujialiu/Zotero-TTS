@@ -80,6 +80,13 @@ export type RemoteInterfaceDeps = {
    */
   native?(): NativeRemoteInterface | null;
   /**
+   * Called synchronously at the start of every getVoices, before anything is
+   * awaited. Zotero calls getVoices from its loadVoices() and, on the same
+   * tick, restores the persisted voice; whatever must be in place for that
+   * restore (modes/hijack/memory-sync.ts) hooks in here.
+   */
+  onVoicesRequested?(): void;
+  /**
    * How long to wait for Zotero's side of getVoices. Its promises never
    * reject — an exception inside leaves them pending — so without a limit
    * one failure there would freeze the voice list forever.
@@ -221,6 +228,11 @@ export function createRemoteInterface(deps: RemoteInterfaceDeps): RemoteInterfac
 
   return {
     async getVoices() {
+      try {
+        deps.onVoicesRequested?.();
+      } catch (e) {
+        log(e);
+      }
       const [theirs, mine] = await Promise.all([nativeVoices(), ownVoices()]);
       if (!theirs && 'error' in mine) {
         // RemoteReadAloudProvider checks `error || !voices` and throws,

@@ -19,3 +19,4 @@ pref('extensions.zotero.zotero-tts.cacheAudio', true);
 pref('extensions.zotero.zotero-tts.shortcuts.speedReset', 'Shift+Z');
 pref('extensions.zotero.zotero-tts.shortcuts.speedDown', 'Shift+X');
 pref('extensions.zotero.zotero-tts.shortcuts.speedUp', 'Shift+C');
+pref('extensions.zotero.zotero-tts.readAloud.sameForAllDocuments', true);

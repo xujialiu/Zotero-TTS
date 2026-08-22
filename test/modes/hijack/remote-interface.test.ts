@@ -538,3 +538,36 @@ describe("alongside Zotero's own interface", () => {
     expect(log).toHaveBeenCalledWith(expect.any(Error));
   });
 });
+
+describe('onVoicesRequested', () => {
+  it('runs synchronously at the start of getVoices, before the catalog is asked for', async () => {
+    const order: string[] = [];
+    const iface = createRemoteInterface({
+      ...deps(),
+      listCatalog: async () => {
+        order.push('catalog');
+        return [];
+      },
+      onVoicesRequested: () => {
+        order.push('hook');
+      },
+    });
+    const pending = iface.getVoices();
+    expect(order[0]).toBe('hook');
+    await pending;
+    expect(order).toEqual(['hook', 'catalog']);
+  });
+
+  it('survives a hook that throws', async () => {
+    const log = vi.fn();
+    const iface = createRemoteInterface({
+      ...deps(),
+      log,
+      onVoicesRequested: () => {
+        throw new Error('boom');
+      },
+    });
+    await expect(iface.getVoices()).resolves.toBeTruthy();
+    expect(log).toHaveBeenCalledWith(expect.any(Error));
+  });
+});

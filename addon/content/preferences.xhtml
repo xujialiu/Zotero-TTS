@@ -68,6 +68,10 @@
   <groupbox>
     <label><html:h2>Reading</html:h2></label>
     <hbox align="center">
+      <checkbox label="Use the same voice and speed for every document"
+                preference="extensions.zotero.zotero-tts.readAloud.sameForAllDocuments"/>
+    </hbox>
+    <hbox align="center">
       <label value="Speed" style="width: 8em"/>
       <html:input type="number" min="0.5" max="3" step="0.1"
                   preference="extensions.zotero.zotero-tts.speed"/>
@@ -106,4 +110,5 @@
       <button id="ztts-key-defaults" label="Restore default shortcuts"/>
     </hbox>
   </groupbox>
+
 </vbox>

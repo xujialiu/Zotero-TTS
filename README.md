@@ -11,6 +11,14 @@ join the **Local** tier of the Read Aloud popup, named `TTS-<Provider>-<voice>`
   sentence-level with OpenAI.
 - Keyboard shortcuts for the Read Aloud speed: `Shift+Z` back to 1.0×,
   `Shift+X` −0.1, `Shift+C` +0.1 — customisable in the settings pane.
+- One voice and speed for every document. Zotero itself remembers them per
+  detected document language, so a new language starts over at 1.0× with a
+  fallback voice and a voice chosen under "Multiple languages" never
+  comes back on its own. The plugin keeps the speed you last set and the
+  voice you last picked: a multilingual voice is used for every document,
+  a single-language voice for documents in its language (the only ones it
+  can read). Switch it off under Reading if you want Zotero's per-language
+  behaviour back.
 - Voices that speak any language — Azure's *Multilingual* / *多语言* ones,
   every OpenAI voice — sit under their own entry in the popup's language
   dropdown, "Multiple languages" (多语种), rather than being repeated under

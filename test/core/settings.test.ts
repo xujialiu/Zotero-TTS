@@ -146,3 +146,16 @@ describe('migrateLegacyProviderPref', () => {
     expect(migrateLegacyProviderPref(prefs)).toBe(false);
   });
 });
+
+describe('readAloud.sameForAllDocuments', () => {
+  it('is on by default and reads the stored switch', () => {
+    expect(loadSettings(fakePrefs()).readAloud.sameForAllDocuments).toBe(true);
+    expect(loadSettings(fakePrefs({ [PREF_PREFIX + 'readAloud.sameForAllDocuments']: false })).readAloud.sameForAllDocuments).toBe(false);
+  });
+
+  it('is written back by saveSettings', () => {
+    const prefs = fakePrefs();
+    saveSettings(prefs, { ...DEFAULTS, readAloud: { sameForAllDocuments: false } });
+    expect(prefs.store[PREF_PREFIX + 'readAloud.sameForAllDocuments']).toBe(false);
+  });
+});
