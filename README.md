@@ -1,7 +1,8 @@
 # Zotero TTS
 
-Extra voices for Zotero 10's built-in **Read Aloud**: OpenAI, Azure Speech, and
-a local [Kokoro-FastAPI](https://github.com/remsky/Kokoro-FastAPI) server.
+Extra voices for Zotero 10's built-in **Read Aloud**: OpenAI (or any
+OpenAI-compatible server), Azure Speech, and a local
+[Kokoro-FastAPI](https://github.com/remsky/Kokoro-FastAPI) server.
 Zotero's own Standard and Premium voices keep working; the plugin's voices
 join the **Local** tier of the Read Aloud popup, named `TTS-<Provider>-<voice>`
 (for example `TTS-Azure-Ava Multilingual`, `TTS-Local-af_bella`).
@@ -10,8 +11,10 @@ join the **Local** tier of the Read Aloud popup, named `TTS-<Provider>-<voice>`
   sentence-level with OpenAI.
 - Keyboard shortcuts for the Read Aloud speed: `Shift+Z` back to 1.0×,
   `Shift+X` −0.1, `Shift+C` +0.1 — customisable in the settings pane.
-- Voices whose name says *Multilingual* / *多语言* (and every OpenAI voice) are
-  offered under every language.
+- Voices that speak any language — Azure's *Multilingual* / *多语言* ones,
+  every OpenAI voice — sit under their own entry in the popup's language
+  dropdown, "Multiple languages" (多语种), rather than being repeated under
+  every language.
 
 Requires Zotero 10 (tested with 10.0.1-beta).
 
@@ -49,114 +52,84 @@ highlighting.
 API keys are stored in Zotero's preferences in plain text, like every other
 Zotero plugin setting.
 
-## Local engine: Kokoro-FastAPI in Docker
+## Local engine: Kokoro-FastAPI
 
-Kokoro runs entirely on your machine. The easiest way to run it is the official
-Docker image, which bundles the model, CUDA and espeak-ng. The plugin talks to it
-at `http://localhost:8880` (the **Address** field under *Local engine*).
+Kokoro runs entirely on your machine. The plugin talks to it at
+`http://localhost:8880` (the **Address** field under *Local engine*). The
+official Docker image bundles the model, CUDA and espeak-ng, so with Docker
+installed it is one command.
 
-### 1. Install Docker Desktop (Windows)
+Prerequisites: Docker (Docker Desktop on Windows/macOS, Docker Engine on
+Linux). For an NVIDIA GPU, a current driver — on Linux also the NVIDIA
+Container Toolkit; on Windows nothing else. Check the GPU is visible to
+containers with `docker run --rm --gpus all ubuntu:22.04 nvidia-smi -L`.
 
-1. **Enable WSL 2.** Open *PowerShell as Administrator* and run:
+### Windows / Linux with an NVIDIA GPU
 
-   ```powershell
-   wsl --install
-   ```
+GeForce 900-series up to RTX 40-series (CUDA 12.6 build):
 
-   Reboot when asked. (If WSL was already installed, `wsl --update` is enough.)
-2. **Download Docker Desktop** from <https://www.docker.com/products/docker-desktop/>
-   and run the installer. Keep *Use WSL 2 instead of Hyper-V* selected.
-3. Start **Docker Desktop** once and wait until the whale icon in the tray stops
-   animating. Signing in is optional.
-4. In *Settings → General*, tick **Start Docker Desktop when you sign in to
-   your computer** so the Kokoro container comes back after every reboot.
-5. Check it works — in any terminal:
-
-   ```powershell
-   docker run --rm hello-world
-   ```
-
-**GPU (NVIDIA):** nothing extra to install. A current NVIDIA driver on Windows
-is all Docker Desktop needs to pass the GPU into containers (the CUDA toolkit
-is *not* required on the host). Verify:
-
-```powershell
-docker run --rm --gpus all ubuntu:22.04 nvidia-smi -L
-```
-
-It should print your GPU, e.g. `GPU 0: NVIDIA GeForce RTX 3080 Ti (...)`.
-
-*macOS:* install Docker Desktop from the same page; there is no CUDA, so use the
-CPU image below. *Linux:* install Docker Engine and, for a GPU, the NVIDIA
-Container Toolkit; the commands are the same.
-
-### 2. Run Kokoro
-
-NVIDIA GeForce 900-series up to RTX 40-series (CUDA 12.6 build):
-
-```powershell
+```sh
 docker run -d --name kokoro --restart unless-stopped --gpus all -p 8880:8880 ghcr.io/remsky/kokoro-fastapi-gpu:latest
 ```
 
 RTX 50-series (Blackwell) needs the CUDA 12.8 build:
 
-```powershell
+```sh
 docker run -d --name kokoro --restart unless-stopped --gpus all -p 8880:8880 ghcr.io/remsky/kokoro-fastapi-gpu:latest-cu128
 ```
 
-No NVIDIA GPU (CPU only; fine for reading, just slower to start each sentence):
+### Without an NVIDIA GPU (any platform)
 
-```powershell
+```sh
 docker run -d --name kokoro --restart unless-stopped -p 8880:8880 ghcr.io/remsky/kokoro-fastapi-cpu:latest
 ```
 
-What the flags do: `-d` runs it in the background, `--restart unless-stopped`
-brings it back whenever Docker Desktop starts, `--gpus all` hands the GPU to the
-container, `-p 8880:8880` exposes the server on `localhost:8880`. The first run
-downloads a few GB; later starts take seconds.
+Slower to start each sentence, but fine for reading.
 
-### 3. Check it
+### macOS
 
-```powershell
-curl http://localhost:8880/v1/audio/voices
-```
+Docker on a Mac cannot use the GPU: the GPU image is CUDA-only and Apple's
+Metal is not exposed to Linux containers. Two options:
 
-You should get a JSON list of voices. Then in Zotero, *Settings → TTS → Local
-engine*, tick **Enable local voices** and press **Test connection**; it should
-say `Connected. 68 voices available.` Open Read Aloud, choose the Local tier,
-and pick a `TTS-Local-…` voice (`af_bella` and `af_heart` are good English
-voices; `zf_xiaobei` / `zm_yunxi` speak Chinese).
+- **Docker, CPU** — the command above; the CPU image is built for both
+  Intel and Apple Silicon.
+- **Native, Apple GPU (Metal / MPS)** — run Kokoro-FastAPI directly with
+  [uv](https://docs.astral.sh/uv/) instead of Docker; the upstream script
+  sets `DEVICE_TYPE=mps`, installs the dependencies, downloads the model and
+  starts the server on port 8880:
 
-### Everyday commands
+  ```sh
+  git clone https://github.com/remsky/Kokoro-FastAPI.git
+  cd Kokoro-FastAPI
+  ./start-gpu_mac.sh
+  ```
 
-```powershell
-docker stop kokoro        # stop the server
-docker start kokoro       # start it again
-docker logs -f kokoro     # watch its log (Ctrl+C to leave)
-docker rm -f kokoro       # remove the container (the image stays)
-```
+  Keep that terminal open while reading; rerun the script to start it again.
 
-Update to a newer Kokoro release:
+What the Docker flags do: `-d` runs it in the background, `--restart
+unless-stopped` brings it back whenever Docker starts, `--gpus all` hands the
+GPU to the container, `-p 8880:8880` exposes the server on `localhost:8880`.
+The first run downloads a few GB; later starts take seconds.
 
-```powershell
-docker pull ghcr.io/remsky/kokoro-fastapi-gpu:latest
-docker rm -f kokoro
-docker run -d --name kokoro --restart unless-stopped --gpus all -p 8880:8880 ghcr.io/remsky/kokoro-fastapi-gpu:latest
-```
+### Check it
+
+In Zotero, *Settings → TTS → Local engine*, tick **Enable Kokoro-FastAPI**
+and press **Test connection**; it should say `Connected. 68 voices
+available.` Then open Read Aloud, choose the Local tier, and pick a
+`TTS-Local-…` voice (`af_bella` and `af_heart` are good English voices;
+`zf_xiaobei` / `zm_yunxi` speak Chinese).
 
 ### Troubleshooting
 
-- **"Local TTS server is not running at that address."** Docker Desktop is not
+- **"Local TTS server is not running at that address."** Docker is not
   running, or the container is stopped — `docker ps` should list `kokoro`.
   Start it with `docker start kokoro`.
-- **`docker: command not found`** right after installing: open a new terminal
-  (the installer changes `PATH`), or reboot.
 - **`port is already allocated`**: something else listens on 8880. Either stop
   it, or run the container with `-p 8881:8880` and set the plugin's Address to
   `http://localhost:8881`.
 - **GPU not found** (`could not select device driver "" with capabilities:
-  [[gpu]]`): update the NVIDIA driver, make sure Docker Desktop uses the WSL 2
-  engine (*Settings → General*), and retry the `nvidia-smi -L` check above.
+  [[gpu]]`): update the NVIDIA driver (Linux: install the NVIDIA Container
+  Toolkit) and retry the `nvidia-smi -L` check above; or use the CPU image.
 - **Voices play but nothing is highlighted word by word**: set *Settings →
   General → Read Aloud → Highlight current* to **Word**.
 
