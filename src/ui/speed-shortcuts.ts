@@ -12,10 +12,22 @@ import { matchesShortcut, parseShortcut, type KeyEventLike, type Shortcut } from
  */
 export interface ReadAloudManagerLike {
   active?: boolean;
+  paused?: boolean;
   speed?: number;
   lang?: string | null;
   selectedVoiceID?: string | null;
   setSpeed(speed: number, persist?: boolean): void;
+}
+
+/**
+ * Whether this manager is speaking right now. Zotero's `active` means "the
+ * Read Aloud session is open": pause() leaves it true, and only closing the
+ * popup deactivates. A popup left open on a background tab therefore stays
+ * `active` forever, and treating that as "playing" would route every
+ * shortcut to the hidden tab instead of the one the user is looking at.
+ */
+export function isSpeaking(manager: ReadAloudManagerLike | null): boolean {
+  return !!manager?.active && !manager.paused;
 }
 
 export interface ShortcutKeyEvent extends KeyEventLike {

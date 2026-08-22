@@ -5,6 +5,7 @@ import {
   createSpeedShortcuts,
   deepActiveElement,
   isEditableTarget,
+  isSpeaking,
   pickReader,
   type ReadAloudManagerLike,
   type ShortcutKeyEvent,
@@ -255,6 +256,27 @@ describe('pickReader', () => {
   it('never picks a reader from another window', () => {
     expect(pickReader([r3], win1, null, () => true)).toBeNull();
     expect(pickReader([r3], win1, 'tab-3', () => true)).toBeNull();
+  });
+});
+
+describe('isSpeaking', () => {
+  const manager = (over: Partial<ReadAloudManagerLike>): ReadAloudManagerLike => ({ setSpeed() {}, ...over });
+
+  it('is true only while active and not paused', () => {
+    expect(isSpeaking(manager({ active: true, paused: false }))).toBe(true);
+    expect(isSpeaking(manager({ active: false, paused: true }))).toBe(false);
+    expect(isSpeaking(manager({ active: false, paused: false }))).toBe(false);
+    expect(isSpeaking(null)).toBe(false);
+  });
+
+  it('a session paused on a background tab is active in Zotero, but not speaking', () => {
+    // Zotero's pause() keeps `active` true; only closing the popup deactivates.
+    // Such a tab must not capture the shortcuts from the tab the user is on.
+    expect(isSpeaking(manager({ active: true, paused: true }))).toBe(false);
+  });
+
+  it('treats a manager without a paused field (older Zotero) as speaking while active', () => {
+    expect(isSpeaking(manager({ active: true }))).toBe(true);
   });
 });
 

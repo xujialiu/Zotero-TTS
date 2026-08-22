@@ -15,6 +15,7 @@ import {
   createSpeedShortcuts,
   deepActiveElement,
   isEditableTarget,
+  isSpeaking,
   pickReader,
   type SpeedShortcuts,
 } from './ui/speed-shortcuts';
@@ -179,7 +180,7 @@ function watchWindow(win: any): void {
         Zotero.Reader._readers,
         win,
         win.Zotero_Tabs ? win.Zotero_Tabs.selectedID : null,
-        (r: any) => !!readAloudManager(r)?.active,
+        (r: any) => isSpeaking(readAloudManager(r)),
       ),
     { isEditable: (event) => isEditableTarget(event.target) || isEditableTarget(deepActiveElement(win.document)) },
   );
