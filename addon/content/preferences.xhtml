@@ -1,7 +1,9 @@
-<!-- Do not add an onload here: pane initialization is triggered from
-     exactly one place, preferences-shim.js. Calling it from both places
-     would register the event listener twice. -->
-<vbox>
+<!-- Initialization must hang off this onload, not off a pane script:
+     Zotero runs pane `scripts` BEFORE it parses and inserts this fragment
+     (preferences.js: loadSubScript, then parseXULToFragment / append),
+     and only afterwards dispatches a `load` event to the fragment's root.
+     A script would find none of these elements. -->
+<vbox onload="Zotero.ZoteroTTS.prefsPane.onPaneLoad(document)">
   <groupbox>
     <label><html:h2>Provider</html:h2></label>
     <radiogroup id="ztts-provider" preference="extensions.zotero.zotero-tts.provider">
@@ -64,6 +66,32 @@
     </hbox>
     <hbox align="center">
       <checkbox label="Cache synthesized audio" preference="extensions.zotero.zotero-tts.cacheAudio"/>
+    </hbox>
+  </groupbox>
+
+  <!-- These rows are not bound with preference=; shortcut-rows.ts records
+       key presses and writes the prefs itself. -->
+  <groupbox>
+    <label><html:h2>Keyboard shortcuts</html:h2></label>
+    <description>Change Zotero's Read Aloud playback speed (the slider in the Read Aloud popup) while reading. Click a shortcut, then press the new key combination. Esc cancels, Backspace clears.</description>
+    <hbox align="center">
+      <label value="Reset speed to 1.0×" style="width: 12em"/>
+      <button id="ztts-key-speedReset" style="min-width: 10em"/>
+      <button id="ztts-key-clear-speedReset" label="Clear"/>
+    </hbox>
+    <hbox align="center">
+      <label value="Slower (−0.1×)" style="width: 12em"/>
+      <button id="ztts-key-speedDown" style="min-width: 10em"/>
+      <button id="ztts-key-clear-speedDown" label="Clear"/>
+    </hbox>
+    <hbox align="center">
+      <label value="Faster (+0.1×)" style="width: 12em"/>
+      <button id="ztts-key-speedUp" style="min-width: 10em"/>
+      <button id="ztts-key-clear-speedUp" label="Clear"/>
+    </hbox>
+    <description id="ztts-key-message"/>
+    <hbox>
+      <button id="ztts-key-defaults" label="Restore default shortcuts"/>
     </hbox>
   </groupbox>
 </vbox>

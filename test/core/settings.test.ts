@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULTS, loadSettings, saveSettings, type PrefsBackend } from '../../src/core/settings';
+import { DEFAULTS, loadSettings, PREF_PREFIX, saveSettings, type PrefsBackend } from '../../src/core/settings';
 
 function fakePrefs(initial: Record<string, unknown> = {}): PrefsBackend & { store: Record<string, unknown> } {
   const store = { ...initial };
@@ -51,6 +51,25 @@ describe('loadSettings', () => {
   it('rejects an unknown provider id', () => {
     const prefs = fakePrefs({ 'extensions.zotero.zotero-tts.provider': 'elevenlabs' });
     expect(loadSettings(prefs).provider).toBe(DEFAULTS.provider);
+  });
+
+  it('ships Shift+Z / Shift+X / Shift+C as the default speed shortcuts', () => {
+    expect(DEFAULTS.shortcuts).toEqual({ speedReset: 'Shift+Z', speedDown: 'Shift+X', speedUp: 'Shift+C' });
+  });
+
+  it('reads customised shortcuts as raw text, including an empty string meaning "disabled"', () => {
+    const prefs = fakePrefs({
+      'extensions.zotero.zotero-tts.shortcuts.speedUp': 'Ctrl+K',
+      'extensions.zotero.zotero-tts.shortcuts.speedDown': '',
+    });
+    const s = loadSettings(prefs);
+    expect(s.shortcuts.speedUp).toBe('Ctrl+K');
+    expect(s.shortcuts.speedDown).toBe('');
+    expect(s.shortcuts.speedReset).toBe('Shift+Z');
+  });
+
+  it('exposes the pref prefix so the pane can write individual keys', () => {
+    expect(PREF_PREFIX).toBe('extensions.zotero.zotero-tts.');
   });
 });
 

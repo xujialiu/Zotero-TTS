@@ -16,3 +16,13 @@ async function shutdown({ id, version, rootURI }, reason) {
   await Zotero.ZoteroTTS?.shutdown();
   Zotero.ZoteroTTS = undefined;
 }
+
+// Called by Zotero for every main window opened after startup; the speed
+// shortcuts need a key listener on each one.
+function onMainWindowLoad({ window }) {
+  Zotero.ZoteroTTS?.onMainWindowLoad(window);
+}
+
+function onMainWindowUnload({ window }) {
+  Zotero.ZoteroTTS?.onMainWindowUnload(window);
+}

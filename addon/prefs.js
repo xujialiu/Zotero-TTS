@@ -13,3 +13,6 @@ pref('extensions.zotero.zotero-tts.local.voice', 'af_bella');
 pref('extensions.zotero.zotero-tts.speed', 1);
 pref('extensions.zotero.zotero-tts.prefetch', 3);
 pref('extensions.zotero.zotero-tts.cacheAudio', true);
+pref('extensions.zotero.zotero-tts.shortcuts.speedReset', 'Shift+Z');
+pref('extensions.zotero.zotero-tts.shortcuts.speedDown', 'Shift+X');
+pref('extensions.zotero.zotero-tts.shortcuts.speedUp', 'Shift+C');

@@ -1,4 +1,5 @@
 import type { ProviderId } from './providers/types';
+import type { SpeedAction } from './read-aloud-speed';
 
 export interface Settings {
   provider: ProviderId;
@@ -7,8 +8,13 @@ export interface Settings {
   local: { engine: string; baseURL: string; voice: string };
   speed: number;
   prefetch: number;
-  /** Cache synthesized audio in the chrome window's Cache API. */
+  /** Keep synthesized audio in the in-memory LRU (core/memory-cache.ts). */
   cacheAudio: boolean;
+  /**
+   * Keyboard shortcuts that drive Zotero's own Read Aloud playback speed, as
+   * text understood by core/shortcuts.ts ("Shift+Z"). Empty disables one.
+   */
+  shortcuts: Record<SpeedAction, string>;
 }
 
 export interface PrefsBackend {
@@ -16,7 +22,7 @@ export interface PrefsBackend {
   set(key: string, value: unknown): void;
 }
 
-const PREFIX = 'extensions.zotero.zotero-tts.';
+export const PREF_PREFIX = 'extensions.zotero.zotero-tts.';
 
 export const DEFAULTS: Settings = {
   provider: 'openai',
@@ -31,28 +37,29 @@ export const DEFAULTS: Settings = {
   speed: 1,
   prefetch: 3,
   cacheAudio: true,
+  shortcuts: { speedReset: 'Shift+Z', speedDown: 'Shift+X', speedUp: 'Shift+C' },
 };
 
 const PROVIDERS: readonly ProviderId[] = ['openai', 'azure', 'local'];
 
 function str(prefs: PrefsBackend, key: string, fallback: string): string {
-  const v = prefs.get(PREFIX + key);
+  const v = prefs.get(PREF_PREFIX + key);
   return typeof v === 'string' ? v : fallback;
 }
 
 function num(prefs: PrefsBackend, key: string, fallback: number, min: number, max: number): number {
-  const v = prefs.get(PREFIX + key);
+  const v = prefs.get(PREF_PREFIX + key);
   if (typeof v !== 'number' || Number.isNaN(v)) return fallback;
   return Math.min(max, Math.max(min, v));
 }
 
 function bool(prefs: PrefsBackend, key: string, fallback: boolean): boolean {
-  const v = prefs.get(PREFIX + key);
+  const v = prefs.get(PREF_PREFIX + key);
   return typeof v === 'boolean' ? v : fallback;
 }
 
 function oneOf<T extends string>(prefs: PrefsBackend, key: string, allowed: readonly T[], fallback: T): T {
-  const v = prefs.get(PREFIX + key);
+  const v = prefs.get(PREF_PREFIX + key);
   return typeof v === 'string' && (allowed as readonly string[]).includes(v) ? (v as T) : fallback;
 }
 
@@ -78,17 +85,23 @@ export function loadSettings(prefs: PrefsBackend): Settings {
     speed: num(prefs, 'speed', DEFAULTS.speed, 0.5, 3),
     prefetch: num(prefs, 'prefetch', DEFAULTS.prefetch, 1, 10),
     cacheAudio: bool(prefs, 'cacheAudio', DEFAULTS.cacheAudio),
+    shortcuts: {
+      speedReset: str(prefs, 'shortcuts.speedReset', DEFAULTS.shortcuts.speedReset),
+      speedDown: str(prefs, 'shortcuts.speedDown', DEFAULTS.shortcuts.speedDown),
+      speedUp: str(prefs, 'shortcuts.speedUp', DEFAULTS.shortcuts.speedUp),
+    },
   };
 }
 
 export function saveSettings(prefs: PrefsBackend, s: Settings): void {
-  prefs.set(PREFIX + 'provider', s.provider);
-  for (const [k, v] of Object.entries(s.openai)) prefs.set(PREFIX + 'openai.' + k, v);
-  for (const [k, v] of Object.entries(s.azure)) prefs.set(PREFIX + 'azure.' + k, v);
-  for (const [k, v] of Object.entries(s.local)) prefs.set(PREFIX + 'local.' + k, v);
-  prefs.set(PREFIX + 'speed', s.speed);
-  prefs.set(PREFIX + 'prefetch', s.prefetch);
-  prefs.set(PREFIX + 'cacheAudio', s.cacheAudio);
+  prefs.set(PREF_PREFIX + 'provider', s.provider);
+  for (const [k, v] of Object.entries(s.openai)) prefs.set(PREF_PREFIX + 'openai.' + k, v);
+  for (const [k, v] of Object.entries(s.azure)) prefs.set(PREF_PREFIX + 'azure.' + k, v);
+  for (const [k, v] of Object.entries(s.local)) prefs.set(PREF_PREFIX + 'local.' + k, v);
+  prefs.set(PREF_PREFIX + 'speed', s.speed);
+  prefs.set(PREF_PREFIX + 'prefetch', s.prefetch);
+  prefs.set(PREF_PREFIX + 'cacheAudio', s.cacheAudio);
+  for (const [k, v] of Object.entries(s.shortcuts)) prefs.set(PREF_PREFIX + 'shortcuts.' + k, v);
 }
 
 /** The only place that touches the Zotero global; deliberately isolated here so the rest of the code depends only on PrefsBackend. */

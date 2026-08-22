@@ -3,6 +3,7 @@ import { getLocalEngine, LOCAL_ENGINES } from '../core/providers/local/registry'
 import { createProvider } from '../core/providers/factory';
 import { createZoteroPrefs, loadSettings } from '../core/settings';
 import { getChromeWebSocket, newRequestId } from '../core/providers/azure';
+import { initShortcutRows } from './shortcut-rows';
 
 export function engineOptions(): { value: string; label: string }[] {
   return LOCAL_ENGINES.map((e) => ({ value: e.id, label: e.label }));
@@ -31,17 +32,24 @@ export async function testConnection(provider: TTSProvider): Promise<{ ok: boole
   }
 }
 
+/**
+ * No `scripts` here on purpose: Zotero runs pane scripts before the pane's
+ * markup is parsed and inserted, so a script cannot reach any element. The
+ * root <vbox> of preferences.xhtml instead calls onPaneLoad from its
+ * `onload`, which Zotero dispatches after insertion and pref binding.
+ */
 export async function registerPrefsPane(rootURI: string, pluginID: string): Promise<void> {
   await Zotero.PreferencePanes.register({
     pluginID,
     id: 'zotero-tts-pane',
     src: rootURI + 'content/preferences.xhtml',
-    scripts: [rootURI + 'content/preferences-shim.js'],
     label: 'TTS',
   });
 }
 
 export function onPaneLoad(doc: Document): void {
+  initShortcutRows(doc, createZoteroPrefs(), Zotero.isMac ? 'Cmd' : Zotero.isWin ? 'Win' : 'Super');
+
   const popup = doc.getElementById('ztts-engine-popup');
   if (popup) {
     popup.replaceChildren(

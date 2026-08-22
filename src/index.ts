@@ -6,6 +6,14 @@ import { createZoteroPrefs, loadSettings } from './core/settings';
 import { installHijack } from './modes/hijack';
 import { createRemoteInterface, type RemoteInterface } from './modes/hijack/remote-interface';
 import { onPaneLoad, registerPrefsPane } from './ui/prefs-pane';
+import {
+  createSpeedShortcuts,
+  deepActiveElement,
+  isEditableTarget,
+  pickReader,
+  type SpeedShortcuts,
+} from './ui/speed-shortcuts';
+import { removeSpeedToast, showSpeedToast } from './ui/speed-toast';
 
 export interface StartupParams {
   id: string;
@@ -15,6 +23,8 @@ export interface StartupParams {
 
 let uninstallHijack: (() => void) | null = null;
 let pluginVersion = '0.0.0';
+let speedShortcuts: SpeedShortcuts | null = null;
+let readerOpenedListener: ((event: any) => void) | null = null;
 
 const prefs = createZoteroPrefs();
 
@@ -109,6 +119,119 @@ function wrapForWindow(targetWindow: any, iface: RemoteInterface): unknown {
   return wrapped;
 }
 
+// ---- Speed shortcuts -------------------------------------------------------
+//
+// The shortcuts drive Zotero's own Read Aloud speed (the popup slider), not
+// the synthesis speed in our settings: Zotero time-stretches the audio it
+// already has, so the change is immediate and cached audio stays valid.
+// Keys are captured at two levels. A capturing listener on each chrome
+// window sees keys from the library, the item pane and — because Gecko
+// propagates key events up through in-process frames — the reader as well.
+// A second listener on each reader iframe is the safety net in case that
+// propagation ever stops; handleKeyDown's defaultPrevented check keeps the
+// two from both acting on one key.
+
+function readAloudManager(reader: any) {
+  return reader?._internalReader?._readAloudManager ?? null;
+}
+
+/** Every top-level Zotero window that can host reader tabs. */
+function mainWindows(): any[] {
+  if (typeof Zotero.getMainWindows === 'function') return Zotero.getMainWindows();
+  const wins: any[] = [];
+  const e = Services.wm.getEnumerator('navigator:browser');
+  while (e.hasMoreElements()) wins.push(e.getNext());
+  return wins;
+}
+
+/** Where the toast goes: the reader, unless its tab is hidden behind another, then the window itself. */
+function toastFor(reader: any, speed: number): void {
+  const win = reader?._window;
+  const tabs = win?.Zotero_Tabs;
+  const hiddenTab = !!(tabs && reader?.tabID && tabs.selectedID !== reader.tabID);
+  const doc = hiddenTab ? win.document : (reader?._iframeWindow?.document ?? win?.document);
+  if (doc) showSpeedToast(doc, speed);
+}
+
+function watchWindow(win: any): void {
+  if (!win || !speedShortcuts) return;
+  speedShortcuts.listen(
+    win,
+    () =>
+      pickReader(
+        Zotero.Reader._readers,
+        win,
+        win.Zotero_Tabs ? win.Zotero_Tabs.selectedID : null,
+        (r: any) => !!readAloudManager(r)?.active,
+      ),
+    { isEditable: (event) => isEditableTarget(event.target) || isEditableTarget(deepActiveElement(win.document)) },
+  );
+}
+
+function watchReader(reader: any): void {
+  if (!reader || !speedShortcuts) return;
+  watchWindow(reader._window);
+  const iframe = reader._iframeWindow;
+  if (iframe) {
+    speedShortcuts.listen(iframe, () => reader, {
+      isEditable: (event) => isEditableTarget(event.target) || isEditableTarget(deepActiveElement(iframe.document)),
+    });
+  }
+}
+
+function startSpeedShortcuts(pluginID: string): void {
+  stopSpeedShortcuts();
+  speedShortcuts = createSpeedShortcuts({
+    getBindings: () => loadSettings(prefs).shortcuts,
+    prefs,
+    getManager: readAloudManager,
+    showToast: toastFor,
+    log: (e) => Zotero.logError(e),
+  });
+  for (const win of mainWindows()) watchWindow(win);
+  for (const reader of Zotero.Reader._readers) watchReader(reader);
+  // renderToolbar fires once the reader iframe exists, which is when there
+  // is something to listen on; readers open before startup are covered above.
+  readerOpenedListener = (event: any) => {
+    try {
+      watchReader(event.reader);
+    } catch (e) {
+      Zotero.logError(e);
+    }
+  };
+  Zotero.Reader.registerEventListener('renderToolbar', readerOpenedListener, pluginID);
+}
+
+function stopSpeedShortcuts(): void {
+  if (readerOpenedListener) {
+    try {
+      Zotero.Reader.unregisterEventListener('renderToolbar', readerOpenedListener);
+    } catch (e) {
+      Zotero.logError(e);
+    }
+    readerOpenedListener = null;
+  }
+  speedShortcuts?.dispose();
+  speedShortcuts = null;
+  for (const win of mainWindows()) {
+    try {
+      removeSpeedToast(win.document);
+    } catch {
+      // A window torn down mid-shutdown has nothing left to clean
+    }
+  }
+  for (const reader of Zotero.Reader._readers ?? []) {
+    try {
+      // The chrome document too: a separate reader window is not a main window
+      for (const doc of [reader._iframeWindow?.document, reader._window?.document]) {
+        if (doc) removeSpeedToast(doc);
+      }
+    } catch {
+      // Same: a closed reader is already clean
+    }
+  }
+}
+
 async function startup({ id, version, rootURI }: StartupParams): Promise<void> {
   pluginVersion = version;
   await registerPrefsPane(rootURI, id);
@@ -126,13 +249,33 @@ async function startup({ id, version, rootURI }: StartupParams): Promise<void> {
     Zotero.logError(e);
     Zotero.debug('[zotero-tts] failed to install the Read Aloud hook');
   }
+  try {
+    startSpeedShortcuts(id);
+  } catch (e) {
+    Zotero.logError(e);
+    Zotero.debug('[zotero-tts] failed to install the speed shortcuts');
+  }
   Zotero.debug('[zotero-tts] started');
 }
 
 async function shutdown(): Promise<void> {
   uninstallHijack?.();
   uninstallHijack = null;
+  stopSpeedShortcuts();
   Zotero.debug('[zotero-tts] stopped');
 }
 
-Zotero.ZoteroTTS = { startup, shutdown, prefsPane: { onPaneLoad } };
+function onMainWindowLoad(win: any): void {
+  watchWindow(win);
+}
+
+function onMainWindowUnload(win: any): void {
+  speedShortcuts?.unlisten(win);
+  try {
+    removeSpeedToast(win.document);
+  } catch {
+    // Window already gone
+  }
+}
+
+Zotero.ZoteroTTS = { startup, shutdown, onMainWindowLoad, onMainWindowUnload, prefsPane: { onPaneLoad } };

@@ -43,10 +43,21 @@ describe('build', () => {
   it('packages every runtime file the plugin loads by path', () => {
     execFileSync('node', ['scripts/build.mjs'], { cwd: root, stdio: 'pipe' });
     const names = new AdmZip(xpi).getEntries().map((e) => e.entryName);
-    // prefs.js supplies every default; the two content files are loaded by
-    // registerPrefsPane. Dropping any of them breaks the pane or all defaults.
+    // prefs.js supplies every default; the pane markup is loaded by
+    // registerPrefsPane. Dropping either breaks the pane or all defaults.
     expect(names).toContain('prefs.js');
     expect(names).toContain('content/preferences.xhtml');
-    expect(names).toContain('content/preferences-shim.js');
+  });
+
+  // Zotero runs a pane's `scripts` before it inserts the pane's markup, so
+  // initialization that touches elements must run from the root element's
+  // onload (dispatched after insertion). A pane script once did this job and
+  // silently found nothing; never bring it back.
+  it('initializes the preferences pane from its root onload, not from a pane script', () => {
+    execFileSync('node', ['scripts/build.mjs'], { cwd: root, stdio: 'pipe' });
+    const zip = new AdmZip(xpi);
+    const markup = zip.getEntry('content/preferences.xhtml')!.getData().toString('utf8');
+    expect(markup).toMatch(/<vbox[^>]*\sonload="Zotero\.ZoteroTTS\.prefsPane\.onPaneLoad\(document\)"/);
+    expect(zip.getEntries().map((e) => e.entryName)).not.toContain('content/preferences-shim.js');
   });
 });
