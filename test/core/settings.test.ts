@@ -1,7 +1,16 @@
-import { describe, expect, it } from 'vitest';
-import { DEFAULTS, loadSettings, PREF_PREFIX, saveSettings, type PrefsBackend } from '../../src/core/settings';
+import { describe, expect, it, vi } from 'vitest';
+import {
+  DEFAULTS,
+  enabledProviders,
+  loadSettings,
+  migrateLegacyProviderPref,
+  PREF_PREFIX,
+  PROVIDER_IDS,
+  saveSettings,
+  type PrefsBackend,
+} from '../../src/core/settings';
 
-function fakePrefs(initial: Record<string, unknown> = {}): PrefsBackend & { store: Record<string, unknown> } {
+function fakePrefs(initial: Record<string, unknown> = {}): PrefsBackend & { store: Record<string, unknown>; clear: ReturnType<typeof vi.fn> } {
   const store = { ...initial };
   return {
     store,
@@ -9,6 +18,9 @@ function fakePrefs(initial: Record<string, unknown> = {}): PrefsBackend & { stor
     set: (k, v) => {
       store[k] = v;
     },
+    clear: vi.fn((k: string) => {
+      delete store[k];
+    }),
   };
 }
 
@@ -28,29 +40,32 @@ describe('loadSettings', () => {
     expect('mode' in DEFAULTS).toBe(false);
   });
 
+  // Providers are switched on independently; there is no single "provider"
+  it('has no provider field either — each provider carries its own enabled flag', () => {
+    expect('provider' in DEFAULTS).toBe(false);
+    expect(DEFAULTS.openai.enabled).toBe(true);
+    expect(DEFAULTS.azure.enabled).toBe(false);
+    expect(DEFAULTS.local.enabled).toBe(false);
+  });
+
   it('reads stored values using the extensions.zotero.zotero-tts. prefix', () => {
     const prefs = fakePrefs({
-      'extensions.zotero.zotero-tts.provider': 'azure',
+      'extensions.zotero.zotero-tts.azure.enabled': true,
       'extensions.zotero.zotero-tts.azure.region': 'eastasia',
     });
     const s = loadSettings(prefs);
-    expect(s.provider).toBe('azure');
+    expect(s.azure.enabled).toBe(true);
     expect(s.azure.region).toBe('eastasia');
   });
 
   it('falls back to the default when a stored value has the wrong type', () => {
-    const prefs = fakePrefs({ 'extensions.zotero.zotero-tts.speed': 'fast' });
-    expect(loadSettings(prefs).speed).toBe(DEFAULTS.speed);
+    expect(loadSettings(fakePrefs({ 'extensions.zotero.zotero-tts.speed': 'fast' })).speed).toBe(DEFAULTS.speed);
+    expect(loadSettings(fakePrefs({ 'extensions.zotero.zotero-tts.azure.enabled': 'yes' })).azure.enabled).toBe(false);
   });
 
   it('clamps speed into the supported range', () => {
     expect(loadSettings(fakePrefs({ 'extensions.zotero.zotero-tts.speed': 99 })).speed).toBe(3);
     expect(loadSettings(fakePrefs({ 'extensions.zotero.zotero-tts.speed': 0 })).speed).toBe(0.5);
-  });
-
-  it('rejects an unknown provider id', () => {
-    const prefs = fakePrefs({ 'extensions.zotero.zotero-tts.provider': 'elevenlabs' });
-    expect(loadSettings(prefs).provider).toBe(DEFAULTS.provider);
   });
 
   it('ships Shift+Z / Shift+X / Shift+C as the default speed shortcuts', () => {
@@ -73,11 +88,61 @@ describe('loadSettings', () => {
   });
 });
 
+describe('enabledProviders', () => {
+  it('lists the switched-on providers in catalog order', () => {
+    expect(enabledProviders(DEFAULTS)).toEqual(['openai']);
+    const all = {
+      ...DEFAULTS,
+      azure: { ...DEFAULTS.azure, enabled: true },
+      local: { ...DEFAULTS.local, enabled: true },
+    };
+    expect(enabledProviders(all)).toEqual(PROVIDER_IDS);
+    expect(enabledProviders({ ...all, openai: { ...DEFAULTS.openai, enabled: false } })).toEqual(['azure', 'local']);
+  });
+});
+
 describe('saveSettings', () => {
   it('round-trips through the backend', () => {
     const prefs = fakePrefs();
-    const s = { ...DEFAULTS, provider: 'local' as const, speed: 1.5 };
+    const s = { ...DEFAULTS, local: { ...DEFAULTS.local, enabled: true }, speed: 1.5 };
     saveSettings(prefs, s);
     expect(loadSettings(prefs)).toEqual(s);
+  });
+});
+
+// Builds before 2026-08-22 stored one chosen provider in `provider`
+describe('migrateLegacyProviderPref', () => {
+  const key = (name: string) => PREF_PREFIX + name;
+
+  it('turns the chosen provider into enabled flags and removes the old pref', () => {
+    const prefs = fakePrefs({ [key('provider')]: 'azure' });
+    expect(migrateLegacyProviderPref(prefs)).toBe(true);
+    expect(loadSettings(prefs).azure.enabled).toBe(true);
+    expect(loadSettings(prefs).openai.enabled).toBe(false);
+    expect(loadSettings(prefs).local.enabled).toBe(false);
+    expect(prefs.clear).toHaveBeenCalledWith(key('provider'));
+    expect(key('provider') in prefs.store).toBe(false);
+  });
+
+  it('runs only once', () => {
+    const prefs = fakePrefs({ [key('provider')]: 'local' });
+    expect(migrateLegacyProviderPref(prefs)).toBe(true);
+    expect(migrateLegacyProviderPref(prefs)).toBe(false);
+    expect(loadSettings(prefs).local.enabled).toBe(true);
+  });
+
+  it('does nothing without a valid leftover value', () => {
+    for (const prefs of [fakePrefs(), fakePrefs({ [key('provider')]: 'elevenlabs' }), fakePrefs({ [key('provider')]: '' })]) {
+      expect(migrateLegacyProviderPref(prefs)).toBe(false);
+      expect(loadSettings(prefs)).toEqual(DEFAULTS);
+    }
+  });
+
+  it('blanks the old pref when the backend cannot clear it', () => {
+    const store: Record<string, unknown> = { [key('provider')]: 'openai' };
+    const prefs: PrefsBackend = { get: (k) => store[k], set: (k, v) => void (store[k] = v) };
+    expect(migrateLegacyProviderPref(prefs)).toBe(true);
+    expect(store[key('provider')]).toBe('');
+    expect(migrateLegacyProviderPref(prefs)).toBe(false);
   });
 });

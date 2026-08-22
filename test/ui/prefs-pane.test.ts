@@ -1,27 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
 import { SynthesisError } from '../../src/core/providers/errors';
 import type { TTSProvider } from '../../src/core/providers/types';
-import { engineOptions, highlightCapabilityLabel, testConnection } from '../../src/ui/prefs-pane';
+import { engineOptions, testConnection } from '../../src/ui/prefs-pane';
 
 describe('engineOptions', () => {
   it('is rendered from the registry rather than hard-coded', () => {
     expect(engineOptions()).toEqual([{ value: 'kokoro', label: 'Kokoro-FastAPI' }]);
-  });
-});
-
-describe('highlightCapabilityLabel', () => {
-  // This is the source of the "sentence-level highlighting only / word-level highlighting" line in the preferences pane
-  it('reports sentence for OpenAI and word for Azure', () => {
-    expect(highlightCapabilityLabel('openai', 'kokoro')).toBe('sentence');
-    expect(highlightCapabilityLabel('azure', 'kokoro')).toBe('word');
-  });
-
-  it('reports the capability of the selected local engine', () => {
-    expect(highlightCapabilityLabel('local', 'kokoro')).toBe('word');
-  });
-
-  it('reports sentence when the local engine is unknown', () => {
-    expect(highlightCapabilityLabel('local', 'piper')).toBe('sentence');
   });
 });
 

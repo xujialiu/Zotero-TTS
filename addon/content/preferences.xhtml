@@ -5,63 +5,77 @@
      A script would find none of these elements. -->
 <vbox onload="Zotero.ZoteroTTS.prefsPane.onPaneLoad(document)">
   <groupbox>
-    <label><html:h2>Provider</html:h2></label>
-    <radiogroup id="ztts-provider" preference="extensions.zotero.zotero-tts.provider">
-      <radio value="openai" label="OpenAI"/>
-      <radio value="azure" label="Azure"/>
-      <radio value="local" label="Local"/>
-    </radiogroup>
-    <description id="ztts-capability"/>
-    <description>In the Read Aloud popup, this provider's voices are listed under the "Local" tier, prefixed "Zotero TTS". Zotero's own Standard and Premium voices stay available.</description>
-
+    <label><html:h2>OpenAI</html:h2></label>
+    <checkbox label="Enable OpenAI voices" preference="extensions.zotero.zotero-tts.openai.enabled"/>
     <hbox align="center">
-      <label value="OpenAI API key"/>
+      <label value="API key" style="width: 8em"/>
       <html:input type="password" preference="extensions.zotero.zotero-tts.openai.apiKey"/>
     </hbox>
     <hbox align="center">
-      <label value="OpenAI base URL"/>
+      <label value="Base URL" style="width: 8em"/>
       <html:input type="text" preference="extensions.zotero.zotero-tts.openai.baseURL"/>
     </hbox>
     <hbox align="center">
-      <label value="OpenAI model"/>
-      <html:input type="text" preference="extensions.zotero.zotero-tts.openai.model"/>
+      <label value="Model" style="width: 8em"/>
+      <menulist preference="extensions.zotero.zotero-tts.openai.model" native="true">
+        <menupopup>
+          <menuitem label="gpt-4o-mini-tts" value="gpt-4o-mini-tts"/>
+          <menuitem label="tts-1" value="tts-1"/>
+          <menuitem label="tts-1-hd" value="tts-1-hd"/>
+        </menupopup>
+      </menulist>
     </hbox>
-
     <hbox align="center">
-      <label value="Azure API key"/>
+      <button id="ztts-test-openai" label="Test connection"/>
+      <description id="ztts-test-result-openai"/>
+    </hbox>
+  </groupbox>
+
+  <groupbox>
+    <label><html:h2>Azure</html:h2></label>
+    <checkbox label="Enable Azure voices" preference="extensions.zotero.zotero-tts.azure.enabled"/>
+    <hbox align="center">
+      <label value="API key" style="width: 8em"/>
       <html:input type="password" preference="extensions.zotero.zotero-tts.azure.apiKey"/>
     </hbox>
     <hbox align="center">
-      <label value="Azure region"/>
+      <label value="Region" style="width: 8em"/>
       <html:input type="text" preference="extensions.zotero.zotero-tts.azure.region"/>
+    </hbox>
+    <hbox align="center">
+      <button id="ztts-test-azure" label="Test connection"/>
+      <description id="ztts-test-result-azure"/>
     </hbox>
   </groupbox>
 
   <groupbox>
     <label><html:h2>Local engine</html:h2></label>
+    <checkbox label="Enable local voices" preference="extensions.zotero.zotero-tts.local.enabled"/>
     <hbox align="center">
-      <label value="Engine"/>
-      <menulist id="ztts-engine" preference="extensions.zotero.zotero-tts.local.engine">
+      <label value="Engine" style="width: 8em"/>
+      <menulist id="ztts-engine" preference="extensions.zotero.zotero-tts.local.engine" native="true">
         <menupopup id="ztts-engine-popup"/>
       </menulist>
     </hbox>
     <hbox align="center">
-      <label value="Address"/>
+      <label value="Address" style="width: 8em"/>
       <html:input type="text" preference="extensions.zotero.zotero-tts.local.baseURL"/>
-      <button id="ztts-test" label="Test connection"/>
     </hbox>
-    <description id="ztts-test-result"/>
+    <hbox align="center">
+      <button id="ztts-test-local" label="Test connection"/>
+      <description id="ztts-test-result-local"/>
+    </hbox>
   </groupbox>
 
   <groupbox>
     <label><html:h2>Reading</html:h2></label>
     <hbox align="center">
-      <label value="Speed"/>
+      <label value="Speed" style="width: 8em"/>
       <html:input type="number" min="0.5" max="3" step="0.1"
                   preference="extensions.zotero.zotero-tts.speed"/>
     </hbox>
     <hbox align="center">
-      <label value="Prefetch (sentences)"/>
+      <label value="Prefetch (sentences)" style="width: 8em"/>
       <html:input type="number" min="1" max="10" step="1"
                   preference="extensions.zotero.zotero-tts.prefetch"/>
     </hbox>
@@ -74,7 +88,6 @@
        key presses and writes the prefs itself. -->
   <groupbox>
     <label><html:h2>Keyboard shortcuts</html:h2></label>
-    <description>Change Zotero's Read Aloud playback speed (the slider in the Read Aloud popup) while reading. Click a shortcut, then press the new key combination. Esc cancels, Backspace clears.</description>
     <hbox align="center">
       <label value="Reset speed to 1.0×" style="width: 12em"/>
       <button id="ztts-key-speedReset" style="min-width: 10em"/>

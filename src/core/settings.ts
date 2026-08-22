@@ -1,11 +1,13 @@
 import type { ProviderId } from './providers/types';
 import type { SpeedAction } from './read-aloud-speed';
 
+export const PROVIDER_IDS: readonly ProviderId[] = ['openai', 'azure', 'local'];
+
 export interface Settings {
-  provider: ProviderId;
-  openai: { apiKey: string; baseURL: string; model: string; voice: string };
-  azure: { apiKey: string; region: string; voice: string };
-  local: { engine: string; baseURL: string; voice: string };
+  /** Each provider is switched on independently; every enabled one contributes voices. */
+  openai: { enabled: boolean; apiKey: string; baseURL: string; model: string; voice: string };
+  azure: { enabled: boolean; apiKey: string; region: string; voice: string };
+  local: { enabled: boolean; engine: string; baseURL: string; voice: string };
   speed: number;
   prefetch: number;
   /** Keep synthesized audio in the in-memory LRU (core/memory-cache.ts). */
@@ -20,27 +22,27 @@ export interface Settings {
 export interface PrefsBackend {
   get(key: string): unknown;
   set(key: string, value: unknown): void;
+  /** Remove a user value so the default applies again; optional because tests' fakes may omit it. */
+  clear?(key: string): void;
 }
 
 export const PREF_PREFIX = 'extensions.zotero.zotero-tts.';
 
 export const DEFAULTS: Settings = {
-  provider: 'openai',
   openai: {
+    enabled: true,
     apiKey: '',
     baseURL: 'https://api.openai.com',
     model: 'gpt-4o-mini-tts',
     voice: 'alloy',
   },
-  azure: { apiKey: '', region: 'eastasia', voice: 'zh-CN-XiaoxiaoNeural' },
-  local: { engine: 'kokoro', baseURL: 'http://localhost:8880', voice: 'af_bella' },
+  azure: { enabled: false, apiKey: '', region: 'eastasia', voice: 'zh-CN-XiaoxiaoNeural' },
+  local: { enabled: false, engine: 'kokoro', baseURL: 'http://localhost:8880', voice: 'af_bella' },
   speed: 1,
   prefetch: 3,
   cacheAudio: true,
   shortcuts: { speedReset: 'Shift+Z', speedDown: 'Shift+X', speedUp: 'Shift+C' },
 };
-
-const PROVIDERS: readonly ProviderId[] = ['openai', 'azure', 'local'];
 
 function str(prefs: PrefsBackend, key: string, fallback: string): string {
   const v = prefs.get(PREF_PREFIX + key);
@@ -58,26 +60,23 @@ function bool(prefs: PrefsBackend, key: string, fallback: boolean): boolean {
   return typeof v === 'boolean' ? v : fallback;
 }
 
-function oneOf<T extends string>(prefs: PrefsBackend, key: string, allowed: readonly T[], fallback: T): T {
-  const v = prefs.get(PREF_PREFIX + key);
-  return typeof v === 'string' && (allowed as readonly string[]).includes(v) ? (v as T) : fallback;
-}
-
 export function loadSettings(prefs: PrefsBackend): Settings {
   return {
-    provider: oneOf(prefs, 'provider', PROVIDERS, DEFAULTS.provider),
     openai: {
+      enabled: bool(prefs, 'openai.enabled', DEFAULTS.openai.enabled),
       apiKey: str(prefs, 'openai.apiKey', DEFAULTS.openai.apiKey),
       baseURL: str(prefs, 'openai.baseURL', DEFAULTS.openai.baseURL),
       model: str(prefs, 'openai.model', DEFAULTS.openai.model),
       voice: str(prefs, 'openai.voice', DEFAULTS.openai.voice),
     },
     azure: {
+      enabled: bool(prefs, 'azure.enabled', DEFAULTS.azure.enabled),
       apiKey: str(prefs, 'azure.apiKey', DEFAULTS.azure.apiKey),
       region: str(prefs, 'azure.region', DEFAULTS.azure.region),
       voice: str(prefs, 'azure.voice', DEFAULTS.azure.voice),
     },
     local: {
+      enabled: bool(prefs, 'local.enabled', DEFAULTS.local.enabled),
       engine: str(prefs, 'local.engine', DEFAULTS.local.engine),
       baseURL: str(prefs, 'local.baseURL', DEFAULTS.local.baseURL),
       voice: str(prefs, 'local.voice', DEFAULTS.local.voice),
@@ -93,8 +92,12 @@ export function loadSettings(prefs: PrefsBackend): Settings {
   };
 }
 
+/** The providers whose voices are published, in catalog order. */
+export function enabledProviders(s: Settings): ProviderId[] {
+  return PROVIDER_IDS.filter((id) => s[id].enabled);
+}
+
 export function saveSettings(prefs: PrefsBackend, s: Settings): void {
-  prefs.set(PREF_PREFIX + 'provider', s.provider);
   for (const [k, v] of Object.entries(s.openai)) prefs.set(PREF_PREFIX + 'openai.' + k, v);
   for (const [k, v] of Object.entries(s.azure)) prefs.set(PREF_PREFIX + 'azure.' + k, v);
   for (const [k, v] of Object.entries(s.local)) prefs.set(PREF_PREFIX + 'local.' + k, v);
@@ -104,10 +107,27 @@ export function saveSettings(prefs: PrefsBackend, s: Settings): void {
   for (const [k, v] of Object.entries(s.shortcuts)) prefs.set(PREF_PREFIX + 'shortcuts.' + k, v);
 }
 
+/**
+ * Builds before 2026-08-22 had a single `provider` pref choosing one
+ * provider. Turn a leftover value into the equivalent `enabled` flags — the
+ * chosen provider on, the others off — and remove it, so the choice is
+ * applied exactly once. Returns whether anything was migrated.
+ */
+export function migrateLegacyProviderPref(prefs: PrefsBackend): boolean {
+  const legacyKey = PREF_PREFIX + 'provider';
+  const legacy = prefs.get(legacyKey);
+  if (typeof legacy !== 'string' || !(PROVIDER_IDS as readonly string[]).includes(legacy)) return false;
+  for (const id of PROVIDER_IDS) prefs.set(PREF_PREFIX + id + '.enabled', id === legacy);
+  if (prefs.clear) prefs.clear(legacyKey);
+  else prefs.set(legacyKey, '');
+  return true;
+}
+
 /** The only place that touches the Zotero global; deliberately isolated here so the rest of the code depends only on PrefsBackend. */
 export function createZoteroPrefs(): PrefsBackend {
   return {
     get: (key) => Zotero.Prefs.get(key, true),
     set: (key, value) => Zotero.Prefs.set(key, value as never, true),
+    clear: (key) => Zotero.Prefs.clear(key, true),
   };
 }

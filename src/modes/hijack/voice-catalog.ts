@@ -13,8 +13,16 @@ const PROVIDERS: readonly ProviderId[] = ['openai', 'azure', 'local'];
  */
 export const PLUGIN_TIER = 'local';
 
-/** Distinguishes plugin voices from the system voices in the same tier. */
-export const PLUGIN_LABEL_PREFIX = 'Zotero TTS · ';
+const PROVIDER_NAMES: Record<ProviderId, string> = { openai: 'OpenAI', azure: 'Azure', local: 'Local' };
+
+/**
+ * "TTS-Azure-Ava Multilingual": tells plugin voices from the system voices
+ * in the same tier, and the providers from each other, since every enabled
+ * provider's voices are listed together.
+ */
+export function pluginVoiceLabel(provider: ProviderId, label: string): string {
+  return `TTS-${PROVIDER_NAMES[provider]}-${label}`;
+}
 
 export function encodeVoiceId(provider: ProviderId, voiceId: string): string {
   return provider + SEPARATOR + voiceId;
@@ -60,7 +68,7 @@ export function buildVoicesResponse(
 
     for (const voice of entry.voices) {
       const id = encodeVoiceId(entry.provider, voice.id);
-      voices[id] = { label: PLUGIN_LABEL_PREFIX + voice.label };
+      voices[id] = { label: pluginVoiceLabel(entry.provider, voice.label) };
       (locales[voice.locale] ??= []).push(id);
     }
 

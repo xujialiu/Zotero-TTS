@@ -1,19 +1,12 @@
-import type { ProviderId, TTSProvider } from '../core/providers/types';
-import { getLocalEngine, LOCAL_ENGINES } from '../core/providers/local/registry';
+import type { TTSProvider } from '../core/providers/types';
+import { LOCAL_ENGINES } from '../core/providers/local/registry';
 import { createProvider } from '../core/providers/factory';
-import { createZoteroPrefs, loadSettings } from '../core/settings';
+import { createZoteroPrefs, loadSettings, PROVIDER_IDS } from '../core/settings';
 import { getChromeWebSocket, newRequestId } from '../core/providers/azure';
 import { initShortcutRows } from './shortcut-rows';
 
 export function engineOptions(): { value: string; label: string }[] {
   return LOCAL_ENGINES.map((e) => ({ value: e.id, label: e.label }));
-}
-
-/** Source for the capability line shown under each provider in the preferences pane. */
-export function highlightCapabilityLabel(provider: ProviderId, engineId: string): 'word' | 'sentence' {
-  if (provider === 'azure') return 'word';
-  if (provider === 'openai') return 'sentence';
-  return getLocalEngine(engineId)?.capabilities.wordTimestamps ? 'word' : 'sentence';
 }
 
 export async function testConnection(provider: TTSProvider): Promise<{ ok: boolean; message: string }> {
@@ -48,7 +41,8 @@ export async function registerPrefsPane(rootURI: string, pluginID: string): Prom
 }
 
 export function onPaneLoad(doc: Document): void {
-  initShortcutRows(doc, createZoteroPrefs(), Zotero.isMac ? 'Cmd' : Zotero.isWin ? 'Win' : 'Super');
+  const prefs = createZoteroPrefs();
+  initShortcutRows(doc, prefs, Zotero.isMac ? 'Cmd' : Zotero.isWin ? 'Win' : 'Super');
 
   const popup = doc.getElementById('ztts-engine-popup');
   if (popup) {
@@ -60,35 +54,28 @@ export function onPaneLoad(doc: Document): void {
         return item;
       }),
     );
+    // Zotero synced the pref into the menulist before these items existed,
+    // so nothing was selected; apply the stored value again now
+    const menulist = doc.getElementById('ztts-engine') as (HTMLElement & { value: string }) | null;
+    if (menulist) menulist.value = loadSettings(prefs).local.engine;
   }
 
-  const refreshCapability = () => {
-    const s = loadSettings(createZoteroPrefs());
-    const el = doc.getElementById('ztts-capability');
-    if (el) {
-      const level = highlightCapabilityLabel(s.provider, s.local.engine);
-      el.setAttribute('value', level === 'word' ? 'Word-level highlighting' : 'Sentence-level highlighting only');
-    }
-  };
-  refreshCapability();
-  doc.getElementById('ztts-provider')?.addEventListener('command', refreshCapability);
-  doc.getElementById('ztts-engine')?.addEventListener('command', refreshCapability);
-
-  doc.getElementById('ztts-test')?.addEventListener('command', async () => {
-    const result = doc.getElementById('ztts-test-result');
-    result?.setAttribute('value', 'Testing…');
-    const settings = loadSettings(createZoteroPrefs());
-    let message: string;
-    try {
-      const provider = createProvider(settings, {
-        fetch,
-        getWebSocket: getChromeWebSocket,
-        newRequestId,
-      });
-      message = (await testConnection(provider)).message;
-    } catch (e) {
-      message = `Connection failed: ${String(e)}`;
-    }
-    result?.setAttribute('value', message);
-  });
+  for (const id of PROVIDER_IDS) {
+    doc.getElementById(`ztts-test-${id}`)?.addEventListener('command', async () => {
+      const result = doc.getElementById(`ztts-test-result-${id}`);
+      result?.setAttribute('value', 'Testing…');
+      let message: string;
+      try {
+        const provider = createProvider(id, loadSettings(prefs), {
+          fetch,
+          getWebSocket: getChromeWebSocket,
+          newRequestId,
+        });
+        message = (await testConnection(provider)).message;
+      } catch (e) {
+        message = `Connection failed: ${String(e)}`;
+      }
+      result?.setAttribute('value', message);
+    });
+  }
 }

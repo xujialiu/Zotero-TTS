@@ -2,8 +2,9 @@ import { getChromeWebSocket, newRequestId } from './core/providers/azure';
 import { createProvider } from './core/providers/factory';
 import type { ProviderId, VoiceInfo } from './core/providers/types';
 import { createMemoryCache } from './core/memory-cache';
-import { createZoteroPrefs, loadSettings } from './core/settings';
+import { createZoteroPrefs, enabledProviders, loadSettings, migrateLegacyProviderPref } from './core/settings';
 import { installHijack } from './modes/hijack';
+import { collectCatalog } from './modes/hijack/catalog';
 import {
   createRemoteInterface,
   type NativeRemoteInterface,
@@ -32,10 +33,10 @@ let readerOpenedListener: ((event: any) => void) | null = null;
 
 const prefs = createZoteroPrefs();
 
-/** The cache key includes a config fingerprint, so old audio automatically invalidates after the provider or voice changes. */
+/** The cache key includes a config fingerprint, so old audio automatically invalidates after a provider's configuration changes. */
 function cacheVersion(): string {
   const s = loadSettings(prefs);
-  return [pluginVersion, s.provider, s.openai.model, s.azure.region, s.local.engine, s.local.baseURL].join('|');
+  return [pluginVersion, s.openai.model, s.azure.region, s.local.engine, s.local.baseURL].join('|');
 }
 
 /**
@@ -51,10 +52,14 @@ function providerDeps() {
   return { fetch, getWebSocket: getChromeWebSocket, newRequestId };
 }
 
+/** The voices of every enabled provider; one failing is logged and skipped, not fatal. */
 async function listCatalog(): Promise<{ provider: ProviderId; voices: VoiceInfo[] }[]> {
   const settings = loadSettings(prefs);
-  const provider = createProvider(settings, providerDeps());
-  return [{ provider: settings.provider, voices: await provider.listVoices() }];
+  return collectCatalog(
+    enabledProviders(settings),
+    (id) => createProvider(id, settings, providerDeps()),
+    (e) => Zotero.logError(e),
+  );
 }
 
 function startHijack(): void {
@@ -73,10 +78,11 @@ function startHijack(): void {
         // ever crashed when driven from this sandbox).
         native: () => native() as NativeRemoteInterface | null,
         listCatalog,
-        // Must honor the passed-in id: Zotero remembers the last-selected
-        // voice, and after the user switches provider in settings, that
-        // leftover selection may still point at a different provider.
-        getProvider: (id) => createProvider({ ...loadSettings(prefs), provider: id }, providerDeps()),
+        // Built from the voice id, not from the enabled flags: Zotero
+        // remembers the last-selected voice, which may belong to a provider
+        // the user has since switched off, and a cached or in-flight segment
+        // must still play.
+        getProvider: (id) => createProvider(id, loadSettings(prefs), providerDeps()),
         getSpeed: () => loadSettings(prefs).speed,
         cacheVersion,
         cache: loadSettings(prefs).cacheAudio ? audioCache : undefined,
@@ -245,6 +251,11 @@ function stopSpeedShortcuts(): void {
 
 async function startup({ id, version, rootURI }: StartupParams): Promise<void> {
   pluginVersion = version;
+  try {
+    if (migrateLegacyProviderPref(prefs)) Zotero.debug('[zotero-tts] migrated the single-provider setting');
+  } catch (e) {
+    Zotero.logError(e);
+  }
   await registerPrefsPane(rootURI, id);
 
   // Caught deliberately: if _readers or any other Zotero internal we

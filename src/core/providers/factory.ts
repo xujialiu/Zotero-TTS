@@ -3,7 +3,7 @@ import { createAzureProvider } from './azure';
 import { SynthesisError } from './errors';
 import { getLocalEngine } from './local/registry';
 import { createOpenAIProvider } from './openai';
-import type { TTSProvider } from './types';
+import type { ProviderId, TTSProvider } from './types';
 
 export type ProviderDeps = {
   fetch: typeof fetch;
@@ -11,8 +11,9 @@ export type ProviderDeps = {
   newRequestId: () => string;
 };
 
-export function createProvider(settings: Settings, deps: ProviderDeps): TTSProvider {
-  switch (settings.provider) {
+/** Build one provider from its section of the settings; enabled or not, the settings only say how to reach it. */
+export function createProvider(id: ProviderId, settings: Settings, deps: ProviderDeps): TTSProvider {
+  switch (id) {
     case 'openai':
       return createOpenAIProvider(settings.openai, { fetch: deps.fetch });
 

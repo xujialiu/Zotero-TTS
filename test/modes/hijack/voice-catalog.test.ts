@@ -3,8 +3,8 @@ import {
   buildVoicesResponse,
   decodeVoiceId,
   encodeVoiceId,
-  PLUGIN_LABEL_PREFIX,
   PLUGIN_TIER,
+  pluginVoiceLabel,
   tierForProvider,
 } from '../../../src/modes/hijack/voice-catalog';
 
@@ -70,13 +70,17 @@ describe('buildVoicesResponse', () => {
     expect(config.locales['zh-CN']).toEqual([encodeVoiceId('openai', 'alloy')]);
   });
 
-  // The local tier also holds the operating system's voices; the prefix is
-  // what tells the two apart in the voice dropdown
-  it("declares every voice under its encoded id, labelled as the plugin's", () => {
-    const config = openaiConfig();
-    expect(PLUGIN_LABEL_PREFIX).toMatch(/Zotero TTS/);
-    expect(config.voices[encodeVoiceId('openai', 'alloy')]).toEqual({ label: PLUGIN_LABEL_PREFIX + 'Alloy' });
-    expect(config.voices[encodeVoiceId('openai', 'nova')]).toEqual({ label: PLUGIN_LABEL_PREFIX + 'Nova' });
+  // The local tier also holds the operating system's voices, and every
+  // enabled provider's voices are listed together: the label names both
+  it('labels every voice TTS-<Provider>-<name> under its encoded id', () => {
+    expect(pluginVoiceLabel('openai', 'Alloy')).toBe('TTS-OpenAI-Alloy');
+    expect(pluginVoiceLabel('azure', 'Ava Multilingual')).toBe('TTS-Azure-Ava Multilingual');
+    expect(pluginVoiceLabel('local', 'af_bella')).toBe('TTS-Local-af_bella');
+
+    const out = buildVoicesResponse(entries, 'v1');
+    expect((out.local[0] as any).voices[encodeVoiceId('openai', 'alloy')]).toEqual({ label: 'TTS-OpenAI-Alloy' });
+    expect((out.local[0] as any).voices[encodeVoiceId('openai', 'nova')]).toEqual({ label: 'TTS-OpenAI-Nova' });
+    expect((out.local[1] as any).voices[encodeVoiceId('local', 'af_bella')]).toEqual({ label: 'TTS-Local-af_bella' });
   });
 
   it('asks for sentence segments, the prerequisite for word-level highlighting', () => {
