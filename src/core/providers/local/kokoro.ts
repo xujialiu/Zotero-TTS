@@ -73,8 +73,17 @@ function createKokoroProvider(baseURL: string, deps: { fetch: typeof fetch }): T
       } catch (e) {
         throw new SynthesisError('decode-failed', `Kokoro voices response is not valid JSON: ${e}`);
       }
-      const ids = Array.isArray(body.voices) ? body.voices.filter((v): v is string => typeof v === 'string') : [];
-      return ids.map((id) => ({ id, label: id, locale: localeForKokoroVoice(id) }));
+      // Older servers list plain ids; current Kokoro-FastAPI lists
+      // `{ id, name }` objects. Accept both, or the list comes back empty.
+      const entries = Array.isArray(body.voices) ? body.voices : [];
+      const voices: VoiceInfo[] = [];
+      for (const entry of entries) {
+        const id = typeof entry === 'string' ? entry : (entry as { id?: unknown })?.id;
+        if (typeof id !== 'string' || !id) continue;
+        const name = (entry as { name?: unknown })?.name;
+        voices.push({ id, label: typeof name === 'string' && name ? name : id, locale: localeForKokoroVoice(id) });
+      }
+      return voices;
     },
 
     async synthesize(text: string, o: SynthesisOptions): Promise<SynthesisResult> {
@@ -85,6 +94,10 @@ function createKokoroProvider(baseURL: string, deps: { fetch: typeof fetch }): T
         speed: o.speed,
         response_format: 'mp3',
         return_timestamps: true,
+        // Kokoro-FastAPI streams newline-delimited JSON chunks by default
+        // (CaptionedSpeechRequest.stream defaults to true); one JSON object
+        // with the whole audio and every timestamp is what is parsed below.
+        stream: false,
       };
       const init: RequestInit = {
         method: 'POST',

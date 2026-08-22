@@ -41,6 +41,19 @@ describe('kokoroAdapter', () => {
     ]);
   });
 
+  // Current Kokoro-FastAPI answers `{ voices: [{ id, name }] }`; reading only
+  // strings returned an empty list, so no local voice ever reached Zotero
+  it('accepts the object form of the voices list that current servers return', async () => {
+    const fetchImpl = vi.fn(async () =>
+      Response.json({ voices: [{ id: 'af_bella', name: 'Bella' }, { id: 'zf_xiaobei' }, { name: 'no id' }, 7] }),
+    );
+    const voices = await provider(fetchImpl).listVoices();
+    expect(voices).toEqual([
+      { id: 'af_bella', label: 'Bella', locale: 'en-US' },
+      { id: 'zf_xiaobei', label: 'zf_xiaobei', locale: 'zh-CN' },
+    ]);
+  });
+
   it('posts to the captioned endpoint and decodes base64 audio', async () => {
     const fetchImpl = vi.fn(async () => Response.json({ audio: AUDIO_B64, timestamps: [] }));
     const result = await provider(fetchImpl).synthesize('Hello', opts);
@@ -52,6 +65,9 @@ describe('kokoroAdapter', () => {
       voice: 'af_bella',
       speed: 1,
       return_timestamps: true,
+      // Without this the server streams newline-delimited JSON chunks,
+      // which is not one JSON document and fails to parse
+      stream: false,
     });
     expect(Array.from(new Uint8Array(await result.audio.arrayBuffer()))).toEqual([1, 2, 3]);
   });
