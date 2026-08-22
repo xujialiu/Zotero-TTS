@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { MULTILINGUAL } from '../../../src/core/providers/types';
+import { MULTILINGUAL } from '../../src/core/providers/types';
 import {
   buildVoicesResponse,
   compareVoiceLabels,
@@ -8,7 +8,7 @@ import {
   PLUGIN_TIER,
   pluginVoiceLabel,
   tierForProvider,
-} from '../../../src/modes/hijack/voice-catalog';
+} from '../../src/read-aloud/voice-catalog';
 
 describe('voice id encoding', () => {
   it('round-trips a provider and voice id', () => {

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { installHijack } from '../../../src/modes/hijack';
+import { installHijack } from '../../src/read-aloud';
 
 function fakeReaders() {
   // The real object is Zotero.Reader._readers, a plain array

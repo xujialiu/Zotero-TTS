@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { MULTILINGUAL } from '../../../src/core/providers/types';
-import type { VoicesMap } from '../../../src/core/read-aloud-speed';
-import type { PrefsBackend } from '../../../src/core/settings';
+import { MULTILINGUAL } from '../../src/core/providers/types';
+import type { VoicesMap } from '../../src/core/read-aloud-speed';
+import type { PrefsBackend } from '../../src/core/settings';
 import {
   EMPTY_MEMORY,
   memoryFromVoices,
@@ -11,7 +11,7 @@ import {
   readMemory,
   writeMemory,
   type ReadAloudMemory,
-} from '../../../src/modes/hijack/read-aloud-memory';
+} from '../../src/read-aloud/read-aloud-memory';
 
 function fakePrefs(initial: Record<string, unknown> = {}): PrefsBackend & { store: Record<string, unknown> } {
   const store = { ...initial };

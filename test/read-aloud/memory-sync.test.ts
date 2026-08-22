@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
-import { MULTILINGUAL } from '../../../src/core/providers/types';
-import { READ_ALOUD_VOICES_PREF, type VoicesMap } from '../../../src/core/read-aloud-speed';
-import type { PrefsBackend } from '../../../src/core/settings';
-import { createReadAloudMemorySync, READ_ALOUD_VOICES_OBSERVER, type ReadAloudMemoryDeps } from '../../../src/modes/hijack/memory-sync';
-import { READ_ALOUD_MEMORY_PREF, type ReadAloudMemory } from '../../../src/modes/hijack/read-aloud-memory';
+import { MULTILINGUAL } from '../../src/core/providers/types';
+import { READ_ALOUD_VOICES_PREF, type VoicesMap } from '../../src/core/read-aloud-speed';
+import type { PrefsBackend } from '../../src/core/settings';
+import { createReadAloudMemorySync, READ_ALOUD_VOICES_OBSERVER, type ReadAloudMemoryDeps } from '../../src/read-aloud/memory-sync';
+import { READ_ALOUD_MEMORY_PREF, type ReadAloudMemory } from '../../src/read-aloud/read-aloud-memory';
 
 const ISABELLA = 'openai::bf_v0isabella';
 const AOEDE = 'local::af_aoede';

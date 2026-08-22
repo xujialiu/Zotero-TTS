@@ -1,6 +1,6 @@
-import { SynthesisError, toZoteroError } from '../../core/providers/errors';
-import type { ProviderId, SynthesisResult, Timestamp, TTSProvider, VoiceInfo } from '../../core/providers/types';
-import { withTimeout } from '../../core/timeout';
+import { SynthesisError, toZoteroError } from '../core/providers/errors';
+import type { ProviderId, SynthesisResult, Timestamp, TTSProvider, VoiceInfo } from '../core/providers/types';
+import { withTimeout } from '../core/timeout';
 import { buildVoicesResponse, decodeVoiceId } from './voice-catalog';
 
 export const SAMPLE_TEXT = 'The quick brown fox jumps over the lazy dog.';
@@ -83,7 +83,7 @@ export type RemoteInterfaceDeps = {
    * Called synchronously at the start of every getVoices, before anything is
    * awaited. Zotero calls getVoices from its loadVoices() and, on the same
    * tick, restores the persisted voice; whatever must be in place for that
-   * restore (modes/hijack/memory-sync.ts) hooks in here.
+   * restore (read-aloud/memory-sync.ts) hooks in here.
    */
   onVoicesRequested?(): void;
   /**

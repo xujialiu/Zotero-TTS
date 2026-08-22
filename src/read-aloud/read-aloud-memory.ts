@@ -1,6 +1,6 @@
-import { MULTILINGUAL } from '../../core/providers/types';
-import { resolveVoiceLang, type VoiceEntry, type VoicesMap } from '../../core/read-aloud-speed';
-import { PREF_PREFIX, type PrefsBackend } from '../../core/settings';
+import { MULTILINGUAL } from '../core/providers/types';
+import { resolveVoiceLang, type VoiceEntry, type VoicesMap } from '../core/read-aloud-speed';
+import { PREF_PREFIX, type PrefsBackend } from '../core/settings';
 import { PLUGIN_TIER } from './voice-catalog';
 
 /**

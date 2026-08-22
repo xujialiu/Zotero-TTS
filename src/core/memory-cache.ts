@@ -1,4 +1,4 @@
-import type { AudioCache } from '../modes/hijack/remote-interface';
+import type { AudioCache } from '../read-aloud/remote-interface';
 import type { SynthesisResult } from './providers/types';
 
 /**

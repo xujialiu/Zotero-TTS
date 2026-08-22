@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { ProviderId, TTSProvider } from '../../../src/core/providers/types';
-import { collectCatalog } from '../../../src/modes/hijack/catalog';
+import type { ProviderId, TTSProvider } from '../../src/core/providers/types';
+import { collectCatalog } from '../../src/read-aloud/catalog';
 
 function provider(id: ProviderId, voices: { id: string; label: string; locale: string }[] | Error): TTSProvider {
   return {

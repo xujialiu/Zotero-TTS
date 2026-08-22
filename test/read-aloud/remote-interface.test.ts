@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
-import { SynthesisError } from '../../../src/core/providers/errors';
-import type { TTSProvider } from '../../../src/core/providers/types';
-import { createRemoteInterface, SAMPLE_TEXT, WHOLE_SEGMENT_END_SECONDS } from '../../../src/modes/hijack/remote-interface';
-import { encodeVoiceId } from '../../../src/modes/hijack/voice-catalog';
+import { SynthesisError } from '../../src/core/providers/errors';
+import type { TTSProvider } from '../../src/core/providers/types';
+import { createRemoteInterface, SAMPLE_TEXT, WHOLE_SEGMENT_END_SECONDS } from '../../src/read-aloud/remote-interface';
+import { encodeVoiceId } from '../../src/read-aloud/voice-catalog';
 
 function fakeProvider(overrides: Partial<TTSProvider> = {}): TTSProvider {
   return {

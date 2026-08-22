@@ -25,7 +25,7 @@ export interface Settings {
    * text understood by core/shortcuts.ts ("Shift+Z"). Empty disables one.
    */
   shortcuts: Record<SpeedAction, string>;
-  /** Keep one Read Aloud voice and speed across documents (modes/hijack/read-aloud-memory.ts). */
+  /** Keep one Read Aloud voice and speed across documents (read-aloud/read-aloud-memory.ts). */
   readAloud: { sameForAllDocuments: boolean };
 }
 

@@ -1,4 +1,4 @@
-import type { ProviderId, VoiceInfo } from '../../core/providers/types';
+import type { ProviderId, VoiceInfo } from '../core/providers/types';
 
 const SEPARATOR = '::';
 const PROVIDERS: readonly ProviderId[] = ['openai', 'azure', 'local'];

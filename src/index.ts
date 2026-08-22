@@ -4,14 +4,14 @@ import type { ProviderId, VoiceInfo } from './core/providers/types';
 import { createMemoryCache } from './core/memory-cache';
 import { getLocalEngine } from './core/providers/local/registry';
 import { createZoteroPrefs, enabledProviders, loadSettings, migrateLegacyProviderPref } from './core/settings';
-import { installHijack } from './modes/hijack';
-import { createReadAloudMemorySync, type ReadAloudMemorySync } from './modes/hijack/memory-sync';
-import { collectCatalog } from './modes/hijack/catalog';
+import { installHijack } from './read-aloud';
+import { createReadAloudMemorySync, type ReadAloudMemorySync } from './read-aloud/memory-sync';
+import { collectCatalog } from './read-aloud/catalog';
 import {
   createRemoteInterface,
   type NativeRemoteInterface,
   type RemoteInterface,
-} from './modes/hijack/remote-interface';
+} from './read-aloud/remote-interface';
 import { onPaneLoad, registerPrefsPane } from './ui/prefs-pane';
 import {
   createSpeedShortcuts,
@@ -266,7 +266,7 @@ function stopSpeedShortcuts(): void {
 // ---- One voice and speed across documents ----------------------------------
 //
 // Zotero remembers the Read Aloud voice and speed per detected document
-// language; see modes/hijack/read-aloud-memory.ts for what is kept instead.
+// language; see read-aloud/read-aloud-memory.ts for what is kept instead.
 
 function startReadAloudMemory(): void {
   stopReadAloudMemory();

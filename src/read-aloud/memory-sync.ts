@@ -1,5 +1,5 @@
-import { READ_ALOUD_VOICES_PREF, readReadAloudVoices } from '../../core/read-aloud-speed';
-import type { PrefsBackend } from '../../core/settings';
+import { READ_ALOUD_VOICES_PREF, readReadAloudVoices } from '../core/read-aloud-speed';
+import type { PrefsBackend } from '../core/settings';
 import { memoryFromVoices, noteVoicesChange, planSync, readMemory, writeMemory, type ReadAloudMemory } from './read-aloud-memory';
 
 /**

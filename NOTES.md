@@ -577,3 +577,12 @@ failed: …`, deliberately distinct from connection errors.
 - Open item 1 (a playback-time 429 maps to `'quota-exceeded'`, which
   Zotero renders silently) is still open; the probe only fixes visibility
   at test time.
+
+## `src/modes/hijack/` → `src/read-aloud/` (2026-08-23)
+
+The `modes/` layer existed for a standalone-player mode that was deleted
+before it was ever built (see "What the plugin is"); with hijack the only
+mode there will ever be, the directory is now named for what it integrates
+(Zotero's Read Aloud), not how. `installHijack` keeps its name — the
+mechanism did not change. Paths in older entries above are left as
+written; they are history.
