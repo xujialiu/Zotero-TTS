@@ -9,8 +9,9 @@ import { initShortcutRows } from './shortcut-rows';
 
 const XHTML = 'http://www.w3.org/1999/xhtml';
 
-export function engineOptions(): { value: string; label: string }[] {
-  return LOCAL_ENGINES.map((e) => ({ value: e.id, label: e.label }));
+/** Display name of the configured local engine, from the registry; the raw id if it is unknown. */
+export function engineLabel(engineId: string): string {
+  return LOCAL_ENGINES.find((e) => e.id === engineId)?.label ?? engineId;
 }
 
 export const TEST_CONNECTION_TIMEOUT_MS = 15_000;
@@ -101,21 +102,7 @@ export function onPaneLoad(doc: Document): void {
   const prefs = createZoteroPrefs();
   initShortcutRows(doc, prefs, Zotero.isMac ? 'Cmd' : Zotero.isWin ? 'Win' : 'Super');
 
-  const popup = doc.getElementById('ztts-engine-popup');
-  if (popup) {
-    popup.replaceChildren(
-      ...engineOptions().map((o) => {
-        const item = doc.createXULElement('menuitem');
-        item.setAttribute('value', o.value);
-        item.setAttribute('label', o.label);
-        return item;
-      }),
-    );
-    // Zotero synced the pref into the menulist before these items existed,
-    // so nothing was selected; apply the stored value again now
-    const menulist = doc.getElementById('ztts-engine') as (HTMLElement & { value: string }) | null;
-    if (menulist) menulist.value = loadSettings(prefs).local.engine;
-  }
+  doc.getElementById('ztts-local-enable')?.setAttribute('label', `Enable ${engineLabel(loadSettings(prefs).local.engine)}`);
 
   for (const id of PROVIDER_IDS) {
     doc.getElementById(`ztts-test-${id}`)?.addEventListener('command', async () => {

@@ -1,6 +1,6 @@
 import { normalizeBaseURL } from './base-url';
 import { SynthesisError } from './errors';
-import { ANY_LANGUAGE, type SynthesisOptions, type SynthesisResult, type TTSProvider, type VoiceInfo } from './types';
+import { MULTILINGUAL, type SynthesisOptions, type SynthesisResult, type TTSProvider, type VoiceInfo } from './types';
 
 export type OpenAIConfig = {
   apiKey: string;
@@ -116,7 +116,7 @@ export function createOpenAIProvider(cfg: OpenAIConfig, deps: { fetch: typeof fe
      */
     async listVoices(): Promise<VoiceInfo[]> {
       const custom = parseVoiceIds(cfg.voices ?? '');
-      if (custom.length) return custom.map((id) => ({ id, label: id, locale: ANY_LANGUAGE }));
+      if (custom.length) return custom.map((id) => ({ id, label: id, locale: MULTILINGUAL }));
 
       const response = await get('/v1/audio/voices');
       if (response.ok) {
@@ -127,11 +127,11 @@ export function createOpenAIProvider(cfg: OpenAIConfig, deps: { fetch: typeof fe
           // Not JSON: the route exists but is something else; fall through
         }
         const published = parseVoiceList(body);
-        if (published.length) return published.map((v) => ({ ...v, locale: ANY_LANGUAGE }));
+        if (published.length) return published.map((v) => ({ ...v, locale: MULTILINGUAL }));
       } else if (response.status === 401 || response.status === 403) {
         throw statusError(response.status, `${base()}/v1/audio/voices`);
       }
-      return OPENAI_DEFAULT_VOICES.map((id) => ({ id, label: id, locale: ANY_LANGUAGE }));
+      return OPENAI_DEFAULT_VOICES.map((id) => ({ id, label: id, locale: MULTILINGUAL }));
     },
 
     /** The model ids the server offers; the cheapest authenticated request the API has, so also the connection probe. */

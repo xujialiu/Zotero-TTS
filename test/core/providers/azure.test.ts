@@ -262,8 +262,8 @@ describe('createAzureProvider', () => {
       expect(voices).toEqual([
         { id: 'en-US-AvaNeural', label: 'Ava', locale: 'en-US' },
         { id: 'ja-JP-NanamiNeural', label: 'ja-JP-NanamiNeural', locale: 'ja-JP' },
-        { id: 'en-US-AvaMultilingualNeural', label: 'Ava Multilingual', locale: '*' },
-        { id: 'zh-CN-XiaoxiaoMultilingualNeural', label: '晓晓 多语言', locale: '*' },
+        { id: 'en-US-AvaMultilingualNeural', label: 'Ava Multilingual', locale: 'mul' },
+        { id: 'zh-CN-XiaoxiaoMultilingualNeural', label: '晓晓 多语言', locale: 'mul' },
       ]);
 
       const [url, init] = (fetchImpl as any).mock.calls[0];

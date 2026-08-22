@@ -64,7 +64,7 @@ export function compareVoiceLabels(a: string, b: string): number {
  * it is given (buildVoiceOptions sorts only by creditsPerMinute, which we
  * never set) and flattens configs in order, locale by locale, so that is
  * the only shape that yields an alphabetical dropdown across a language's
- * several locales and the '*' wildcard alike.
+ * several locales and the multilingual group alike.
  *
  * The voice list under each locale uses the **plain array** form. The
  * object form { default, other } gets spread without any guard

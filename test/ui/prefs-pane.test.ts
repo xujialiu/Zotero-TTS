@@ -1,11 +1,12 @@
 import { describe, expect, it, vi } from 'vitest';
 import { SynthesisError } from '../../src/core/providers/errors';
 import type { TTSProvider } from '../../src/core/providers/types';
-import { engineOptions, rankModelsForSpeech, testConnection } from '../../src/ui/prefs-pane';
+import { engineLabel, rankModelsForSpeech, testConnection } from '../../src/ui/prefs-pane';
 
-describe('engineOptions', () => {
-  it('is rendered from the registry rather than hard-coded', () => {
-    expect(engineOptions()).toEqual([{ value: 'kokoro', label: 'Kokoro-FastAPI' }]);
+describe('engineLabel', () => {
+  it('names the configured engine from the registry, falling back to the id', () => {
+    expect(engineLabel('kokoro')).toBe('Kokoro-FastAPI');
+    expect(engineLabel('piper')).toBe('piper');
   });
 });
 

@@ -51,13 +51,10 @@
 
   <groupbox>
     <label><html:h2>Local engine</html:h2></label>
-    <checkbox label="Enable local voices" preference="extensions.zotero.zotero-tts.local.enabled"/>
-    <hbox align="center">
-      <label value="Engine" style="width: 8em"/>
-      <menulist id="ztts-engine" preference="extensions.zotero.zotero-tts.local.engine" native="true">
-        <menupopup id="ztts-engine-popup"/>
-      </menulist>
-    </hbox>
+    <!-- One block per engine: its own enable switch and address. Only
+         Kokoro exists today; the checkbox label is filled from the engine
+         registry in onPaneLoad. -->
+    <checkbox id="ztts-local-enable" label="Enable Kokoro-FastAPI" preference="extensions.zotero.zotero-tts.local.enabled"/>
     <hbox align="center">
       <label value="Address" style="width: 8em"/>
       <html:input type="text" preference="extensions.zotero.zotero-tts.local.baseURL"/>

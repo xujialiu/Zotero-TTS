@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ANY_LANGUAGE } from '../../../src/core/providers/types';
+import { MULTILINGUAL } from '../../../src/core/providers/types';
 import {
   buildVoicesResponse,
   compareVoiceLabels,
@@ -65,13 +65,13 @@ describe('buildVoicesResponse', () => {
   const entries = [
     {
       provider: 'openai' as const,
-      voices: [{ id: 'nova', label: 'nova', locale: ANY_LANGUAGE }, { id: 'alloy', label: 'alloy', locale: ANY_LANGUAGE }],
+      voices: [{ id: 'nova', label: 'nova', locale: MULTILINGUAL }, { id: 'alloy', label: 'alloy', locale: MULTILINGUAL }],
     },
     {
       provider: 'azure' as const,
       voices: [
         { id: 'zh-CN-YunxiNeural', label: '云希', locale: 'zh-CN' },
-        { id: 'zh-CN-XiaoxiaoMultilingualNeural', label: '晓晓 多语言', locale: ANY_LANGUAGE },
+        { id: 'zh-CN-XiaoxiaoMultilingualNeural', label: '晓晓 多语言', locale: MULTILINGUAL },
         { id: 'en-US-AvaNeural', label: 'Ava', locale: 'en-US' },
       ],
     },
@@ -117,9 +117,9 @@ describe('buildVoicesResponse', () => {
   // wildcard locale rather than by repeating it under each one
   it('passes the wildcard locale through untouched', () => {
     const xiaoxiao = configs().find((c) => labelOf(c) === 'TTS-Azure-晓晓 多语言');
-    expect(xiaoxiao.locales).toEqual({ '*': [encodeVoiceId('azure', 'zh-CN-XiaoxiaoMultilingualNeural')] });
+    expect(xiaoxiao.locales).toEqual({ mul: [encodeVoiceId('azure', 'zh-CN-XiaoxiaoMultilingualNeural')] });
     const alloy = configs().find((c) => labelOf(c) === 'TTS-OpenAI-alloy');
-    expect(alloy.locales).toEqual({ '*': [encodeVoiceId('openai', 'alloy')] });
+    expect(alloy.locales).toEqual({ mul: [encodeVoiceId('openai', 'alloy')] });
   });
 
   it('declares every voice under its encoded id with its label', () => {

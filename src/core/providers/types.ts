@@ -20,18 +20,20 @@ export type SynthesisResult = {
 };
 
 /**
- * Zotero's wildcard locale: a voice listed under it is offered for every
- * language (reader isLanguageSupported) without adding a selectable
- * language of its own (getSupportedLanguages skips it). Meant for
- * language-agnostic voices — OpenAI's, Azure's "Multilingual" ones.
+ * The locale of voices that speak whatever language they are given —
+ * OpenAI's, Azure's "Multilingual" ones, voices of unknown language from
+ * OpenAI-compatible servers. `mul` is BCP-47 for "multiple languages", so
+ * Zotero's language dropdown (labelled through Intl.DisplayNames) shows
+ * them as their own entry, "Multiple languages" / "多语种", instead of
+ * repeating them under every language.
  */
-export const ANY_LANGUAGE = '*';
+export const MULTILINGUAL = 'mul';
 
 export type VoiceInfo = {
   /** The raw id within the provider, without the provider prefix */
   id: string;
   label: string;
-  /** BCP-47, or ANY_LANGUAGE for a voice that speaks whatever it is given */
+  /** BCP-47, or MULTILINGUAL for a voice that speaks whatever it is given */
   locale: string;
 };
 

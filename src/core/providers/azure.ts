@@ -8,7 +8,7 @@ import {
   parseWordBoundaries,
 } from './azure-ws';
 import { SynthesisError } from './errors';
-import { ANY_LANGUAGE, type SynthesisOptions, type SynthesisResult, type TTSProvider, type VoiceInfo } from './types';
+import { MULTILINGUAL, type SynthesisOptions, type SynthesisResult, type TTSProvider, type VoiceInfo } from './types';
 
 type AzureVoice = { ShortName: string; DisplayName?: string; LocalName?: string; Locale: string };
 
@@ -77,7 +77,7 @@ export function createAzureProvider(cfg: AzureConfig, deps: AzureDeps): TTSProvi
       return list.map((v) => ({
         id: v.ShortName,
         label: v.LocalName ?? v.ShortName,
-        locale: isMultilingualAzureVoice(v) ? ANY_LANGUAGE : v.Locale,
+        locale: isMultilingualAzureVoice(v) ? MULTILINGUAL : v.Locale,
       }));
     },
 

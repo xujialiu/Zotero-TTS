@@ -7,7 +7,7 @@ import {
   parseVoiceIds,
   parseVoiceList,
 } from '../../../src/core/providers/openai';
-import { ANY_LANGUAGE } from '../../../src/core/providers/types';
+import { MULTILINGUAL } from '../../../src/core/providers/types';
 
 const cfg = {
   apiKey: 'sk-test',
@@ -89,9 +89,9 @@ describe('listVoices', () => {
     const fetchImpl = vi.fn();
     const voices = await provider(fetchImpl, { voices: 'af_bella, zf_xiaobei;am_adam\naf_bella' }).listVoices();
     expect(voices).toEqual([
-      { id: 'af_bella', label: 'af_bella', locale: ANY_LANGUAGE },
-      { id: 'zf_xiaobei', label: 'zf_xiaobei', locale: ANY_LANGUAGE },
-      { id: 'am_adam', label: 'am_adam', locale: ANY_LANGUAGE },
+      { id: 'af_bella', label: 'af_bella', locale: MULTILINGUAL },
+      { id: 'zf_xiaobei', label: 'zf_xiaobei', locale: MULTILINGUAL },
+      { id: 'am_adam', label: 'am_adam', locale: MULTILINGUAL },
     ]);
     expect(fetchImpl).not.toHaveBeenCalled();
   });
@@ -103,15 +103,15 @@ describe('listVoices', () => {
     expect(url).toBe('http://localhost:8880/v1/audio/voices');
     expect(init.headers.Authorization).toBe('Bearer sk-test');
     expect(voices).toEqual([
-      { id: 'af_bella', label: 'Bella', locale: ANY_LANGUAGE },
-      { id: 'am_adam', label: 'am_adam', locale: ANY_LANGUAGE },
+      { id: 'af_bella', label: 'Bella', locale: MULTILINGUAL },
+      { id: 'am_adam', label: 'am_adam', locale: MULTILINGUAL },
     ]);
   });
 
   it("falls back to OpenAI's documented voices when the server has no voice list", async () => {
     const voices = await provider(vi.fn(notFound)).listVoices();
     expect(voices.map((v) => v.id)).toEqual([...OPENAI_DEFAULT_VOICES]);
-    for (const voice of voices) expect(voice.locale).toBe(ANY_LANGUAGE);
+    for (const voice of voices) expect(voice.locale).toBe(MULTILINGUAL);
   });
 
   it('falls back as well when the route answers something unusable', async () => {
