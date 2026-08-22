@@ -30,7 +30,7 @@ const ACTION_NAMES: Record<SpeedAction, string> = {
  * pressed anywhere in the pane (Esc cancels, Backspace clears). Bindings
  * are written straight to prefs, which the reader re-reads on every key.
  */
-export function initShortcutRows(doc: RowsDocument, prefs: PrefsBackend, metaLabel: string): void {
+export function initShortcutRows(doc: RowsDocument, prefs: PrefsBackend, metaLabel: string): { refresh(): void } {
   const prefKey = (action: SpeedAction) => `${PREF_PREFIX}shortcuts.${action}`;
   const button = (action: SpeedAction) => doc.getElementById(`ztts-key-${action}`);
   let recording: { action: SpeedAction; handler: (event: RecorderEvent) => void } | null = null;
@@ -96,4 +96,6 @@ export function initShortcutRows(doc: RowsDocument, prefs: PrefsBackend, metaLab
     refresh();
   });
   refresh();
+
+  return { refresh };
 }

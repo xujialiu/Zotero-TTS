@@ -292,7 +292,7 @@ async function startup({ id, version, rootURI }: StartupParams): Promise<void> {
   } catch (e) {
     Zotero.logError(e);
   }
-  await registerPrefsPane(rootURI, id);
+  await registerPrefsPane(rootURI, id, version);
 
   try {
     startReadAloudMemory();

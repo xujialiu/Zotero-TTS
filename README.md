@@ -19,6 +19,9 @@ join the **Local** tier of the Read Aloud popup, named `TTS-<Provider>-<voice>`
   a single-language voice for documents in its language (the only ones it
   can read). Switch it off under Reading if you want Zotero's per-language
   behaviour back.
+- Backup and restore: the Backup group at the bottom of the settings pane
+  writes every setting to a JSON file and reads one back. The file includes
+  your API keys, so keep it private.
 - Voices that speak any language — Azure's *Multilingual* / *多语言* ones,
   every OpenAI voice — sit under their own entry in the popup's language
   dropdown, "Multiple languages" (多语种), rather than being repeated under
