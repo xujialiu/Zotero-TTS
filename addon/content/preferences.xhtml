@@ -110,6 +110,30 @@
     </hbox>
   </groupbox>
 
+  <!-- Zotero's Read Aloud highlight colours, applied per reader by read-aloud/highlight-style.ts -->
+  <groupbox>
+    <label><html:h2>Highlight</html:h2></label>
+    <hbox align="center">
+      <label value="Word" style="width: 8em"/>
+      <html:input type="color" preference="extensions.zotero.zotero-tts.highlight.wordColor"/>
+      <label value="Opacity (%)" style="margin-inline-start: 1em"/>
+      <html:input type="number" min="0" max="100" step="5" style="width: 5em"
+                  preference="extensions.zotero.zotero-tts.highlight.wordAlpha"/>
+    </hbox>
+    <hbox align="center">
+      <label value="Sentence" style="width: 8em"/>
+      <html:input type="color" preference="extensions.zotero.zotero-tts.highlight.sentenceColor"/>
+      <label value="Opacity (%)" style="margin-inline-start: 1em"/>
+      <html:input type="number" min="0" max="100" step="5" style="width: 5em"
+                  preference="extensions.zotero.zotero-tts.highlight.sentenceAlpha"/>
+    </hbox>
+    <hbox align="center">
+      <checkbox label="While highlighting words, keep the sentence highlighted too"
+                preference="extensions.zotero.zotero-tts.highlight.sentenceUnderWord"/>
+    </hbox>
+    <description>Which unit Read Aloud highlights is Zotero’s own setting (Settings → General → Read Aloud → Highlight current). The sentence colour also applies in sentence and paragraph mode. Zotero’s defaults: #4072e5 at 45% and 30%. Changes show on the next highlight.</description>
+  </groupbox>
+
   <!-- These rows are not bound with preference=; shortcut-rows.ts records
        key presses and writes the prefs itself. -->
   <groupbox>

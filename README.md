@@ -22,6 +22,11 @@ join the **Local** tier of the Read Aloud popup, named `TTS-<Provider>-<voice>`
   a single-language voice for documents in its language (the only ones it
   can read). Switch it off under Reading if you want Zotero's per-language
   behaviour back.
+- Highlight colours: Zotero paints the word or sentence being read in one
+  fixed blue; Settings → TTS → Highlight lets you pick the word colour and
+  the sentence colour with their opacities, and keep the sentence
+  highlighted under the word in word mode. Works for PDFs, EPUBs and
+  snapshots, with Zotero's own voices too.
 - Backup and restore: the Backup group at the bottom of the settings pane
   writes every setting to a JSON file and reads one back — a file on disk,
   or the same file in a WebDAV folder (Nextcloud, Synology, Jianguoyun, …)
@@ -120,11 +125,6 @@ Zotero plugin setting.
   OpenAI-compatible server: the server failed on one segment. Check its log;
   very short segments (section numbers) are replaced by a pause, anything
   longer is reported as is.
-
-## TODO
-
-- Let the colour of the Read Aloud highlight (the sentence or word being
-  read) be changed.
 
 ## Development
 

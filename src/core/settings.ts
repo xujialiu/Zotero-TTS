@@ -43,6 +43,15 @@ export interface Settings {
      */
     multilingualEverywhere: boolean;
   };
+  /** The colours of Zotero's Read Aloud highlights (read-aloud/highlight-style.ts); opacities in percent. */
+  highlight: {
+    wordColor: string;
+    wordAlpha: number;
+    sentenceColor: string;
+    sentenceAlpha: number;
+    /** In word mode, keep the sentence highlighted as well. */
+    sentenceUnderWord: boolean;
+  };
 }
 
 export interface PrefsBackend {
@@ -81,6 +90,8 @@ export const DEFAULTS: Settings = {
     nextParagraph: 'Shift+ArrowRight',
   },
   readAloud: { sameForAllDocuments: true, multilingualEverywhere: false },
+  // Zotero's own: #4072e5 at 45% for the unit being read, 30% for the flash after a skip
+  highlight: { wordColor: '#4072e5', wordAlpha: 45, sentenceColor: '#4072e5', sentenceAlpha: 30, sentenceUnderWord: false },
 };
 
 function str(prefs: PrefsBackend, key: string, fallback: string): string {
@@ -144,6 +155,13 @@ export function loadSettings(prefs: PrefsBackend): Settings {
       sameForAllDocuments: bool(prefs, 'readAloud.sameForAllDocuments', DEFAULTS.readAloud.sameForAllDocuments),
       multilingualEverywhere: bool(prefs, 'readAloud.multilingualEverywhere', DEFAULTS.readAloud.multilingualEverywhere),
     },
+    highlight: {
+      wordColor: str(prefs, 'highlight.wordColor', DEFAULTS.highlight.wordColor),
+      wordAlpha: num(prefs, 'highlight.wordAlpha', DEFAULTS.highlight.wordAlpha, 0, 100),
+      sentenceColor: str(prefs, 'highlight.sentenceColor', DEFAULTS.highlight.sentenceColor),
+      sentenceAlpha: num(prefs, 'highlight.sentenceAlpha', DEFAULTS.highlight.sentenceAlpha, 0, 100),
+      sentenceUnderWord: bool(prefs, 'highlight.sentenceUnderWord', DEFAULTS.highlight.sentenceUnderWord),
+    },
   };
 }
 
@@ -161,6 +179,7 @@ export function saveSettings(prefs: PrefsBackend, s: Settings): void {
   prefs.set(PREF_PREFIX + 'cacheAudio', s.cacheAudio);
   for (const [k, v] of Object.entries(s.shortcuts)) prefs.set(PREF_PREFIX + 'shortcuts.' + k, v);
   for (const [k, v] of Object.entries(s.readAloud)) prefs.set(PREF_PREFIX + 'readAloud.' + k, v);
+  for (const [k, v] of Object.entries(s.highlight)) prefs.set(PREF_PREFIX + 'highlight.' + k, v);
 }
 
 /**

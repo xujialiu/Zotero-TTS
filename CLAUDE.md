@@ -5,7 +5,7 @@ Zotero 10 plugin that adds voices to Zotero's built-in **Read Aloud**: OpenAI
 Zotero's own Standard/Premium voices keep working; ours join the Local tier as
 `TTS-<Provider>-<voice>`. Also: shortcuts for the speed (Shift+Z/X/C) and for
 skipping by sentence / paragraph (arrows / Shift+arrows), one voice and speed
-across documents, settings backup/restore (file or WebDAV).
+across documents, settings backup/restore (file or WebDAV), highlight colours.
 
 - `README.md` — user-facing docs (install, providers, troubleshooting);
   `tutorials/` — Azure's free tier, Kokoro-FastAPI and Chatterbox-TTS-Server
@@ -65,9 +65,13 @@ skipping the third strands every installed copy on the old version:
 Verify: the `update_link` answers 200 and the raw `update_url` serves the
 new version; Zotero's Tools → Plugins → gear → "Check for Plugin Updates"
 should then offer it. Zotero cannot be
-driven from here; when something fails in Zotero, ask for Help → Debug Output
-Logging → View Output (the user saves it as an .htm) and grep it for
-`[zotero-tts]` and `JavaScript Error`.
+driven from here, but the user will run snippets on request in **Tools →
+Developer → Run JavaScript** (chrome context: `Zotero`, `Zotero.Reader._readers`,
+`reader._internalReader`, the plugin's `Zotero.ZoteroTTS`; return a string or
+JSON to read the result) — ask for that first, it is faster than logs.
+`Zotero.ZoteroTTS.diagnostics.highlight()` reports what highlight-style.ts
+sees. For logs, ask for Help → Debug Output Logging → View Output (the user
+saves it as an .htm) and grep it for `[zotero-tts]` and `JavaScript Error`.
 
 Platform notes:
 - Windows: the Bash tool is Git Bash; long `cat <<'EOF'` heredocs have failed
@@ -97,7 +101,8 @@ src/core/           pure logic, no Zotero globals: settings (DEFAULTS ↔ addon/
 src/read-aloud/     the Read Aloud integration: index (intercepts Zotero.Reader._readers and
                     overrides _getReadAloudRemoteInterface per reader), remote-interface
                     (composite of Zotero's native interface + our voices), voice-catalog,
-                    catalog, read-aloud-memory (+ memory-sync: one voice/speed across documents)
+                    catalog, read-aloud-memory (+ memory-sync: one voice/speed across documents),
+                    highlight-style (Zotero's highlight colours, sentence under word)
 src/ui/             prefs pane (prefs-pane, shortcut-rows, backup-rows, webdav-rows,
                     server-preset-rows, shortcut-recorder),
                     read-aloud-shortcuts, speed-toast
@@ -134,7 +139,11 @@ test/               mirrors src/; vitest
   ("Permission denied to access property …"). Hand reader code primitives
   only; call reader functions with `Reflect.apply`, not `fn.apply`, so the
   argument array stays on our side. Never call `fn.apply` on a reader
-  function with sandbox arguments.
+  function with sandbox arguments. Inside an exported function, `this` and
+  the arguments arrive behind Xray wrappers: a plain object's prototype
+  methods are invisible and assignments land on the wrapper — waive them
+  (`Components.utils.waiveXrays`) or use references captured on our side;
+  objects reached from our side (`reader._internalReader…`) are fine.
 - **`Zotero.Prefs.set`** writes through the type the pref is declared with in
   `prefs.js`: an int pref goes through `setIntPref`, which cannot hold a
   fraction — a `preference=`-bound number input hands it "1.5" and the pref
@@ -152,7 +161,10 @@ test/               mirrors src/; vitest
   playback; `skipBack/skipAhead('sentence' | 'paragraph', accelerate)` are
   the popup's skip buttons, followed by `_lockPositionToReadAloud()`. Choices persist in `extensions.zotero.reader.readAloudVoices`,
   keyed by the *detected* base language (`mul` for "Multiple languages");
-  `_syncPersistedVoicesToManager` restores them. Tiers are hard-coded
+  `_syncPersistedVoicesToManager` restores them. Highlight colours are
+  constants in the bundle (`READ_ALOUD_ACTIVE_SEGMENT_COLOR` / `…SENTENCE_COLOR`),
+  reached only by shadowing prototype methods per reader (highlight-style.ts);
+  each reader tab has its own bundle and classes. Tiers are hard-coded
   standard/premium/local; unknown tiers are dropped. Word mode draws only
   real word timestamps.
 - **Kokoro-FastAPI**: `/dev/captioned_speech` needs `stream: false`;

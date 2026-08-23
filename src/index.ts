@@ -6,6 +6,7 @@ import { getLocalEngine } from './core/providers/local/registry';
 import { createZoteroPrefs, enabledProviders, loadSettings, migrateLegacyProviderPref } from './core/settings';
 import { installHijack } from './read-aloud';
 import { createReadAloudMemorySync, type ReadAloudMemorySync } from './read-aloud/memory-sync';
+import { createHighlightStyling, type HighlightStyling } from './read-aloud/highlight-style';
 import { collectCatalog } from './read-aloud/catalog';
 import {
   createRemoteInterface,
@@ -34,6 +35,7 @@ let pluginVersion = '0.0.0';
 let readAloudShortcuts: ReadAloudShortcuts | null = null;
 let readerOpenedListener: ((event: any) => void) | null = null;
 let readAloudMemory: ReadAloudMemorySync | null = null;
+let highlightStyling: HighlightStyling | null = null;
 
 const prefs = createZoteroPrefs();
 
@@ -89,6 +91,8 @@ function startHijack(): void {
         // and Zotero restores the remembered voice on the same tick.
         onVoicesRequested: () => {
           readAloudMemory?.attach(reader);
+          // The popup is open, so the document is rendered and its views exist
+          highlightStyling?.attach(reader);
         },
         listCatalog,
         getMultilingualEverywhere: () => loadSettings(prefs).readAloud.multilingualEverywhere,
@@ -205,6 +209,7 @@ function watchReader(reader: any): void {
   if (!reader || !readAloudShortcuts) return;
   watchWindow(reader._window);
   readAloudMemory?.attach(reader);
+  highlightStyling?.attach(reader);
   const iframe = reader._iframeWindow;
   if (iframe) {
     readAloudShortcuts.listen(iframe, () => reader, {
@@ -297,6 +302,31 @@ function stopReadAloudMemory(): void {
   readAloudMemory = null;
 }
 
+// ---- Highlight colours -----------------------------------------------------
+//
+// Zotero's highlight colours are constants in its reader bundle; see
+// read-aloud/highlight-style.ts for how they are replaced per reader.
+
+function startHighlightStyling(): void {
+  stopHighlightStyling();
+  highlightStyling = createHighlightStyling({
+    style: () => loadSettings(prefs).highlight,
+    exportFunction: (fn, target) => Components.utils.exportFunction(fn, target),
+    // The view's timers live in the reader iframe's window, not in this sandbox
+    clearTimeout: (reader: any, id) => reader?._iframeWindow?.clearTimeout?.(id),
+    // What the reader hands an exported function arrives behind Xray wrappers (see highlight-style.ts)
+    waiveXrays: (value) => ((value && typeof value === 'object') || typeof value === 'function' ? Components.utils.waiveXrays(value) : value),
+    error: (e) => Zotero.logError(e),
+    debug: (message) => Zotero.debug('[zotero-tts] ' + message),
+  });
+  for (const reader of Zotero.Reader._readers ?? []) highlightStyling.attach(reader);
+}
+
+function stopHighlightStyling(): void {
+  highlightStyling?.dispose();
+  highlightStyling = null;
+}
+
 async function startup({ id, version, rootURI }: StartupParams): Promise<void> {
   pluginVersion = version;
   try {
@@ -311,6 +341,12 @@ async function startup({ id, version, rootURI }: StartupParams): Promise<void> {
   } catch (e) {
     Zotero.logError(e);
     Zotero.debug('[zotero-tts] failed to install the Read Aloud memory');
+  }
+  try {
+    startHighlightStyling();
+  } catch (e) {
+    Zotero.logError(e);
+    Zotero.debug('[zotero-tts] failed to install the highlight colours');
   }
   // Caught deliberately: if _readers or any other Zotero internal we
   // reach into gets renamed or moved, it will throw here. Without
@@ -339,6 +375,7 @@ async function shutdown(): Promise<void> {
   uninstallHijack = null;
   stopReadAloudShortcuts();
   stopReadAloudMemory();
+  stopHighlightStyling();
   Zotero.debug('[zotero-tts] stopped');
 }
 
@@ -355,4 +392,9 @@ function onMainWindowUnload(win: any): void {
   }
 }
 
-Zotero.ZoteroTTS = { startup, shutdown, onMainWindowLoad, onMainWindowUnload, prefsPane: { onPaneLoad } };
+/** For Tools → Developer → Run JavaScript: `Zotero.ZoteroTTS.diagnostics.highlight()` */
+const diagnostics = {
+  highlight: () => JSON.stringify((Zotero.Reader._readers ?? []).map((r: any) => highlightStyling?.inspect(r) ?? null), null, 1),
+};
+
+Zotero.ZoteroTTS = { startup, shutdown, onMainWindowLoad, onMainWindowUnload, prefsPane: { onPaneLoad }, diagnostics };

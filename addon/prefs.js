@@ -30,3 +30,8 @@ pref('extensions.zotero.zotero-tts.shortcuts.previousParagraph', 'Shift+ArrowLef
 pref('extensions.zotero.zotero-tts.shortcuts.nextParagraph', 'Shift+ArrowRight');
 pref('extensions.zotero.zotero-tts.readAloud.sameForAllDocuments', true);
 pref('extensions.zotero.zotero-tts.readAloud.multilingualEverywhere', false);
+pref('extensions.zotero.zotero-tts.highlight.wordColor', '#4072e5');
+pref('extensions.zotero.zotero-tts.highlight.wordAlpha', 45);
+pref('extensions.zotero.zotero-tts.highlight.sentenceColor', '#4072e5');
+pref('extensions.zotero.zotero-tts.highlight.sentenceAlpha', 30);
+pref('extensions.zotero.zotero-tts.highlight.sentenceUnderWord', false);

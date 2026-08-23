@@ -777,3 +777,84 @@ Shift+ArrowLeft / Shift+ArrowRight = previous / next paragraph.
   lists and the skip table. Older sections above use the old name.
 - Not exposed: `accelerate` (×5). No toast for a skip — the moving
   highlight is the feedback. Holding a key does not repeat the skip.
+
+## Highlight colours and the sentence under the word (added 2026-08-23)
+
+README TODO: change the colour of the Read Aloud highlight; and, in word
+mode, keep the sentence highlighted as well. Research first, in the 10.0.1
+bundle:
+
+- Colours are constants: `READ_ALOUD_BASE_COLOR = '#4072e5'`,
+  `READ_ALOUD_ACTIVE_SEGMENT_COLOR = base + '73'` (45%) for the unit at the
+  chosen granularity, `READ_ALOUD_ACTIVE_SENTENCE_COLOR = base + '4d'` (30%)
+  for the secondary slot. No pref, no CSS variable. PDF pages draw them as
+  `<div class="overlayRect">` with the colour in the inline style (plus
+  opacity .4/.3 and `mix-blend-mode` multiply / plus-lighter by theme);
+  EPUB and snapshot views draw SVG paths through a "spotlight" map keyed
+  `ReadAloudActiveSegment` / `ReadAloudActiveSentence`.
+- The secondary slot is, in Zotero, only a two-second flash of the unit a
+  skip moved by when it differs from the primary (`lastSkipGranularity`,
+  reset when playback moves on by itself). In word mode the sentence is
+  never shown persistently — but the slot exists in both view kinds.
+- Granularity: the `reader.readAloud.highlightGranularity` pref
+  (word/sentence/paragraph) and the effective one
+  (`_effective…Granularity`: word only when the segments are sentences).
+
+Built (read-aloud/highlight-style.ts), per reader, on prototypes reached
+from the views (`_internalReader._primaryView/_secondaryView/_primarySDTView/
+_secondarySDTView`), exported with `Components.utils.exportFunction` and
+calling the originals through `Reflect.apply`:
+
+- PDF: `Page.prototype._pushHighlightedPosition(items, position, color)` —
+  the position's identity against the view's `_readAloudHighlightedPosition`
+  / `_readAloudSentenceHighlightedPosition` says which highlight it is, so
+  the constants are never matched; the primary gets the word colour when
+  the effective granularity is word, the sentence colour otherwise. The
+  Page prototype is reached through `view._pages[0]`, so attaching waits
+  for a rendered page (retried from renderToolbar and getVoices).
+  `PDFView.prototype.setReadAloudState` keeps the sentence in the secondary
+  slot in word mode: after the original, set the slot to
+  `activeSegment.sourcePosition` and `_render()`; a flash of the same
+  sentence is kept by cancelling its timer (through
+  `reader._iframeWindow.clearTimeout` — the timer is the reader iframe's,
+  not the sandbox's); a paragraph flash is left to expire.
+- EPUB / snapshot: `DOMView.prototype._getSpotlightColor(key)` for the
+  colours; `ReadAloud.prototype.setState` (the helper at `view._readAloud`)
+  for the sentence: `view.setSpotlight('ReadAloudActiveSentence', selector,
+  null)` with the selector resolved once per segment
+  (`helper._resolveSegmentSelector`). Zotero's flash timer removes only
+  the selector it set, so replacing it is safe.
+- `this` arrives in the exported wrappers (the reader calls them as
+  methods); the patch lands on the prototype that owns the method, found
+  by walking the chain, so a subclass (SDT views) is covered too.
+- Assignments through the cross-compartment wrapper reach the reader's
+  objects (the sandbox and the reader share the system principal — no
+  Xray expandos), as `_syncPersistedVoicesToManager` already relied on.
+
+Pane: `<html:input type="color">` bound with `preference=` to a string
+pref works like any other bound input (value `#rrggbb`); the opacities are
+integer percent prefs, because an int pref cannot hold a fraction
+(see "Synthesis speed setting removed").
+
+### Incident: the word kept the sentence colour (2026-08-23)
+
+First build in Zotero: word mode painted the word in the *sentence* colour
+and never kept the sentence. `Zotero.ZoteroTTS.diagnostics.highlight()` (the
+sandbox reaching out to `_internalReader._primaryView`) reported the
+effective granularity `word` and the method present; the rendered rects
+(`.overlayRect` in the PDF viewer document, read from Tools → Developer →
+Run JavaScript) were the sentence colour at 0.4 multiply. So the same
+call failed only *inside* the exported wrappers. Cause: what the reader
+passes into an exported function — `this` and the arguments — arrives
+behind Xray wrappers. A JS Xray shows a plain object's own properties
+(`_layer`, `_readAloudState`, the highlight slots) but not its prototype's
+methods (`_effectiveReadAloudPrimaryGranularity` reads as undefined), and
+an assignment through it lands on the wrapper, not the object — so the
+granularity fell back to null (sentence colour) and the sentence slot was
+never really set. Objects reached from the sandbox side (`Zotero.Reader
+._readers[i]._internalReader…`) are plain cross-compartment wrappers with
+full semantics, which is why memory-sync.ts, which uses its captured
+`internal` rather than `this`, never met this. Fix: `deps.waiveXrays`
+(Components.utils.waiveXrays) on `this` and the arguments before use; the
+original is still called with what arrived. The test file models an Xray
+with a proxy that exposes own properties only.
