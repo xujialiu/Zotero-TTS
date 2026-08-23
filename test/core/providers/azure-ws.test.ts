@@ -46,20 +46,16 @@ describe('parseBinaryFrame', () => {
 });
 
 describe('buildSSML', () => {
-  it('wraps the text with the voice and rate', () => {
-    const ssml = buildSSML('Hello', 'en-US-AvaNeural', 1.5);
-    expect(ssml).toContain('<voice name="en-US-AvaNeural">');
-    expect(ssml).toContain('<prosody rate="50%">');
-    expect(ssml).toContain('Hello');
+  it('wraps the text with the voice, at the natural pace', () => {
+    const ssml = buildSSML('Hello', 'en-US-AvaNeural');
+    expect(ssml).toContain('<voice name="en-US-AvaNeural">Hello</voice>');
+    // No <prosody rate>: Read Aloud's own slider time-stretches the audio on playback
+    expect(ssml).not.toContain('<prosody');
   });
 
   it('escapes characters that would break the XML', () => {
-    const ssml = buildSSML('a < b & c > d', 'v', 1);
+    const ssml = buildSSML('a < b & c > d', 'v');
     expect(ssml).toContain('a &lt; b &amp; c &gt; d');
-  });
-
-  it('expresses speed 1 as rate 0%', () => {
-    expect(buildSSML('x', 'v', 1)).toContain('rate="0%"');
   });
 });
 

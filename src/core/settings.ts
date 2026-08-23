@@ -21,7 +21,6 @@ export interface Settings {
   azure: { enabled: boolean; apiKey: string; region: string; voice: string };
   /** `headers`: extra request headers for a gateway in front of the server, same format as openai.headers. */
   local: { enabled: boolean; engine: string; baseURL: string; voice: string; headers: string };
-  speed: number;
   prefetch: number;
   /** Keep synthesized audio in the in-memory LRU (core/memory-cache.ts). */
   cacheAudio: boolean;
@@ -65,7 +64,6 @@ export const DEFAULTS: Settings = {
   },
   azure: { enabled: false, apiKey: '', region: 'eastasia', voice: 'zh-CN-XiaoxiaoNeural' },
   local: { enabled: false, engine: 'kokoro', baseURL: 'http://localhost:8880', voice: 'af_bella', headers: '' },
-  speed: 1,
   prefetch: 3,
   cacheAudio: true,
   shortcuts: { speedReset: 'Shift+Z', speedDown: 'Shift+X', speedUp: 'Shift+C' },
@@ -113,7 +111,6 @@ export function loadSettings(prefs: PrefsBackend): Settings {
       voice: str(prefs, 'local.voice', DEFAULTS.local.voice),
       headers: str(prefs, 'local.headers', DEFAULTS.local.headers),
     },
-    speed: num(prefs, 'speed', DEFAULTS.speed, 0.5, 3),
     prefetch: num(prefs, 'prefetch', DEFAULTS.prefetch, 1, 10),
     cacheAudio: bool(prefs, 'cacheAudio', DEFAULTS.cacheAudio),
     shortcuts: {
@@ -137,7 +134,6 @@ export function saveSettings(prefs: PrefsBackend, s: Settings): void {
   for (const [k, v] of Object.entries(s.openai)) prefs.set(PREF_PREFIX + 'openai.' + k, v);
   for (const [k, v] of Object.entries(s.azure)) prefs.set(PREF_PREFIX + 'azure.' + k, v);
   for (const [k, v] of Object.entries(s.local)) prefs.set(PREF_PREFIX + 'local.' + k, v);
-  prefs.set(PREF_PREFIX + 'speed', s.speed);
   prefs.set(PREF_PREFIX + 'prefetch', s.prefetch);
   prefs.set(PREF_PREFIX + 'cacheAudio', s.cacheAudio);
   for (const [k, v] of Object.entries(s.shortcuts)) prefs.set(PREF_PREFIX + 'shortcuts.' + k, v);

@@ -54,7 +54,6 @@ export type RemoteInterfaceDeps = {
   /** Publish multilingual voices under every language (`*`) instead of a "Multiple languages" entry. Read per call so the pane checkbox applies at once. */
   getMultilingualEverywhere?(): boolean;
   getProvider(provider: ProviderId): TTSProvider;
-  getSpeed(): number;
   cacheVersion(): string;
   cache?: AudioCache;
   /** Receives the raw error before it is collapsed to a Zotero error string. */
@@ -231,7 +230,6 @@ export function createRemoteInterface(deps: RemoteInterfaceDeps): RemoteInterfac
     providerId: ProviderId,
     voiceId: string,
     text: string,
-    speed: number,
     cacheKey: string,
   ): Promise<SynthesisResult> {
     const provider = deps.getProvider(providerId);
@@ -240,7 +238,7 @@ export function createRemoteInterface(deps: RemoteInterfaceDeps): RemoteInterfac
     // A provider that never answers must surface as an error, not as a
     // spinner that never stops; the abort also stops the request itself.
     const synthesized = await withTimeout(
-      provider.synthesize(text, { voice: voiceId, speed, signal: controller.signal }),
+      provider.synthesize(text, { voice: voiceId, signal: controller.signal }),
       timeoutMs,
       () => new SynthesisError('network', `${providerId}: no audio within ${seconds(timeoutMs)}`),
       () => controller.abort(),
@@ -296,14 +294,13 @@ export function createRemoteInterface(deps: RemoteInterfaceDeps): RemoteInterfac
 
       try {
         const text = segment === 'sample' ? SAMPLE_TEXT : segment.text;
-        const speed = deps.getSpeed();
         const cacheVersion = deps.cacheVersion();
-        const key = JSON.stringify([cacheVersion, decoded.provider, decoded.voiceId, speed, text]);
+        const key = JSON.stringify([cacheVersion, decoded.provider, decoded.voiceId, text]);
 
         // The cache holds exactly what the provider produced; the sentence
         // fallback below is applied on the way out, never stored.
         const hit = await deps.cache?.match(key);
-        const result = hit ?? (await synthesize(decoded.provider, decoded.voiceId, text, speed, key));
+        const result = hit ?? (await synthesize(decoded.provider, decoded.voiceId, text, key));
 
         const words = result.timestamps?.length ?? 0;
         deps.debug?.(

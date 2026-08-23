@@ -99,7 +99,7 @@ export function createAzureProvider(cfg: AzureConfig, deps: AzureDeps): TTSProvi
             'Content-Type': 'application/ssml+xml',
             'X-Microsoft-OutputFormat': OUTPUT_FORMAT,
           },
-          body: buildSSML('Hi', voice, 1),
+          body: buildSSML('Hi', voice),
         });
       } catch (e) {
         throw new SynthesisError('network', String(e));
@@ -214,7 +214,7 @@ export function createAzureProvider(cfg: AzureConfig, deps: AzureDeps): TTSProvi
               ),
             );
             socket.send(
-              buildTextFrame(headers('ssml', 'application/ssml+xml'), buildSSML(text, o.voice, o.speed)),
+              buildTextFrame(headers('ssml', 'application/ssml+xml'), buildSSML(text, o.voice)),
             );
           } catch (e) {
             finish(() => reject(new SynthesisError('unknown', String(e))));

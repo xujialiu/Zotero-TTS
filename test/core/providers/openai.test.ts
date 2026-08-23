@@ -20,7 +20,7 @@ function provider(fetchImpl: unknown, over: Partial<typeof cfg & { voices: strin
 }
 
 const signalController = new AbortController();
-const opts = { voice: 'alloy', speed: 1, signal: signalController.signal };
+const opts = { voice: 'alloy', signal: signalController.signal };
 
 const notFound = () => new Response('', { status: 404 });
 
@@ -39,11 +39,11 @@ describe('createOpenAIProvider', () => {
     expect(init.method).toBe('POST');
     expect(init.headers.Authorization).toBe('Bearer sk-test');
     expect(init.signal).toBe(signalController.signal);
+    // No speed: the audio is made at the voice's natural pace, Read Aloud's slider stretches it
     expect(JSON.parse(init.body)).toEqual({
       model: 'gpt-4o-mini-tts',
       voice: 'alloy',
       input: 'Hello there',
-      speed: 1,
       response_format: 'mp3',
     });
     expect(await result.audio.text()).toBe('audio-bytes');

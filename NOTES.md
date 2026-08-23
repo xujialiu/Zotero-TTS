@@ -393,13 +393,8 @@ Not fixed as of this note. Ordered by user impact.
 1. **Rate limit is silent.** A 429 from any provider maps to
    `'quota-exceeded'`, which Zotero renders with no message and no Retry.
    Remap to `'network'` or `'unknown'` so the user gets feedback.
-2. **Speed setting is wrong in two ways.** The pref is declared as an integer
-   (`setIntPref`), so fractional values cannot be stored — only 1/2/3 are
-   reachable despite `step="0.1"`. And Zotero already owns speed in hijack mode
-   (it time-stretches the buffer itself), so ours *multiplies* with it. The
-   clean fix is to drop the control and always synthesise at 1.0. Since the
-   speed shortcuts (above) now drive Zotero's speed, keeping ours means two
-   "speed" controls with different meanings in one plugin.
+2. **Speed setting is wrong in two ways.** Fixed 2026-08-23: the control is
+   gone, see "Synthesis speed setting removed" below.
 3. **A throw inside the interface factory kills the reader tab**, not just
    Read Aloud — `_open()` has no `.catch`. Native returns `null` on failure and
    the consumer handles null; ours should too.
@@ -678,3 +673,41 @@ Kokoro adapter merges `deps.headers` under the request's own headers, and a
 401/403 is now `auth` rather than `unknown`; a 401/403 on
 `/dev/captioned_speech` also skips the fallback to `/v1/audio/speech`, which
 sits behind the same gateway.
+
+## Synthesis speed setting removed (2026-08-23)
+
+Report: "the Speed field in the settings seems to do nothing." It did
+nothing, for two stacked reasons, both verified in Zotero's source.
+
+- The pref was declared as an integer (`prefs.js`: `speed`, 1). The pane's
+  `preference=` binding writes `elem.value` — a string — through
+  `Zotero.Prefs.set`, which dispatches on the pref's *existing* type
+  (`xpcom/prefs.js` `set()`: `getPrefType` → `setIntPref`), and an int pref
+  cannot hold a fraction. So 1.2–1.9 left the pref at 1 (the default:
+  nothing changed), anything below 1 became 0 and was clamped to 0.5 by
+  `loadSettings`; only 2 and 3 survived. The profile checked never held a
+  user value for it.
+- Even a stored value was a second speed multiplying Zotero's own. The
+  reader time-stretches the decoded buffer for the popup slider
+  (`_playAudioBuffer` → `stretchAudioBuffer`, pitch preserved) — the speed
+  the shortcuts, the toast and the cross-document memory drive. Ours was
+  applied at synthesis time, so changing it meant re-synthesizing (the cache
+  key carried it) while prefetched segments kept the old pace; and the
+  providers were uneven: OpenAI's `gpt-4o-mini-tts` (the preset's default
+  model) ignores `speed`, Chatterbox post-stretches exactly as Zotero does,
+  only Kokoro and Azure change pace natively.
+
+Decision (the user's, option A): drop the control. `Settings.speed`, the
+pref, the pane row and `SynthesisOptions.speed` are gone; every provider
+synthesizes at the voice's natural pace (OpenAI and Kokoro send no `speed`,
+Azure's SSML has no `<prosody rate>`), and the cache key is
+`[version, provider, voice, text]`. A leftover `zotero-tts.speed` user value
+is harmless: undeclared now, it reads as `undefined` and nothing asks for
+it. Backups from older versions list `speed` under "ignored". Rejected
+alternative: feeding Zotero's slider value to the provider — every slider
+move would re-synthesize and drop the prefetch, and Zotero's
+re-speak-on-speed-change assumes stretching.
+
+Pitfall to keep: a `preference=`-bound `<html:input type="number">` cannot
+hold a fraction on an int pref. Declare such a pref as a string and parse
+it, or store an integer (a percentage).

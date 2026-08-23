@@ -97,7 +97,6 @@ function startHijack(): void {
         // the user has since switched off, and a cached or in-flight segment
         // must still play.
         getProvider: (id) => createProvider(id, loadSettings(prefs), providerDeps()),
-        getSpeed: () => loadSettings(prefs).speed,
         cacheVersion,
         cache: loadSettings(prefs).cacheAudio ? audioCache : undefined,
         log: (e) => Zotero.logError(e),
@@ -152,9 +151,10 @@ function wrapForWindow(targetWindow: any, iface: RemoteInterface): unknown {
 
 // ---- Speed shortcuts -------------------------------------------------------
 //
-// The shortcuts drive Zotero's own Read Aloud speed (the popup slider), not
-// the synthesis speed in our settings: Zotero time-stretches the audio it
-// already has, so the change is immediate and cached audio stays valid.
+// The shortcuts drive Zotero's own Read Aloud speed (the popup slider), the
+// only speed there is: audio is synthesized at the voice's natural pace and
+// Zotero time-stretches what it already has, so the change is immediate and
+// cached audio stays valid.
 // Keys are captured at two levels. A capturing listener on each chrome
 // window sees keys from the library, the item pane and — because Gecko
 // propagates key events up through in-process frames — the reader as well.

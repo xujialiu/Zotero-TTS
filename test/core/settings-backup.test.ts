@@ -65,7 +65,7 @@ describe('parseBackup / applyBackup', () => {
           'azure.region': 7,
           'openai.model': ['x'],
           cacheAudio: 'yes',
-          speed: 'fast',
+          speed: 1.5, // a setting of versions before 1.1.3
           'future.setting': 1,
         },
       }),

@@ -3,7 +3,7 @@ import { createAzureProvider } from '../../../src/core/providers/azure';
 import { buildTextFrame, parseTextFrame } from '../../../src/core/providers/azure-ws';
 
 const cfg = { apiKey: 'key-1', region: 'eastasia' };
-const opts = { voice: 'en-US-AvaNeural', speed: 1, signal: new AbortController().signal };
+const opts = { voice: 'en-US-AvaNeural', signal: new AbortController().signal };
 
 /** A fake socket that tests can drive. */
 class FakeSocket {

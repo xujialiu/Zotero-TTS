@@ -59,13 +59,19 @@ describe('loadSettings', () => {
   });
 
   it('falls back to the default when a stored value has the wrong type', () => {
-    expect(loadSettings(fakePrefs({ 'extensions.zotero.zotero-tts.speed': 'fast' })).speed).toBe(DEFAULTS.speed);
+    expect(loadSettings(fakePrefs({ 'extensions.zotero.zotero-tts.prefetch': 'many' })).prefetch).toBe(DEFAULTS.prefetch);
     expect(loadSettings(fakePrefs({ 'extensions.zotero.zotero-tts.azure.enabled': 'yes' })).azure.enabled).toBe(false);
   });
 
-  it('clamps speed into the supported range', () => {
-    expect(loadSettings(fakePrefs({ 'extensions.zotero.zotero-tts.speed': 99 })).speed).toBe(3);
-    expect(loadSettings(fakePrefs({ 'extensions.zotero.zotero-tts.speed': 0 })).speed).toBe(0.5);
+  it('clamps prefetch into the supported range', () => {
+    expect(loadSettings(fakePrefs({ 'extensions.zotero.zotero-tts.prefetch': 99 })).prefetch).toBe(10);
+    expect(loadSettings(fakePrefs({ 'extensions.zotero.zotero-tts.prefetch': 0 })).prefetch).toBe(1);
+  });
+
+  // Versions before 1.1.3 had a synthesis speed; Read Aloud's own slider is the only speed now
+  it('has no speed setting', () => {
+    expect(DEFAULTS).not.toHaveProperty('speed');
+    expect(loadSettings(fakePrefs({ 'extensions.zotero.zotero-tts.speed': 2 }))).not.toHaveProperty('speed');
   });
 
   it('ships Shift+Z / Shift+X / Shift+C as the default speed shortcuts', () => {
@@ -104,7 +110,7 @@ describe('enabledProviders', () => {
 describe('saveSettings', () => {
   it('round-trips through the backend', () => {
     const prefs = fakePrefs();
-    const s = { ...DEFAULTS, local: { ...DEFAULTS.local, enabled: true }, speed: 1.5 };
+    const s = { ...DEFAULTS, local: { ...DEFAULTS.local, enabled: true }, prefetch: 5 };
     saveSettings(prefs, s);
     expect(loadSettings(prefs)).toEqual(s);
   });

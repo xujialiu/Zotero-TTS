@@ -115,7 +115,6 @@ function createKokoroProvider(rawBaseURL: string, deps: LocalEngineDeps): TTSPro
         model: 'kokoro',
         input: text,
         voice: o.voice,
-        speed: o.speed,
         response_format: 'mp3',
         return_timestamps: true,
         // Kokoro-FastAPI streams newline-delimited JSON chunks by default

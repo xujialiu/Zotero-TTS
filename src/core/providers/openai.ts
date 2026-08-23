@@ -225,7 +225,6 @@ export function createOpenAIProvider(cfg: OpenAIConfig, deps: { fetch: typeof fe
             model: cfg.model,
             voice: o.voice,
             input: text,
-            speed: o.speed,
             response_format: 'mp3',
           }),
           signal: o.signal,

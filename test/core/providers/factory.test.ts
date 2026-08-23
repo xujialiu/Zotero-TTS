@@ -49,7 +49,7 @@ describe('OpenAI extra headers', () => {
       openai: { ...DEFAULTS.openai, apiKey: '', baseURL: 'http://localhost:8004', headers: 'X-Token: abc; CF-Access-Client-Id: id' },
     };
     const p = createProvider('openai', settings, { ...deps, fetch: fetchImpl as unknown as typeof fetch });
-    await p.synthesize('Hello', { voice: 'Emily.wav', speed: 1, signal: new AbortController().signal });
+    await p.synthesize('Hello', { voice: 'Emily.wav', signal: new AbortController().signal });
     expect((fetchImpl as any).mock.calls[0][1].headers).toMatchObject({ 'X-Token': 'abc', 'CF-Access-Client-Id': 'id' });
     expect((fetchImpl as any).mock.calls[0][1].headers).not.toHaveProperty('Authorization');
   });
@@ -67,7 +67,7 @@ describe('OpenAI server preset', () => {
       openai: { ...DEFAULTS.openai, server: 'chatterbox', baseURL: 'http://localhost:8004', apiKey: 'stale-key', voices: 'alloy,echo' },
     };
     const p = createProvider('openai', settings, { ...deps, fetch: fetchImpl as unknown as typeof fetch });
-    await p.synthesize('Hello', { voice: 'Emily.wav', speed: 1, signal: new AbortController().signal });
+    await p.synthesize('Hello', { voice: 'Emily.wav', signal: new AbortController().signal });
     expect((fetchImpl as any).mock.calls[0][1].headers).not.toHaveProperty('Authorization');
     const voices = await p.listVoices();
     expect(voices.map((v) => v.id)).toEqual(['Emily.wav']);

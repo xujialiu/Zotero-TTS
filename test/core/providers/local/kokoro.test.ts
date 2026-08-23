@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { kokoroAdapter, localeForKokoroVoice } from '../../../../src/core/providers/local/kokoro';
 
-const opts = { voice: 'af_bella', speed: 1, signal: new AbortController().signal };
+const opts = { voice: 'af_bella', signal: new AbortController().signal };
 
 function provider(fetchImpl: unknown) {
   return kokoroAdapter.create('http://localhost:8880', { fetch: fetchImpl as typeof fetch });
@@ -69,12 +69,13 @@ describe('kokoroAdapter', () => {
     expect(JSON.parse(init.body)).toMatchObject({
       input: 'Hello',
       voice: 'af_bella',
-      speed: 1,
       return_timestamps: true,
       // Without this the server streams newline-delimited JSON chunks,
       // which is not one JSON document and fails to parse
       stream: false,
     });
+    // No speed: the audio is made at the voice's natural pace, Read Aloud's slider stretches it
+    expect(JSON.parse(init.body)).not.toHaveProperty('speed');
     expect(Array.from(new Uint8Array(await result.audio.arrayBuffer()))).toEqual([1, 2, 3]);
   });
 

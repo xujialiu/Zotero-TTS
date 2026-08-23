@@ -129,9 +129,13 @@ test/               mirrors src/; vitest
   only; call reader functions with `Reflect.apply`, not `fn.apply`, so the
   argument array stays on our side. Never call `fn.apply` on a reader
   function with sandbox arguments.
-- **`Zotero.Prefs.set`** picks the pref type from `typeof value`; a value whose
-  type differs from the `prefs.js` default throws, and numbers go through
-  `setIntPref` (floats truncate). Undeclared prefs read as `undefined`.
+- **`Zotero.Prefs.set`** writes through the type the pref is declared with in
+  `prefs.js`: an int pref goes through `setIntPref`, which cannot hold a
+  fraction — a `preference=`-bound number input hands it "1.5" and the pref
+  stays 1 (why the old Speed setting never worked; store a string or a
+  percentage instead). Only an undeclared pref takes its type from
+  `typeof value`, and a fraction then throws. Undeclared prefs read as
+  `undefined`.
   `Zotero.Prefs.registerObserver(name, fn)` takes names relative to
   `extensions.zotero.`; observers fire synchronously inside `set`.
 - **`FilePicker`** (`chrome://zotero/content/modules/filePicker.mjs`): the

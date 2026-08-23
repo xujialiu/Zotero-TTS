@@ -18,7 +18,6 @@ function deps(provider = fakeProvider()) {
   return {
     listCatalog: async () => [{ provider: 'openai' as const, voices: await provider.listVoices() }],
     getProvider: () => provider,
-    getSpeed: () => 1,
     cacheVersion: () => 'v1',
   };
 }
@@ -109,7 +108,9 @@ describe('getAudio', () => {
 
     const result = await iface.getAudio({ text: 'Hello' }, voice);
 
-    expect(synthesize).toHaveBeenCalledWith('Hello', expect.objectContaining({ voice: 'alloy', speed: 1 }));
+    expect(synthesize).toHaveBeenCalledWith('Hello', expect.objectContaining({ voice: 'alloy' }));
+    // Always at the voice's natural pace: Read Aloud's own slider stretches the audio on playback
+    expect((synthesize as any).mock.calls[0][1]).not.toHaveProperty('speed');
     expect(await result.audio!.text()).toBe('bytes');
   });
 
@@ -199,11 +200,11 @@ describe('getAudio', () => {
     expect(result.error).toBe('unknown');
   });
 
-  it('resolves with error when getSpeed throws', async () => {
+  it('resolves with error when cacheVersion throws', async () => {
     const iface = createRemoteInterface({
       ...deps(),
-      getSpeed: () => {
-        throw new Error('speed error');
+      cacheVersion: () => {
+        throw new Error('version error');
       },
     });
     const result = await iface.getAudio({ text: 'Hello' }, voice);
@@ -223,33 +224,31 @@ describe('getAudio', () => {
     const cacheVersion = 'v1';
     const provider = 'openai' as const;
 
-    // Request A: voiceId='alloy 1', speed=5, text='hi'
+    // Request A: voiceId='alloy h', text='i'
     const iface1 = createRemoteInterface({
       listCatalog: async () => [{ provider, voices: [] }],
       getProvider: () => fakeProvider(),
-      getSpeed: () => 5,
       cacheVersion: () => cacheVersion,
       cache: { match: async () => null, put },
     });
-    await iface1.getAudio({ text: 'hi' }, { id: encodeVoiceId(provider, 'alloy 1') });
+    await iface1.getAudio({ text: 'i' }, { id: encodeVoiceId(provider, 'alloy h') });
     const keyA = (put as any).mock.calls[0][0] as string;
 
     put.mockClear();
 
-    // Request B: voiceId='alloy', speed=1, text='5 hi'
+    // Request B: voiceId='alloy', text='h i'
     const iface2 = createRemoteInterface({
       listCatalog: async () => [{ provider, voices: [] }],
       getProvider: () => fakeProvider(),
-      getSpeed: () => 1,
       cacheVersion: () => cacheVersion,
       cache: { match: async () => null, put },
     });
-    await iface2.getAudio({ text: '5 hi' }, { id: encodeVoiceId(provider, 'alloy') });
+    await iface2.getAudio({ text: 'h i' }, { id: encodeVoiceId(provider, 'alloy') });
     const keyB = (put as any).mock.calls[0][0] as string;
 
     // Prove these inputs would have collided under the old space-joined scheme
-    const oldSchemeKeyA = [cacheVersion, provider, 'alloy 1', 5, 'hi'].join(' ');
-    const oldSchemeKeyB = [cacheVersion, provider, 'alloy', 1, '5 hi'].join(' ');
+    const oldSchemeKeyA = [cacheVersion, provider, 'alloy h', 'i'].join(' ');
+    const oldSchemeKeyB = [cacheVersion, provider, 'alloy', 'h i'].join(' ');
     expect(oldSchemeKeyA).toBe(oldSchemeKeyB);
 
     // But they differ under JSON.stringify
@@ -294,7 +293,7 @@ describe('getAudio', () => {
     expect(synthesize).not.toHaveBeenCalled();
   });
 
-  it('stores a fresh result in the cache under a key that includes voice and speed', async () => {
+  it('stores a fresh result in the cache under a key that includes the voice, the text and the config version', async () => {
     const put = vi.fn(async () => {});
     const iface = createRemoteInterface({
       ...deps(),

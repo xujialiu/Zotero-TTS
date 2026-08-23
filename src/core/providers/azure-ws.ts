@@ -43,13 +43,13 @@ function escapeXML(s: string): string {
     .replace(/"/g, '&quot;');
 }
 
-export function buildSSML(text: string, voice: string, speed: number): string {
-  // Azure's rate is a relative percentage: 1.0 -> "0%", 1.5 -> "50%", 0.5 -> "-50%"
-  const rate = `${Math.round((speed - 1) * 100)}%`;
+export function buildSSML(text: string, voice: string): string {
+  // No <prosody rate>: the audio is made at the voice's natural pace and
+  // Read Aloud's own slider time-stretches it on playback.
   return (
     '<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="en-US">' +
     `<voice name="${escapeXML(voice)}">` +
-    `<prosody rate="${rate}">${escapeXML(text)}</prosody>` +
+    escapeXML(text) +
     '</voice></speak>'
   );
 }
