@@ -174,4 +174,4 @@ every incident so far.
 
 ## License
 
-[AGPL-3.0-or-later](LICENSE). Not affiliated with Zotero.
+[AGPL-3.0](LICENSE), the same licence as Zotero itself. Not affiliated with Zotero.
