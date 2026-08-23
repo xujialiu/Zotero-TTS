@@ -6,7 +6,9 @@ Zotero's own Standard/Premium voices keep working; ours join the Local tier as
 `TTS-<Provider>-<voice>`. Also: speed shortcuts (Shift+Z/X/C), one voice and
 speed across documents, settings backup/restore.
 
-- `README.md` — user-facing docs (install, providers, Kokoro setup, troubleshooting).
+- `README.md` — user-facing docs (install, providers, troubleshooting);
+  `tutorials/` — Kokoro-FastAPI and Chatterbox-TTS-Server in Docker, remote
+  access through Cloudflare. Server how-tos go there, not into the README.
 - `NOTES.md` — engineering notes: every production incident, and the Zotero
   internals verified by reading its source. **Read it before touching Read
   Aloud internals; append to it (English) whenever something non-obvious is
