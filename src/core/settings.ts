@@ -90,8 +90,9 @@ export const DEFAULTS: Settings = {
     nextParagraph: 'Shift+ArrowRight',
   },
   readAloud: { sameForAllDocuments: true, multilingualEverywhere: false },
-  // Zotero's own: #4072e5 at 45% for the unit being read, 30% for the flash after a skip
-  highlight: { wordColor: '#4072e5', wordAlpha: 45, sentenceColor: '#4072e5', sentenceAlpha: 30, sentenceUnderWord: false },
+  // A green word on a yellow sentence, the sentence kept under the word; the reader still
+  // draws them at its own 0.4 (light) / 0.3 (dark). Zotero's own is #4072e5 at 45% and 30%
+  highlight: { wordColor: '#00ff00', wordAlpha: 100, sentenceColor: '#ffff00', sentenceAlpha: 100, sentenceUnderWord: true },
 };
 
 function str(prefs: PrefsBackend, key: string, fallback: string): string {

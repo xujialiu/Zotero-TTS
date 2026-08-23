@@ -25,8 +25,11 @@ join the **Local** tier of the Read Aloud popup, named `TTS-<Provider>-<voice>`
 - Highlight colours: Zotero paints the word or sentence being read in one
   fixed blue; Settings → TTS → Highlight lets you pick the word colour and
   the sentence colour with their opacities, and keep the sentence
-  highlighted under the word in word mode. Works for PDFs, EPUBs and
-  snapshots, with Zotero's own voices too.
+  highlighted under the word in word mode. The plugin starts with a green
+  word on a yellow sentence, the sentence kept under the word; *Restore
+  default colours* brings that back. Zotero's own blue is `#4072e5`, 45%
+  for the unit being read and 30% for the sentence under it, if you prefer
+  it. Works for PDFs, EPUBs and snapshots, with Zotero's own voices too.
 - Backup and restore: the Backup group at the bottom of the settings pane
   writes every setting to a JSON file and reads one back — a file on disk,
   or the same file in a WebDAV folder (Nextcloud, Synology, Jianguoyun, …)

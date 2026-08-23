@@ -888,3 +888,14 @@ folds those into the span's rgba and blend mode. The prefs pane reads the
 app scheme from its own window's `matchMedia`, the same query the reader
 iframe uses. The EPUB overlay draws the same colours as SVG paths at 50%
 opacity; the preview shows the PDF rendering.
+
+### Defaults: a green word on a yellow sentence (2026-08-23, 1.4.2)
+
+The defaults moved from Zotero's colours (#4072e5 at 45%/30%, switch off)
+to a green word (#00ff00, 100%) on a yellow sentence (#ffff00, 100%) with
+the sentence kept under the word. Full opacity still reaches the page at
+the reader's own 0.4 (light) / 0.3 (dark). Default prefs are not stored,
+so an installed copy that never touched the Highlight group picks the new
+defaults up on update, while one that pressed "Restore default colours"
+under 1.4.0/1.4.1 keeps Zotero's blue: the button wrote those as user
+values. `DEFAULTS.highlight` is still what the button restores.

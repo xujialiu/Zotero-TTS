@@ -7,7 +7,7 @@ import { highlightColor } from '../read-aloud/highlight-style';
  * and the switch are preference=-bound and write the prefs themselves
  * (Zotero's listeners, attached when the pane was built, run before
  * these), so the rows only listen for their events to repaint the preview
- * from the prefs, and the button puts Zotero's own colours back.
+ * from the prefs, and the button puts the defaults back.
  *
  * The preview is a sample page in the reader's current theme (the one the
  * PDF and EPUB views share, core/reader-theme.ts), with the highlights

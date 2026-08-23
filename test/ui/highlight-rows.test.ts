@@ -60,7 +60,9 @@ function setup(initial: Record<string, unknown> = {}, theme: ResolvedReaderTheme
 const CYAN_WORD = 'background-color: rgba(0, 255, 255, 0.18); mix-blend-mode: multiply;';
 const PINK_SENTENCE = 'background-color: rgba(255, 128, 192, 0.121); mix-blend-mode: multiply;';
 const ZOTERO_WORD = 'background-color: rgba(64, 114, 229, 0.18); mix-blend-mode: multiply;';
-const ZOTERO_SENTENCE = 'background-color: rgba(64, 114, 229, 0.121); mix-blend-mode: multiply;';
+// The plugin's defaults: 100% -> 0xff, drawn at 0.4
+const DEFAULT_WORD = 'background-color: rgba(0, 255, 0, 0.4); mix-blend-mode: multiply;';
+const DEFAULT_SENTENCE = 'background-color: rgba(255, 255, 0, 0.4); mix-blend-mode: multiply;';
 const CYAN_WORD_DARK = 'background-color: rgba(0, 255, 255, 0.135); mix-blend-mode: plus-lighter;';
 const PINK_SENTENCE_DARK = 'background-color: rgba(255, 128, 192, 0.091); mix-blend-mode: plus-lighter;';
 
@@ -134,11 +136,11 @@ describe('initHighlightRows', () => {
     expect(t.sentence()).toBe(PINK_SENTENCE);
   });
 
-  it("starts from Zotero's own colours when nothing is stored", () => {
+  it('starts from the defaults when nothing is stored: a green word on a yellow sentence, the sentence kept under the word', () => {
     const t = setup();
-    expect(t.word()).toBe(ZOTERO_WORD);
-    expect(t.sentence()).toBe(ZOTERO_SENTENCE);
-    expect(t.wordSentence()).toBe('');
+    expect(t.word()).toBe(DEFAULT_WORD);
+    expect(t.sentence()).toBe(DEFAULT_SENTENCE);
+    expect(t.wordSentence()).toBe(DEFAULT_SENTENCE);
   });
 
   it('repaints when an input or the switch fires, after Zotero has written the pref', () => {
@@ -154,13 +156,13 @@ describe('initHighlightRows', () => {
     expect(t.wordSentence()).toBe('');
   });
 
-  it("restores Zotero's colours into the prefs and repaints", () => {
-    const t = setup(cyanPink);
+  it('restores the defaults into the prefs, the switch included, and repaints', () => {
+    const t = setup({ ...cyanPink, [key('sentenceUnderWord')]: false });
     t.el(HIGHLIGHT_IDS.defaults).fire('command');
     for (const [k, v] of Object.entries(DEFAULTS.highlight)) expect(t.prefs.store[key(k)], k).toBe(v);
-    expect(t.word()).toBe(ZOTERO_WORD);
-    expect(t.sentence()).toBe(ZOTERO_SENTENCE);
-    expect(t.wordSentence()).toBe('');
+    expect(t.word()).toBe(DEFAULT_WORD);
+    expect(t.sentence()).toBe(DEFAULT_SENTENCE);
+    expect(t.wordSentence()).toBe(DEFAULT_SENTENCE);
   });
 
   it('leaves an invalid colour unpainted and exposes refresh() for a restore from a backup', () => {
