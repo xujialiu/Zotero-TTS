@@ -3,8 +3,9 @@
 Zotero 10 plugin that adds voices to Zotero's built-in **Read Aloud**: OpenAI
 (or any OpenAI-compatible server), Azure Speech, and a local Kokoro-FastAPI.
 Zotero's own Standard/Premium voices keep working; ours join the Local tier as
-`TTS-<Provider>-<voice>`. Also: speed shortcuts (Shift+Z/X/C), one voice and
-speed across documents, settings backup/restore (file or WebDAV).
+`TTS-<Provider>-<voice>`. Also: shortcuts for the speed (Shift+Z/X/C) and for
+skipping by sentence / paragraph (arrows / Shift+arrows), one voice and speed
+across documents, settings backup/restore (file or WebDAV).
 
 - `README.md` — user-facing docs (install, providers, troubleshooting);
   `tutorials/` — Kokoro-FastAPI and Chatterbox-TTS-Server in Docker, remote
@@ -90,14 +91,15 @@ Platform notes:
 ```
 src/core/           pure logic, no Zotero globals: settings (DEFAULTS ↔ addon/prefs.js,
                     pinned by test/prefs-defaults.test.ts), providers/{openai,azure,local/kokoro},
-                    shortcuts, read-aloud-speed, settings-backup, webdav, timeout
+                    shortcuts, shortcut-actions, read-aloud-speed, settings-backup,
+                    webdav, timeout
 src/read-aloud/     the Read Aloud integration: index (intercepts Zotero.Reader._readers and
                     overrides _getReadAloudRemoteInterface per reader), remote-interface
                     (composite of Zotero's native interface + our voices), voice-catalog,
                     catalog, read-aloud-memory (+ memory-sync: one voice/speed across documents)
 src/ui/             prefs pane (prefs-pane, shortcut-rows, backup-rows, webdav-rows,
                     server-preset-rows, shortcut-recorder),
-                    speed-shortcuts, speed-toast
+                    read-aloud-shortcuts, speed-toast
 src/index.ts        bootstrap wiring; with core/settings.createZoteroPrefs and ui/prefs-pane the
                     only code that touches Zotero globals (declared in src/globals.d.ts)
 addon/              manifest.json, bootstrap.js, prefs.js (defaults), content/preferences.xhtml
@@ -106,7 +108,7 @@ test/               mirrors src/; vitest
 
 - TDD: write the failing test first. Zotero-facing code takes its Zotero
   bits as injected deps so the logic is unit-testable (see `memory-sync.ts`,
-  `backup-rows.ts`, `speed-shortcuts.ts` for the pattern).
+  `backup-rows.ts`, `read-aloud-shortcuts.ts` for the pattern).
 - Every network call goes through `core/timeout.withTimeout`; failures are
   reported as errors, never left hanging (user rule: fail loudly, never hang).
 - Never fabricate per-word timestamps; a voice without them falls back to
@@ -146,7 +148,8 @@ test/               mirrors src/; vitest
 - **Read Aloud**: `reader._internalReader._readAloudManager` — `active` means
   "session open" (paused keeps it true), speaking is `active && !paused`;
   `setSpeed(speed, persist)` — never persist on an idle manager, it starts
-  playback. Choices persist in `extensions.zotero.reader.readAloudVoices`,
+  playback; `skipBack/skipAhead('sentence' | 'paragraph', accelerate)` are
+  the popup's skip buttons, followed by `_lockPositionToReadAloud()`. Choices persist in `extensions.zotero.reader.readAloudVoices`,
   keyed by the *detected* base language (`mul` for "Multiple languages");
   `_syncPersistedVoicesToManager` restores them. Tiers are hard-coded
   standard/premium/local; unknown tiers are dropped. Word mode draws only

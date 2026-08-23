@@ -14,13 +14,13 @@ import {
 } from './read-aloud/remote-interface';
 import { onPaneLoad, registerPrefsPane } from './ui/prefs-pane';
 import {
-  createSpeedShortcuts,
+  createReadAloudShortcuts,
   deepActiveElement,
   isEditableTarget,
   isSpeaking,
   pickReader,
-  type SpeedShortcuts,
-} from './ui/speed-shortcuts';
+  type ReadAloudShortcuts,
+} from './ui/read-aloud-shortcuts';
 import { removeSpeedToast, showSpeedToast } from './ui/speed-toast';
 
 export interface StartupParams {
@@ -31,7 +31,7 @@ export interface StartupParams {
 
 let uninstallHijack: (() => void) | null = null;
 let pluginVersion = '0.0.0';
-let speedShortcuts: SpeedShortcuts | null = null;
+let readAloudShortcuts: ReadAloudShortcuts | null = null;
 let readerOpenedListener: ((event: any) => void) | null = null;
 let readAloudMemory: ReadAloudMemorySync | null = null;
 
@@ -149,12 +149,14 @@ function wrapForWindow(targetWindow: any, iface: RemoteInterface): unknown {
   return wrapped;
 }
 
-// ---- Speed shortcuts -------------------------------------------------------
+// ---- Read Aloud shortcuts --------------------------------------------------
 //
-// The shortcuts drive Zotero's own Read Aloud speed (the popup slider), the
+// The speed keys drive Zotero's own Read Aloud speed (the popup slider), the
 // only speed there is: audio is synthesized at the voice's natural pace and
 // Zotero time-stretches what it already has, so the change is immediate and
-// cached audio stays valid.
+// cached audio stays valid. The sentence and paragraph keys call the
+// manager's skipBack/skipAhead — the popup's skip buttons — and only while
+// a session is open, since the arrows page the reader otherwise.
 // Keys are captured at two levels. A capturing listener on each chrome
 // window sees keys from the library, the item pane and — because Gecko
 // propagates key events up through in-process frames — the reader as well.
@@ -185,8 +187,8 @@ function toastFor(reader: any, speed: number): void {
 }
 
 function watchWindow(win: any): void {
-  if (!win || !speedShortcuts) return;
-  speedShortcuts.listen(
+  if (!win || !readAloudShortcuts) return;
+  readAloudShortcuts.listen(
     win,
     () =>
       pickReader(
@@ -200,24 +202,26 @@ function watchWindow(win: any): void {
 }
 
 function watchReader(reader: any): void {
-  if (!reader || !speedShortcuts) return;
+  if (!reader || !readAloudShortcuts) return;
   watchWindow(reader._window);
   readAloudMemory?.attach(reader);
   const iframe = reader._iframeWindow;
   if (iframe) {
-    speedShortcuts.listen(iframe, () => reader, {
+    readAloudShortcuts.listen(iframe, () => reader, {
       isEditable: (event) => isEditableTarget(event.target) || isEditableTarget(deepActiveElement(iframe.document)),
     });
   }
 }
 
-function startSpeedShortcuts(pluginID: string): void {
-  stopSpeedShortcuts();
-  speedShortcuts = createSpeedShortcuts({
+function startReadAloudShortcuts(pluginID: string): void {
+  stopReadAloudShortcuts();
+  readAloudShortcuts = createReadAloudShortcuts({
     getBindings: () => loadSettings(prefs).shortcuts,
     prefs,
     getManager: readAloudManager,
     showToast: toastFor,
+    // After a skip, what the popup's own buttons do: the view follows the spoken position again
+    lockPosition: (reader: any) => reader?._internalReader?._lockPositionToReadAloud?.(),
     log: (e) => Zotero.logError(e),
   });
   for (const win of mainWindows()) watchWindow(win);
@@ -234,7 +238,7 @@ function startSpeedShortcuts(pluginID: string): void {
   Zotero.Reader.registerEventListener('renderToolbar', readerOpenedListener, pluginID);
 }
 
-function stopSpeedShortcuts(): void {
+function stopReadAloudShortcuts(): void {
   if (readerOpenedListener) {
     try {
       Zotero.Reader.unregisterEventListener('renderToolbar', readerOpenedListener);
@@ -243,8 +247,8 @@ function stopSpeedShortcuts(): void {
     }
     readerOpenedListener = null;
   }
-  speedShortcuts?.dispose();
-  speedShortcuts = null;
+  readAloudShortcuts?.dispose();
+  readAloudShortcuts = null;
   for (const win of mainWindows()) {
     try {
       removeSpeedToast(win.document);
@@ -322,10 +326,10 @@ async function startup({ id, version, rootURI }: StartupParams): Promise<void> {
     Zotero.debug('[zotero-tts] failed to install the Read Aloud hook');
   }
   try {
-    startSpeedShortcuts(id);
+    startReadAloudShortcuts(id);
   } catch (e) {
     Zotero.logError(e);
-    Zotero.debug('[zotero-tts] failed to install the speed shortcuts');
+    Zotero.debug('[zotero-tts] failed to install the Read Aloud shortcuts');
   }
   Zotero.debug('[zotero-tts] started');
 }
@@ -333,7 +337,7 @@ async function startup({ id, version, rootURI }: StartupParams): Promise<void> {
 async function shutdown(): Promise<void> {
   uninstallHijack?.();
   uninstallHijack = null;
-  stopSpeedShortcuts();
+  stopReadAloudShortcuts();
   stopReadAloudMemory();
   Zotero.debug('[zotero-tts] stopped');
 }
@@ -343,7 +347,7 @@ function onMainWindowLoad(win: any): void {
 }
 
 function onMainWindowUnload(win: any): void {
-  speedShortcuts?.unlisten(win);
+  readAloudShortcuts?.unlisten(win);
   try {
     removeSpeedToast(win.document);
   } catch {

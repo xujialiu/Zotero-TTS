@@ -135,6 +135,14 @@ describe('shortcutProblem', () => {
     expect(shortcutProblem(bare('F9'))).toBeNull();
     expect(shortcutProblem(bare('F12'))).toBeNull();
   });
+
+  it('allows bare arrow keys only when asked to, and nothing else bare', () => {
+    expect(shortcutProblem(bare('ArrowLeft'), { allowBareArrows: true })).toBeNull();
+    expect(shortcutProblem(bare('ArrowDown'), { allowBareArrows: true })).toBeNull();
+    expect(shortcutProblem(bare('ArrowLeft'))).toBe('needs-modifier');
+    expect(shortcutProblem(bare('KeyZ'), { allowBareArrows: true })).toBe('needs-modifier');
+    expect(shortcutProblem(bare('Home'), { allowBareArrows: true })).toBe('needs-modifier');
+  });
 });
 
 describe('sameShortcut', () => {

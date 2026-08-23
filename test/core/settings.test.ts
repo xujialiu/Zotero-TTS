@@ -74,8 +74,16 @@ describe('loadSettings', () => {
     expect(loadSettings(fakePrefs({ 'extensions.zotero.zotero-tts.speed': 2 }))).not.toHaveProperty('speed');
   });
 
-  it('ships Shift+Z / Shift+X / Shift+C as the default speed shortcuts', () => {
-    expect(DEFAULTS.shortcuts).toEqual({ speedReset: 'Shift+Z', speedDown: 'Shift+X', speedUp: 'Shift+C' });
+  it('ships Shift+Z / X / C for the speed and the arrow keys for skipping as the default shortcuts', () => {
+    expect(DEFAULTS.shortcuts).toEqual({
+      speedReset: 'Shift+Z',
+      speedDown: 'Shift+X',
+      speedUp: 'Shift+C',
+      previousSentence: 'ArrowLeft',
+      nextSentence: 'ArrowRight',
+      previousParagraph: 'Shift+ArrowLeft',
+      nextParagraph: 'Shift+ArrowRight',
+    });
   });
 
   it('reads customised shortcuts as raw text, including an empty string meaning "disabled"', () => {

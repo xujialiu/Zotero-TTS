@@ -50,6 +50,14 @@ const IDS = [
   'ztts-key-clear-speedReset',
   'ztts-key-clear-speedDown',
   'ztts-key-clear-speedUp',
+  'ztts-key-previousSentence',
+  'ztts-key-nextSentence',
+  'ztts-key-previousParagraph',
+  'ztts-key-nextParagraph',
+  'ztts-key-clear-previousSentence',
+  'ztts-key-clear-nextSentence',
+  'ztts-key-clear-previousParagraph',
+  'ztts-key-clear-nextParagraph',
   'ztts-key-defaults',
   'ztts-key-message',
 ];
@@ -107,7 +115,28 @@ describe('initShortcutRows', () => {
     expect(doc.el('ztts-key-speedReset').label).toBe('Shift+Z');
     expect(doc.el('ztts-key-speedDown').label).toBe('Shift+X');
     expect(doc.el('ztts-key-speedUp').label).toBe('Shift+C');
+    expect(doc.el('ztts-key-previousSentence').label).toBe('ArrowLeft');
+    expect(doc.el('ztts-key-nextSentence').label).toBe('ArrowRight');
+    expect(doc.el('ztts-key-previousParagraph').label).toBe('Shift+ArrowLeft');
+    expect(doc.el('ztts-key-nextParagraph').label).toBe('Shift+ArrowRight');
     expect(doc.recording).toBe(0);
+  });
+
+  it('accepts a bare arrow key for a navigation row', () => {
+    const { doc, prefs } = setup();
+    doc.el('ztts-key-nextParagraph').fire('command');
+    doc.keydown({ key: 'ArrowDown', code: 'ArrowDown' });
+    expect(prefs.store[key('nextParagraph')]).toBe('ArrowDown');
+    expect(doc.el('ztts-key-nextParagraph').label).toBe('ArrowDown');
+    expect(doc.recording).toBe(0);
+  });
+
+  it('tells a navigation row that arrows are allowed when a bare letter is refused', () => {
+    const { doc, prefs } = setup();
+    doc.el('ztts-key-nextSentence').fire('command');
+    doc.keydown({ key: 'n', code: 'KeyN' });
+    expect(doc.el('ztts-key-message').getAttribute('value')).toMatch(/arrow key/i);
+    expect(prefs.store[key('nextSentence')]).toBeUndefined();
   });
 
   it('records a new combination when a row is clicked and a key is pressed', () => {

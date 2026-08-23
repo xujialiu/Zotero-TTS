@@ -181,14 +181,20 @@ export function matchesShortcut(s: Shortcut, e: KeyEventLike): boolean {
   return eventCode(e) === s.code;
 }
 
+const ARROW_KEY = /^Arrow(Up|Down|Left|Right)$/;
+
 /**
  * Why a shortcut should not be accepted. Without a modifier, any key other
  * than F1–F24 either types a character or is already a navigation key in
- * the reader, so it is refused rather than silently hijacked.
+ * the reader, so it is refused rather than silently hijacked. A caller that
+ * only ever acts while Read Aloud is open may allow the bare arrow keys
+ * (`allowBareArrows`): the reader keeps them the rest of the time.
  */
-export function shortcutProblem(s: Shortcut): 'needs-modifier' | null {
+export function shortcutProblem(s: Shortcut, options: { allowBareArrows?: boolean } = {}): 'needs-modifier' | null {
   if (s.ctrl || s.alt || s.shift || s.meta) return null;
-  return FUNCTION_KEY.test(s.code) ? null : 'needs-modifier';
+  if (FUNCTION_KEY.test(s.code)) return null;
+  if (options.allowBareArrows && ARROW_KEY.test(s.code)) return null;
+  return 'needs-modifier';
 }
 
 export function sameShortcut(a: Shortcut, b: Shortcut): boolean {

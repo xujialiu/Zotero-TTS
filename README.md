@@ -9,8 +9,11 @@ join the **Local** tier of the Read Aloud popup, named `TTS-<Provider>-<voice>`
 
 - Word-level highlighting with Azure and Kokoro (both report word timings);
   sentence-level with OpenAI.
-- Keyboard shortcuts for the Read Aloud speed: `Shift+Z` back to 1.0×,
-  `Shift+X` −0.1, `Shift+C` +0.1 — customisable in the settings pane.
+- Keyboard shortcuts for Read Aloud: `Shift+Z` back to 1.0×, `Shift+X`
+  −0.1, `Shift+C` +0.1; while Read Aloud is open, `←` / `→` jump to the
+  previous / next sentence and `Shift+←` / `Shift+→` to the previous / next
+  paragraph (with it closed, the arrow keys page as usual). All customisable
+  in the settings pane.
 - One voice and speed for every document. Zotero itself remembers them per
   detected document language, so a new language starts over at 1.0× with a
   fallback voice and a voice chosen under "Multiple languages" never
@@ -114,11 +117,6 @@ Zotero plugin setting.
   OpenAI-compatible server: the server failed on one segment. Check its log;
   very short segments (section numbers) are replaced by a pause, anything
   longer is reported as is.
-
-## TODO
-
-- More Read Aloud shortcuts: jump to the next / previous sentence and to the
-  next / previous paragraph.
 
 ## Development
 

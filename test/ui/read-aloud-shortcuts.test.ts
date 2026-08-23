@@ -2,15 +2,15 @@ import { describe, expect, it, vi } from 'vitest';
 import { READ_ALOUD_VOICES_PREF } from '../../src/core/read-aloud-speed';
 import type { PrefsBackend } from '../../src/core/settings';
 import {
-  createSpeedShortcuts,
+  createReadAloudShortcuts,
   deepActiveElement,
   isEditableTarget,
   isSpeaking,
   pickReader,
   type ReadAloudManagerLike,
   type ShortcutKeyEvent,
-  type SpeedShortcutsDeps,
-} from '../../src/ui/speed-shortcuts';
+  type ReadAloudShortcutsDeps,
+} from '../../src/ui/read-aloud-shortcuts';
 
 function fakePrefs(initial: Record<string, unknown> = {}): PrefsBackend & { store: Record<string, unknown> } {
   const store = { ...initial };
@@ -29,9 +29,12 @@ function fakeManager() {
     speed: 1,
     lang: 'en' as string | null,
     selectedVoiceID: 'voice-1' as string | null,
+    paused: false,
     setSpeed: vi.fn((speed: number, _persist?: boolean) => {
       m.speed = speed;
     }),
+    skipBack: vi.fn((_granularity: 'sentence' | 'paragraph', _accelerate?: boolean) => {}),
+    skipAhead: vi.fn((_granularity: 'sentence' | 'paragraph', _accelerate?: boolean) => {}),
   };
   return m satisfies ReadAloudManagerLike;
 }
@@ -53,24 +56,34 @@ function keyEvent(partial: Partial<ShortcutKeyEvent> = {}): ShortcutKeyEvent {
   };
 }
 
-const BINDINGS = { speedReset: 'Shift+Z', speedDown: 'Shift+X', speedUp: 'Shift+C' };
+const BINDINGS = {
+  speedReset: 'Shift+Z',
+  speedDown: 'Shift+X',
+  speedUp: 'Shift+C',
+  previousSentence: 'ArrowLeft',
+  nextSentence: 'ArrowRight',
+  previousParagraph: 'Shift+ArrowLeft',
+  nextParagraph: 'Shift+ArrowRight',
+};
 const voicesPref = (prefs: { store: Record<string, unknown> }) => JSON.parse(prefs.store[READ_ALOUD_VOICES_PREF] as string);
 
-function setup(over: Partial<SpeedShortcutsDeps> = {}) {
+function setup(over: Partial<ReadAloudShortcutsDeps> = {}) {
   const prefs = fakePrefs();
   const manager = fakeManager();
   const reader = { id: 'reader' };
   const showToast = vi.fn();
+  const lockPosition = vi.fn();
   const log = vi.fn();
-  const shortcuts = createSpeedShortcuts({
+  const shortcuts = createReadAloudShortcuts({
     getBindings: () => BINDINGS,
     prefs,
     getManager: () => manager,
     showToast,
+    lockPosition,
     log,
     ...over,
   });
-  return { shortcuts, prefs, manager, reader, showToast, log, resolve: () => reader };
+  return { shortcuts, prefs, manager, reader, showToast, lockPosition, log, resolve: () => reader };
 }
 
 describe('handleKeyDown', () => {
@@ -221,10 +234,96 @@ describe('handleKeyDown', () => {
 
   it('ignores bindings that are empty or unparsable', () => {
     const { shortcuts, resolve } = setup({
-      getBindings: () => ({ speedReset: '', speedDown: 'garbage', speedUp: 'Shift+C' }),
+      getBindings: () => ({ ...BINDINGS, speedReset: '', speedDown: 'garbage', speedUp: 'Shift+C' }),
     });
     expect(shortcuts.handleKeyDown(keyEvent({ key: 'Z', code: 'KeyZ' }), resolve)).toBe(false);
     expect(shortcuts.handleKeyDown(keyEvent({ key: 'C', code: 'KeyC' }), resolve)).toBe(true);
+  });
+});
+
+describe('navigation', () => {
+  const right = (partial: Partial<ShortcutKeyEvent> = {}) => keyEvent({ key: 'ArrowRight', code: 'ArrowRight', shiftKey: false, ...partial });
+  const left = (partial: Partial<ShortcutKeyEvent> = {}) => keyEvent({ key: 'ArrowLeft', code: 'ArrowLeft', shiftKey: false, ...partial });
+
+  it('skips to the next or previous sentence through the manager and locks the view to the spoken position', () => {
+    const { shortcuts, manager, reader, lockPosition, resolve } = setup();
+    const event = right();
+    expect(shortcuts.handleKeyDown(event, resolve)).toBe(true);
+    expect(manager.skipAhead).toHaveBeenCalledWith('sentence');
+    expect(lockPosition).toHaveBeenCalledWith(reader);
+    expect(event.preventDefault).toHaveBeenCalled();
+    expect(event.stopPropagation).toHaveBeenCalled();
+    expect(shortcuts.handleKeyDown(left(), resolve)).toBe(true);
+    expect(manager.skipBack).toHaveBeenCalledWith('sentence');
+    expect(manager.setSpeed).not.toHaveBeenCalled();
+  });
+
+  it('skips by paragraph with Shift', () => {
+    const { shortcuts, manager, resolve } = setup();
+    shortcuts.handleKeyDown(right({ shiftKey: true }), resolve);
+    expect(manager.skipAhead).toHaveBeenCalledWith('paragraph');
+    shortcuts.handleKeyDown(left({ shiftKey: true }), resolve);
+    expect(manager.skipBack).toHaveBeenCalledWith('paragraph');
+  });
+
+  it('works while paused: the highlight moves without playing', () => {
+    const { shortcuts, manager, resolve } = setup();
+    manager.paused = true;
+    expect(shortcuts.handleKeyDown(right(), resolve)).toBe(true);
+    expect(manager.skipAhead).toHaveBeenCalledWith('sentence');
+  });
+
+  // The arrows page and scroll the reader; they are only borrowed while something is being read
+  it('leaves the arrows to the reader when no Read Aloud session is open', () => {
+    const { shortcuts, manager, resolve } = setup();
+    manager.active = false;
+    const event = right();
+    expect(shortcuts.handleKeyDown(event, resolve)).toBe(false);
+    expect(event.preventDefault).not.toHaveBeenCalled();
+    expect(event.stopPropagation).not.toHaveBeenCalled();
+    expect(manager.skipAhead).not.toHaveBeenCalled();
+  });
+
+  it('leaves the arrows alone without a manager, or with one that cannot skip', () => {
+    const none = setup({ getManager: () => null });
+    const event1 = right();
+    expect(none.shortcuts.handleKeyDown(event1, none.resolve)).toBe(false);
+    expect(event1.preventDefault).not.toHaveBeenCalled();
+    const old = setup({ getManager: () => ({ active: true, setSpeed: () => {} }) });
+    const event2 = right();
+    expect(old.shortcuts.handleKeyDown(event2, old.resolve)).toBe(false);
+    expect(event2.preventDefault).not.toHaveBeenCalled();
+  });
+
+  it('lets typing through in editable fields', () => {
+    const { shortcuts, manager, resolve } = setup();
+    const event = right({ target: { tagName: 'TEXTAREA' } });
+    expect(shortcuts.handleKeyDown(event, resolve)).toBe(false);
+    expect(manager.skipAhead).not.toHaveBeenCalled();
+  });
+
+  it('swallows auto-repeat: one skip per press', () => {
+    const { shortcuts, manager, resolve } = setup();
+    expect(shortcuts.handleKeyDown(right({ repeat: true }), resolve)).toBe(true);
+    expect(manager.skipAhead).not.toHaveBeenCalled();
+  });
+
+  it('logs a manager that throws and still consumes the key', () => {
+    const { shortcuts, manager, log, resolve } = setup();
+    manager.skipAhead.mockImplementation(() => {
+      throw new Error('boom');
+    });
+    expect(shortcuts.handleKeyDown(right(), resolve)).toBe(true);
+    expect(log).toHaveBeenCalledWith(expect.any(Error));
+  });
+
+  it('navigate() reports whether there was a session to skip in', () => {
+    const { shortcuts, manager, reader } = setup();
+    expect(shortcuts.navigate(reader, 'nextParagraph')).toBe(true);
+    expect(manager.skipAhead).toHaveBeenCalledWith('paragraph');
+    manager.active = false;
+    expect(shortcuts.navigate(reader, 'previousParagraph')).toBe(false);
+    expect(manager.skipBack).not.toHaveBeenCalled();
   });
 });
 

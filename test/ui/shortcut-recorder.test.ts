@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { DEFAULTS } from '../../src/core/settings';
 import type { KeyEventLike } from '../../src/core/shortcuts';
 import { recorderOutcome, shortcutLabel } from '../../src/ui/shortcut-recorder';
 
@@ -6,7 +7,7 @@ function ev(partial: Partial<KeyEventLike>): KeyEventLike {
   return { key: '', code: '', ctrlKey: false, altKey: false, shiftKey: false, metaKey: false, ...partial };
 }
 
-const current = { speedReset: 'Shift+Z', speedDown: 'Shift+X', speedUp: 'Shift+A' };
+const current = { ...DEFAULTS.shortcuts, speedUp: 'Shift+A' };
 
 describe('recorderOutcome', () => {
   it('cancels on Escape', () => {
@@ -31,6 +32,27 @@ describe('recorderOutcome', () => {
       kind: 'reject',
       reason: 'conflict',
       conflictsWith: 'speedDown',
+    });
+  });
+
+  it('lets a navigation action sit on a bare arrow key, but not a speed action', () => {
+    expect(recorderOutcome(ev({ key: 'ArrowDown', code: 'ArrowDown' }), 'nextSentence', current)).toEqual({ kind: 'set', text: 'ArrowDown' });
+    expect(recorderOutcome(ev({ key: 'ArrowDown', code: 'ArrowDown' }), 'speedUp', current)).toEqual({
+      kind: 'reject',
+      reason: 'needs-modifier',
+    });
+  });
+
+  it('detects conflicts across the speed and navigation actions', () => {
+    expect(recorderOutcome(ev({ key: 'ArrowRight', code: 'ArrowRight' }), 'previousSentence', current)).toEqual({
+      kind: 'reject',
+      reason: 'conflict',
+      conflictsWith: 'nextSentence',
+    });
+    expect(recorderOutcome(ev({ key: 'Z', code: 'KeyZ', shiftKey: true }), 'nextParagraph', current)).toEqual({
+      kind: 'reject',
+      reason: 'conflict',
+      conflictsWith: 'speedReset',
     });
   });
 

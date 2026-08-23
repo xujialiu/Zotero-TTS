@@ -1,5 +1,13 @@
-import { nextSpeed, persistSpeed, readPersistedSpeed, SPEED_ACTIONS, type SpeedAction } from '../core/read-aloud-speed';
+import { nextSpeed, persistSpeed, readPersistedSpeed, type SpeedAction } from '../core/read-aloud-speed';
 import type { PrefsBackend } from '../core/settings';
+import {
+  isNavigationAction,
+  NAVIGATION,
+  SHORTCUT_ACTIONS,
+  type NavigationAction,
+  type ShortcutAction,
+  type SkipGranularity,
+} from '../core/shortcut-actions';
 import { matchesShortcut, parseShortcut, type KeyEventLike, type Shortcut } from '../core/shortcuts';
 
 /**
@@ -9,6 +17,9 @@ import { matchesShortcut, parseShortcut, type KeyEventLike, type Shortcut } from
  * current segment at the new rate and asks Zotero to persist it — the same
  * call the popup's slider makes. While idle, persisting through Zotero
  * would *start* playback (see adjust()), so the pref is written directly.
+ * `skipBack` / `skipAhead` are the popup's skip buttons: one sentence, or
+ * one paragraph (segments anchored `paragraphStart`), from the current
+ * position; while paused they move the highlight without playing.
  */
 export interface ReadAloudManagerLike {
   active?: boolean;
@@ -17,7 +28,11 @@ export interface ReadAloudManagerLike {
   lang?: string | null;
   selectedVoiceID?: string | null;
   setSpeed(speed: number, persist?: boolean): void;
+  skipBack?(granularity: SkipGranularity, accelerate?: boolean): void;
+  skipAhead?(granularity: SkipGranularity, accelerate?: boolean): void;
 }
+
+type SkippingManager = ReadAloudManagerLike & Required<Pick<ReadAloudManagerLike, 'skipBack' | 'skipAhead'>>;
 
 /**
  * Whether this manager is speaking right now. Zotero's `active` means "the
@@ -28,6 +43,11 @@ export interface ReadAloudManagerLike {
  */
 export function isSpeaking(manager: ReadAloudManagerLike | null): boolean {
   return !!manager?.active && !manager.paused;
+}
+
+/** A session is open (playing or paused) and the manager knows how to skip. */
+function canSkip(manager: ReadAloudManagerLike | null): manager is SkippingManager {
+  return !!manager?.active && typeof manager.skipBack === 'function' && typeof manager.skipAhead === 'function';
 }
 
 export interface ShortcutKeyEvent extends KeyEventLike {
@@ -43,13 +63,15 @@ export interface EventTargetLike {
   removeEventListener(type: string, listener: (event: any) => void, options?: unknown): void;
 }
 
-export interface SpeedShortcutsDeps {
+export interface ReadAloudShortcutsDeps {
   /** Raw binding text per action. Read on every key, so a settings change applies at once. */
-  getBindings(): Record<SpeedAction, string>;
+  getBindings(): Record<ShortcutAction, string>;
   /** Full-key pref access, for Zotero's reader.readAloudVoices pref. */
   prefs: PrefsBackend;
   getManager(reader: unknown): ReadAloudManagerLike | null;
   showToast?(reader: unknown, speed: number): void;
+  /** After a skip, what the popup's own buttons do: lock the view to the spoken position, so it follows again. */
+  lockPosition?(reader: unknown): void;
   log?(e: unknown): void;
 }
 
@@ -58,18 +80,20 @@ export interface HandleOptions {
   isEditable?(event: ShortcutKeyEvent): boolean;
 }
 
-export interface SpeedShortcuts {
+export interface ReadAloudShortcuts {
   /** Returns true when the key was consumed. `resolveReader` returning null means "not in a reader context, let the key through". */
   handleKeyDown(event: ShortcutKeyEvent, resolveReader: () => unknown, options?: HandleOptions): boolean;
-  /** Apply an action to a reader and return the new speed. */
+  /** Apply a speed action to a reader and return the new speed. */
   adjust(reader: unknown, action: SpeedAction): number;
+  /** Skip by sentence or paragraph; false when the reader has no open Read Aloud session to skip in. */
+  navigate(reader: unknown, action: NavigationAction): boolean;
   /** Attach a capturing keydown listener to a window; idempotent per window, detaches itself on unload. */
   listen(target: EventTargetLike, resolveReader: () => unknown, options?: HandleOptions): void;
   unlisten(target: EventTargetLike): void;
   dispose(): void;
 }
 
-export function createSpeedShortcuts(deps: SpeedShortcutsDeps): SpeedShortcuts {
+export function createReadAloudShortcuts(deps: ReadAloudShortcutsDeps): ReadAloudShortcuts {
   const log = (e: unknown) => deps.log?.(e);
 
   // Parsed bindings keyed by their text, so parsing repeats only when a pref changes
@@ -79,9 +103,9 @@ export function createSpeedShortcuts(deps: SpeedShortcutsDeps): SpeedShortcuts {
     return parsed.get(text) ?? null;
   };
 
-  const actionFor = (event: ShortcutKeyEvent): SpeedAction | null => {
+  const actionFor = (event: ShortcutKeyEvent): ShortcutAction | null => {
     const bindings = deps.getBindings();
-    for (const action of SPEED_ACTIONS) {
+    for (const action of SHORTCUT_ACTIONS) {
       const shortcut = shortcutFor(bindings[action] ?? '');
       if (shortcut && matchesShortcut(shortcut, event)) return action;
     }
@@ -130,6 +154,24 @@ export function createSpeedShortcuts(deps: SpeedShortcutsDeps): SpeedShortcuts {
     return next;
   }
 
+  function navigate(reader: unknown, action: NavigationAction): boolean {
+    const manager = managerOf(reader);
+    if (!canSkip(manager)) return false;
+    const { direction, granularity } = NAVIGATION[action];
+    try {
+      if (direction === 'back') manager.skipBack(granularity);
+      else manager.skipAhead(granularity);
+    } catch (e) {
+      log(e);
+    }
+    try {
+      deps.lockPosition?.(reader);
+    } catch (e) {
+      log(e);
+    }
+    return true;
+  }
+
   function handleKeyDown(event: ShortcutKeyEvent, resolveReader: () => unknown, options: HandleOptions = {}): boolean {
     if (event.defaultPrevented) return false;
     const action = actionFor(event);
@@ -138,11 +180,16 @@ export function createSpeedShortcuts(deps: SpeedShortcutsDeps): SpeedShortcuts {
     if (isEditable(event)) return false;
     const reader = resolveReader();
     if (!reader) return false;
+    // The arrow keys page and scroll the reader: a sentence or paragraph key
+    // is borrowed only while a Read Aloud session is open (playing or
+    // paused) and falls through untouched otherwise.
+    if (isNavigationAction(action) && !canSkip(managerOf(reader))) return false;
     event.preventDefault();
     event.stopPropagation();
     // Holding the key down would restart the current segment on every auto-repeat
     if (event.repeat) return true;
-    adjust(reader, action);
+    if (isNavigationAction(action)) navigate(reader, action);
+    else adjust(reader, action);
     return true;
   }
 
@@ -179,7 +226,7 @@ export function createSpeedShortcuts(deps: SpeedShortcutsDeps): SpeedShortcuts {
     for (const target of [...listeners.keys()]) unlisten(target);
   }
 
-  return { handleKeyDown, adjust, listen, unlisten, dispose };
+  return { handleKeyDown, adjust, navigate, listen, unlisten, dispose };
 }
 
 /**

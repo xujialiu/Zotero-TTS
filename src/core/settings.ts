@@ -1,5 +1,5 @@
 import type { ProviderId } from './providers/types';
-import type { SpeedAction } from './read-aloud-speed';
+import type { ShortcutAction } from './shortcut-actions';
 
 export const PROVIDER_IDS: readonly ProviderId[] = ['openai', 'azure', 'local'];
 
@@ -27,10 +27,11 @@ export interface Settings {
   /** Keep synthesized audio in the in-memory LRU (core/memory-cache.ts). */
   cacheAudio: boolean;
   /**
-   * Keyboard shortcuts that drive Zotero's own Read Aloud playback speed, as
-   * text understood by core/shortcuts.ts ("Shift+Z"). Empty disables one.
+   * Keyboard shortcuts that drive Zotero's own Read Aloud — the playback
+   * speed, and skipping by sentence or paragraph (core/shortcut-actions.ts)
+   * — as text understood by core/shortcuts.ts ("Shift+Z"). Empty disables one.
    */
-  shortcuts: Record<SpeedAction, string>;
+  shortcuts: Record<ShortcutAction, string>;
   readAloud: {
     /** Keep one Read Aloud voice and speed across documents (read-aloud/read-aloud-memory.ts). */
     sameForAllDocuments: boolean;
@@ -69,7 +70,16 @@ export const DEFAULTS: Settings = {
   webdav: { url: '', username: '', password: '' },
   prefetch: 3,
   cacheAudio: true,
-  shortcuts: { speedReset: 'Shift+Z', speedDown: 'Shift+X', speedUp: 'Shift+C' },
+  shortcuts: {
+    speedReset: 'Shift+Z',
+    speedDown: 'Shift+X',
+    speedUp: 'Shift+C',
+    // Bare arrows: taken only while a Read Aloud session is open, the reader pages with them otherwise
+    previousSentence: 'ArrowLeft',
+    nextSentence: 'ArrowRight',
+    previousParagraph: 'Shift+ArrowLeft',
+    nextParagraph: 'Shift+ArrowRight',
+  },
   readAloud: { sameForAllDocuments: true, multilingualEverywhere: false },
 };
 
@@ -125,6 +135,10 @@ export function loadSettings(prefs: PrefsBackend): Settings {
       speedReset: str(prefs, 'shortcuts.speedReset', DEFAULTS.shortcuts.speedReset),
       speedDown: str(prefs, 'shortcuts.speedDown', DEFAULTS.shortcuts.speedDown),
       speedUp: str(prefs, 'shortcuts.speedUp', DEFAULTS.shortcuts.speedUp),
+      previousSentence: str(prefs, 'shortcuts.previousSentence', DEFAULTS.shortcuts.previousSentence),
+      nextSentence: str(prefs, 'shortcuts.nextSentence', DEFAULTS.shortcuts.nextSentence),
+      previousParagraph: str(prefs, 'shortcuts.previousParagraph', DEFAULTS.shortcuts.previousParagraph),
+      nextParagraph: str(prefs, 'shortcuts.nextParagraph', DEFAULTS.shortcuts.nextParagraph),
     },
     readAloud: {
       sameForAllDocuments: bool(prefs, 'readAloud.sameForAllDocuments', DEFAULTS.readAloud.sameForAllDocuments),

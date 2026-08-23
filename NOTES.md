@@ -748,3 +748,32 @@ the folder), with the same validation and confirmation on the way back in
   client under Node: folder missing → `not-found`; first upload → PUT 409,
   MKCOL, PUT 201; PROPFIND 207; download round-trips; overwrite works; a
   wrong or missing password → `auth` (401); a closed port → `network`.
+
+## Sentence and paragraph shortcuts (added 2026-08-23)
+
+README TODO 2. Defaults: ArrowLeft / ArrowRight = previous / next sentence,
+Shift+ArrowLeft / Shift+ArrowRight = previous / next paragraph.
+
+- Zotero 10 API (bundle ~82296): `manager.skipBack(granularity, accelerate)`
+  and `skipAhead(...)`, granularity `'sentence' | 'paragraph'`, `accelerate`
+  = five units (the popup's buttons pass `event.shiftKey`). A paragraph is
+  the run of segments from one `anchor === 'paragraphStart'` to the next;
+  mid-paragraph, back goes to the *previous* paragraph, not to the start of
+  the current one (the controller bumps delta, ~39426). Skipping while
+  paused moves the highlight without playing. The popup calls
+  `onLockPosition` after every skip → reader `_lockPositionToReadAloud()`
+  → view `setPositionLocked(true)`, so the view follows the spoken position
+  again after the user scrolled away; the plugin does the same
+  (`deps.lockPosition` in ui/read-aloud-shortcuts.ts).
+- The arrows are the reader's own paging keys, so a navigation binding is
+  taken only while a session is open (`manager.active`, playing or paused)
+  on a manager that has the skip methods; otherwise the key falls through
+  untouched, before preventDefault. Speed keys keep acting on an idle
+  reader (they write the pref). The recorder allows bare arrow keys for the
+  navigation actions only (`shortcutProblem(s, { allowBareArrows })`);
+  everything else still needs a modifier or an F-key.
+- `ui/speed-shortcuts.ts` is now `ui/read-aloud-shortcuts.ts`
+  (`createReadAloudShortcuts`); `core/shortcut-actions.ts` holds the action
+  lists and the skip table. Older sections above use the old name.
+- Not exposed: `accelerate` (×5). No toast for a skip — the moving
+  highlight is the feedback. Holding a key does not repeat the skip.

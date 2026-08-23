@@ -1,4 +1,4 @@
-import { SPEED_ACTIONS, type SpeedAction } from '../core/read-aloud-speed';
+import { allowsBareArrows, SHORTCUT_ACTIONS, type ShortcutAction } from '../core/shortcut-actions';
 import { DEFAULTS, loadSettings, PREF_PREFIX, type PrefsBackend } from '../core/settings';
 import type { KeyEventLike } from '../core/shortcuts';
 import { recorderOutcome, shortcutLabel } from './shortcut-recorder';
@@ -18,10 +18,14 @@ export interface RowsDocument {
 
 type RecorderEvent = KeyEventLike & { preventDefault(): void; stopPropagation(): void };
 
-const ACTION_NAMES: Record<SpeedAction, string> = {
+const ACTION_NAMES: Record<ShortcutAction, string> = {
   speedReset: 'Reset speed',
   speedDown: 'Slower',
   speedUp: 'Faster',
+  previousSentence: 'Previous sentence',
+  nextSentence: 'Next sentence',
+  previousParagraph: 'Previous paragraph',
+  nextParagraph: 'Next paragraph',
 };
 
 /**
@@ -31,15 +35,15 @@ const ACTION_NAMES: Record<SpeedAction, string> = {
  * are written straight to prefs, which the reader re-reads on every key.
  */
 export function initShortcutRows(doc: RowsDocument, prefs: PrefsBackend, metaLabel: string): { refresh(): void } {
-  const prefKey = (action: SpeedAction) => `${PREF_PREFIX}shortcuts.${action}`;
-  const button = (action: SpeedAction) => doc.getElementById(`ztts-key-${action}`);
-  let recording: { action: SpeedAction; handler: (event: RecorderEvent) => void } | null = null;
+  const prefKey = (action: ShortcutAction) => `${PREF_PREFIX}shortcuts.${action}`;
+  const button = (action: ShortcutAction) => doc.getElementById(`ztts-key-${action}`);
+  let recording: { action: ShortcutAction; handler: (event: RecorderEvent) => void } | null = null;
 
   const setMessage = (text: string) => doc.getElementById('ztts-key-message')?.setAttribute('value', text);
 
   const refresh = () => {
     const bindings = loadSettings(prefs).shortcuts;
-    for (const action of SPEED_ACTIONS) {
+    for (const action of SHORTCUT_ACTIONS) {
       const el = button(action);
       if (!el) continue;
       const active = recording?.action === action;
@@ -54,7 +58,7 @@ export function initShortcutRows(doc: RowsDocument, prefs: PrefsBackend, metaLab
     refresh();
   };
 
-  const start = (action: SpeedAction) => {
+  const start = (action: ShortcutAction) => {
     stop();
     setMessage('');
     const handler = (event: RecorderEvent) => {
@@ -70,7 +74,9 @@ export function initShortcutRows(doc: RowsDocument, prefs: PrefsBackend, metaLab
         setMessage(
           outcome.reason === 'conflict'
             ? `Already used by "${ACTION_NAMES[outcome.conflictsWith]}".`
-            : 'Add a modifier (Ctrl, Alt, Shift or Cmd): a bare key would type instead.',
+            : allowsBareArrows(action)
+              ? 'Add a modifier (Ctrl, Alt, Shift or Cmd) or use an arrow key: a bare key would type instead.'
+              : 'Add a modifier (Ctrl, Alt, Shift or Cmd): a bare key would type instead.',
         );
       }
       stop();
@@ -80,7 +86,7 @@ export function initShortcutRows(doc: RowsDocument, prefs: PrefsBackend, metaLab
     refresh();
   };
 
-  for (const action of SPEED_ACTIONS) {
+  for (const action of SHORTCUT_ACTIONS) {
     button(action)?.addEventListener('command', () => (recording?.action === action ? stop() : start(action)));
     doc.getElementById(`ztts-key-clear-${action}`)?.addEventListener('command', () => {
       stop();
@@ -91,7 +97,7 @@ export function initShortcutRows(doc: RowsDocument, prefs: PrefsBackend, metaLab
   }
   doc.getElementById('ztts-key-defaults')?.addEventListener('command', () => {
     stop();
-    for (const action of SPEED_ACTIONS) prefs.set(prefKey(action), DEFAULTS.shortcuts[action]);
+    for (const action of SHORTCUT_ACTIONS) prefs.set(prefKey(action), DEFAULTS.shortcuts[action]);
     setMessage('');
     refresh();
   });
