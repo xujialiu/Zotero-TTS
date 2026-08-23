@@ -104,7 +104,7 @@ src/read-aloud/     the Read Aloud integration: index (intercepts Zotero.Reader.
                     catalog, read-aloud-memory (+ memory-sync: one voice/speed across documents),
                     highlight-style (Zotero's highlight colours, sentence under word)
 src/ui/             prefs pane (prefs-pane, shortcut-rows, backup-rows, webdav-rows,
-                    server-preset-rows, shortcut-recorder),
+                    server-preset-rows, highlight-rows, shortcut-recorder),
                     read-aloud-shortcuts, speed-toast
 src/index.ts        bootstrap wiring; with core/settings.createZoteroPrefs and ui/prefs-pane the
                     only code that touches Zotero globals (declared in src/globals.d.ts)

@@ -10,6 +10,7 @@ import { initShortcutRows } from './shortcut-rows';
 import { initBackupRows, type BackupFileIO } from './backup-rows';
 import { initServerPresetRows } from './server-preset-rows';
 import { initWebDAVRows } from './webdav-rows';
+import { initHighlightRows } from './highlight-rows';
 
 const XHTML = 'http://www.w3.org/1999/xhtml';
 
@@ -154,6 +155,7 @@ export function onPaneLoad(doc: Document): void {
   const prefs = createZoteroPrefs();
   const shortcutRows = initShortcutRows(doc, prefs, Zotero.isMac ? 'Cmd' : Zotero.isWin ? 'Win' : 'Super');
   const presetRows = initServerPresetRows(doc, prefs);
+  const highlightRows = initHighlightRows(doc, prefs);
 
   const win = doc.defaultView;
   const restoreDeps = {
@@ -165,6 +167,7 @@ export function onPaneLoad(doc: Document): void {
     onRestored: () => {
       shortcutRows.refresh();
       presetRows.refresh();
+      highlightRows.refresh();
     },
   };
   initBackupRows(doc, { ...backupFileIO(win), ...restoreDeps });

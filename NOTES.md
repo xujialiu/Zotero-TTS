@@ -858,3 +858,18 @@ full semantics, which is why memory-sync.ts, which uses its captured
 (Components.utils.waiveXrays) on `this` and the arguments before use; the
 original is still called with what arrived. The test file models an Xray
 with a proxy that exposes own properties only.
+
+### Preview and Restore in the Highlight group (2026-08-23)
+
+The explanatory paragraph was replaced by a sample page (ui/highlight-rows.ts):
+two lines of serif text on white, one with the sentence highlighted, one
+with the word highlighted inside the sentence (the sentence only while the
+switch is on). Each highlight is an inline span whose background is the
+colour at its opacity with the reader's rectangle opacity (0.4, light
+theme) folded in, under `mix-blend-mode: multiply` — the same compositing
+as the PDF view's `.overlayRect`, and black text stays black under it. The
+bound inputs write the prefs first (Zotero's listeners were attached when
+the pane was built), so the rows just listen for `input`/`change`/`command`
+and repaint from the prefs; "Restore default colours" writes
+DEFAULTS.highlight and repaints. The dark-theme reader (opacity 0.3,
+`plus-lighter`) is not previewed.
