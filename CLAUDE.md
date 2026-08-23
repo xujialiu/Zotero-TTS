@@ -97,7 +97,7 @@ Platform notes:
 src/core/           pure logic, no Zotero globals: settings (DEFAULTS ↔ addon/prefs.js,
                     pinned by test/prefs-defaults.test.ts), providers/{openai,azure,local/kokoro},
                     shortcuts, shortcut-actions, read-aloud-speed, settings-backup,
-                    webdav, timeout
+                    webdav, reader-theme, timeout
 src/read-aloud/     the Read Aloud integration: index (intercepts Zotero.Reader._readers and
                     overrides _getReadAloudRemoteInterface per reader), remote-interface
                     (composite of Zotero's native interface + our voices), voice-catalog,

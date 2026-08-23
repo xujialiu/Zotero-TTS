@@ -873,3 +873,18 @@ the pane was built), so the rows just listen for `input`/`change`/`command`
 and repaint from the prefs; "Restore default colours" writes
 DEFAULTS.highlight and repaints. The dark-theme reader (opacity 0.3,
 `plus-lighter`) is not previewed.
+
+The preview follows the reader's theme (core/reader-theme.ts, wired in
+prefs-pane.ts): Zotero resolves the theme in the reader bundle's
+`_updateColorScheme` — the app's `prefers-color-scheme` picks the
+`reader.lightTheme` or `reader.darkTheme` pref, a theme id among
+`DEFAULT_THEMES` (dark #2E3440/#D8DEE9, black, snow, sepia; copied into
+reader-theme.ts) and the synced setting `readerCustomThemes`; an empty or
+unknown id is the default light theme (#ffffff/#121212), and
+`getModeBasedOnColors` decides light or dark by relative luminance of the
+two colours. The PDF view then draws highlight rectangles at opacity 0.4
+with `multiply` (light) or 0.3 with `plus-lighter` (dark); the preview
+folds those into the span's rgba and blend mode. The prefs pane reads the
+app scheme from its own window's `matchMedia`, the same query the reader
+iframe uses. The EPUB overlay draws the same colours as SVG paths at 50%
+opacity; the preview shows the PDF rendering.

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import { DEFAULT_THEMES, LIGHT_THEME, type ResolvedReaderTheme } from '../../src/core/reader-theme';
 import { DEFAULTS, PREF_PREFIX, type PrefsBackend } from '../../src/core/settings';
-import { HIGHLIGHT_IDS, initHighlightRows, previewStyle } from '../../src/ui/highlight-rows';
+import { HIGHLIGHT_IDS, initHighlightRows, previewBoxStyle, previewStyle } from '../../src/ui/highlight-rows';
 
 function fakePrefs(initial: Record<string, unknown> = {}): PrefsBackend & { store: Record<string, unknown> } {
   const store = { ...initial };
@@ -25,18 +26,31 @@ class FakeElement {
   }
 }
 
-const IDS: string[] = [...HIGHLIGHT_IDS.inputs, HIGHLIGHT_IDS.previewSentence, HIGHLIGHT_IDS.previewWordSentence, HIGHLIGHT_IDS.previewWord, HIGHLIGHT_IDS.defaults];
+const IDS: string[] = [
+  ...HIGHLIGHT_IDS.inputs,
+  HIGHLIGHT_IDS.preview,
+  HIGHLIGHT_IDS.previewSentence,
+  HIGHLIGHT_IDS.previewWordSentence,
+  HIGHLIGHT_IDS.previewWord,
+  HIGHLIGHT_IDS.defaults,
+];
 const key = (name: string) => `${PREF_PREFIX}highlight.${name}`;
 
-function setup(initial: Record<string, unknown> = {}) {
+const LIGHT: ResolvedReaderTheme = { ...LIGHT_THEME, scheme: 'light' };
+const DARK: ResolvedReaderTheme = { ...DEFAULT_THEMES[0], scheme: 'dark' };
+
+function setup(initial: Record<string, unknown> = {}, theme: ResolvedReaderTheme | undefined = LIGHT) {
   const els = new Map(IDS.map((id) => [id, new FakeElement()]));
   const doc = { getElementById: (id: string) => els.get(id) ?? null };
   const prefs = fakePrefs(initial);
-  const rows = initHighlightRows(doc, prefs);
+  let current = theme;
+  const rows = initHighlightRows(doc, prefs, theme ? { theme: () => current! } : {});
   return {
     rows,
     prefs,
+    setTheme: (t: ResolvedReaderTheme) => void (current = t),
     el: (id: string) => els.get(id)!,
+    box: () => els.get(HIGHLIGHT_IDS.preview)!.style,
     sentence: () => els.get(HIGHLIGHT_IDS.previewSentence)!.style,
     wordSentence: () => els.get(HIGHLIGHT_IDS.previewWordSentence)!.style,
     word: () => els.get(HIGHLIGHT_IDS.previewWord)!.style,
@@ -47,18 +61,30 @@ const CYAN_WORD = 'background-color: rgba(0, 255, 255, 0.18); mix-blend-mode: mu
 const PINK_SENTENCE = 'background-color: rgba(255, 128, 192, 0.121); mix-blend-mode: multiply;';
 const ZOTERO_WORD = 'background-color: rgba(64, 114, 229, 0.18); mix-blend-mode: multiply;';
 const ZOTERO_SENTENCE = 'background-color: rgba(64, 114, 229, 0.121); mix-blend-mode: multiply;';
+const CYAN_WORD_DARK = 'background-color: rgba(0, 255, 255, 0.135); mix-blend-mode: plus-lighter;';
+const PINK_SENTENCE_DARK = 'background-color: rgba(255, 128, 192, 0.091); mix-blend-mode: plus-lighter;';
 
 describe('previewStyle', () => {
-  it("folds the reader's rectangle opacity into the colour and multiplies it onto the page", () => {
+  it("folds the reader's rectangle opacity into the colour and multiplies it onto a light page", () => {
     // 45% -> 0x73 = 115/255 = 0.451, drawn at 0.4 -> 0.18
     expect(previewStyle('#00ffff', 45)).toBe(CYAN_WORD);
     expect(previewStyle('#ff80c0', 30)).toBe(PINK_SENTENCE);
-    expect(previewStyle('#4072e5', 45)).toBe(ZOTERO_WORD);
+    expect(previewStyle('#4072e5', 45, 'light')).toBe(ZOTERO_WORD);
+  });
+
+  it('draws at 0.3 and adds the colour on a dark page, as the reader does', () => {
+    expect(previewStyle('#00ffff', 45, 'dark')).toBe(CYAN_WORD_DARK);
+    expect(previewStyle('#ff80c0', 30, 'dark')).toBe(PINK_SENTENCE_DARK);
   });
 
   it('paints nothing for a colour that is not one', () => {
     expect(previewStyle('bright red', 45)).toBe('');
-    expect(previewStyle('', 45)).toBe('');
+    expect(previewStyle('', 45, 'dark')).toBe('');
+  });
+
+  it("gives the sample page the theme's colours", () => {
+    expect(previewBoxStyle(DARK)).toMatch(/ background: #2E3440; color: #D8DEE9;$/);
+    expect(previewBoxStyle(LIGHT)).toMatch(/ background: #ffffff; color: #121212;$/);
   });
 });
 
@@ -73,9 +99,32 @@ describe('initHighlightRows', () => {
 
   it('paints the sample from the prefs: the sentence, and the word with the sentence under it', () => {
     const t = setup(cyanPink);
+    expect(t.box()).toMatch(/background: #ffffff; color: #121212;$/);
     expect(t.sentence()).toBe(PINK_SENTENCE);
     expect(t.word()).toBe(CYAN_WORD);
     expect(t.wordSentence()).toBe(PINK_SENTENCE);
+  });
+
+  it("paints the sample in the reader's theme, blended for a dark page when the theme is dark", () => {
+    const t = setup(cyanPink, DARK);
+    expect(t.box()).toMatch(/background: #2E3440; color: #D8DEE9;$/);
+    expect(t.word()).toBe(CYAN_WORD_DARK);
+    expect(t.sentence()).toBe(PINK_SENTENCE_DARK);
+    expect(t.wordSentence()).toBe(PINK_SENTENCE_DARK);
+  });
+
+  it('re-reads the theme on every repaint', () => {
+    const t = setup(cyanPink);
+    t.setTheme(DARK);
+    t.rows.refresh();
+    expect(t.box()).toMatch(/background: #2E3440;/);
+    expect(t.word()).toBe(CYAN_WORD_DARK);
+  });
+
+  it('assumes the default light theme when none is supplied', () => {
+    const t = setup(cyanPink, undefined);
+    expect(t.box()).toMatch(/background: #ffffff; color: #121212;$/);
+    expect(t.word()).toBe(CYAN_WORD);
   });
 
   it('shows no sentence under the word while the switch is off', () => {

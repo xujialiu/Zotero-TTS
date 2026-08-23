@@ -11,6 +11,7 @@ import { initBackupRows, type BackupFileIO } from './backup-rows';
 import { initServerPresetRows } from './server-preset-rows';
 import { initWebDAVRows } from './webdav-rows';
 import { initHighlightRows } from './highlight-rows';
+import { resolveReaderTheme, type ResolvedReaderTheme } from '../core/reader-theme';
 
 const XHTML = 'http://www.w3.org/1999/xhtml';
 
@@ -151,11 +152,37 @@ function backupFileIO(win: any): BackupFileIO {
   };
 }
 
+/**
+ * The theme the reader is showing right now, resolved as the reader does
+ * (core/reader-theme.ts): the app's colour scheme picks the light or the
+ * dark theme pref, among Zotero's themes and the user's custom ones.
+ */
+function currentReaderTheme(win: any): ResolvedReaderTheme {
+  let dark = false;
+  try {
+    dark = !!win?.matchMedia?.('(prefers-color-scheme: dark)')?.matches;
+  } catch {
+    // A window without matchMedia is a light one
+  }
+  let customThemes: unknown = [];
+  try {
+    customThemes = Zotero.SyncedSettings.get(Zotero.Libraries.userLibraryID, 'readerCustomThemes') ?? [];
+  } catch {
+    // No synced settings (not logged in, or an older Zotero): built-in themes only
+  }
+  return resolveReaderTheme({
+    appScheme: dark ? 'dark' : 'light',
+    lightTheme: Zotero.Prefs.get('reader.lightTheme'),
+    darkTheme: Zotero.Prefs.get('reader.darkTheme'),
+    customThemes,
+  });
+}
+
 export function onPaneLoad(doc: Document): void {
   const prefs = createZoteroPrefs();
   const shortcutRows = initShortcutRows(doc, prefs, Zotero.isMac ? 'Cmd' : Zotero.isWin ? 'Win' : 'Super');
   const presetRows = initServerPresetRows(doc, prefs);
-  const highlightRows = initHighlightRows(doc, prefs);
+  const highlightRows = initHighlightRows(doc, prefs, { theme: () => currentReaderTheme(doc.defaultView) });
 
   const win = doc.defaultView;
   const restoreDeps = {
