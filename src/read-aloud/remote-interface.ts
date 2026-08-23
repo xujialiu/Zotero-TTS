@@ -1,4 +1,5 @@
 import { SynthesisError, toZoteroError } from '../core/providers/errors';
+import { silentWav } from '../core/silence';
 import type { ProviderId, SynthesisResult, Timestamp, TTSProvider, VoiceInfo } from '../core/providers/types';
 import { withTimeout } from '../core/timeout';
 import { buildVoicesResponse, decodeVoiceId } from './voice-catalog';
@@ -101,6 +102,30 @@ export type RemoteInterfaceDeps = {
 };
 
 const NO_CREDITS = { standardCreditsRemaining: null, premiumCreditsRemaining: null };
+
+/**
+ * Segments this short — a section number, a list marker, "No." — are where
+ * some servers fail outright: Chatterbox-TTS-Server answers HTTP 500 for
+ * inputs of one or two tokens (its alignment analyser needs more), while
+ * every longer sentence is fine. Such a failure costs the user the whole
+ * playback, so it becomes a short pause instead. Longer segments that fail
+ * still surface the error: that is a real problem, not a quirk.
+ */
+export const TINY_SEGMENT_CHARS = 8;
+export const SILENT_PAUSE_MS = 400;
+
+/** The trimmed text of a segment short enough to be skipped, else null. Never throws. */
+function tinySegmentText(segment: unknown): string | null {
+  const text = (segment as { text?: unknown } | null)?.text;
+  if (typeof text !== 'string') return null;
+  const trimmed = text.trim();
+  return trimmed.length > 0 && trimmed.length <= TINY_SEGMENT_CHARS ? trimmed : null;
+}
+
+/** A failure the server itself produced for this text — not a key, network or quota problem, which a pause would only hide. */
+function isServerRefusal(e: unknown): e is SynthesisError {
+  return e instanceof SynthesisError && (e.kind === 'unknown' || e.kind === 'decode-failed');
+}
 const DEFAULT_NATIVE_TIMEOUT_MS = 20_000;
 const DEFAULT_SYNTHESIS_TIMEOUT_MS = 60_000;
 const DEFAULT_CATALOG_TIMEOUT_MS = 30_000;
@@ -292,6 +317,14 @@ export function createRemoteInterface(deps: RemoteInterfaceDeps): RemoteInterfac
         // Zotero's UI understands, so the real cause is gone by the time the
         // user sees "unknown error". Record it before collapsing.
         log(e);
+        const tiny = tinySegmentText(segment);
+        if (tiny !== null && isServerRefusal(e)) {
+          // Not cached: the cache holds what the provider produced, and a
+          // server that learns to speak "1." should get the chance.
+          const clip = silentWav(SILENT_PAUSE_MS);
+          deps.debug?.(`${decoded.provider}: the server refused "${tiny}" (${e.message}); playing a ${SILENT_PAUSE_MS} ms pause instead`);
+          return { audio: deps.adoptAudio ? deps.adoptAudio(clip) : clip, timestamps: wholeSegmentTimestamp(tiny) };
+        }
         return { audio: null, error: toZoteroError(e) };
       }
     },
