@@ -23,7 +23,7 @@ describe('createProvider', () => {
   });
 
   it('builds the configured local engine', () => {
-    const s = { ...DEFAULTS, local: { enabled: true, engine: 'kokoro', baseURL: 'http://h:1', voice: 'af_bella' } };
+    const s = { ...DEFAULTS, local: { enabled: true, engine: 'kokoro', baseURL: 'http://h:1', voice: 'af_bella', headers: '' } };
     const p = createProvider('local', s, deps);
     expect(p.id).toBe('local');
     expect(p.capabilities.wordTimestamps).toBe(true);
@@ -36,7 +36,7 @@ describe('createProvider', () => {
   });
 
   it('throws a typed error when the configured local engine is not registered', () => {
-    const s = { ...DEFAULTS, local: { enabled: true, engine: 'piper', baseURL: 'http://h:1', voice: 'x' } };
+    const s = { ...DEFAULTS, local: { enabled: true, engine: 'piper', baseURL: 'http://h:1', voice: 'x', headers: '' } };
     expect(() => createProvider('local', s, deps)).toThrow(SynthesisError);
   });
 });
@@ -71,5 +71,14 @@ describe('OpenAI server preset', () => {
     expect((fetchImpl as any).mock.calls[0][1].headers).not.toHaveProperty('Authorization');
     const voices = await p.listVoices();
     expect(voices.map((v) => v.id)).toEqual(['Emily.wav']);
+  });
+});
+
+describe('Local engine extra headers', () => {
+  it('hands the engine the headers typed into the settings', async () => {
+    const fetchImpl = vi.fn(async () => Response.json({ voices: ['af_bella'] }));
+    const settings = { ...DEFAULTS, local: { ...DEFAULTS.local, headers: 'CF-Access-Client-Id: id' } };
+    await createProvider('local', settings, { ...deps, fetch: fetchImpl as unknown as typeof fetch }).listVoices();
+    expect((fetchImpl as any).mock.calls[0][1].headers).toMatchObject({ 'CF-Access-Client-Id': 'id' });
   });
 });

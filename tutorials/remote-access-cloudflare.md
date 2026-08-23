@@ -20,8 +20,9 @@ Everything here is on Cloudflare's free plan. Time: about twenty minutes.
 - The TTS server running on the home machine. The tutorial assumes
   Chatterbox-TTS-Server on port 8004; Kokoro-FastAPI is on 8880 (see the
   note at the end before exposing it).
-- The plugin, 1.0.2 or newer, on the machine that will read aloud — it needs
-  the **Extra headers** field in the OpenAI section.
+- The plugin, 1.1.2 or newer, on the machine that will read aloud — it needs
+  the **Extra headers** field (OpenAI section since 1.1.0, Local engine
+  section since 1.1.2).
 
 ## 1. Create the tunnel
 
@@ -144,12 +145,15 @@ new one and update the policy) and the old values stop working at once.
 
 ## Notes
 
-- **Kokoro-FastAPI** gets its word-level highlighting through the plugin's
-  *Local engine* section, which has no headers field yet. Behind Access it
-  can only be used through the OpenAI section (Base URL
-  `https://kokoro.example.com`, same headers), which means sentence-level
-  highlighting. Give it its own hostname and its own Access application, or
-  reuse the same service token in both policies.
+- **Kokoro-FastAPI** works the same way and keeps its word-level
+  highlighting. Give it its own public hostname on the tunnel
+  (`kokoro.example.com` → `localhost:8880`, or `host.docker.internal:8880`
+  for the Docker connector) and its own Access application — the same
+  service token may be used in its policy. In the plugin, *Local engine*:
+  Address `https://kokoro.example.com`, Extra headers the same
+  `CF-Access-Client-Id: …; CF-Access-Client-Secret: …` pair. A missing or
+  wrong token shows up as "The server rejected the API key", not as the
+  server being down.
 - **Alternatives.** If the other machine is yours as well, a private network
   needs no token at all: Cloudflare WARP (Zero Trust → private network
   routes through the same tunnel, WARP client on the laptop) or Tailscale;

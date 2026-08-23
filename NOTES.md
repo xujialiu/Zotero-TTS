@@ -668,3 +668,13 @@ from another server are not sent. `other` disables nothing. The stored pref
 the preset is guessed from the address (api.openai.com -> openai, else
 other). The menulist is not bound with `preference=` because switching has
 side effects that must not run on load.
+
+## Extra headers for the Local engine (added 2026-08-23)
+
+Same field as the OpenAI section's, so Kokoro behind a Cloudflare Access
+service token keeps its word timestamps (`/dev/captioned_speech` through the
+Local provider) instead of being routed through the OpenAI section. The
+Kokoro adapter merges `deps.headers` under the request's own headers, and a
+401/403 is now `auth` rather than `unknown`; a 401/403 on
+`/dev/captioned_speech` also skips the fallback to `/v1/audio/speech`, which
+sits behind the same gateway.

@@ -5,9 +5,9 @@
  * in front of a server that has no API key. Malformed pairs are dropped
  * rather than sent half-formed; a header name may not contain whitespace.
  */
-export function parseHeaderList(text: string): Record<string, string> {
+export function parseHeaderList(text: string | undefined): Record<string, string> {
   const headers: Record<string, string> = {};
-  for (const pair of text.split(/[;\n]/)) {
+  for (const pair of (text ?? '').split(/[;\n]/)) {
     const colon = pair.indexOf(':');
     if (colon < 1) continue;
     const name = pair.slice(0, colon).trim();

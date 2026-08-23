@@ -179,7 +179,7 @@ docker compose up -d --build
   failed on one sentence; `docker compose logs` shows why. Chatterbox cannot
   speak inputs of one or two tokens — a bare section number like `1.` — and
   answers HTTP 500 for them; the plugin plays a short pause for such
-  segments instead of stopping (plugin 1.0.2 or newer), so with a current
+  segments instead of stopping (plugin 1.1.0 or newer), so with a current
   plugin this points at something else, such as a sentence that hit the
   plugin's 60-second synthesis limit.
 - **The Test connection says the server rejected the API key**: it answered

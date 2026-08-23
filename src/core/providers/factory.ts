@@ -31,7 +31,7 @@ export function createProvider(id: ProviderId, settings: Settings, deps: Provide
       if (!engine) {
         throw new SynthesisError('unknown', `Unknown local engine: ${settings.local.engine}`);
       }
-      return engine.create(settings.local.baseURL, { fetch: deps.fetch });
+      return engine.create(settings.local.baseURL, { fetch: deps.fetch, headers: parseHeaderList(settings.local.headers) });
     }
   }
 }

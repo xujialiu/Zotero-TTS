@@ -107,5 +107,6 @@ docker run -d --name kokoro --restart unless-stopped --gpus all -p 8880:8880 ghc
 - **Voices play but nothing is highlighted word by word**: set *Settings →
   General → Read Aloud → Highlight current* to **Word**.
 - **Using it from another machine**: see [Reaching your TTS server from
-  anywhere with Cloudflare](remote-access-cloudflare.md) — with the caveat
-  noted there that the Local engine section has no headers field yet.
+  anywhere with Cloudflare](remote-access-cloudflare.md). The Local engine
+  section has its own **Extra headers** field for the Access service token,
+  so word-level highlighting survives the trip.

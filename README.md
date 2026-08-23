@@ -76,8 +76,9 @@ at the price of sentence-level highlighting and a real GPU —
 [tutorial](tutorials/chatterbox-tts-server.md).
 
 Behind a gateway — a Cloudflare Tunnel protected by an Access service token,
-a reverse proxy with its own header — put the gateway's headers in **Extra
-headers** as `Name: value` pairs separated by `;`, for example
+a reverse proxy with its own header — put the gateway's headers in the
+**Extra headers** field of the OpenAI section, or of the Local engine
+section for Kokoro, as `Name: value` pairs separated by `;`, for example
 `CF-Access-Client-Id: …; CF-Access-Client-Secret: …`. They go out with every
 request, before the Authorization header —
 [tutorial](tutorials/remote-access-cloudflare.md).

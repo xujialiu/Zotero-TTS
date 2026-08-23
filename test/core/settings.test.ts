@@ -174,3 +174,10 @@ describe('openai.server', () => {
     expect(loadSettings(fakePrefs({ [PREF_PREFIX + 'openai.server']: 'chatterbox' })).openai.server).toBe('chatterbox');
   });
 });
+
+describe('local.headers', () => {
+  it('is empty by default and reads the stored value', () => {
+    expect(loadSettings(fakePrefs()).local.headers).toBe('');
+    expect(loadSettings(fakePrefs({ [PREF_PREFIX + 'local.headers']: 'X: y' })).local.headers).toBe('X: y');
+  });
+});
