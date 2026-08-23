@@ -5,6 +5,13 @@ import { MULTILINGUAL, type SynthesisOptions, type SynthesisResult, type TTSProv
 export type OpenAIConfig = {
   apiKey: string;
   baseURL: string;
+  /**
+   * Sent with every request, before the Authorization header. For gateways
+   * that authenticate with their own headers — a Cloudflare Access service
+   * token (`CF-Access-Client-Id` / `CF-Access-Client-Secret`), a reverse
+   * proxy with a custom header — in front of a server that has no key.
+   */
+  headers?: Record<string, string>;
   model: string;
   /** Comma-separated voice ids to offer; empty means "ask the server, else the OpenAI defaults". */
   voices?: string;
@@ -92,7 +99,22 @@ export function createOpenAIProvider(cfg: OpenAIConfig, deps: { fetch: typeof fe
   // Tolerates the SDK's `/v1` suffix and trailing slashes; works for any
   // OpenAI-compatible server (Kokoro-FastAPI answers the same routes)
   const base = () => normalizeBaseURL(cfg.baseURL);
-  const authHeaders = (): Record<string, string> => (cfg.apiKey ? { Authorization: `Bearer ${cfg.apiKey}` } : {});
+  const authHeaders = (): Record<string, string> => ({
+    ...(cfg.headers ?? {}),
+    ...(cfg.apiKey ? { Authorization: `Bearer ${cfg.apiKey}` } : {}),
+  });
+  // Only OpenAI itself is known to need a key. A compatible server may have
+  // none (Kokoro-FastAPI, Chatterbox-TTS-Server) or sit behind a gateway
+  // that wants other headers; with no key the request goes out without
+  // Authorization, and a server that wanted one answers 401.
+  const keyRequired = (): boolean => {
+    try {
+      return /(^|[.])api[.]openai[.]com$/i.test(new URL(base()).hostname);
+    } catch {
+      return false;
+    }
+  };
+  const missingKey = () => !cfg.apiKey && keyRequired();
 
   async function get(path: string): Promise<Response> {
     try {
@@ -136,7 +158,7 @@ export function createOpenAIProvider(cfg: OpenAIConfig, deps: { fetch: typeof fe
 
     /** The model ids the server offers; the cheapest authenticated request the API has, so also the connection probe. */
     async listModels(): Promise<string[]> {
-      if (!cfg.apiKey) {
+      if (missingKey()) {
         throw new SynthesisError('no-key', 'OpenAI API key is not set');
       }
       const url = `${base()}/v1/models`;
@@ -165,7 +187,7 @@ export function createOpenAIProvider(cfg: OpenAIConfig, deps: { fetch: typeof fe
      * by the body.
      */
     async checkSynthesis(voice: string): Promise<void> {
-      if (!cfg.apiKey) throw new SynthesisError('no-key', 'OpenAI API key is not set');
+      if (missingKey()) throw new SynthesisError('no-key', 'OpenAI API key is not set');
       let response: Response;
       try {
         response = await deps.fetch(`${base()}/v1/audio/speech`, {
@@ -187,7 +209,7 @@ export function createOpenAIProvider(cfg: OpenAIConfig, deps: { fetch: typeof fe
     },
 
     async synthesize(text: string, o: SynthesisOptions): Promise<SynthesisResult> {
-      if (!cfg.apiKey) {
+      if (missingKey()) {
         throw new SynthesisError('no-key', 'OpenAI API key is not set');
       }
 

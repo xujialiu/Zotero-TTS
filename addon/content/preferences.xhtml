@@ -26,6 +26,12 @@
       <label value="Voices" style="width: 8em"/>
       <html:input type="text" placeholder="auto-detect" preference="extensions.zotero.zotero-tts.openai.voices"/>
     </hbox>
+    <!-- For a gateway in front of a keyless server, e.g. a Cloudflare Access
+         service token: "CF-Access-Client-Id: ...; CF-Access-Client-Secret: ..." -->
+    <hbox align="center">
+      <label value="Extra headers" style="width: 8em"/>
+      <html:input type="text" placeholder="Name: value; Name: value" preference="extensions.zotero.zotero-tts.openai.headers"/>
+    </hbox>
     <hbox align="center">
       <button id="ztts-test-openai" label="Test connection"/>
       <description id="ztts-test-result-openai"/>

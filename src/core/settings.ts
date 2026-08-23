@@ -13,6 +13,8 @@ export interface Settings {
     voice: string;
     /** Comma-separated voice ids to offer; empty means "ask the server, else OpenAI's defaults". */
     voices: string;
+    /** Extra request headers, `Name: value` pairs separated by `;` or newlines (core/headers.ts). */
+    headers: string;
   };
   azure: { enabled: boolean; apiKey: string; region: string; voice: string };
   local: { enabled: boolean; engine: string; baseURL: string; voice: string };
@@ -55,6 +57,7 @@ export const DEFAULTS: Settings = {
     model: 'gpt-4o-mini-tts',
     voice: 'alloy',
     voices: '',
+    headers: '',
   },
   azure: { enabled: false, apiKey: '', region: 'eastasia', voice: 'zh-CN-XiaoxiaoNeural' },
   local: { enabled: false, engine: 'kokoro', baseURL: 'http://localhost:8880', voice: 'af_bella' },
@@ -90,6 +93,7 @@ export function loadSettings(prefs: PrefsBackend): Settings {
       model: str(prefs, 'openai.model', DEFAULTS.openai.model),
       voice: str(prefs, 'openai.voice', DEFAULTS.openai.voice),
       voices: str(prefs, 'openai.voices', DEFAULTS.openai.voices),
+      headers: str(prefs, 'openai.headers', DEFAULTS.openai.headers),
     },
     azure: {
       enabled: bool(prefs, 'azure.enabled', DEFAULTS.azure.enabled),

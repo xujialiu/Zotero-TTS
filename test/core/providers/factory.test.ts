@@ -40,3 +40,17 @@ describe('createProvider', () => {
     expect(() => createProvider('local', s, deps)).toThrow(SynthesisError);
   });
 });
+
+describe('OpenAI extra headers', () => {
+  it('hands the provider the headers typed into the settings', async () => {
+    const fetchImpl = vi.fn(async () => new Response(new Blob(['a']), { status: 200 }));
+    const settings = {
+      ...DEFAULTS,
+      openai: { ...DEFAULTS.openai, apiKey: '', baseURL: 'http://localhost:8004', headers: 'X-Token: abc; CF-Access-Client-Id: id' },
+    };
+    const p = createProvider('openai', settings, { ...deps, fetch: fetchImpl as unknown as typeof fetch });
+    await p.synthesize('Hello', { voice: 'Emily.wav', speed: 1, signal: new AbortController().signal });
+    expect((fetchImpl as any).mock.calls[0][1].headers).toMatchObject({ 'X-Token': 'abc', 'CF-Access-Client-Id': 'id' });
+    expect((fetchImpl as any).mock.calls[0][1].headers).not.toHaveProperty('Authorization');
+  });
+});

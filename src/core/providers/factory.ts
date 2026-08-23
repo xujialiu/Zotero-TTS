@@ -3,6 +3,7 @@ import { createAzureProvider } from './azure';
 import { SynthesisError } from './errors';
 import { getLocalEngine } from './local/registry';
 import { createOpenAIProvider } from './openai';
+import { parseHeaderList } from '../headers';
 import type { ProviderId, TTSProvider } from './types';
 
 export type ProviderDeps = {
@@ -15,7 +16,7 @@ export type ProviderDeps = {
 export function createProvider(id: ProviderId, settings: Settings, deps: ProviderDeps): TTSProvider {
   switch (id) {
     case 'openai':
-      return createOpenAIProvider(settings.openai, { fetch: deps.fetch });
+      return createOpenAIProvider({ ...settings.openai, headers: parseHeaderList(settings.openai.headers) }, { fetch: deps.fetch });
 
     case 'azure':
       return createAzureProvider(settings.azure, deps);
