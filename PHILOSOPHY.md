@@ -34,7 +34,7 @@ behaviour only where Zotero offers nothing. Zotero reads; the plugin speaks.
    plugin hooks internals: per reader tab, through the remote-voice
    interface and a few shadowed methods, pinned to one Zotero major. Each
    hook is verified against Zotero's source and recorded in
-   [NOTES.md](NOTES.md). When Zotero offers an API, the hooks go.
+   [notes/NOTES.md](notes/NOTES.md). When Zotero offers an API, the hooks go.
 6. **A setting must do something.** A setting that turns out to have no
    effect is removed (the synthesis speed was) or flagged in the README's
    TODO until it does (prefetch).

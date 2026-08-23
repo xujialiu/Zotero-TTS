@@ -171,7 +171,7 @@ npm run typecheck
 npm run build
 ```
 
-[NOTES.md](NOTES.md) records the Zotero internals the plugin relies on and
+[notes/NOTES.md](notes/NOTES.md) records the Zotero internals the plugin relies on and
 every incident so far.
 
 ## License

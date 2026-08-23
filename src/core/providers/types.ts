@@ -40,7 +40,7 @@ export type VoiceInfo = {
 /**
  * No speed: audio is always made at the voice's natural pace. Read Aloud's
  * own slider time-stretches it on playback, and a synthesis-time speed would
- * multiply with that (NOTES.md, "Synthesis speed setting removed").
+ * multiply with that (notes/NOTES.md, "Synthesis speed setting removed").
  */
 export type SynthesisOptions = {
   voice: string;

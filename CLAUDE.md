@@ -15,10 +15,12 @@ across documents, settings backup/restore (file or WebDAV), highlight colours.
   `tutorials/` — Azure's free tier, Kokoro-FastAPI and Chatterbox-TTS-Server
   in Docker, remote access through Cloudflare. Provider and server how-tos
   go there, not into the README.
-- `NOTES.md` — engineering notes: every production incident, and the Zotero
+- `notes/NOTES.md` — engineering notes: every production incident, and the Zotero
   internals verified by reading its source. **Read it before touching Read
   Aloud internals; append to it (English) whenever something non-obvious is
-  learned or broken.**
+  learned or broken.** `notes/NOTES_SUPPLEMENTARY.md` — one-time setup logs and
+  overtaken lists moved out of NOTES.md; history, not required reading.
+  Both live in `notes/`.
 
 ## Working with the user
 
