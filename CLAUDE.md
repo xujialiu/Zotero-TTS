@@ -33,9 +33,11 @@ across documents, settings backup/restore (file or WebDAV), highlight colours.
   state it in one line, move on.
 - Research first when asked to: report findings, do not change code.
 - Commit only when told ("commit"); work on a `feat/...` branch; merge into
-  `main` with `--ff-only` only when told; push only when told. Commit subject
-  style: `feat: …` / `fix: …` / `docs: …` / `chore: …`, body explains why.
-  End commit messages with `Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>`.
+  `main` with `--ff-only` only when told; push only when told. Commit
+  messages: `feat: …` / `fix: …` / `docs: …` / `chore: …`, as short as
+  possible — usually the subject line alone; a body only when the why is
+  not obvious, and then a line or two, never a long description. No
+  `Co-Authored-By` trailer.
 - Before any push: scan the history for keys (`sk-…`, 32-hex, `ghp_…`).
   Never echo an API key into the conversation or a file. Zotero's
   `prefs.js` holds the user's keys in plaintext — grep it only for the exact
