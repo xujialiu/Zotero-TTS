@@ -23,7 +23,9 @@ export interface Settings {
   local: { enabled: boolean; engine: string; baseURL: string; voice: string; headers: string };
   /** The WebDAV folder holding the settings backup (core/webdav.ts, ui/webdav-rows.ts); the password is a plain pref like the API keys. */
   webdav: { url: string; username: string; password: string };
+  /** Warm the audio cache this many sentences ahead of playback (read-aloud/remote-interface.ts); `prefetchEnabled` is the switch. */
   prefetch: number;
+  prefetchEnabled: boolean;
   /** Keep synthesized audio in the in-memory LRU (core/memory-cache.ts). */
   cacheAudio: boolean;
   /**
@@ -78,6 +80,7 @@ export const DEFAULTS: Settings = {
   local: { enabled: false, engine: 'kokoro', baseURL: 'http://localhost:8880', voice: 'af_bella', headers: '' },
   webdav: { url: '', username: '', password: '' },
   prefetch: 3,
+  prefetchEnabled: true,
   cacheAudio: true,
   shortcuts: {
     speedReset: 'Shift+Z',
@@ -142,6 +145,7 @@ export function loadSettings(prefs: PrefsBackend): Settings {
       password: str(prefs, 'webdav.password', DEFAULTS.webdav.password),
     },
     prefetch: num(prefs, 'prefetch', DEFAULTS.prefetch, 1, 10),
+    prefetchEnabled: bool(prefs, 'prefetchEnabled', DEFAULTS.prefetchEnabled),
     cacheAudio: bool(prefs, 'cacheAudio', DEFAULTS.cacheAudio),
     shortcuts: {
       speedReset: str(prefs, 'shortcuts.speedReset', DEFAULTS.shortcuts.speedReset),
@@ -177,6 +181,7 @@ export function saveSettings(prefs: PrefsBackend, s: Settings): void {
   for (const [k, v] of Object.entries(s.local)) prefs.set(PREF_PREFIX + 'local.' + k, v);
   for (const [k, v] of Object.entries(s.webdav)) prefs.set(PREF_PREFIX + 'webdav.' + k, v);
   prefs.set(PREF_PREFIX + 'prefetch', s.prefetch);
+  prefs.set(PREF_PREFIX + 'prefetchEnabled', s.prefetchEnabled);
   prefs.set(PREF_PREFIX + 'cacheAudio', s.cacheAudio);
   for (const [k, v] of Object.entries(s.shortcuts)) prefs.set(PREF_PREFIX + 'shortcuts.' + k, v);
   for (const [k, v] of Object.entries(s.readAloud)) prefs.set(PREF_PREFIX + 'readAloud.' + k, v);

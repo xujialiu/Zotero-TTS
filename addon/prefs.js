@@ -20,6 +20,7 @@ pref('extensions.zotero.zotero-tts.webdav.url', '');
 pref('extensions.zotero.zotero-tts.webdav.username', '');
 pref('extensions.zotero.zotero-tts.webdav.password', '');
 pref('extensions.zotero.zotero-tts.prefetch', 3);
+pref('extensions.zotero.zotero-tts.prefetchEnabled', true);
 pref('extensions.zotero.zotero-tts.cacheAudio', true);
 pref('extensions.zotero.zotero-tts.shortcuts.speedReset', 'Shift+Z');
 pref('extensions.zotero.zotero-tts.shortcuts.speedDown', 'Shift+X');

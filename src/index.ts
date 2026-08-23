@@ -72,6 +72,46 @@ async function listCatalog(): Promise<{ provider: ProviderId; name?: string; voi
   return entries.map((e) => (e.provider === 'local' && engineName ? { ...e, name: engineName } : e));
 }
 
+/**
+ * The texts of the playback segments after the one whose text is `text`,
+ * in speaking order, for the prefetcher. The list is the *controller's*
+ * `_segments` — the sentence-level sequence its own `_prefetchFrom`
+ * iterates — NOT `manager.segments`, which is the coarser list the reader
+ * reported (verified live: warming that list synthesized paragraphs the
+ * player never asks for). The search is anchored at the controller's
+ * playback position so a sentence that repeats earlier in the document
+ * cannot pull the window backwards. Reader-side arrays are read with
+ * plain loops only: their `map`/`indexOf` would run in the reader's
+ * compartment, which may not call back into sandbox-owned values.
+ */
+function upcomingSegmentTexts(reader: any, text: string, count: number): string[] {
+  try {
+    const controller = reader?._internalReader?._readAloudManager?._controller;
+    const segments = controller?._segments;
+    const length = typeof segments?.length === 'number' ? segments.length : 0;
+    if (!length) return [];
+    const position = controller._currentIndex ?? controller._position;
+    const from = typeof position === 'number' && position >= 0 && position < length ? position : 0;
+    let at = -1;
+    for (let i = from; i < length; i++) {
+      if (segments[i]?.text === text) {
+        at = i;
+        break;
+      }
+    }
+    if (at === -1) return [];
+    const out: string[] = [];
+    for (let i = at + 1; i < length && out.length < count; i++) {
+      const t = segments[i]?.text;
+      if (typeof t === 'string' && t) out.push(t);
+    }
+    return out;
+  } catch (e) {
+    Zotero.logError(e);
+    return [];
+  }
+}
+
 function startHijack(): void {
   uninstallHijack?.();
   // makeInterface only runs when Zotero calls it; targetWindow is the
@@ -96,6 +136,11 @@ function startHijack(): void {
         },
         listCatalog,
         getMultilingualEverywhere: () => loadSettings(prefs).readAloud.multilingualEverywhere,
+        getPrefetch: () => {
+          const s = loadSettings(prefs);
+          return { enabled: s.prefetchEnabled, count: s.prefetch };
+        },
+        getUpcomingTexts: (text, count) => upcomingSegmentTexts(reader, text, count),
         // Built from the voice id, not from the enabled flags: Zotero
         // remembers the last-selected voice, which may belong to a provider
         // the user has since switched off, and a cached or in-flight segment

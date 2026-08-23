@@ -3,7 +3,8 @@
 Working notes: incidents, what was verified in Zotero's source, and why things
 are the way they are. Kept private until 2026-08-23, tracked in git since.
 Written from 2026-08-21, after the plugin first played audio end to end in
-Zotero 10.0.1-beta.1.
+Zotero 10.0.1-beta.1. One-time setup logs and overtaken lists live in
+NOTES_SUPPLEMENTARY.md; nothing there is needed before touching the code.
 
 ## What the plugin is
 
@@ -132,8 +133,7 @@ the subsystem. Get that before forming a hypothesis, not after.
 
 ### 4. (Minor) Preference pane did not render after an in-place upgrade
 
-Seen once, on an `ADDON_UPGRADE` install with the preferences window open. A
-full Zotero restart cleared it. Not reproduced, not fixed, recorded only.
+Seen once, unreproduced; moved to NOTES_SUPPLEMENTARY.md.
 
 ### 5. Pane initialization ran before the pane existed (2026-08-22)
 
@@ -301,40 +301,21 @@ plugin voices, no crash.
 
 ---
 
-## Kokoro-FastAPI on this machine (set up 2026-08-22)
+## Kokoro-FastAPI server quirks (2026-08-22)
 
-Runs in **Docker Desktop** (WSL 2 backend, `nvidia` runtime available):
-container `kokoro`, image `ghcr.io/remsky/kokoro-fastapi-gpu:latest` (cu126,
-right for the RTX 3080 Ti), `--restart unless-stopped --gpus all -p
-8880:8880`. The image bundles the model, CUDA torch and espeak-ng. README.md
-in the repo documents the Docker install for users.
-
-A native `uv` install was tried first the same day (Docker was not on PATH
-until a reboot) and then removed completely — clone, venv, model, the torch
-wheel cache and the winget espeak-ng. Two lessons from it, in case native is
-ever tried again:
-
-- **The `gpu` extra does not give Windows a CUDA torch.** Its pin is
-  `torch==2.8.0+cu126 ; platform_machine == 'x86_64'`, and on Windows
-  `platform_machine` is `AMD64`, so `uv sync` installs `2.8.0+cpu`. Fix was
-  `uv pip install --python .venv torch==2.8.0+cu126 --index-url
-  https://download.pytorch.org/whl/cu126`, and then every `uv run` had to be
-  `--no-sync`, or the lock put the CPU build back.
 - **`/dev/captioned_speech` streams NDJSON by default** (`stream: true` in
-  `CaptionedSpeechRequest`); the adapter now sends `stream: false` and gets
+  `CaptionedSpeechRequest`); the adapter sends `stream: false` and gets
   one `{ audio, audio_format, timestamps }`. Before that fix every Kokoro
   synthesis failed with `decode-failed`.
 - **`/v1/audio/voices` returns `{ voices: [{ id, name }] }`**, not a list of
   ids as the adapter (and its tests) assumed; the string-only filter yielded
-  zero voices, so no `TTS-Local-*` entry ever reached Zotero. The adapter
-  accepts both shapes now.
-- espeak-ng (the phonemizer fallback upstream recommends) was installed via
-  winget for the native run and uninstalled with it; the Docker image has
-  its own.
-- Verified in Docker (2026-08-22): image 12.7 GB, server up 15 s after
-  `docker run`, 68 voices, two sentences synthesized in 0.18 s with 10 word
-  timestamps, log says "Loading Kokoro model on cuda", `nvidia-smi -L` inside
-  the container lists the RTX 3080 Ti.
+  zero voices, so no local-engine entry ever reached Zotero. The adapter
+  accepts both shapes.
+
+The machine setup behind these findings (Docker on the Windows box, an
+abandoned native uv install and its Windows-CUDA pitfalls) is in
+NOTES_SUPPLEMENTARY.md; the user-facing setup is
+`tutorials/kokoro-fastapi.md`.
 
 ---
 
@@ -386,32 +367,23 @@ so the change is immediate and cached audio stays valid.
 
 ---
 
-## Open items from the final whole-branch review
+## Still open (from the 2026-08-22 whole-branch review)
 
-Not fixed as of this note. Ordered by user impact.
+The resolved items and the one-time security note moved to
+NOTES_SUPPLEMENTARY.md; these remain:
 
 1. **Rate limit is silent.** A 429 from any provider maps to
    `'quota-exceeded'`, which Zotero renders with no message and no Retry.
-   Remap to `'network'` or `'unknown'` so the user gets feedback.
-2. **Speed setting is wrong in two ways.** Fixed 2026-08-23: the control is
-   gone, see "Synthesis speed setting removed" below.
-3. **A throw inside the interface factory kills the reader tab**, not just
-   Read Aloud — `_open()` has no `.catch`. Native returns `null` on failure and
-   the consumer handles null; ours should too.
-4. **Only the selected provider's voices are published**, while the spec said
-   to merge all three. Product decision: is mixing (e.g. Kokoro for English,
-   Azure for Chinese) wanted?
-5. Minor: `patched` reader list in the hijack never shrinks during a session;
-   `toZoteroError` reaches exhaustiveness via `default` rather than a `never`
-   check; the Kokoro `call()` helper classifies a user abort as
-   "local server down" (unreachable today — nothing aborts through this
+   Remap to `'network'` or `'unknown'` so the user gets feedback. (The
+   Test-connection synthesis probe covers visibility at test time only.)
+2. **A throw inside the interface factory kills the reader tab**, not just
+   Read Aloud — `_open()` has no `.catch`. Native returns `null` on failure
+   and the consumer handles null; ours should too.
+3. Minor: `patched` reader list in the hijack never shrinks during a
+   session; `toZoteroError` reaches exhaustiveness via `default` rather
+   than a `never` check; the Kokoro `call()` helper classifies a user abort
+   as "local server down" (unreachable today — nothing aborts through this
    interface).
-
-## Security note
-
-The Azure API key is stored in plaintext in `prefs.js` (Zotero prefs are
-plaintext; the pane should say so). During diagnosis I grepped the whole prefs
-file and the key appeared in tool output. It should be rotated.
 
 ## One voice and speed across documents (added 2026-08-22)
 
@@ -644,10 +616,6 @@ servers (Kokoro-FastAPI, Chatterbox) have no key, and a placeholder key was
 the only way to use them before. A server that does want a key answers 401,
 which the pane already reports as a rejected key.
 
-Tooling note: the Bash tool's heredoc transport has now mangled two scripts
-(one with `\\.` regex escapes, one with ellipsis characters); scripts with
-either go through the Write tool and `python file.py`.
-
 ## Server presets in the OpenAI section (added 2026-08-23)
 
 The user first proposed an "official / compatible" switch that disables key,
@@ -743,11 +711,7 @@ the folder), with the same validation and confirmation on the way back in
   the credentials already, and restoring writes the same values back.
 - Digest-only servers are not supported (fetch does not negotiate Digest
   and the plugin sends Basic up front); every common host takes Basic over
-  HTTPS.
-- Verified against a local wsgidav 4.3.5 (Basic auth) with the bundled
-  client under Node: folder missing → `not-found`; first upload → PUT 409,
-  MKCOL, PUT 201; PROPFIND 207; download round-trips; overwrite works; a
-  wrong or missing password → `auth` (401); a closed port → `network`.
+  HTTPS. (The wsgidav verification log is in NOTES_SUPPLEMENTARY.md.)
 
 ## Sentence and paragraph shortcuts (added 2026-08-23)
 
@@ -933,3 +897,30 @@ now. What Zotero does on its own, from reader.js (10.0.1-beta.2):
 - Worth it only for servers slower than real time on average bursts: Azure
   and GPU Kokoro are far faster than playback, so Zotero's window of three
   already hides the latency.
+
+## Prefetch made real (2026-08-23, feat/prefetch)
+
+The Prefetch setting now works: warming from `getAudio`, the second option
+above, plus a `prefetchEnabled` switch (default on; the warmer also needs
+`cacheAudio` on, since the cache is where warmed audio lives). Verified
+live over three rounds of debug-output traces; two traps, both invisible
+to unit tests:
+
+- **`manager.segments` is not what the player speaks.** Warming that list
+  synthesized paragraph-sized texts (327, 240 chars) the controller never
+  requested — money spent, zero cache hits. The speaking order is the
+  *controller's* `_segments` (`manager._controller._segments`), anchored at
+  `_currentIndex ?? _position` — the same expression `_prefetchFrom` uses.
+- **Skip in-flight segments, never join them.** Zotero's own window slides
+  three segments ahead in parallel; a serial chain that awaited segments
+  Zotero was already fetching trailed it forever and never reached segment
+  N+4 — the entire value of a count above three. The chain now skips keys
+  that are pending or cached and synthesizes only what nobody else is on.
+- With both fixed, the steady state in the trace is exactly right: every
+  segment after the first plays `(cached)`, and each played segment tops
+  the window up by one.
+
+Beside the warmer, `getAudio` now dedupes in-flight synthesis per cache
+key (registered synchronously, so interleaved awaits cannot double-bill):
+Zotero fetches up to two segments concurrently and the warmer runs beside
+them, and before this the same sentence could be synthesized twice.

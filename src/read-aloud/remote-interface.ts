@@ -56,6 +56,20 @@ export type RemoteInterfaceDeps = {
   getProvider(provider: ProviderId): TTSProvider;
   cacheVersion(): string;
   cache?: AudioCache;
+  /**
+   * The prefetch setting, read per call so the pane applies at once.
+   * Zotero's own player prefetches a hard-coded 3 segments ahead
+   * (RemoteReadAloudController._prefetchFrom, MAX_WINDOW = 3); this warms
+   * the cache `count` segments beyond whatever Zotero last asked for, which
+   * is what keeps slow servers ahead of playback.
+   */
+  getPrefetch?(): { enabled: boolean; count: number };
+  /**
+   * The texts of the segments that follow the one just requested, in
+   * reading order, at most `count`; [] when the reader cannot say. Reaches
+   * into the reader's segment list, so it lives with the Zotero glue.
+   */
+  getUpcomingTexts?(text: string, count: number): string[];
   /** Receives the raw error before it is collapsed to a Zotero error string. */
   log?(e: unknown): void;
   /** One line per synthesized segment, for the debug output: which provider, how many word timestamps. */
@@ -251,6 +265,70 @@ export function createRemoteInterface(deps: RemoteInterfaceDeps): RemoteInterfac
     return result;
   }
 
+  const cacheKeyFor = (providerId: ProviderId, voiceId: string, text: string) =>
+    JSON.stringify([deps.cacheVersion(), providerId, voiceId, text]);
+
+  /**
+   * One synthesis per cache key, however many callers ask. Zotero prefetches
+   * up to two segments concurrently and the plugin's own warmer runs beside
+   * them; without this, the same sentence would be synthesized (and billed)
+   * more than once. Registered synchronously, before the cache is consulted,
+   * so two calls interleaving at the await cannot both start a synthesis.
+   */
+  const pending = new Map<string, Promise<{ result: SynthesisResult; cached: boolean }>>();
+  function ensureAudio(providerId: ProviderId, voiceId: string, text: string): Promise<{ result: SynthesisResult; cached: boolean }> {
+    const key = cacheKeyFor(providerId, voiceId, text);
+    const existing = pending.get(key);
+    if (existing) return existing;
+    const job = (async () => {
+      const hit = await deps.cache?.match(key);
+      if (hit) return { result: hit, cached: true };
+      return { result: await synthesize(providerId, voiceId, text, key), cached: false };
+    })();
+    pending.set(key, job);
+    void job.finally(() => pending.delete(key)).catch(() => {});
+    return job;
+  }
+
+  /**
+   * Warm the cache for the segments after `text`, one at a time — the
+   * playback request must never queue behind a burst of prefetches, and a
+   * slow server gets one warm request, not `count` at once. Segments that
+   * are already cached or already being fetched are *skipped, not joined*:
+   * Zotero's own player slides a parallel three-segment window
+   * (_prefetchFrom), and a chain that waited on those fetches would trail
+   * it forever and never reach the segments beyond — which are the whole
+   * point of a count above three (verified live: the joined chain produced
+   * zero cache hits). One chain at a time; a chain started by a later
+   * segment picks up where this one ends. Failures are logged and end the
+   * chain — playback will surface the error when it gets there.
+   */
+  let warming = false;
+  function prefetchAfter(providerId: ProviderId, voiceId: string, text: string): void {
+    const cfg = deps.getPrefetch?.();
+    if (!cfg?.enabled || cfg.count < 1 || !deps.cache || warming) return;
+    const texts = (deps.getUpcomingTexts?.(text, cfg.count) ?? []).filter(
+      (t) => typeof t === 'string' && t.trim().length > TINY_SEGMENT_CHARS,
+    );
+    if (!texts.length) return;
+    warming = true;
+    void (async () => {
+      try {
+        for (const t of texts) {
+          const key = cacheKeyFor(providerId, voiceId, t);
+          if (pending.has(key)) continue;
+          if (await deps.cache?.match(key)) continue;
+          const { cached } = await ensureAudio(providerId, voiceId, t);
+          if (!cached) deps.debug?.(`prefetch: ${providerId}: ${t.length} chars ready ahead of playback`);
+        }
+      } catch (e) {
+        log(e);
+      } finally {
+        warming = false;
+      }
+    })();
+  }
+
   return {
     async getVoices() {
       try {
@@ -294,19 +372,17 @@ export function createRemoteInterface(deps: RemoteInterfaceDeps): RemoteInterfac
 
       try {
         const text = segment === 'sample' ? SAMPLE_TEXT : segment.text;
-        const cacheVersion = deps.cacheVersion();
-        const key = JSON.stringify([cacheVersion, decoded.provider, decoded.voiceId, text]);
 
         // The cache holds exactly what the provider produced; the sentence
         // fallback below is applied on the way out, never stored.
-        const hit = await deps.cache?.match(key);
-        const result = hit ?? (await synthesize(decoded.provider, decoded.voiceId, text, key));
+        const { result, cached } = await ensureAudio(decoded.provider, decoded.voiceId, text);
+        if (segment !== 'sample') prefetchAfter(decoded.provider, decoded.voiceId, text);
 
         const words = result.timestamps?.length ?? 0;
         deps.debug?.(
           words
-            ? `${decoded.provider}: ${words} word timestamp${words === 1 ? '' : 's'} for ${text.length} chars${hit ? ' (cached)' : ''}`
-            : `${decoded.provider}: no word timestamps for ${text.length} chars, highlighting the sentence${hit ? ' (cached)' : ''}`,
+            ? `${decoded.provider}: ${words} word timestamp${words === 1 ? '' : 's'} for ${text.length} chars${cached ? ' (cached)' : ''}`
+            : `${decoded.provider}: no word timestamps for ${text.length} chars, highlighting the sentence${cached ? ' (cached)' : ''}`,
         );
         return { audio: result.audio, timestamps: words ? result.timestamps : wholeSegmentTimestamp(text) };
       } catch (e) {
