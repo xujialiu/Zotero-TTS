@@ -167,3 +167,10 @@ describe('readAloud.multilingualEverywhere', () => {
     expect(loadSettings(fakePrefs({ [PREF_PREFIX + 'readAloud.multilingualEverywhere']: true })).readAloud.multilingualEverywhere).toBe(true);
   });
 });
+
+describe('openai.server', () => {
+  it('is empty by default (guess from the address) and reads the stored choice', () => {
+    expect(loadSettings(fakePrefs()).openai.server).toBe('');
+    expect(loadSettings(fakePrefs({ [PREF_PREFIX + 'openai.server']: 'chatterbox' })).openai.server).toBe('chatterbox');
+  });
+});

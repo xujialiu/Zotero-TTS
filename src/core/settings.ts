@@ -15,6 +15,8 @@ export interface Settings {
     voices: string;
     /** Extra request headers, `Name: value` pairs separated by `;` or newlines (core/headers.ts). */
     headers: string;
+    /** Which server the section talks to (core/server-presets.ts); empty means "guess from the address". */
+    server: string;
   };
   azure: { enabled: boolean; apiKey: string; region: string; voice: string };
   local: { enabled: boolean; engine: string; baseURL: string; voice: string };
@@ -58,6 +60,7 @@ export const DEFAULTS: Settings = {
     voice: 'alloy',
     voices: '',
     headers: '',
+    server: '',
   },
   azure: { enabled: false, apiKey: '', region: 'eastasia', voice: 'zh-CN-XiaoxiaoNeural' },
   local: { enabled: false, engine: 'kokoro', baseURL: 'http://localhost:8880', voice: 'af_bella' },
@@ -94,6 +97,7 @@ export function loadSettings(prefs: PrefsBackend): Settings {
       voice: str(prefs, 'openai.voice', DEFAULTS.openai.voice),
       voices: str(prefs, 'openai.voices', DEFAULTS.openai.voices),
       headers: str(prefs, 'openai.headers', DEFAULTS.openai.headers),
+      server: str(prefs, 'openai.server', DEFAULTS.openai.server),
     },
     azure: {
       enabled: bool(prefs, 'azure.enabled', DEFAULTS.azure.enabled),

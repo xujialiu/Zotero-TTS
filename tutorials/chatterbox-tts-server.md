@@ -114,10 +114,8 @@ Zotero → Settings → TTS → **OpenAI** section:
 | Field | Value |
 |---|---|
 | Enable OpenAI voices | on |
-| API key | empty — Chatterbox has none, and the plugin only insists on a key for api.openai.com |
-| Base URL | `http://localhost:8004` |
-| Model | anything, e.g. `tts-1` (Chatterbox ignores it) |
-| Voices | empty — the server's 28 voices are picked up |
+| Server | **Chatterbox-TTS-Server** — this fills in the address and greys out key, model and voices, which Chatterbox ignores |
+| Base URL | `http://localhost:8004` (filled in by the preset; change it for another machine) |
 | Extra headers | empty (only needed behind a gateway, see the Cloudflare tutorial) |
 
 **Test connection** answers `Connected. 28 voices available. Synthesis

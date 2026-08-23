@@ -4,6 +4,7 @@ import { SynthesisError } from './errors';
 import { getLocalEngine } from './local/registry';
 import { createOpenAIProvider } from './openai';
 import { parseHeaderList } from '../headers';
+import { applyPreset } from '../server-presets';
 import type { ProviderId, TTSProvider } from './types';
 
 export type ProviderDeps = {
@@ -15,8 +16,12 @@ export type ProviderDeps = {
 /** Build one provider from its section of the settings; enabled or not, the settings only say how to reach it. */
 export function createProvider(id: ProviderId, settings: Settings, deps: ProviderDeps): TTSProvider {
   switch (id) {
-    case 'openai':
-      return createOpenAIProvider({ ...settings.openai, headers: parseHeaderList(settings.openai.headers) }, { fetch: deps.fetch });
+    case 'openai': {
+      // The preset blanks what the chosen server does not read, so a key or
+      // voice list left over from another server is never sent.
+      const openai = applyPreset(settings.openai);
+      return createOpenAIProvider({ ...openai, headers: parseHeaderList(openai.headers) }, { fetch: deps.fetch });
+    }
 
     case 'azure':
       return createAzureProvider(settings.azure, deps);

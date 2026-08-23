@@ -55,7 +55,11 @@ Provider notes:
 | Azure | Speech resource key + region (e.g. `eastasia`) | word |
 | Local (Kokoro) | A Kokoro-FastAPI server — [tutorial](tutorials/kokoro-fastapi.md) | word |
 
-The OpenAI section works with any server that speaks OpenAI's audio API:
+The OpenAI section works with any server that speaks OpenAI's audio API.
+Its **Server** dropdown says which one: *OpenAI*, *Chatterbox-TTS-Server*,
+or *Other OpenAI-compatible server*. Picking one fills in the address and
+model and greys out the fields that server provably ignores (Chatterbox: key,
+model, voices); *Other* keeps every field editable. Then
 set **Base URL** to the server (with or without `/v1`), type the **Model**
 name it expects (**Test connection** fetches the server's model list and
 offers it as suggestions, and says whether your model is on it), and leave

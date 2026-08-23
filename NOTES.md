@@ -652,3 +652,19 @@ which the pane already reports as a rejected key.
 Tooling note: the Bash tool's heredoc transport has now mangled two scripts
 (one with `\\.` regex escapes, one with ellipsis characters); scripts with
 either go through the Write tool and `python file.py`.
+
+## Server presets in the OpenAI section (added 2026-08-23)
+
+The user first proposed an "official / compatible" switch that disables key,
+model and voices for compatible servers. Rejected: hosted compatible services
+(Groq, SiliconFlow, LiteLLM, DeepInfra) need key and model, Speaches needs
+model, servers without a voice list need voices. Built instead
+(`core/server-presets.ts`, `ui/server-preset-rows.ts`): a Server dropdown
+with OpenAI / Chatterbox-TTS-Server / Other. A preset fills its defaults once
+on switch (never on load), greys out only the fields the server provably
+ignores, and `applyPreset` blanks those fields in the factory so leftovers
+from another server are not sent. `other` disables nothing. The stored pref
+`openai.server` is empty for settings saved before the preset existed; then
+the preset is guessed from the address (api.openai.com -> openai, else
+other). The menulist is not bound with `preference=` because switching has
+side effects that must not run on load.

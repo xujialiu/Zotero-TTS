@@ -54,3 +54,22 @@ describe('OpenAI extra headers', () => {
     expect((fetchImpl as any).mock.calls[0][1].headers).not.toHaveProperty('Authorization');
   });
 });
+
+describe('OpenAI server preset', () => {
+  it('does not send a key or a typed voice list to a server the preset says ignores them', async () => {
+    const fetchImpl = vi.fn(async (url: string) =>
+      url.endsWith('/v1/audio/voices')
+        ? new Response(JSON.stringify({ voices: ['Emily.wav'] }), { status: 200 })
+        : new Response(new Blob(['a']), { status: 200 }),
+    );
+    const settings = {
+      ...DEFAULTS,
+      openai: { ...DEFAULTS.openai, server: 'chatterbox', baseURL: 'http://localhost:8004', apiKey: 'stale-key', voices: 'alloy,echo' },
+    };
+    const p = createProvider('openai', settings, { ...deps, fetch: fetchImpl as unknown as typeof fetch });
+    await p.synthesize('Hello', { voice: 'Emily.wav', speed: 1, signal: new AbortController().signal });
+    expect((fetchImpl as any).mock.calls[0][1].headers).not.toHaveProperty('Authorization');
+    const voices = await p.listVoices();
+    expect(voices.map((v) => v.id)).toEqual(['Emily.wav']);
+  });
+});

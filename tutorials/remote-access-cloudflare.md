@@ -118,10 +118,8 @@ Zotero → Settings → TTS → **OpenAI** section:
 | Field | Value |
 |---|---|
 | Enable OpenAI voices | on |
-| API key | empty (Chatterbox has none; the plugin only insists on a key for api.openai.com) |
+| Server | **Chatterbox-TTS-Server** (key, model and voices grey out — Chatterbox ignores them); for another server, *Other OpenAI-compatible server* |
 | Base URL | `https://tts-windows.example.com` |
-| Model | anything, e.g. `tts-1` (Chatterbox ignores it) |
-| Voices | empty — the server's voices are picked up |
 | Extra headers | `CF-Access-Client-Id: <CLIENT_ID>; CF-Access-Client-Secret: <CLIENT_SECRET>` |
 
 **Test connection** should answer `Connected. 28 voices available. Synthesis
