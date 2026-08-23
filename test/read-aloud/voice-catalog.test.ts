@@ -150,3 +150,37 @@ describe('buildVoicesResponse', () => {
     expect(buildVoicesResponse([], 'v1')).toEqual({});
   });
 });
+
+describe('multilingualEverywhere', () => {
+  const entries = [
+    {
+      provider: 'openai' as const,
+      voices: [{ id: 'Emily.wav', label: 'Emily.wav', locale: MULTILINGUAL }],
+    },
+    {
+      provider: 'azure' as const,
+      voices: [
+        { id: 'zh-CN-XiaoxiaoMultilingualNeural', label: '晓晓 多语言', locale: MULTILINGUAL },
+        { id: 'en-US-AvaNeural', label: 'Ava', locale: 'en-US' },
+      ],
+    },
+  ];
+  const localesOf = (out: Record<string, any[]>) => out.local.map((c) => Object.keys(c.locales)[0]);
+
+  // `*` matches every language (isLanguageSupported) and creates no language
+  // entry of its own (getSupportedLanguages skips it): the voices appear
+  // under every language and the "Multiple languages" entry disappears
+  it('publishes multilingual voices under the * wildcard when enabled', () => {
+    expect(localesOf(buildVoicesResponse(entries, 'v1', true)).sort()).toEqual(['*', '*', 'en-US']);
+  });
+
+  it('keeps the mul locale by default', () => {
+    expect(localesOf(buildVoicesResponse(entries, 'v1')).sort()).toEqual(['en-US', 'mul', 'mul']);
+  });
+
+  it('never rewrites concrete locales', () => {
+    const out = buildVoicesResponse(entries, 'v1', true);
+    const ava = (out.local as any[]).find((c) => Object.values(c.voices).some((v: any) => v.label === 'TTS-Azure-Ava'));
+    expect(Object.keys(ava.locales)).toEqual(['en-US']);
+  });
+});

@@ -4,6 +4,7 @@ import type { VoicesMap } from '../../src/core/read-aloud-speed';
 import type { PrefsBackend } from '../../src/core/settings';
 import {
   EMPTY_MEMORY,
+  isMultilingualVoiceId,
   memoryFromVoices,
   noteVoicesChange,
   planSync,
@@ -49,10 +50,32 @@ describe('memoryFromVoices', () => {
     expect(memoryFromVoices(voices)).toEqual({ speed: 1.4, voice: { id: ISABELLA, lang: MULTILINGUAL } });
   });
 
-  it('does not guess a voice from a single-language entry', () => {
+  // With multilingualEverywhere, multilingual voices are chosen under
+  // concrete languages; the id is the only trace that the choice is global
+  it('falls back to a voice that is multilingual by its id', () => {
     const { [MULTILINGUAL]: _omit, ...withoutMul } = voices;
-    expect(memoryFromVoices(withoutMul)).toEqual({ speed: 1.4, voice: null });
+    expect(memoryFromVoices(withoutMul)).toEqual({
+      speed: 1.4,
+      voice: { id: 'azure::fr-FR-LucienMultilingualNeural', lang: 'zh' },
+    });
+  });
+
+  it('does not guess a voice from single-language entries', () => {
+    expect(memoryFromVoices({ en: { voice: AOEDE, speed: 1.4 }, zh: { voice: 'azure::zh-CN-XiaoxiaoNeural', speed: 1.2 } })).toEqual({
+      speed: 1.4,
+      voice: null,
+    });
     expect(memoryFromVoices({})).toEqual(EMPTY_MEMORY);
+  });
+});
+
+describe('isMultilingualVoiceId', () => {
+  it('every OpenAI-compatible voice is multilingual; Azure by name; local and foreign ids are not', () => {
+    expect(isMultilingualVoiceId('openai::Emily.wav')).toBe(true);
+    expect(isMultilingualVoiceId('azure::en-US-AvaMultilingualNeural')).toBe(true);
+    expect(isMultilingualVoiceId('azure::zh-CN-XiaoxiaoNeural')).toBe(false);
+    expect(isMultilingualVoiceId('local::af_bella')).toBe(false);
+    expect(isMultilingualVoiceId('bdd0dcc3-en-US')).toBe(false);
   });
 });
 
@@ -137,5 +160,23 @@ describe('planSync', () => {
   it('only ensures the speed when no voice is remembered', () => {
     expect(planSync('fr', voices, { speed: 1.4, voice: null })).toEqual({ lang: 'fr', voices: { ...voices, fr: { speed: 1.4 } } });
     expect(planSync('fr', voices, EMPTY_MEMORY)).toEqual({ lang: 'fr', voices: null });
+  });
+
+  // multilingualEverywhere publishes these voices under `*`, valid for the
+  // detected language itself: write into that entry, leave the language alone
+  it('with multilingualEverywhere writes the voice into the detected language instead of moving to mul', () => {
+    expect(planSync('zh', voices, multilingual, true)).toEqual({
+      lang: 'zh',
+      voices: { ...voices, zh: { ...voices.zh, speed: 1.4, voice: ISABELLA, tierVoices: { local: ISABELLA } } },
+    });
+    // A single-language voice is still left to Zotero's own per-language memory
+    expect(planSync('zh', voices, english, true)).toEqual({ lang: 'zh', voices: { ...voices, zh: { ...voices.zh, speed: 1.4 } } });
+  });
+
+  // A voice picked under a concrete language while multilingualEverywhere was
+  // on is still global after the toggle goes off — its id says so
+  it('treats a voice that is multilingual by id as global even when remembered under a concrete language', () => {
+    const learnedUnderEn: ReadAloudMemory = { speed: 1.4, voice: { id: ISABELLA, lang: 'en' } };
+    expect(planSync('zh', voices, learnedUnderEn)).toEqual({ lang: MULTILINGUAL, voices: null });
   });
 });

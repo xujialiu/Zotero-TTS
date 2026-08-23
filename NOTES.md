@@ -578,6 +578,33 @@ failed: …`, deliberately distinct from connection errors.
   Zotero renders silently) is still open; the probe only fixes visibility
   at test time.
 
+## Multilingual voices under every language (2026-08-23)
+
+`readAloud.multilingualEverywhere` (default off): the catalog publishes
+multilingual voices under Zotero's `*` wildcard instead of `mul`. Facts
+verified in the 10.0.1 bundle that shaped the design:
+
+- The language dropdown is **sorted by display label, hard-coded**
+  (`result.sort((a, b) => a.label.localeCompare(b.label))`, ~38148). The
+  catalog controls which languages exist, never their order — "put
+  Multiple languages first" is impossible from the plugin, which is what
+  triggered this feature instead.
+- `isLanguageSupported('*', lang)` is unconditionally true — including
+  `lang === 'mul'`. So `*` voices appear under every language **and**
+  under a "Multiple languages" entry if one exists; publishing a voice
+  under both `*` and `mul` shows it twice there, because
+  `buildVoiceOptions` does not deduplicate (~38447). Hence the switch is
+  either/or: on = `*` only (entry disappears), off = `mul` only.
+- `getSupportedLanguages` skips `*` (~39271): wildcard voices never create
+  a language entry of their own.
+
+Voice memory had to follow: with the `mul` lane gone, a global voice is
+recognized by its **id** (`isMultilingualVoiceId`: every OpenAI-compatible
+voice; Azure ones whose id says Multilingual) rather than by the language
+it was chosen under, and `planSync` writes it into the detected language's
+entry — a `*` voice is valid there, so `setLanguage('mul')` is not needed
+(and with the switch off, the old mul-lane behavior is unchanged).
+
 ## `src/modes/hijack/` → `src/read-aloud/` (2026-08-23)
 
 The `modes/` layer existed for a standalone-player mode that was deleted

@@ -25,8 +25,17 @@ export interface Settings {
    * text understood by core/shortcuts.ts ("Shift+Z"). Empty disables one.
    */
   shortcuts: Record<SpeedAction, string>;
-  /** Keep one Read Aloud voice and speed across documents (read-aloud/read-aloud-memory.ts). */
-  readAloud: { sameForAllDocuments: boolean };
+  readAloud: {
+    /** Keep one Read Aloud voice and speed across documents (read-aloud/read-aloud-memory.ts). */
+    sameForAllDocuments: boolean;
+    /**
+     * Publish multilingual voices under Zotero's `*` wildcard, so they are
+     * offered under every language instead of only under their own
+     * "Multiple languages" entry (which disappears — a wildcard voice never
+     * creates a language entry of its own).
+     */
+    multilingualEverywhere: boolean;
+  };
 }
 
 export interface PrefsBackend {
@@ -53,7 +62,7 @@ export const DEFAULTS: Settings = {
   prefetch: 3,
   cacheAudio: true,
   shortcuts: { speedReset: 'Shift+Z', speedDown: 'Shift+X', speedUp: 'Shift+C' },
-  readAloud: { sameForAllDocuments: true },
+  readAloud: { sameForAllDocuments: true, multilingualEverywhere: false },
 };
 
 function str(prefs: PrefsBackend, key: string, fallback: string): string {
@@ -104,6 +113,7 @@ export function loadSettings(prefs: PrefsBackend): Settings {
     },
     readAloud: {
       sameForAllDocuments: bool(prefs, 'readAloud.sameForAllDocuments', DEFAULTS.readAloud.sameForAllDocuments),
+      multilingualEverywhere: bool(prefs, 'readAloud.multilingualEverywhere', DEFAULTS.readAloud.multilingualEverywhere),
     },
   };
 }

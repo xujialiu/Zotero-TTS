@@ -25,7 +25,10 @@ join the **Local** tier of the Read Aloud popup, named `TTS-<Provider>-<voice>`
 - Voices that speak any language — Azure's *Multilingual* / *多语言* ones,
   every OpenAI voice — sit under their own entry in the popup's language
   dropdown, "Multiple languages" (多语种), rather than being repeated under
-  every language.
+  every language. Prefer them at hand? Tick **Offer multilingual voices
+  under every language** (Settings → TTS → Reading): they then appear in
+  every language's voice list, and the "Multiple languages" entry
+  disappears (nothing left that only lives there).
 
 Requires Zotero 10 (tested with 10.0.1-beta).
 

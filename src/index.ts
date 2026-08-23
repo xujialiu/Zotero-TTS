@@ -91,6 +91,7 @@ function startHijack(): void {
           readAloudMemory?.attach(reader);
         },
         listCatalog,
+        getMultilingualEverywhere: () => loadSettings(prefs).readAloud.multilingualEverywhere,
         // Built from the voice id, not from the enabled flags: Zotero
         // remembers the last-selected voice, which may belong to a provider
         // the user has since switched off, and a cached or in-flight segment
@@ -273,6 +274,7 @@ function startReadAloudMemory(): void {
   readAloudMemory = createReadAloudMemorySync({
     prefs,
     enabled: () => loadSettings(prefs).readAloud.sameForAllDocuments,
+    multilingualEverywhere: () => loadSettings(prefs).readAloud.multilingualEverywhere,
     registerObserver: (name, handler) => Zotero.Prefs.registerObserver(name, handler),
     unregisterObserver: (token) => Zotero.Prefs.unregisterObserver(token),
     readers: () => Zotero.Reader._readers ?? [],

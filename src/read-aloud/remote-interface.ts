@@ -50,6 +50,8 @@ export interface NativeRemoteInterface {
 
 export type RemoteInterfaceDeps = {
   listCatalog(): Promise<{ provider: ProviderId; name?: string; voices: VoiceInfo[] }[]>;
+  /** Publish multilingual voices under every language (`*`) instead of a "Multiple languages" entry. Read per call so the pane checkbox applies at once. */
+  getMultilingualEverywhere?(): boolean;
   getProvider(provider: ProviderId): TTSProvider;
   getSpeed(): number;
   cacheVersion(): string;
@@ -171,7 +173,7 @@ export function createRemoteInterface(deps: RemoteInterfaceDeps): RemoteInterfac
         timeoutMs,
         () => new SynthesisError('network', `Listing the plugin's voices took longer than ${seconds(timeoutMs)}`),
       );
-      return { voices: buildVoicesResponse(catalog, deps.cacheVersion()) };
+      return { voices: buildVoicesResponse(catalog, deps.cacheVersion(), deps.getMultilingualEverywhere?.() ?? false) };
     } catch (e) {
       log(e);
       return { error: toZoteroError(e) };

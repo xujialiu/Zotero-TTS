@@ -1,7 +1,7 @@
 import { MULTILINGUAL } from '../core/providers/types';
 import { resolveVoiceLang, type VoiceEntry, type VoicesMap } from '../core/read-aloud-speed';
 import { PREF_PREFIX, type PrefsBackend } from '../core/settings';
-import { PLUGIN_TIER } from './voice-catalog';
+import { decodeVoiceId, PLUGIN_TIER } from './voice-catalog';
 
 /**
  * Zotero remembers the Read Aloud voice and speed per document language
@@ -60,9 +60,12 @@ export function writeMemory(prefs: PrefsBackend, memory: ReadAloudMemory): void 
 /**
  * A starting point when nothing has been remembered yet: a speed from
  * Zotero's pref (one entry is as good as another — all came from the same
- * slider), and the `mul` entry's voice, since a voice chosen under "Multiple
- * languages" can only have been meant for every document. A single-language
- * entry says nothing about what the user wants elsewhere.
+ * slider), and a globally-usable voice — the `mul` entry's, since a voice
+ * chosen under "Multiple languages" can only have been meant for every
+ * document, else any entry holding a voice that is multilingual by its id
+ * (the only trace multilingualEverywhere leaves — such voices are chosen
+ * under concrete languages). A single-language voice says nothing about
+ * what the user wants elsewhere.
  */
 export function memoryFromVoices(voices: VoicesMap): ReadAloudMemory {
   let speed: number | null = null;
@@ -71,7 +74,12 @@ export function memoryFromVoices(voices: VoicesMap): ReadAloudMemory {
     if (speed !== null) break;
   }
   const multilingual = voiceOf(voices[MULTILINGUAL]);
-  return { speed, voice: multilingual ? { id: multilingual, lang: MULTILINGUAL } : null };
+  if (multilingual) return { speed, voice: { id: multilingual, lang: MULTILINGUAL } };
+  for (const [lang, entry] of Object.entries(voices)) {
+    const voice = voiceOf(entry);
+    if (voice && isMultilingualVoiceId(voice)) return { speed, voice: { id: voice, lang } };
+  }
+  return { speed, voice: null };
 }
 
 /**
@@ -108,25 +116,51 @@ export interface SyncPlan {
 }
 
 /**
+ * Whether this voice id can read any language. With multilingualEverywhere
+ * the catalog offers such voices under every language, so they are chosen
+ * under `en` or `zh` — the `lang === 'mul'` marker never appears — and this
+ * is the only way to tell a globally-usable choice from a single-language
+ * one. Every OpenAI(-compatible) voice is multilingual by construction;
+ * Azure's say so in their id ("en-US-AvaMultilingualNeural"); the local
+ * engines' voices all have concrete locales.
+ */
+export function isMultilingualVoiceId(id: string): boolean {
+  const decoded = decodeVoiceId(id);
+  if (!decoded) return false;
+  if (decoded.provider === 'openai') return true;
+  if (decoded.provider === 'azure') return /multilingual/i.test(decoded.voiceId);
+  return false;
+}
+
+/**
  * What to put in place before Zotero's `_syncPersistedVoicesToManager` runs
  * for a document whose language the manager has just learned. Everything
  * goes through Zotero's own pref and its own resolution, so its popup,
- * fallbacks and persistence keep working as they are: the manager is moved
- * to `mul` when the remembered voice is multilingual, and the entry Zotero
- * will read gets the remembered speed (and, for `mul`, the remembered
- * voice, should the entry have drifted or been lost).
+ * fallbacks and persistence keep working as they are. A remembered voice is
+ * applied to every document when it is globally usable — chosen under
+ * "Multiple languages", or multilingual by its id. Where it is written
+ * depends on how the catalog publishes such voices: under `mul` the manager
+ * must be moved there first (Zotero drops voices whose language does not
+ * match the manager's); under the `*` wildcard (multilingualEverywhere) the
+ * voice is valid for the detected language itself, so the entry Zotero is
+ * about to read gets it and the language is left alone.
  */
-export function planSync(managerLang: string | null, voices: VoicesMap, memory: ReadAloudMemory): SyncPlan {
+export function planSync(
+  managerLang: string | null,
+  voices: VoicesMap,
+  memory: ReadAloudMemory,
+  multilingualEverywhere = false,
+): SyncPlan {
   if (!managerLang) return { lang: null, voices: null };
-  const multilingual = memory.voice?.lang === MULTILINGUAL ? memory.voice : null;
-  const lang = multilingual ? MULTILINGUAL : managerLang;
+  const global = memory.voice && (memory.voice.lang === MULTILINGUAL || isMultilingualVoiceId(memory.voice.id)) ? memory.voice : null;
+  const lang = global && !multilingualEverywhere ? MULTILINGUAL : managerLang;
   const key = resolveVoiceLang(lang, Object.keys(voices)) ?? lang;
   const entry = voices[key] ?? {};
   let next = entry;
   if (memory.speed !== null && speedOf(entry) !== memory.speed) next = { ...next, speed: memory.speed };
-  if (multilingual && voiceOf(entry) !== multilingual.id) {
+  if (global && voiceOf(entry) !== global.id) {
     const tierVoices = entry.tierVoices && typeof entry.tierVoices === 'object' ? (entry.tierVoices as Record<string, unknown>) : {};
-    next = { ...next, voice: multilingual.id, tierVoices: { ...tierVoices, [PLUGIN_TIER]: multilingual.id } };
+    next = { ...next, voice: global.id, tierVoices: { ...tierVoices, [PLUGIN_TIER]: global.id } };
   }
   return { lang, voices: next === entry ? null : { ...voices, [key]: next } };
 }

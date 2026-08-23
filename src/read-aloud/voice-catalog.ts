@@ -1,4 +1,4 @@
-import type { ProviderId, VoiceInfo } from '../core/providers/types';
+import { MULTILINGUAL, type ProviderId, type VoiceInfo } from '../core/providers/types';
 
 const SEPARATOR = '::';
 const PROVIDERS: readonly ProviderId[] = ['openai', 'azure', 'local'];
@@ -77,6 +77,13 @@ export function compareVoiceLabels(a: string, b: string): number {
 export function buildVoicesResponse(
   entries: { provider: ProviderId; name?: string; voices: VoiceInfo[] }[],
   cacheVersion: string,
+  // With multilingualEverywhere, multilingual voices go out under Zotero's
+  // `*` wildcard: isLanguageSupported matches `*` against every language, so
+  // they are offered everywhere, and getSupportedLanguages skips `*`, so the
+  // "Multiple languages" dropdown entry disappears. (Keeping `mul` alongside
+  // would duplicate every such voice under that entry — `*` matches `mul`
+  // too, and buildVoiceOptions does not deduplicate.)
+  multilingualEverywhere = false,
 ): Record<string, unknown[]> {
   const all: { id: string; label: string; locale: string }[] = [];
   for (const entry of entries) {
@@ -84,7 +91,7 @@ export function buildVoicesResponse(
       all.push({
         id: encodeVoiceId(entry.provider, voice.id),
         label: pluginVoiceLabel(entry.provider, voice.label, entry.name),
-        locale: voice.locale,
+        locale: voice.locale === MULTILINGUAL && multilingualEverywhere ? '*' : voice.locale,
       });
     }
   }
