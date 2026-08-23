@@ -5,9 +5,11 @@ import { createZoteroPrefs, loadSettings, PROVIDER_IDS } from '../core/settings'
 import { getChromeWebSocket, newRequestId } from '../core/providers/azure';
 import { SynthesisError } from '../core/providers/errors';
 import { withTimeout } from '../core/timeout';
+import { createWebDAVClient } from '../core/webdav';
 import { initShortcutRows } from './shortcut-rows';
 import { initBackupRows, type BackupFileIO } from './backup-rows';
 import { initServerPresetRows } from './server-preset-rows';
+import { initWebDAVRows } from './webdav-rows';
 
 const XHTML = 'http://www.w3.org/1999/xhtml';
 
@@ -154,18 +156,20 @@ export function onPaneLoad(doc: Document): void {
   const presetRows = initServerPresetRows(doc, prefs);
 
   const win = doc.defaultView;
-  initBackupRows(doc, {
-    ...backupFileIO(win),
+  const restoreDeps = {
     prefs,
     pluginVersion,
     now: () => new Date().toISOString(),
-    confirm: (message) => Services.prompt.confirm(win, 'Zotero TTS', message),
+    confirm: (message: string): boolean => Services.prompt.confirm(win, 'Zotero TTS', message),
     // Bound inputs redraw themselves (Zotero observes every bound pref); these rows do not
     onRestored: () => {
       shortcutRows.refresh();
       presetRows.refresh();
     },
-  });
+  };
+  initBackupRows(doc, { ...backupFileIO(win), ...restoreDeps });
+  // The sandbox's own fetch: Basic auth needs nothing from a window
+  initWebDAVRows(doc, { ...restoreDeps, createClient: (cfg) => createWebDAVClient(cfg, { fetch }) });
 
   doc.getElementById('ztts-local-enable')?.setAttribute('label', `Enable ${engineLabel(loadSettings(prefs).local.engine)}`);
 

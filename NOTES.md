@@ -711,3 +711,40 @@ re-speak-on-speed-change assumes stretching.
 Pitfall to keep: a `preference=`-bound `<html:input type="number">` cannot
 hold a fraction on an int pref. Declare such a pref as a string and parse
 it, or store an integer (a percentage).
+
+## WebDAV backup (added 2026-08-23)
+
+README TODO: the settings backup should travel between machines without
+carrying the JSON file by hand. Built as three bound fields in the Backup
+group (URL, username, password — the password is a plain pref, like the
+API keys) and three buttons: Upload, Download, Test. It is the same file
+the Backup/Restore buttons write and read (`zotero-tts-settings.json` in
+the folder), with the same validation and confirmation on the way back in
+(`parseBackup` / `applyBackup`).
+
+- `core/webdav.ts`: fetch with Basic auth. PROPFIND `Depth: 0` on the
+  folder for Test; PUT for Upload, and when the server answers 404/409
+  (missing parent — RFC 4918 says 409, some servers 404) MKCOL the folder
+  and PUT again, a 405 from MKCOL meaning the folder exists after all; GET
+  for Download. 401/403 → `auth`, 404 → `not-found`, any other status →
+  `http` with the code; a throwing fetch or the 15 s timeout → `network`.
+  `cache: 'no-store'` on every request so a download never comes from the
+  HTTP cache.
+- Sandbox: `btoa`, `atob`, `TextEncoder`, `TextDecoder`, `URL`,
+  `DOMParser`, `crypto` and `XMLHttpRequest` are in the plugin sandbox's
+  `wantGlobalProperties` (xpcom/plugins.js), so Basic auth needs nothing
+  from a window. Still no AbortController: a stalled request is reported
+  after the timeout, not cancelled.
+- Manual, not sync — backup semantics, like the file buttons. Possible
+  follow-ups: an "upload after every change" checkbox; reusing Zotero's own
+  WebDAV account (its password sits in the login manager, not in a pref).
+- The uploaded file contains the WebDAV password itself, since every
+  setting is in the backup. Harmless: whoever can read the folder holds
+  the credentials already, and restoring writes the same values back.
+- Digest-only servers are not supported (fetch does not negotiate Digest
+  and the plugin sends Basic up front); every common host takes Basic over
+  HTTPS.
+- Verified against a local wsgidav 4.3.5 (Basic auth) with the bundled
+  client under Node: folder missing → `not-found`; first upload → PUT 409,
+  MKCOL, PUT 201; PROPFIND 207; download round-trips; overwrite works; a
+  wrong or missing password → `auth` (401); a closed port → `network`.

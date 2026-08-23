@@ -20,8 +20,14 @@ join the **Local** tier of the Read Aloud popup, named `TTS-<Provider>-<voice>`
   can read). Switch it off under Reading if you want Zotero's per-language
   behaviour back.
 - Backup and restore: the Backup group at the bottom of the settings pane
-  writes every setting to a JSON file and reads one back. The file includes
-  your API keys, so keep it private.
+  writes every setting to a JSON file and reads one back — a file on disk,
+  or the same file in a WebDAV folder (Nextcloud, Synology, Jianguoyun, …)
+  so the settings follow you between machines: *Upload to WebDAV* on one,
+  *Download from WebDAV* on the other. The WebDAV URL is a folder, created
+  on the first upload — Nextcloud:
+  `https://cloud.example.com/remote.php/dav/files/<user>/zotero-tts/`,
+  Jianguoyun: `https://dav.jianguoyun.com/dav/zotero-tts/` with an app
+  password. The file includes your API keys, so keep it private.
 - Voices that speak any language — Azure's *Multilingual* / *多语言* ones,
   every OpenAI voice — sit under their own entry in the popup's language
   dropdown, "Multiple languages" (多语种), rather than being repeated under
@@ -108,6 +114,11 @@ Zotero plugin setting.
   OpenAI-compatible server: the server failed on one segment. Check its log;
   very short segments (section numbers) are replaced by a pause, anything
   longer is reported as is.
+
+## TODO
+
+- More Read Aloud shortcuts: jump to the next / previous sentence and to the
+  next / previous paragraph.
 
 ## Development
 

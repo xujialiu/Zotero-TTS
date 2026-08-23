@@ -4,7 +4,7 @@ Zotero 10 plugin that adds voices to Zotero's built-in **Read Aloud**: OpenAI
 (or any OpenAI-compatible server), Azure Speech, and a local Kokoro-FastAPI.
 Zotero's own Standard/Premium voices keep working; ours join the Local tier as
 `TTS-<Provider>-<voice>`. Also: speed shortcuts (Shift+Z/X/C), one voice and
-speed across documents, settings backup/restore.
+speed across documents, settings backup/restore (file or WebDAV).
 
 - `README.md` — user-facing docs (install, providers, troubleshooting);
   `tutorials/` — Kokoro-FastAPI and Chatterbox-TTS-Server in Docker, remote
@@ -90,12 +90,13 @@ Platform notes:
 ```
 src/core/           pure logic, no Zotero globals: settings (DEFAULTS ↔ addon/prefs.js,
                     pinned by test/prefs-defaults.test.ts), providers/{openai,azure,local/kokoro},
-                    shortcuts, read-aloud-speed, settings-backup, timeout
+                    shortcuts, read-aloud-speed, settings-backup, webdav, timeout
 src/read-aloud/     the Read Aloud integration: index (intercepts Zotero.Reader._readers and
                     overrides _getReadAloudRemoteInterface per reader), remote-interface
                     (composite of Zotero's native interface + our voices), voice-catalog,
                     catalog, read-aloud-memory (+ memory-sync: one voice/speed across documents)
-src/ui/             prefs pane (prefs-pane, shortcut-rows, backup-rows, shortcut-recorder),
+src/ui/             prefs pane (prefs-pane, shortcut-rows, backup-rows, webdav-rows,
+                    server-preset-rows, shortcut-recorder),
                     speed-shortcuts, speed-toast
 src/index.ts        bootstrap wiring; with core/settings.createZoteroPrefs and ui/prefs-pane the
                     only code that touches Zotero globals (declared in src/globals.d.ts)
@@ -122,7 +123,9 @@ test/               mirrors src/; vitest
 
 - **Sandbox whitelist**: the plugin scope has no `WebSocket`, `AbortController`
   or `caches`; take them from `reader._window`. It does get `Zotero`,
-  `Services`, `ChromeUtils`, `IOUtils`, `PathUtils`, `setTimeout`, `fetch`.
+  `Services`, `ChromeUtils`, `IOUtils`, `PathUtils`, `setTimeout`, `fetch`,
+  `atob`/`btoa`, `TextEncoder`/`TextDecoder`, `URL`, `DOMParser`, `crypto`,
+  `XMLHttpRequest` (the list: `wantGlobalProperties` in `xpcom/plugins.js`).
 - **Compartments**: the reader iframe may not call a bare sandbox function
   (export it with `Components.utils.exportFunction`) nor read a sandbox object
   ("Permission denied to access property …"). Hand reader code primitives

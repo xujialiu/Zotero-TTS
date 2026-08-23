@@ -19,11 +19,17 @@ const everyKey = Object.keys(flattenSettings(DEFAULTS)).sort();
 
 describe('createBackup', () => {
   it('includes every setting, API keys and all, under its pref name', () => {
-    const prefs = fakePrefs({ [PREF_PREFIX + 'openai.apiKey']: 'sk-test', [PREF_PREFIX + 'shortcuts.speedUp']: 'Ctrl+K' });
+    const prefs = fakePrefs({
+      [PREF_PREFIX + 'openai.apiKey']: 'sk-test',
+      [PREF_PREFIX + 'shortcuts.speedUp']: 'Ctrl+K',
+      [PREF_PREFIX + 'webdav.password']: 'dav-secret',
+    });
     const backup = createBackup(prefs, { pluginVersion: '0.1.0', exportedAt: '2026-08-22T00:00:00Z' });
     expect(backup).toMatchObject({ format: BACKUP_FORMAT, version: 1, pluginVersion: '0.1.0', exportedAt: '2026-08-22T00:00:00Z' });
     expect(Object.keys(backup.settings).sort()).toEqual(everyKey);
     expect(backup.settings['openai.apiKey']).toBe('sk-test');
+    // The WebDAV password travels with the file too — whoever reads the folder holds it already
+    expect(backup.settings['webdav.password']).toBe('dav-secret');
     expect(backup.settings['shortcuts.speedUp']).toBe('Ctrl+K');
     expect(backup.settings['readAloud.sameForAllDocuments']).toBe(true);
   });

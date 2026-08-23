@@ -143,5 +143,24 @@
       <button id="ztts-restore" label="Restore settings…"/>
     </hbox>
     <description id="ztts-backup-message"/>
+    <!-- The same file, kept in a WebDAV folder so it travels between machines (webdav-rows.ts) -->
+    <hbox align="center">
+      <label value="WebDAV URL" style="width: 8em"/>
+      <html:input type="text" placeholder="https://dav.example.com/zotero-tts/" preference="extensions.zotero.zotero-tts.webdav.url"/>
+    </hbox>
+    <hbox align="center">
+      <label value="Username" style="width: 8em"/>
+      <html:input type="text" preference="extensions.zotero.zotero-tts.webdav.username"/>
+    </hbox>
+    <hbox align="center">
+      <label value="Password" style="width: 8em"/>
+      <html:input type="password" preference="extensions.zotero.zotero-tts.webdav.password"/>
+    </hbox>
+    <hbox align="center">
+      <button id="ztts-webdav-upload" label="Upload to WebDAV"/>
+      <button id="ztts-webdav-download" label="Download from WebDAV…"/>
+      <button id="ztts-webdav-test" label="Test connection"/>
+    </hbox>
+    <description id="ztts-webdav-message"/>
   </groupbox>
 </vbox>
