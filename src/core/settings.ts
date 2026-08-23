@@ -13,9 +13,14 @@ export interface Settings {
     voice: string;
     /** Comma-separated voice ids to offer; empty means "ask the server, else OpenAI's defaults". */
     voices: string;
+    /** Extra request headers, `Name: value` pairs separated by `;` or newlines (core/headers.ts). */
+    headers: string;
+    /** Which server the section talks to (core/server-presets.ts); empty means "guess from the address". */
+    server: string;
   };
   azure: { enabled: boolean; apiKey: string; region: string; voice: string };
-  local: { enabled: boolean; engine: string; baseURL: string; voice: string };
+  /** `headers`: extra request headers for a gateway in front of the server, same format as openai.headers. */
+  local: { enabled: boolean; engine: string; baseURL: string; voice: string; headers: string };
   speed: number;
   prefetch: number;
   /** Keep synthesized audio in the in-memory LRU (core/memory-cache.ts). */
@@ -55,9 +60,11 @@ export const DEFAULTS: Settings = {
     model: 'gpt-4o-mini-tts',
     voice: 'alloy',
     voices: '',
+    headers: '',
+    server: '',
   },
   azure: { enabled: false, apiKey: '', region: 'eastasia', voice: 'zh-CN-XiaoxiaoNeural' },
-  local: { enabled: false, engine: 'kokoro', baseURL: 'http://localhost:8880', voice: 'af_bella' },
+  local: { enabled: false, engine: 'kokoro', baseURL: 'http://localhost:8880', voice: 'af_bella', headers: '' },
   speed: 1,
   prefetch: 3,
   cacheAudio: true,
@@ -90,6 +97,8 @@ export function loadSettings(prefs: PrefsBackend): Settings {
       model: str(prefs, 'openai.model', DEFAULTS.openai.model),
       voice: str(prefs, 'openai.voice', DEFAULTS.openai.voice),
       voices: str(prefs, 'openai.voices', DEFAULTS.openai.voices),
+      headers: str(prefs, 'openai.headers', DEFAULTS.openai.headers),
+      server: str(prefs, 'openai.server', DEFAULTS.openai.server),
     },
     azure: {
       enabled: bool(prefs, 'azure.enabled', DEFAULTS.azure.enabled),
@@ -102,6 +111,7 @@ export function loadSettings(prefs: PrefsBackend): Settings {
       engine: str(prefs, 'local.engine', DEFAULTS.local.engine),
       baseURL: str(prefs, 'local.baseURL', DEFAULTS.local.baseURL),
       voice: str(prefs, 'local.voice', DEFAULTS.local.voice),
+      headers: str(prefs, 'local.headers', DEFAULTS.local.headers),
     },
     speed: num(prefs, 'speed', DEFAULTS.speed, 0.5, 3),
     prefetch: num(prefs, 'prefetch', DEFAULTS.prefetch, 1, 10),

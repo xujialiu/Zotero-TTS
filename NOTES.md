@@ -613,3 +613,68 @@ mode there will ever be, the directory is now named for what it integrates
 (Zotero's Read Aloud), not how. `installHijack` keeps its name — the
 mechanism did not change. Paths in older entries above are left as
 written; they are history.
+
+## Chatterbox-TTS-Server and tiny segments (added 2026-08-23)
+
+Chatterbox-TTS-Server (devnen) runs in Docker on the Windows machine
+(`~/Works/Chatterbox-TTS-Server`, CUDA 12.1 compose, port 8004; the upstream
+compose ships a placeholder `HF_TOKEN`, blanked in a local
+`docker-compose.override.yml` or Hugging Face refuses the download). The
+plugin reaches it through the OpenAI provider: `/v1/audio/voices` →
+`{ voices: ["Abigail.wav", …] }`, `voice` is the file name, `model` ignored,
+`/v1/models` is 404 (handled since af79d6a), no word timestamps. Its API-key
+field must be non-empty because the provider throws `no-key` on an empty key.
+
+Incident: playback stopped with "An unknown error occurred" after a few
+sentences. Server log: `OpenAI speech: processing 1 chunk(s) for input of
+2 chars` → `IndexError: max(): Expected reduction dim 1 to have non-zero
+size` in `chatterbox/models/t3/inference/alignment_stream_analyzer.py`
+(`A[self.completed_at:, :-5].max(dim=1)` on an empty slice) → HTTP 500.
+Probed: "1.", "I.", "A", "Ok", "No" fail; "2)", "Hi.", "3.1", "Yes." pass —
+it is the token count, not the character count. Zotero segments section
+numbers into their own sentences, so every numbered heading killed playback.
+Fix (`remote-interface.ts`): a failing segment of ≤ 8 characters whose error
+is the server's own (`unknown`/`decode-failed`, never key/network/quota)
+becomes a 400 ms WAV of silence (`core/silence.ts`), with the whole-segment
+timestamp, logged via debug, not cached. Longer failures still surface.
+
+## Extra headers, keyless servers (added 2026-08-23)
+
+For Chatterbox behind a Cloudflare Tunnel + Access service token the plugin
+must send `CF-Access-Client-Id` / `CF-Access-Client-Secret`; `openai.headers`
+(`Name: value; ...`, parsed by `core/headers.ts`) goes out with every OpenAI
+provider request before Authorization. At the same time the `no-key` guard
+now applies only when the base URL's host is api.openai.com: compatible
+servers (Kokoro-FastAPI, Chatterbox) have no key, and a placeholder key was
+the only way to use them before. A server that does want a key answers 401,
+which the pane already reports as a rejected key.
+
+Tooling note: the Bash tool's heredoc transport has now mangled two scripts
+(one with `\\.` regex escapes, one with ellipsis characters); scripts with
+either go through the Write tool and `python file.py`.
+
+## Server presets in the OpenAI section (added 2026-08-23)
+
+The user first proposed an "official / compatible" switch that disables key,
+model and voices for compatible servers. Rejected: hosted compatible services
+(Groq, SiliconFlow, LiteLLM, DeepInfra) need key and model, Speaches needs
+model, servers without a voice list need voices. Built instead
+(`core/server-presets.ts`, `ui/server-preset-rows.ts`): a Server dropdown
+with OpenAI / Chatterbox-TTS-Server / Other. A preset fills its defaults once
+on switch (never on load), greys out only the fields the server provably
+ignores, and `applyPreset` blanks those fields in the factory so leftovers
+from another server are not sent. `other` disables nothing. The stored pref
+`openai.server` is empty for settings saved before the preset existed; then
+the preset is guessed from the address (api.openai.com -> openai, else
+other). The menulist is not bound with `preference=` because switching has
+side effects that must not run on load.
+
+## Extra headers for the Local engine (added 2026-08-23)
+
+Same field as the OpenAI section's, so Kokoro behind a Cloudflare Access
+service token keeps its word timestamps (`/dev/captioned_speech` through the
+Local provider) instead of being routed through the OpenAI section. The
+Kokoro adapter merges `deps.headers` under the request's own headers, and a
+401/403 is now `auth` rather than `unknown`; a 401/403 on
+`/dev/captioned_speech` also skips the fallback to `/v1/audio/speech`, which
+sits behind the same gateway.

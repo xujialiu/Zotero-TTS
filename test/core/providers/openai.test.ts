@@ -250,3 +250,38 @@ describe('listModels on servers without a model list', () => {
     await expect(provider(fetchImpl).listModels!()).rejects.toMatchObject({ kind: 'auth' });
   });
 });
+
+describe('extra headers and keyless servers', () => {
+  it('sends the configured headers with every request, alongside Authorization', async () => {
+    const fetchImpl = vi.fn(async (url: string) =>
+      url.endsWith('/v1/audio/voices')
+        ? new Response(JSON.stringify({ voices: ['Emily.wav'] }), { status: 200 })
+        : new Response(new Blob(['audio']), { status: 200 }),
+    );
+    const headers = { 'CF-Access-Client-Id': 'id', 'CF-Access-Client-Secret': 'secret' };
+    const p = createOpenAIProvider({ ...cfg, headers }, { fetch: fetchImpl as unknown as typeof fetch });
+    await p.listVoices();
+    await p.synthesize('Hello', opts);
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+    for (const [, init] of (fetchImpl as any).mock.calls) {
+      expect(init.headers).toMatchObject({ ...headers, Authorization: 'Bearer sk-test' });
+    }
+  });
+
+  it('lets a compatible server go without a key, sending no Authorization at all', async () => {
+    const fetchImpl = vi.fn(async () => new Response(new Blob(['audio']), { status: 200 }));
+    const p = provider(fetchImpl, { apiKey: '', baseURL: 'http://localhost:8004' });
+    await p.synthesize('Hello', opts);
+    expect((fetchImpl as any).mock.calls[0][1].headers).not.toHaveProperty('Authorization');
+    await p.checkSynthesis!('Emily.wav');
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+  });
+
+  it('still insists on a key for api.openai.com itself', async () => {
+    const fetchImpl = vi.fn();
+    await expect(provider(fetchImpl, { apiKey: '', baseURL: 'https://api.openai.com/v1' }).synthesize('Hi', opts)).rejects.toMatchObject({
+      kind: 'no-key',
+    });
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+});

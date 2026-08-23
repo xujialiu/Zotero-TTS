@@ -1,5 +1,5 @@
 import type { TTSProvider } from '../types';
-import { kokoroAdapter } from './kokoro';
+import { kokoroAdapter, type LocalEngineDeps } from './kokoro';
 
 export type LocalEngineAdapter = {
   id: string;
@@ -8,7 +8,7 @@ export type LocalEngineAdapter = {
   voiceName: string;
   defaultBaseURL: string;
   capabilities: { wordTimestamps: boolean };
-  create(baseURL: string, deps: { fetch: typeof fetch }): TTSProvider;
+  create(baseURL: string, deps: LocalEngineDeps): TTSProvider;
 };
 
 /**

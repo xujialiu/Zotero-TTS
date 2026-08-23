@@ -51,103 +51,63 @@ Provider notes:
 
 | Provider | What you need | Highlighting |
 |---|---|---|
-| OpenAI, or any OpenAI-compatible server | API key, base URL, model name | sentence |
+| OpenAI, or any OpenAI-compatible server | Base URL, model name; an API key where the server wants one | sentence |
 | Azure | Speech resource key + region (e.g. `eastasia`) | word |
-| Local (Kokoro) | A Kokoro-FastAPI server, see below | word |
+| Local (Kokoro) | A Kokoro-FastAPI server — [tutorial](tutorials/kokoro-fastapi.md) | word |
 
-The OpenAI section works with any server that speaks OpenAI's audio API:
+The OpenAI section works with any server that speaks OpenAI's audio API.
+Its **Server** dropdown says which one: *OpenAI*, *Chatterbox-TTS-Server*,
+or *Other OpenAI-compatible server*. Picking one fills in the address and
+model and greys out the fields that server provably ignores (Chatterbox: key,
+model, voices); *Other* keeps every field editable. Then
 set **Base URL** to the server (with or without `/v1`), type the **Model**
 name it expects (**Test connection** fetches the server's model list and
 offers it as suggestions, and says whether your model is on it), and leave
 **Voices** empty to take the voices the server publishes on
 `/v1/audio/voices` — or list voice ids yourself, comma-separated, for servers
 that publish none. OpenAI's own voices are used when neither is available.
-For Kokoro prefer the Local section: that is what gets you word-level
-highlighting.
+The API key may stay empty for servers that have none; only api.openai.com
+insists on one. For Kokoro prefer the Local section: that is what gets you
+word-level highlighting.
+
+[Chatterbox-TTS-Server](https://github.com/devnen/Chatterbox-TTS-Server) is
+one such server, with much more natural voices than Kokoro and voice cloning,
+at the price of sentence-level highlighting and a real GPU —
+[tutorial](tutorials/chatterbox-tts-server.md).
+
+Behind a gateway — a Cloudflare Tunnel protected by an Access service token,
+a reverse proxy with its own header — put the gateway's headers in the
+**Extra headers** field of the OpenAI section, or of the Local engine
+section for Kokoro, as `Name: value` pairs separated by `;`, for example
+`CF-Access-Client-Id: …; CF-Access-Client-Secret: …`. They go out with every
+request, before the Authorization header —
+[tutorial](tutorials/remote-access-cloudflare.md).
 
 API keys are stored in Zotero's preferences in plain text, like every other
 Zotero plugin setting.
 
-## Local engine: Kokoro-FastAPI
+## Tutorials
 
-Kokoro runs entirely on your machine. The plugin talks to it at
-`http://localhost:8880` (the **Address** field under *Local engine*). The
-official Docker image bundles the model, CUDA and espeak-ng, so with Docker
-installed it is one command.
+- [Kokoro-FastAPI in Docker](tutorials/kokoro-fastapi.md) — the local engine
+  with word-level highlighting; NVIDIA GPU, CPU, or macOS.
+- [Chatterbox-TTS-Server in Docker](tutorials/chatterbox-tts-server.md) —
+  expressive voices and voice cloning through the OpenAI section; NVIDIA GPU
+  only (CPU and macOS are too slow to read with).
+- [Reaching your TTS server from anywhere with Cloudflare](tutorials/remote-access-cloudflare.md)
+  — a Cloudflare Tunnel plus an Access service token, and the plugin's
+  *Extra headers* field.
 
-Prerequisites: Docker (Docker Desktop on Windows/macOS, Docker Engine on
-Linux). For an NVIDIA GPU, a current driver — on Linux also the NVIDIA
-Container Toolkit; on Windows nothing else. Check the GPU is visible to
-containers with `docker run --rm --gpus all ubuntu:22.04 nvidia-smi -L`.
+## Troubleshooting
 
-### Windows / Linux with an NVIDIA GPU
-
-GeForce 900-series up to RTX 40-series (CUDA 12.6 build):
-
-```sh
-docker run -d --name kokoro --restart unless-stopped --gpus all -p 8880:8880 ghcr.io/remsky/kokoro-fastapi-gpu:latest
-```
-
-RTX 50-series (Blackwell) needs the CUDA 12.8 build:
-
-```sh
-docker run -d --name kokoro --restart unless-stopped --gpus all -p 8880:8880 ghcr.io/remsky/kokoro-fastapi-gpu:latest-cu128
-```
-
-### Without an NVIDIA GPU (any platform)
-
-```sh
-docker run -d --name kokoro --restart unless-stopped -p 8880:8880 ghcr.io/remsky/kokoro-fastapi-cpu:latest
-```
-
-Slower to start each sentence, but fine for reading.
-
-### macOS
-
-Docker on a Mac cannot use the GPU: the GPU image is CUDA-only and Apple's
-Metal is not exposed to Linux containers. Two options:
-
-- **Docker, CPU** — the command above; the CPU image is built for both
-  Intel and Apple Silicon.
-- **Native, Apple GPU (Metal / MPS)** — run Kokoro-FastAPI directly with
-  [uv](https://docs.astral.sh/uv/) instead of Docker; the upstream script
-  sets `DEVICE_TYPE=mps`, installs the dependencies, downloads the model and
-  starts the server on port 8880:
-
-  ```sh
-  git clone https://github.com/remsky/Kokoro-FastAPI.git
-  cd Kokoro-FastAPI
-  ./start-gpu_mac.sh
-  ```
-
-  Keep that terminal open while reading; rerun the script to start it again.
-
-What the Docker flags do: `-d` runs it in the background, `--restart
-unless-stopped` brings it back whenever Docker starts, `--gpus all` hands the
-GPU to the container, `-p 8880:8880` exposes the server on `localhost:8880`.
-The first run downloads a few GB; later starts take seconds.
-
-### Check it
-
-In Zotero, *Settings → TTS → Local engine*, tick **Enable Kokoro-FastAPI**
-and press **Test connection**; it should say `Connected. 68 voices
-available.` Then open Read Aloud, choose the Local tier, and pick a
-`TTS-Kokoro-…` voice (`af_bella` and `af_heart` are good English voices;
-`zf_xiaobei` / `zm_yunxi` speak Chinese).
-
-### Troubleshooting
-
-- **"Local TTS server is not running at that address."** Docker is not
-  running, or the container is stopped — `docker ps` should list `kokoro`.
-  Start it with `docker start kokoro`.
-- **`port is already allocated`**: something else listens on 8880. Either stop
-  it, or run the container with `-p 8881:8880` and set the plugin's Address to
-  `http://localhost:8881`.
-- **GPU not found** (`could not select device driver "" with capabilities:
-  [[gpu]]`): update the NVIDIA driver (Linux: install the NVIDIA Container
-  Toolkit) and retry the `nvidia-smi -L` check above; or use the CPU image.
+- **"Local TTS server is not running at that address."** The server is down
+  or listening elsewhere — `docker ps` should list it; see its tutorial.
 - **Voices play but nothing is highlighted word by word**: set *Settings →
-  General → Read Aloud → Highlight current* to **Word**.
+  General → Read Aloud → Highlight current* to **Word** — and use a voice
+  that reports word timings (Azure, Kokoro).
+- **"An unknown error occurred" part-way through a document** with an
+  OpenAI-compatible server: the server failed on one segment. Check its log;
+  very short segments (section numbers) are replaced by a pause, anything
+  longer is reported as is.
 
 ## Development
 

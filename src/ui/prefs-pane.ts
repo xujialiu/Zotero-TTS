@@ -7,6 +7,7 @@ import { SynthesisError } from '../core/providers/errors';
 import { withTimeout } from '../core/timeout';
 import { initShortcutRows } from './shortcut-rows';
 import { initBackupRows, type BackupFileIO } from './backup-rows';
+import { initServerPresetRows } from './server-preset-rows';
 
 const XHTML = 'http://www.w3.org/1999/xhtml';
 
@@ -150,6 +151,7 @@ function backupFileIO(win: any): BackupFileIO {
 export function onPaneLoad(doc: Document): void {
   const prefs = createZoteroPrefs();
   const shortcutRows = initShortcutRows(doc, prefs, Zotero.isMac ? 'Cmd' : Zotero.isWin ? 'Win' : 'Super');
+  const presetRows = initServerPresetRows(doc, prefs);
 
   const win = doc.defaultView;
   initBackupRows(doc, {
@@ -158,8 +160,11 @@ export function onPaneLoad(doc: Document): void {
     pluginVersion,
     now: () => new Date().toISOString(),
     confirm: (message) => Services.prompt.confirm(win, 'Zotero TTS', message),
-    // Bound inputs redraw themselves (Zotero observes every bound pref); the shortcut rows do not
-    onRestored: () => shortcutRows.refresh(),
+    // Bound inputs redraw themselves (Zotero observes every bound pref); these rows do not
+    onRestored: () => {
+      shortcutRows.refresh();
+      presetRows.refresh();
+    },
   });
 
   doc.getElementById('ztts-local-enable')?.setAttribute('label', `Enable ${engineLabel(loadSettings(prefs).local.engine)}`);

@@ -47,13 +47,33 @@ function toTimedWords(raw: CaptionedResponse['timestamps']): TimedWord[] {
   return words;
 }
 
-function createKokoroProvider(rawBaseURL: string, deps: { fetch: typeof fetch }): TTSProvider {
+export type LocalEngineDeps = {
+  fetch: typeof fetch;
+  /**
+   * Sent with every request. For a gateway in front of the server — a
+   * Cloudflare Access service token (`CF-Access-Client-Id` /
+   * `CF-Access-Client-Secret`), a reverse proxy with its own header — so
+   * that the Local engine, and with it word-level highlighting, works from
+   * another machine.
+   */
+  headers?: Record<string, string>;
+};
+
+function createKokoroProvider(rawBaseURL: string, deps: LocalEngineDeps): TTSProvider {
   // "http://localhost:8880/v1/" is what the OpenAI SDK docs teach; the paths
   // below already start with /v1 or /dev
   const baseURL = normalizeBaseURL(rawBaseURL);
+  // A gateway answers 401/403 when the credentials are missing or wrong;
+  // that is a different problem from the server being down, and the pane
+  // says so ("rejected the API key") instead of sending the user to Docker.
+  const statusError = (what: string, status: number): SynthesisError =>
+    status === 401 || status === 403
+      ? new SynthesisError('auth', `${what}: the server rejected the credentials (${status})`)
+      : new SynthesisError('unknown', `${what} returned ${status}`);
   const call = async (path: string, init: RequestInit): Promise<Response> => {
+    const headers = { ...(deps.headers ?? {}), ...((init.headers as Record<string, string> | undefined) ?? {}) };
     try {
-      return await deps.fetch(baseURL + path, init);
+      return await deps.fetch(baseURL + path, { ...init, headers });
     } catch (e) {
       // fetch throws outright when the local server isn't up. This must be
       // distinguished here, otherwise the user would just see a "network
@@ -69,7 +89,7 @@ function createKokoroProvider(rawBaseURL: string, deps: { fetch: typeof fetch })
     async listVoices(): Promise<VoiceInfo[]> {
       const response = await call('/v1/audio/voices', {});
       if (!response.ok) {
-        throw new SynthesisError('unknown', `Kokoro voices returned ${response.status}`);
+        throw statusError('Kokoro voices', response.status);
       }
       let body: { voices?: unknown };
       try {
@@ -111,6 +131,10 @@ function createKokoroProvider(rawBaseURL: string, deps: { fetch: typeof fetch })
       };
 
       const captioned = await call('/dev/captioned_speech', init);
+      if (captioned.status === 401 || captioned.status === 403) {
+        // The plain endpoint sits behind the same gateway; no point trying it
+        throw statusError('Kokoro speech', captioned.status);
+      }
 
       if (captioned.ok) {
         let body: CaptionedResponse;
@@ -141,7 +165,7 @@ function createKokoroProvider(rawBaseURL: string, deps: { fetch: typeof fetch })
       // sentence-level rather than estimating.
       const plain = await call('/v1/audio/speech', init);
       if (!plain.ok) {
-        throw new SynthesisError('unknown', `Kokoro speech returned ${plain.status}`);
+        throw statusError('Kokoro speech', plain.status);
       }
       return { audio: await plain.blob() };
     },

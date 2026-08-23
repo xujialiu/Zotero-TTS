@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { SynthesisError } from '../../src/core/providers/errors';
 import type { TTSProvider } from '../../src/core/providers/types';
-import { createRemoteInterface, SAMPLE_TEXT, WHOLE_SEGMENT_END_SECONDS } from '../../src/read-aloud/remote-interface';
+import { createRemoteInterface, SAMPLE_TEXT, SILENT_PAUSE_MS, TINY_SEGMENT_CHARS, WHOLE_SEGMENT_END_SECONDS } from '../../src/read-aloud/remote-interface';
 import { encodeVoiceId } from '../../src/read-aloud/voice-catalog';
 
 function fakeProvider(overrides: Partial<TTSProvider> = {}): TTSProvider {
@@ -569,5 +569,63 @@ describe('onVoicesRequested', () => {
     });
     await expect(iface.getVoices()).resolves.toBeTruthy();
     expect(log).toHaveBeenCalledWith(expect.any(Error));
+  });
+});
+
+describe('tiny segments the server refuses', () => {
+  // Chatterbox-TTS-Server answers HTTP 500 for "1.", "No", "I." — its
+  // alignment analyser needs more tokens — while whole sentences are fine
+  const refusing = () =>
+    fakeProvider({
+      synthesize: async () => {
+        throw new SynthesisError('unknown', 'http://tts/v1/audio/speech: HTTP 500');
+      },
+    });
+  const whole = (text: string) => [{ start: 0, end: WHOLE_SEGMENT_END_SECONDS, charStart: 0, charEnd: text.length }];
+
+  it('plays a short pause instead of stopping playback, and does not cache it', async () => {
+    const debug = vi.fn();
+    const put = vi.fn();
+    const iface = createRemoteInterface({ ...deps(refusing()), debug, cache: { match: async () => null, put } });
+    const result = await iface.getAudio({ text: '1.' }, voice);
+    expect(result.error).toBeUndefined();
+    expect(result.audio).toBeInstanceOf(Blob);
+    expect(result.audio!.type).toBe('audio/wav');
+    expect(result.audio!.size).toBe(44 + 2 * Math.round((8000 * SILENT_PAUSE_MS) / 1000));
+    expect(result.timestamps).toEqual(whole('1.'));
+    expect(put).not.toHaveBeenCalled();
+    expect(debug).toHaveBeenCalledWith(expect.stringMatching(/refused "1\."/));
+  });
+
+  it('hands the pause through adoptAudio like any other audio', async () => {
+    const adopted = new Blob(['adopted'], { type: 'audio/wav' });
+    const adoptAudio = vi.fn(() => adopted);
+    const result = await createRemoteInterface({ ...deps(refusing()), adoptAudio }).getAudio({ text: ' No ' }, voice);
+    expect(adoptAudio).toHaveBeenCalledOnce();
+    expect(result.audio).toBe(adopted);
+    expect(result.timestamps).toEqual(whole('No'));
+  });
+
+  it('still reports the failure for a segment with real text', async () => {
+    const text = 'A'.repeat(TINY_SEGMENT_CHARS + 1);
+    const result = await createRemoteInterface(deps(refusing())).getAudio({ text }, voice);
+    expect(result.audio).toBeNull();
+    expect(result.error).toBe('unknown');
+  });
+
+  it('does not hide a key, network or quota problem behind a pause', async () => {
+    for (const kind of ['no-key', 'auth', 'network', 'local-server-down', 'quota', 'rate-limit'] as const) {
+      const iface = createRemoteInterface(
+        deps(
+          fakeProvider({
+            synthesize: async () => {
+              throw new SynthesisError(kind);
+            },
+          }),
+        ),
+      );
+      const result = await iface.getAudio({ text: '1.' }, voice);
+      expect(result.audio, kind).toBeNull();
+    }
   });
 });

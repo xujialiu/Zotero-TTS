@@ -7,24 +7,43 @@
   <groupbox>
     <label><html:h2>OpenAI</html:h2></label>
     <checkbox label="Enable OpenAI voices" preference="extensions.zotero.zotero-tts.openai.enabled"/>
+    <!-- Not bound with preference=: server-preset-rows.ts writes the choice
+         and the preset's defaults, and greys out the fields the server ignores. -->
+    <hbox align="center">
+      <label value="Server" style="width: 8em"/>
+      <menulist id="ztts-openai-server">
+        <menupopup>
+          <menuitem value="openai" label="OpenAI"/>
+          <menuitem value="chatterbox" label="Chatterbox-TTS-Server"/>
+          <menuitem value="other" label="Other OpenAI-compatible server"/>
+        </menupopup>
+      </menulist>
+    </hbox>
+    <description id="ztts-openai-server-note"/>
     <hbox align="center">
       <label value="API key" style="width: 8em"/>
-      <html:input type="password" preference="extensions.zotero.zotero-tts.openai.apiKey"/>
+      <html:input id="ztts-openai-apiKey" type="password" preference="extensions.zotero.zotero-tts.openai.apiKey"/>
     </hbox>
     <hbox align="center">
       <label value="Base URL" style="width: 8em"/>
-      <html:input type="text" preference="extensions.zotero.zotero-tts.openai.baseURL"/>
+      <html:input id="ztts-openai-baseURL" type="text" preference="extensions.zotero.zotero-tts.openai.baseURL"/>
     </hbox>
     <!-- Free text: any OpenAI-compatible server names its models as it
          likes. Test connection fills the datalist with the server's list. -->
     <hbox align="center">
       <label value="Model" style="width: 8em"/>
-      <html:input type="text" list="ztts-openai-models" preference="extensions.zotero.zotero-tts.openai.model"/>
+      <html:input id="ztts-openai-model" type="text" list="ztts-openai-models" preference="extensions.zotero.zotero-tts.openai.model"/>
       <html:datalist id="ztts-openai-models"/>
     </hbox>
     <hbox align="center">
       <label value="Voices" style="width: 8em"/>
-      <html:input type="text" placeholder="auto-detect" preference="extensions.zotero.zotero-tts.openai.voices"/>
+      <html:input id="ztts-openai-voices" type="text" placeholder="auto-detect" preference="extensions.zotero.zotero-tts.openai.voices"/>
+    </hbox>
+    <!-- For a gateway in front of a keyless server, e.g. a Cloudflare Access
+         service token: "CF-Access-Client-Id: ...; CF-Access-Client-Secret: ..." -->
+    <hbox align="center">
+      <label value="Extra headers" style="width: 8em"/>
+      <html:input id="ztts-openai-headers" type="text" placeholder="Name: value; Name: value" preference="extensions.zotero.zotero-tts.openai.headers"/>
     </hbox>
     <hbox align="center">
       <button id="ztts-test-openai" label="Test connection"/>
@@ -58,6 +77,12 @@
     <hbox align="center">
       <label value="Address" style="width: 8em"/>
       <html:input type="text" preference="extensions.zotero.zotero-tts.local.baseURL"/>
+    </hbox>
+    <!-- Same format as the OpenAI section's: for a gateway in front of the
+         server, e.g. a Cloudflare Access service token. -->
+    <hbox align="center">
+      <label value="Extra headers" style="width: 8em"/>
+      <html:input type="text" placeholder="Name: value; Name: value" preference="extensions.zotero.zotero-tts.local.headers"/>
     </hbox>
     <hbox align="center">
       <button id="ztts-test-local" label="Test connection"/>

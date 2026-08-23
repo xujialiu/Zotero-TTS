@@ -150,3 +150,28 @@ describe('kokoroAdapter', () => {
     expect('timestamps' in result).toBe(false);
   });
 });
+
+describe('extra headers and gateways', () => {
+  const headers = { 'CF-Access-Client-Id': 'id', 'CF-Access-Client-Secret': 'secret' };
+  const behindGateway = (fetchImpl: unknown) => kokoroAdapter.create('http://localhost:8880', { fetch: fetchImpl as typeof fetch, headers });
+
+  it('sends the configured headers with the voice list and with every synthesis request', async () => {
+    const fetchImpl = vi.fn(async (url: string) =>
+      url.endsWith('/v1/audio/voices') ? Response.json({ voices: ['af_bella'] }) : Response.json({ audio: AUDIO_B64, timestamps: [] }),
+    );
+    const p = behindGateway(fetchImpl);
+    await p.listVoices();
+    await p.synthesize('Hello', opts);
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+    for (const [, init] of (fetchImpl as any).mock.calls) expect(init.headers).toMatchObject(headers);
+    expect((fetchImpl as any).mock.calls[1][1].headers['Content-Type']).toBe('application/json');
+  });
+
+  it('reports rejected credentials as an auth problem, not as a server that is down', async () => {
+    const forbidden = vi.fn(async () => new Response('', { status: 403 }));
+    await expect(behindGateway(forbidden).listVoices()).rejects.toMatchObject({ kind: 'auth' });
+    await expect(behindGateway(forbidden).synthesize('Hello', opts)).rejects.toMatchObject({ kind: 'auth' });
+    // No fallback to /v1/audio/speech after a 403: it sits behind the same gateway
+    expect(forbidden).toHaveBeenCalledTimes(2);
+  });
+});
