@@ -7,4 +7,4 @@ addon/content/zotero-tts.js
 docs/
 
 # Private notes (billing account ids, cloud setup) — never committed.
-secret/
+secrets/
