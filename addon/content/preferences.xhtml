@@ -101,9 +101,10 @@
                 preference="extensions.zotero.zotero-tts.readAloud.multilingualEverywhere"/>
     </hbox>
     <hbox align="center">
-      <label value="Prefetch (sentences)" style="width: 8em"/>
+      <checkbox label="Prefetch upcoming sentences" preference="extensions.zotero.zotero-tts.prefetchEnabled"/>
       <html:input type="number" min="1" max="10" step="1"
                   preference="extensions.zotero.zotero-tts.prefetch"/>
+      <label value="ahead"/>
     </hbox>
     <hbox align="center">
       <checkbox label="Cache synthesized audio" preference="extensions.zotero.zotero-tts.cacheAudio"/>
