@@ -899,3 +899,37 @@ so an installed copy that never touched the Highlight group picks the new
 defaults up on update, while one that pressed "Restore default colours"
 under 1.4.0/1.4.1 keeps Zotero's blue: the button wrote those as user
 values. `DEFAULTS.highlight` is still what the button restores.
+
+## Zotero's own prefetch, and the Prefetch setting (researched 2026-08-23)
+
+The *Prefetch (sentences)* setting (`prefetch`, 1-10, default 3) is read
+and written by settings.ts and used nowhere else: the remote interface
+synthesizes the one segment Zotero asks for. It stays as a README TODO for
+now. What Zotero does on its own, from reader.js (10.0.1-beta.2):
+
+- `RemoteReadAloudController` serves every voice that comes through a
+  remote interface (ours included). After a segment starts playing it calls
+  `_prefetchFrom(index + 1)`: a window of `MAX_WINDOW = 3` segments, at most
+  `MAX_CONCURRENT_FETCHES = 2` in flight, bounded by `_forwardStopIndex`.
+  Each candidate is scored `risk - 50 * distance`, where risk = estimated
+  fetch time (an exponential moving average of ms per character, initial
+  1.5 ms/char, plus 250 ms) minus the time until the segment would start
+  (16 characters per second, divided by the speed); the next segment gets
+  +10 000 so it always goes first. Decoded buffers live in an LRU of 32
+  (`AUDIO_BUFFER_CACHE_CAPACITY`), timestamps beside them; `_getAudioData`
+  dedupes in-flight fetches. Both limits are `const` locals of the method,
+  so nothing outside can tune them.
+- Making the setting real means either shadowing
+  `RemoteReadAloudController.prototype._prefetchFrom` per reader with a copy
+  of that scheduler (the class is reachable from `manager._controller` once
+  a session exists; ~60 lines to keep in step with Zotero), or warming our
+  audio cache from `getAudio`: find the segment in
+  `reader._internalReader._readAloudManager._segments` (the array
+  `_createController` hands the controller) and synthesize the next N into
+  the cache, one at a time, so Zotero's later fetches hit it. The second
+  needs an in-memory store when `cacheAudio` is off, must yield to Zotero's
+  two fetches on a GPU server (`_controller._fetching.size`), and costs
+  money on paid providers for text that is never reached.
+- Worth it only for servers slower than real time on average bursts: Azure
+  and GPU Kokoro are far faster than playback, so Zotero's window of three
+  already hides the latency.

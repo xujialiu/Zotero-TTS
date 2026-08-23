@@ -7,7 +7,11 @@ Zotero's own Standard/Premium voices keep working; ours join the Local tier as
 skipping by sentence / paragraph (arrows / Shift+arrows), one voice and speed
 across documents, settings backup/restore (file or WebDAV), highlight colours.
 
-- `README.md` — user-facing docs (install, providers, troubleshooting);
+- `README.md` — user-facing docs, kept short and scannable (header with
+  badges, a GIF, emoji feature list, install, providers table, settings;
+  long detail goes into `<details>` blocks or `tutorials/`, never into the
+  body). `PHILOSOPHY.md` — the plugin is a helper for Read Aloud, not a
+  replacement; the yardstick for new features.
   `tutorials/` — Azure's free tier, Kokoro-FastAPI and Chatterbox-TTS-Server
   in Docker, remote access through Cloudflare. Provider and server how-tos
   go there, not into the README.
@@ -110,6 +114,7 @@ src/index.ts        bootstrap wiring; with core/settings.createZoteroPrefs and u
                     only code that touches Zotero globals (declared in src/globals.d.ts)
 addon/              manifest.json, bootstrap.js, prefs.js (defaults), content/preferences.xhtml
 test/               mirrors src/; vitest
+assets/             README media (the word-highlight GIF, popup and settings screenshots)
 ```
 
 - TDD: write the failing test first. Zotero-facing code takes its Zotero

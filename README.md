@@ -1,133 +1,164 @@
-# Zotero TTS
+<h1 align="center">Zotero TTS</h1>
 
-Extra voices for Zotero 10's built-in **Read Aloud**: OpenAI (or any
-OpenAI-compatible server), Azure Speech, and a local
-[Kokoro-FastAPI](https://github.com/remsky/Kokoro-FastAPI) server.
-Zotero's own Standard and Premium voices keep working; the plugin's voices
-join the **Local** tier of the Read Aloud popup, named `TTS-<Provider>-<voice>`
-(for example `TTS-Azure-Ava Multilingual`, `TTS-Kokoro-af_bella`).
+<p align="center"><em>A helper for Zotero 10's Read Aloud: your own voices, word-and-sentence highlighting in your colours, keyboard shortcuts.</em></p>
 
-- Word-level highlighting with Azure and Kokoro (both report word timings);
-  sentence-level with OpenAI.
-- Keyboard shortcuts for Read Aloud: `Shift+Z` back to 1.0×, `Shift+X`
-  −0.1, `Shift+C` +0.1; while Read Aloud is open, `←` / `→` jump to the
-  previous / next sentence and `Shift+←` / `Shift+→` to the previous / next
-  paragraph (with it closed, the arrow keys page as usual). All customisable
-  in the settings pane.
-- One voice and speed for every document. Zotero itself remembers them per
-  detected document language, so a new language starts over at 1.0× with a
-  fallback voice and a voice chosen under "Multiple languages" never
-  comes back on its own. The plugin keeps the speed you last set and the
-  voice you last picked: a multilingual voice is used for every document,
-  a single-language voice for documents in its language (the only ones it
-  can read). Switch it off under Reading if you want Zotero's per-language
-  behaviour back.
-- Highlight colours: Zotero paints the word or sentence being read in one
-  fixed blue; Settings → TTS → Highlight lets you pick the word colour and
-  the sentence colour with their opacities, and keep the sentence
-  highlighted under the word in word mode. The plugin starts with a green
-  word on a yellow sentence, the sentence kept under the word; *Restore
-  default colours* brings that back. Zotero's own blue is `#4072e5`, 45%
-  for the unit being read and 30% for the sentence under it, if you prefer
-  it. Works for PDFs, EPUBs and snapshots, with Zotero's own voices too.
-- Backup and restore: the Backup group at the bottom of the settings pane
-  writes every setting to a JSON file and reads one back — a file on disk,
-  or the same file in a WebDAV folder (Nextcloud, Synology, Jianguoyun, …)
-  so the settings follow you between machines: *Upload to WebDAV* on one,
-  *Download from WebDAV* on the other. The WebDAV URL is a folder, created
-  on the first upload — Nextcloud:
-  `https://cloud.example.com/remote.php/dav/files/<user>/zotero-tts/`,
-  Jianguoyun: `https://dav.jianguoyun.com/dav/zotero-tts/` with an app
-  password. The file includes your API keys, so keep it private.
-- Voices that speak any language — Azure's *Multilingual* / *多语言* ones,
-  every OpenAI voice — sit under their own entry in the popup's language
-  dropdown, "Multiple languages" (多语种), rather than being repeated under
-  every language. Prefer them at hand? Tick **Offer multilingual voices
-  under every language** (Settings → TTS → Reading): they then appear in
-  every language's voice list, and the "Multiple languages" entry
-  disappears (nothing left that only lives there).
+<p align="center">
+  <a href="https://www.zotero.org"><img src="https://img.shields.io/badge/Zotero-10-green?style=flat-square&logo=zotero&logoColor=CC2936" alt="Zotero 10"></a>
+  <a href="https://github.com/xujialiu/Zotero-TTS/releases/latest"><img src="https://img.shields.io/github/v/release/xujialiu/Zotero-TTS?style=flat-square" alt="Latest release"></a>
+  <a href="https://github.com/xujialiu/Zotero-TTS/releases"><img src="https://img.shields.io/github/downloads/xujialiu/Zotero-TTS/total?style=flat-square" alt="Downloads"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/xujialiu/Zotero-TTS?style=flat-square" alt="License"></a>
+</p>
 
-Requires Zotero 10 (tested with 10.0.1-beta).
+<p align="center"><img src="assets/word-highlight.gif" width="720" alt="Read Aloud with an Azure voice: the word being read in green, its sentence in yellow"></p>
 
-## Install the plugin
+## What is this?
 
-1. Download `zotero-tts.xpi` from the [latest release](https://github.com/xujialiu/Zotero-TTS/releases/latest).
-   (Firefox users: right-click → Save Link As…, or Firefox tries to install
-   it as a browser extension.)
-2. In Zotero: **Tools → Plugins → ⚙ → Install Plugin From File…**, pick the
-   `.xpi`, restart Zotero. Zotero checks for plugin updates on its own, so
-   later releases install themselves.
-3. **Edit → Settings → TTS** (macOS: **Zotero → Settings**): tick the providers
-   you want, enter keys, and press **Test connection** under each one.
-4. Open a PDF, start Read Aloud, and in its popup choose the tier **Local**; the
-   plugin's voices are the `TTS-…` entries.
-5. For word-by-word highlighting: **Settings → General → Read Aloud → Highlight
-   current → Word**.
+Zotero 10 reads documents aloud on its own. This plugin does not replace
+that — it adds to it. Zotero keeps doing the reading: the player, the
+sentence segmentation, the skip buttons, the highlighting, its Standard and
+Premium voices. The plugin hands it more voices and adjusts a few things
+around the edges. Why it is built this way: [PHILOSOPHY.md](PHILOSOPHY.md).
 
-Provider notes:
+## What it adds
 
-| Provider | What you need | Highlighting |
-|---|---|---|
-| OpenAI, or any OpenAI-compatible server | Base URL, model name; an API key where the server wants one | sentence |
-| Azure | Speech resource key + region (e.g. `eastasia`); 500k characters a month are free — [tutorial](tutorials/azure-speech-free-tier.md) | word |
-| Local (Kokoro) | A Kokoro-FastAPI server — [tutorial](tutorials/kokoro-fastapi.md) | word |
+- 🗣️ **Your own voices** in the Read Aloud popup — Azure Speech, a local [Kokoro-FastAPI](https://github.com/remsky/Kokoro-FastAPI), OpenAI or any OpenAI-compatible server. [→ Providers](#providers)
+- ✨ **Word *and* sentence highlighting at once**, in your own colours and opacities — for Zotero's voices too. [→ Highlight](#highlight)
+- ⌨️ **Keyboard shortcuts**: speed up, down, reset; jump by sentence or paragraph. All rebindable. [→ Shortcuts](#keyboard-shortcuts)
+- 📌 **One voice and speed for every document**, instead of Zotero's choice per language. [→ Reading](#reading)
+- 💾 **Settings backup** to a file or a WebDAV folder. [→ Backup](#backup)
 
-The OpenAI section works with any server that speaks OpenAI's audio API.
-Its **Server** dropdown says which one: *OpenAI*, *Chatterbox-TTS-Server*,
-or *Other OpenAI-compatible server*. Picking one fills in the address and
-model and greys out the fields that server provably ignores (Chatterbox: key,
-model, voices); *Other* keeps every field editable. Then
-set **Base URL** to the server (with or without `/v1`), type the **Model**
-name it expects (**Test connection** fetches the server's model list and
-offers it as suggestions, and says whether your model is on it), and leave
+## Install
+
+1. Download `zotero-tts.xpi` from the [latest release](https://github.com/xujialiu/Zotero-TTS/releases/latest) (Firefox: right-click → *Save Link As…*).
+2. In Zotero: **Tools → Plugins → ⚙ → Install Plugin From File…**, then restart. Later updates install themselves.
+3. **Edit → Settings → TTS** (macOS: **Zotero → Settings**): enable a provider, enter its key or address, press **Test connection**.
+4. Open a document, press the headphones button, and pick a `TTS-…` voice under the **Local** tier.
+
+<p align="center"><img src="assets/popup.png" width="600" alt="The Read Aloud popup with a TTS-Azure voice chosen under the Local tier"></p>
+
+Word-by-word highlighting also needs Zotero's own switch: **Settings →
+General → Read Aloud → Highlight current → Word**.
+
+## Providers
+
+| Provider | What you need | Cost | Highlighting |
+|---|---|---|---|
+| **Azure Speech** | Speech resource key + region · [tutorial](tutorials/azure-speech-free-tier.md) | Free tier: 500,000 characters a month | word |
+| **Kokoro-FastAPI** | A server on your machine or LAN · [tutorial](tutorials/kokoro-fastapi.md) | Free; CPU works, a GPU is faster | word |
+| **OpenAI-compatible** | Base URL and model; an API key if the server wants one | OpenAI bills per character; self-hosted servers such as [Chatterbox](tutorials/chatterbox-tts-server.md) are free | sentence |
+
+API keys are stored in Zotero's preferences in plain text, like every
+plugin setting, and go into the settings backup file.
+
+<details>
+<summary><b>OpenAI-compatible servers: the fields</b></summary>
+
+The **Server** dropdown names the server — *OpenAI*, *Chatterbox-TTS-Server*,
+or *Other OpenAI-compatible server* — and fills in the address and model,
+greying out the fields that server ignores. **Base URL** is the server, with
+or without `/v1`. **Model** is the name it expects; **Test connection**
+fetches the server's model list and says whether yours is on it. Leave
 **Voices** empty to take the voices the server publishes on
-`/v1/audio/voices` — or list voice ids yourself, comma-separated, for servers
-that publish none. OpenAI's own voices are used when neither is available.
-The API key may stay empty for servers that have none; only api.openai.com
-insists on one. For Kokoro prefer the Local section: that is what gets you
-word-level highlighting.
+`/v1/audio/voices`, or list voice ids yourself, comma-separated. The API key
+may stay empty for servers that have none; only api.openai.com insists on
+one. For Kokoro use the *Local engine* section instead: that is what gets
+you word-level highlighting.
 
-[Chatterbox-TTS-Server](https://github.com/devnen/Chatterbox-TTS-Server) is
-one such server, with much more natural voices than Kokoro and voice cloning,
-at the price of sentence-level highlighting and a real GPU —
-[tutorial](tutorials/chatterbox-tts-server.md).
+</details>
 
-Behind a gateway — a Cloudflare Tunnel protected by an Access service token,
-a reverse proxy with its own header — put the gateway's headers in the
-**Extra headers** field of the OpenAI section, or of the Local engine
-section for Kokoro, as `Name: value` pairs separated by `;`, for example
-`CF-Access-Client-Id: …; CF-Access-Client-Secret: …`. They go out with every
-request, before the Authorization header —
-[tutorial](tutorials/remote-access-cloudflare.md).
+<details>
+<summary><b>Behind a gateway (Cloudflare Tunnel, reverse proxy)</b></summary>
 
-API keys are stored in Zotero's preferences in plain text, like every other
-Zotero plugin setting.
+Put the gateway's headers in **Extra headers** — of the OpenAI section, or
+of the Local engine section for Kokoro — as `Name: value` pairs separated
+by `;`, for example `CF-Access-Client-Id: …; CF-Access-Client-Secret: …`.
+They go out with every request. [Tutorial](tutorials/remote-access-cloudflare.md).
 
-## Tutorials
+</details>
 
-- [Azure Speech on the free tier](tutorials/azure-speech-free-tier.md) —
-  a Speech resource on the Free F0 tier: 500,000 characters of neural
-  voices a month, word timings included, and what the tier leaves out.
-- [Kokoro-FastAPI in Docker](tutorials/kokoro-fastapi.md) — the local engine
-  with word-level highlighting; NVIDIA GPU, CPU, or macOS.
-- [Chatterbox-TTS-Server in Docker](tutorials/chatterbox-tts-server.md) —
-  expressive voices and voice cloning through the OpenAI section; NVIDIA GPU
-  only (CPU and macOS are too slow to read with).
-- [Reaching your TTS server from anywhere with Cloudflare](tutorials/remote-access-cloudflare.md)
-  — a Cloudflare Tunnel plus an Access service token, and the plugin's
-  *Extra headers* field.
+## Settings
+
+Everything is under **Edit → Settings → TTS**.
+
+<p align="center">
+  <img src="assets/settings-highlight.png" width="400" alt="The Highlight group">
+  <img src="assets/settings-shortcuts.png" width="400" alt="The Keyboard shortcuts group">
+</p>
+
+### Highlight
+
+A word colour and a sentence colour, an opacity for each, and a switch to
+keep the sentence highlighted under the word. The preview is painted in
+your reader's theme. The default is a green word on a yellow sentence;
+*Restore default colours* brings it back (Zotero's own blue is `#4072e5` at
+45 % and 30 %). The colours apply to Zotero's voices as well.
+
+### Keyboard shortcuts
+
+`Shift+Z` back to 1.0×, `Shift+X` −0.1, `Shift+C` +0.1; `←` / `→` previous
+/ next sentence, `Shift+←` / `Shift+→` previous / next paragraph. The arrow
+keys act only while Read Aloud is open and page as usual otherwise. Click a
+field to record another key.
+
+### Reading
+
+- *Use the same voice and speed for every document* — Zotero remembers them
+  per document language; the plugin keeps your last choice instead.
+- *Offer multilingual voices under every language* — otherwise Azure's
+  multilingual voices and OpenAI's sit under one "Multiple languages" entry.
+- *Cache synthesized audio* — skipping back or reopening a document costs no
+  new request.
+
+### Backup
+
+*Backup settings…* and *Restore settings…* use a JSON file; *Upload to
+WebDAV* and *Download from WebDAV* use the same file in a WebDAV folder, so
+settings follow you between machines.
+
+<details>
+<summary><b>WebDAV URL examples</b></summary>
+
+The URL is a folder, created on the first upload. Nextcloud:
+`https://cloud.example.com/remote.php/dav/files/<user>/zotero-tts/`;
+Jianguoyun: `https://dav.jianguoyun.com/dav/zotero-tts/` with an app
+password.
+
+</details>
 
 ## Troubleshooting
 
+<details>
+<summary><b>Common problems</b></summary>
+
 - **"Local TTS server is not running at that address."** The server is down
   or listening elsewhere — `docker ps` should list it; see its tutorial.
-- **Voices play but nothing is highlighted word by word**: set *Settings →
-  General → Read Aloud → Highlight current* to **Word** — and use a voice
+- **Voices play but nothing is highlighted word by word.** Set *Settings →
+  General → Read Aloud → Highlight current* to **Word**, and use a voice
   that reports word timings (Azure, Kokoro).
 - **"An unknown error occurred" part-way through a document** with an
-  OpenAI-compatible server: the server failed on one segment. Check its log;
-  very short segments (section numbers) are replaced by a pause, anything
-  longer is reported as is.
+  OpenAI-compatible server: the server failed on one segment; check its log.
+- **The `TTS-…` voices are missing after a Zotero update.** See
+  [Compatibility](#compatibility) and open an
+  [issue](https://github.com/xujialiu/Zotero-TTS/issues) with the Zotero
+  version.
+
+</details>
+
+## Compatibility
+
+- Zotero 10 on the desktop, pinned to `10.*`. In use on Windows and macOS;
+  Linux should be the same, but is untested.
+- Read Aloud has no plugin API, so the plugin hooks Zotero's internal
+  interface per reader tab. A Zotero update can drop the plugin's voices
+  until the plugin is updated; Zotero's own voices keep working.
+- Word highlighting needs a voice with word timings (Azure, Kokoro). The
+  plugin never guesses them.
+
+## TODO
+
+- Prefetch further ahead for slow self-hosted servers. Zotero fetches three
+  segments ahead on its own; the *Prefetch (sentences)* setting is reserved
+  for the plugin's own look-ahead and has no effect yet.
 
 ## Development
 
@@ -138,5 +169,9 @@ npm run typecheck
 npm run build
 ```
 
-`src/` is bundled by esbuild into `addon/content/zotero-tts.js`; `addon/` is
-packed as the `.xpi`.
+[NOTES.md](NOTES.md) records the Zotero internals the plugin relies on and
+every incident so far.
+
+## License
+
+[AGPL-3.0-or-later](LICENSE). Not affiliated with Zotero.
