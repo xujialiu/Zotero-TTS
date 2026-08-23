@@ -61,7 +61,7 @@ Provider notes:
 | Provider | What you need | Highlighting |
 |---|---|---|
 | OpenAI, or any OpenAI-compatible server | Base URL, model name; an API key where the server wants one | sentence |
-| Azure | Speech resource key + region (e.g. `eastasia`) | word |
+| Azure | Speech resource key + region (e.g. `eastasia`); 500k characters a month are free — [tutorial](tutorials/azure-speech-free-tier.md) | word |
 | Local (Kokoro) | A Kokoro-FastAPI server — [tutorial](tutorials/kokoro-fastapi.md) | word |
 
 The OpenAI section works with any server that speaks OpenAI's audio API.
@@ -97,6 +97,9 @@ Zotero plugin setting.
 
 ## Tutorials
 
+- [Azure Speech on the free tier](tutorials/azure-speech-free-tier.md) —
+  a Speech resource on the Free F0 tier: 500,000 characters of neural
+  voices a month, word timings included, and what the tier leaves out.
 - [Kokoro-FastAPI in Docker](tutorials/kokoro-fastapi.md) — the local engine
   with word-level highlighting; NVIDIA GPU, CPU, or macOS.
 - [Chatterbox-TTS-Server in Docker](tutorials/chatterbox-tts-server.md) —
@@ -117,6 +120,11 @@ Zotero plugin setting.
   OpenAI-compatible server: the server failed on one segment. Check its log;
   very short segments (section numbers) are replaced by a pause, anything
   longer is reported as is.
+
+## TODO
+
+- Let the colour of the Read Aloud highlight (the sentence or word being
+  read) be changed.
 
 ## Development
 

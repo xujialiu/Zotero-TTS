@@ -8,8 +8,9 @@ skipping by sentence / paragraph (arrows / Shift+arrows), one voice and speed
 across documents, settings backup/restore (file or WebDAV).
 
 - `README.md` — user-facing docs (install, providers, troubleshooting);
-  `tutorials/` — Kokoro-FastAPI and Chatterbox-TTS-Server in Docker, remote
-  access through Cloudflare. Server how-tos go there, not into the README.
+  `tutorials/` — Azure's free tier, Kokoro-FastAPI and Chatterbox-TTS-Server
+  in Docker, remote access through Cloudflare. Provider and server how-tos
+  go there, not into the README.
 - `NOTES.md` — engineering notes: every production incident, and the Zotero
   internals verified by reading its source. **Read it before touching Read
   Aloud internals; append to it (English) whenever something non-obvious is
