@@ -11,16 +11,19 @@ what is being read, keeps its place, and ships voices of its own. A plugin
 that built a player of its own would have to redo all of that, worse, and
 would leave you with two Read Alouds in one window.
 
-So this plugin builds none of that. It plugs voices into Read Aloud through
-the same interface Zotero's own remote voices use, and changes Read Aloud's
-behaviour only where Zotero offers nothing. Zotero reads; the plugin speaks.
+So this plugin builds none of that. It adds voices to Read Aloud's Local
+tier through the same interface Zotero's own remote voices use — next to
+Zotero's Standard and Premium voices, not instead of them — and changes Read
+Aloud's behaviour only where Zotero offers nothing. Zotero reads; the plugin
+speaks.
 
 ## Rules
 
 1. **Zotero keeps doing the reading.** Segmentation, playback, prefetching,
    skipping, position and highlighting are Zotero's. The plugin's voices are
-   ordinary entries in the popup, next to Zotero's Standard and Premium
-   voices, which stay exactly as they are.
+   ordinary entries in the popup's Local tier, next to Zotero's Standard and
+   Premium voices, which stay exactly as they are: the list grows, nothing on
+   it is replaced.
 2. **Add, never take away.** Everything the plugin changes is a setting
    whose alternative is Zotero's own behaviour: the colours have a Restore
    button, the one-voice-everywhere memory has a switch, every shortcut can

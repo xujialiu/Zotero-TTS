@@ -1,6 +1,6 @@
 <h1 align="center">Zotero TTS</h1>
 
-<p align="center"><em>A helper for Zotero 10's Read Aloud: your own voices, word-and-sentence highlighting in your colours, keyboard shortcuts.</em></p>
+<p align="center"><em>A helper for Zotero 10's Read Aloud: more voices in its Local tier, word-and-sentence highlighting in your colours, keyboard shortcuts.</em></p>
 
 <p align="center">
   <a href="https://www.zotero.org"><img src="https://img.shields.io/badge/Zotero-10-green?style=flat-square&logo=zotero&logoColor=CC2936" alt="Zotero 10"></a>
@@ -16,12 +16,12 @@
 Zotero 10 reads documents aloud on its own. This plugin does not replace
 that — it adds to it. Zotero keeps doing the reading: the player, the
 sentence segmentation, the skip buttons, the highlighting, its Standard and
-Premium voices. The plugin hands it more voices and adjusts a few things
-around the edges. Why it is built this way: [PHILOSOPHY.md](PHILOSOPHY.md).
+Premium voices. The plugin adds voices to its Local tier and adjusts a few
+things around the edges. Why it is built this way: [PHILOSOPHY.md](PHILOSOPHY.md).
 
 ## What it adds
 
-- 🗣️ **Your own voices** in the Read Aloud popup — Azure Speech, a local [Kokoro-FastAPI](https://github.com/remsky/Kokoro-FastAPI), OpenAI or any OpenAI-compatible server. [→ Providers](#providers)
+- 🗣️ **More voices in the Local tier** of the Read Aloud popup — Azure Speech, a [Kokoro-FastAPI](https://github.com/remsky/Kokoro-FastAPI) on your machine, OpenAI or any OpenAI-compatible server — next to Zotero's Standard and Premium voices. [→ Providers](#providers)
 - ✨ **Word *and* sentence highlighting at once**, in your own colours and opacities — for Zotero's voices too. [→ Highlight](#highlight)
 - ⌨️ **Keyboard shortcuts**: speed up, down, reset; jump by sentence or paragraph. All rebindable. [→ Shortcuts](#keyboard-shortcuts)
 - 📌 **One voice and speed for every document**, instead of Zotero's choice per language. [→ Reading](#reading)
