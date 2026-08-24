@@ -35,11 +35,16 @@
  * patch. Anything that is not where this expects it — another Zotero
  * version — leaves Zotero's own behavior in place.
  *
- * A voice without word timings hands Zotero one timestamp spanning the whole
- * segment (remote-interface.wholeSegmentTimestamp), so word mode shows the
- * sentence; the primary then takes the sentence color, not the word color.
- * The stand-in is told apart by its sentinel end (WHOLE_SEGMENT_END_SECONDS)
- * on the manager's activeTimestamp.
+ * Word color only while a real word timestamp is active. A voice without
+ * word timings hands Zotero one timestamp spanning the whole segment
+ * (remote-interface.wholeSegmentTimestamp, told apart by its sentinel end
+ * WHOLE_SEGMENT_END_SECONDS), so word mode shows the sentence. And between
+ * segments Zotero dispatches ActiveSegmentChange(null) while the view keeps
+ * drawing the previous primary (setReadAloudState skips the update without
+ * an active position), so the manager's activeTimestamp is null although a
+ * whole stale sentence is on screen — the buffering spinner made that gap
+ * seconds long and the sentence flashed the word color (issue #2). In both
+ * cases the primary takes the sentence color.
  */
 
 import { WHOLE_SEGMENT_END_SECONDS } from './remote-interface';
@@ -162,19 +167,19 @@ export function createHighlightStyling(deps: HighlightStylingDeps): HighlightSty
     );
     return isGranularity(g) ? g : null;
   };
-  /** The active "word" is the whole-segment stand-in of a voice without word timings: word mode is showing the sentence. */
-  const wholeSegmentWord = (reader: any): boolean => {
+  /** What the manager's active word timestamp is: a real word, the whole-segment stand-in of a wordless voice, or none (the gap between segments, system voices). */
+  const activeWordTimestamp = (reader: any): 'real' | 'stand-in' | 'none' => {
+    let kind: 'real' | 'stand-in' | 'none' = 'none';
     try {
       const ts = reader?._internalReader?._readAloudManager?.activeTimestamp;
-      const whole = !!ts && ts.start === 0 && ts.end === WHOLE_SEGMENT_END_SECONDS;
-      logChange('whole-segment', `highlight: the active word ${whole ? 'is' : 'is not'} the whole-segment stand-in`);
-      return whole;
+      if (ts) kind = ts.start === 0 && ts.end === WHOLE_SEGMENT_END_SECONDS ? 'stand-in' : 'real';
     } catch (e) {
       deps.error(e);
-      return false;
     }
+    logChange('word-timestamp', `highlight: active word timestamp ${kind}`);
+    return kind;
   };
-  const demote = (g: Granularity | null, reader: unknown): Granularity | null => (g === 'word' && wholeSegmentWord(reader) ? 'sentence' : g);
+  const demote = (g: Granularity | null, reader: unknown): Granularity | null => (g === 'word' && activeWordTimestamp(reader) !== 'real' ? 'sentence' : g);
   const pdfGranularity = (reader: unknown, view: any) => demote(granularityOf(view?._effectiveReadAloudPrimaryGranularity, view, view?._readAloudState), reader);
   const domGranularity = (reader: unknown, helper: any) => demote(granularityOf(helper?._effectivePrimaryGranularity, helper, helper?.state), reader);
 
@@ -366,7 +371,7 @@ export function createHighlightStyling(deps: HighlightStylingDeps): HighlightSty
           pages: pdf ? view._pages.length : undefined,
           method: typeof (pdf ? view._effectiveReadAloudPrimaryGranularity : view._readAloud?._effectivePrimaryGranularity),
           granularity: pdf ? pdfGranularity(reader, view) : domGranularity(reader, view._readAloud),
-          wholeSegmentWord: wholeSegmentWord(reader),
+          activeWordTimestamp: activeWordTimestamp(reader),
           state: state
             ? {
                 popupOpen: !!state.popupOpen,

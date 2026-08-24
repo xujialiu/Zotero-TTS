@@ -965,3 +965,25 @@ fine, so it read as a stable-vs-beta difference. It is not:
   the sentence). The manager's `activeTimestamp` getter returns null for
   non-remote controllers, so system voices never demote. Diagnostics:
   `inspect()` now reports `wholeSegmentWord`.
+
+### Follow-up: the word-color flash while buffering (issue #2, 2026-08-24)
+
+The 1.5.1 demotion recognized only the stand-in timestamp — and between
+segments there is none at all: on every natural advance `_handleSegmentEnd`
+dispatches `ActiveSegmentChanging(null)` + `ActiveSegmentChange(null)`, the
+manager nulls `_activeSegment` / `_activeTimestampIndex`, and the PDF view's
+`setReadAloudState` skips the highlight update without an active position —
+so the previous primary (the whole old sentence, for a wordless voice) stays
+drawn through the gap while `manager.activeTimestamp` is null. The color
+callback evaluates live at render time, so the demotion switched off and the
+stale sentence flashed the word color; invisible with a fast server, seconds
+long behind the buffering spinner. (Manual skips differ: `_skipTo` dispatches
+with the new segment. A rarer path to the same state: `_segmentTimestamps`
+is an LRU of 32, evictable for a still-active segment.)
+
+Fixed by inverting the condition (highlight-style.ts): the word color only
+while a *real* word timestamp is active; stand-in or none demote to the
+sentence color. In the gap a real-word voice's stale last word now shows the
+sentence color — neutral. System voices have no `activeTimestamp` (non-remote
+controller) and no word positions, unaffected. Diagnostics: `inspect()`
+reports `activeWordTimestamp: real | stand-in | none`.

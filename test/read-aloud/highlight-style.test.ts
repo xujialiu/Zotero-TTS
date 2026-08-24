@@ -13,6 +13,9 @@ const STYLE: HighlightStyle = { wordColor: '#ff0000', wordAlpha: 50, sentenceCol
 const WORD = '#ff000080';
 const SENTENCE = '#00ff0033';
 const ZOTERO_SEGMENT = '#4072e573';
+// What the fake manager reports while a word is being read; null models the
+// gap between segments (ActiveSegmentChange(null) resets the manager).
+const REAL_TIMESTAMP = { start: 0.1, end: 0.4, charStart: 0, charEnd: 5 };
 const ZOTERO_SENTENCE = '#4072e54d';
 
 describe('highlightColor', () => {
@@ -86,7 +89,7 @@ function fakePDF(granularity: string) {
   }
   const view = new PDFView();
   view._pages.push(new Page(view), new Page(view));
-  const reader = { _internalReader: { _primaryView: view, _readAloudManager: { activeTimestamp: null as unknown } }, _iframeWindow: { clearTimeout: vi.fn() } };
+  const reader = { _internalReader: { _primaryView: view, _readAloudManager: { activeTimestamp: REAL_TIMESTAMP as unknown } }, _iframeWindow: { clearTimeout: vi.fn() } };
   return { view, page: view._pages[0], pushed, reader, Page, PDFView };
 }
 
@@ -127,7 +130,7 @@ function fakeDOM(granularity: string) {
   }
   const view = new DOMView();
   view._readAloud = new ReadAloud(view);
-  const reader = { _internalReader: { _primaryView: view, _readAloudManager: { activeTimestamp: null as unknown } }, _iframeWindow: { clearTimeout: vi.fn() } };
+  const reader = { _internalReader: { _primaryView: view, _readAloudManager: { activeTimestamp: REAL_TIMESTAMP as unknown } }, _iframeWindow: { clearTimeout: vi.fn() } };
   return { view, helper: view._readAloud as ReadAloud, reader, DOMView, ReadAloud };
 }
 
@@ -494,7 +497,7 @@ describe('attach / dispose', () => {
         pages: 2,
         method: 'function',
         granularity: 'word',
-        wholeSegmentWord: false,
+        activeWordTimestamp: 'real',
         state: { popupOpen: true, highlightGranularity: null, segmentGranularity: null, segment: true, segmentPage: 0, wordPosition: true },
         sentenceSlot: 'ours',
       },
@@ -557,5 +560,26 @@ describe('word mode with the whole-segment stand-in timestamp', () => {
     dom.reader._internalReader._readAloudManager.activeTimestamp = real;
     styling().styling.attach(dom.reader);
     expect(dom.view._getSpotlightColor('ReadAloudActiveSegment')).toBe(WORD);
+  });
+});
+
+// ---- issue #2: the gap between segments -----------------------------------
+
+describe('the gap between segments (no active timestamp, stale primary still drawn)', () => {
+  it('PDF: keeps the stale primary in the sentence color instead of flashing the word color', () => {
+    const pdf = fakePDF('word');
+    pdf.reader._internalReader._readAloudManager.activeTimestamp = null;
+    styling().styling.attach(pdf.reader);
+    const stale = { pageIndex: 0, tag: 'the old sentence' };
+    pdf.view._readAloudHighlightedPosition = stale;
+    pdf.page._pushHighlightedPosition([], stale, ZOTERO_SEGMENT);
+    expect(pdf.pushed[0].color).toBe(SENTENCE);
+  });
+
+  it('DOM: the primary spotlight takes the sentence color during the gap', () => {
+    const dom = fakeDOM('word');
+    dom.reader._internalReader._readAloudManager.activeTimestamp = null;
+    styling().styling.attach(dom.reader);
+    expect(dom.view._getSpotlightColor('ReadAloudActiveSegment')).toBe(SENTENCE);
   });
 });
