@@ -146,9 +146,7 @@ password.
 
 ## Compatibility
 
-- Zotero 10 on the desktop, pinned to `10.*`. The [beta channel](https://www.zotero.org/support/beta_builds)
-  is recommended: the plugin is developed against the current 10.x beta,
-  and Read Aloud changes land there first. In use on Windows and macOS;
+- Zotero 10 on the desktop, pinned to `10.*`. In use on Windows and macOS;
   Linux should be the same, but is untested.
 - Read Aloud has no plugin API, so the plugin hooks Zotero's internal
   interface per reader tab. A Zotero update can drop the plugin's voices
