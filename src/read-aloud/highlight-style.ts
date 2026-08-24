@@ -45,6 +45,14 @@
  * whole stale sentence is on screen — the buffering spinner made that gap
  * seconds long and the sentence flashed the word color (issue #2). In both
  * cases the primary takes the sentence color.
+ *
+ * And the demoted primary may not be drawn at all: the whole-segment word
+ * position often maps to a CFI the view cannot resolve, common in EPUBs —
+ * undetectable from outside, because the slot holds a selector that only
+ * fails at render time. So in word mode the kept-sentence slot is filled
+ * regardless (the segment's own selector, computed at segmentation time,
+ * always resolves); when the primary does draw, the doubled tint over the
+ * same region is what every version before 1.5.3 showed (issue #3).
  */
 
 import { WHOLE_SEGMENT_END_SECONDS } from './remote-interface';
@@ -100,6 +108,13 @@ export interface HighlightStylingDeps {
    * prototype methods and swallow assignments. Optional for tests.
    */
   waiveXrays?(value: unknown): unknown;
+  /**
+   * Components.utils.cloneInto into the reader's compartment: an object
+   * built in the sandbox is unreadable by reader code (the opposite
+   * direction of the Xrays above), so a repaired selector must be cloned
+   * before setSpotlight. Optional for tests.
+   */
+  cloneIntoReader?(reader: unknown, value: unknown): unknown;
   error(e: unknown): void;
   debug?(message: string): void;
 }
@@ -180,14 +195,17 @@ export function createHighlightStyling(deps: HighlightStylingDeps): HighlightSty
     return kind;
   };
   const demote = (g: Granularity | null, reader: unknown): Granularity | null => (g === 'word' && activeWordTimestamp(reader) !== 'real' ? 'sentence' : g);
-  const pdfGranularity = (reader: unknown, view: any) => demote(granularityOf(view?._effectiveReadAloudPrimaryGranularity, view, view?._readAloudState), reader);
-  const domGranularity = (reader: unknown, helper: any) => demote(granularityOf(helper?._effectivePrimaryGranularity, helper, helper?.state), reader);
+  const pdfRawGranularity = (view: any) => granularityOf(view?._effectiveReadAloudPrimaryGranularity, view, view?._readAloudState);
+  const domRawGranularity = (helper: any) => granularityOf(helper?._effectivePrimaryGranularity, helper, helper?.state);
+  const pdfGranularity = (reader: unknown, view: any) => demote(pdfRawGranularity(view), reader);
+  const domGranularity = (reader: unknown, helper: any) => demote(domRawGranularity(helper), reader);
+
 
   // ---- PDF ------------------------------------------------------------------
 
   function keepSentencePDF(reader: unknown, view: any, state: any): void {
     const style = deps.style();
-    let want: any = style.sentenceUnderWord && state?.popupOpen && pdfGranularity(reader, view) === 'word' ? (state.activeSegment?.sourcePosition ?? null) : null;
+    let want: any = style.sentenceUnderWord && state?.popupOpen && pdfRawGranularity(view) === 'word' ? (state.activeSegment?.sourcePosition ?? null) : null;
     if (want && want.pageIndex === undefined) want = null;
     const slot = view._readAloudSentenceHighlightedPosition ?? null;
     const mine = oursPDF.get(view) ?? null;
@@ -263,13 +281,58 @@ export function createHighlightStyling(deps: HighlightStylingDeps): HighlightSty
 
   // ---- EPUB / snapshot ------------------------------------------------------
 
+  /**
+   * Zotero's CFI resolver takes a text step /n as the (n-1)/2-th member of
+   * the parent's text-node list, while its generator numbers the position
+   * among all children (the CFI spec) — a paragraph that starts with an
+   * element (the pagebreak anchors of printed EPUBs) gets a selector the
+   * resolver cannot find, and Zotero's own primary goes dark with it
+   * (issue #3). When the sentence selector does not resolve, rewrite the
+   * final text step through the resolver's own convention and keep the
+   * first rewrite whose displayed text is exactly the segment's text.
+   */
+  const normText = (s: unknown) => String(s ?? '').replace(/\s+/g, ' ').trim();
+  function resolvableSelector(reader: unknown, view: any, selector: any, segment: any): any {
+    if (typeof view?.toDisplayedRange !== 'function') return selector;
+    const rangeOf = (sel: any) => {
+      try {
+        return view.toDisplayedRange(sel) ?? null;
+      } catch (e) {
+        deps.error(e);
+        return null;
+      }
+    };
+    if (rangeOf(selector)) return selector;
+    const value = typeof selector?.value === 'string' ? selector.value : '';
+    const m = /^epubcfi\(([^,[\]]*)\/(\d*[13579])(,[^,[\]]*,[^,[\]]*)?\)$/.exec(value);
+    const text = normText(segment?.text);
+    if (!m || !text) {
+      logChange('sentence-repair', `highlight: sentence selector does not resolve and cannot be rewritten (${value || 'no value'})`);
+      return null;
+    }
+    for (const step of [1, 3, 5, 7, 9]) {
+      if (String(step) === m[2]) continue;
+      // Cloned before probing: reader code cannot read a sandbox object,
+      // so an unprobed clone would make every candidate "fail to resolve"
+      const raw = { type: selector.type, conformsTo: selector.conformsTo, value: `epubcfi(${m[1]}/${step}${m[3] ?? ''})` };
+      const candidate = deps.cloneIntoReader ? deps.cloneIntoReader(reader, raw) : raw;
+      const range = rangeOf(candidate);
+      if (range && normText(range.toString()) === text) {
+        logChange('sentence-repair', `highlight: sentence selector repaired, text step /${m[2]} -> /${step}`);
+        return candidate;
+      }
+    }
+    logChange('sentence-repair', 'highlight: sentence selector does not resolve and no rewrite shows the sentence');
+    return null;
+  }
+
   function keepSentenceDOM(reader: unknown, helper: any, state: any): void {
     const view = helper?._view;
     const spotlights: Map<unknown, unknown> | undefined = view?._spotlights;
     if (!spotlights || typeof view.setSpotlight !== 'function') return;
     const style = deps.style();
     const cached = oursDOM.get(helper);
-    const want = !!(style.sentenceUnderWord && state?.popupOpen && state.activeSegment && domGranularity(reader, helper) === 'word');
+    const want = !!(style.sentenceUnderWord && state?.popupOpen && state.activeSegment && domRawGranularity(helper) === 'word');
     if (!want) {
       if (cached && spotlights.get(SENTENCE_KEY) === cached.selector) view.setSpotlight(SENTENCE_KEY, null);
       oursDOM.delete(helper);
@@ -278,6 +341,8 @@ export function createHighlightStyling(deps: HighlightStylingDeps): HighlightSty
     let selector = cached && cached.segment === state.activeSegment ? cached.selector : null;
     if (!selector) {
       selector = helper._resolveSegmentSelector(state);
+      if (!selector) return;
+      selector = resolvableSelector(reader, view, selector, state.activeSegment);
       if (!selector) return;
       oursDOM.set(helper, { segment: state.activeSegment, selector });
     }
@@ -372,6 +437,7 @@ export function createHighlightStyling(deps: HighlightStylingDeps): HighlightSty
           method: typeof (pdf ? view._effectiveReadAloudPrimaryGranularity : view._readAloud?._effectivePrimaryGranularity),
           granularity: pdf ? pdfGranularity(reader, view) : domGranularity(reader, view._readAloud),
           activeWordTimestamp: activeWordTimestamp(reader),
+          primaryShown: pdf ? view._readAloudHighlightedPosition != null : (view._spotlights?.get(SEGMENT_KEY) ?? null) != null,
           state: state
             ? {
                 popupOpen: !!state.popupOpen,

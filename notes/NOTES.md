@@ -1040,3 +1040,78 @@ installed 10.0.x bundle (the same one as the skip research, skipBack at
   index.ts (`startReadAloudAtPosition` feature-detected for older Zotero).
   Defaults Shift+Space / Shift+Enter; both rebindable, neither allows bare
   arrows.
+
+## Kokoro-FastAPI: no word timestamps for Chinese voices (verified 2026-08-24)
+
+`/dev/captioned_speech` returns `timestamps: []` for zh voices (zf_/zm_),
+on both the local Docker image and a fresh remote deployment — an upstream
+limitation of its zh pipeline, not a plugin or deployment issue. Chinese
+text with an English voice (af_bella) yields a few clause-sized entries
+(half a sentence per "word"), of which the plugin's alignment keeps ~2.
+English is unaffected (spoken forms like "three" for "3" are dropped by
+alignment; the rest of the sentence still highlights; first-word
+start_time can be slightly negative — harmless). So Chinese word-level
+highlighting needs Azure (zh-CN voices report word boundaries); Kokoro
+falls back to sentence highlighting on Chinese by design. The 1.5.2 debug
+note ('the captioned reply came without word timestamps') covers both an
+empty reply and alignment yielding nothing.
+
+## Read Aloud arms auto-sync every few sentences (observed 2026-08-24)
+
+Zotero saves the reading position as a *synced setting*
+(`lastReadAloudPosition_u_…`) as playback advances. Every write arms the
+3 s auto-sync timer, so continuous listening runs a full data sync round
+about every 11 s: one 20-minute Read Aloud stretch showed 107 rounds of
+`Starting data sync for My Library` (with keys/current + groups requests
+each), 125 syncedSettings UPDATEs, 586 `Beginning DB transaction` lines.
+The intermittent 1-2 s whole-app freezes reported during listening most
+plausibly come from these sync rounds (DB churn), not from the plugin —
+the plugin never touches lastReadAloudPosition. Verify by unchecking
+Settings → Sync → 'Sync automatically' during listening. Separate note:
+a malformed EPUB produced 715 pairs of 'No startContainer found for
+epubcfi' / 'Unable to get range for CFI' in the same 20 minutes —
+Zotero-side, cheap individually, but worth ruling out with a clean file.
+
+### Follow-up: the sentence going dark on EPUBs (issue #3, 2026-08-24)
+
+The #2 demotion removed the kept-sentence slot whenever the primary IS the
+sentence — but on EPUBs the whole-segment word position often maps to a CFI
+the view cannot resolve (the reader floods `No startContainer found for
+epubcfi` / `Unable to get range for CFI`, tens per second; a sentence
+spanning multiple DOM nodes is enough), the primary is then not drawn at
+all, and with the slot removed nothing was highlighted. Until 1.5.2 the
+kept slot (the segment's own selector, computed at segmentation time —
+robust) masked this. First fix attempt — fill the slot only when the
+primary was not drawn — failed on EPUBs: the DOM spotlight map holds a
+*selector* that fails only at render time (`toDisplayedRange`), so
+"drawn" cannot be detected from the slot. Fixed by keeping the slot in
+word mode unconditionally (the pre-1.5.3 condition, on the raw, undemoted
+granularity); when the primary does draw, the doubled same-color tint
+over the sentence is what every version before 1.5.3 always showed.
+Diagnostics: `inspect()` reports `primaryShown` (slot occupancy, not
+render success).
+
+### Root cause found live (issue #3, 2026-08-24, evening)
+
+Even the unconditional keep did not help: probing the running reader
+showed the *segment* selector itself failing `toDisplayedRange`
+(`epubcfi(/6/16!/4/4/12/3,:32,:168)` on El Akkad c001), while the
+displayed DOM was correct (`<p>` = [empty pagebreak span, text]). The
+resolver embedded in the reader (epub.js EpubCFI, reader.js ~46840)
+resolves a text step /n as `textNodes(parent)[(n-1)/2]` — valid only when
+text and elements alternate starting with text — while the generator
+numbers positions among all children per the CFI spec, so a paragraph
+starting with an element (every printed-page anchor) yields /3 for its
+only text node and resolution finds nothing. Zotero's own primary
+highlight (all voices, all modes) goes dark on those paragraphs; worth
+reporting upstream. Verified live: rewriting /3 -> /1 resolves to exactly
+the sentence. Plugin workaround (highlight-style resolvableSelector):
+when the sentence selector does not resolve, rewrite the final text step
+(1,3,5,7,9), accept only a rewrite whose displayed text equals the
+segment text, clone it into the reader compartment
+(deps.cloneIntoReader — a sandbox-built object is unreadable there), and
+cache per segment. Probing lesson: Run JavaScript objects live in the
+chrome compartment — hand-built selectors read as empty inside the
+reader; clone with Components.utils.cloneInto(obj, view._iframeWindow)
+or every probe returns false (two rounds of garbage data until a
+known-good positive control exposed it).

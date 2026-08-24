@@ -370,6 +370,8 @@ function startHighlightStyling(): void {
     exportFunction: (fn, target) => Components.utils.exportFunction(fn, target),
     // The view's timers live in the reader iframe's window, not in this sandbox
     clearTimeout: (reader: any, id) => reader?._iframeWindow?.clearTimeout?.(id),
+    // A repaired selector built in this sandbox is unreadable by reader code; clone it over
+    cloneIntoReader: (reader: any, value) => (reader?._iframeWindow ? Components.utils.cloneInto(value, reader._iframeWindow) : value),
     // What the reader hands an exported function arrives behind Xray wrappers (see highlight-style.ts)
     waiveXrays: (value) => ((value && typeof value === 'object') || typeof value === 'function' ? Components.utils.waiveXrays(value) : value),
     error: (e) => Zotero.logError(e),

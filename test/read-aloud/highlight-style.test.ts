@@ -120,7 +120,7 @@ function fakeDOM(granularity: string) {
         this._view.setSpotlight('ReadAloudActiveSentence', null);
         return null;
       }
-      this._view.setSpotlight('ReadAloudActiveSegment', { primary: true }, null);
+      this._view.setSpotlight('ReadAloudActiveSegment', state.primarySelector !== undefined ? state.primarySelector : { primary: true }, null);
       if (state.activeSegment !== previous?.activeSegment) {
         const flash = state.flash ?? null;
         this._view.setSpotlight('ReadAloudActiveSentence', flash, flash ? 2000 : null);
@@ -498,6 +498,7 @@ describe('attach / dispose', () => {
         method: 'function',
         granularity: 'word',
         activeWordTimestamp: 'real',
+        primaryShown: true,
         state: { popupOpen: true, highlightGranularity: null, segmentGranularity: null, segment: true, segmentPage: 0, wordPosition: true },
         sentenceSlot: 'ours',
       },
@@ -520,7 +521,7 @@ describe('word mode with the whole-segment stand-in timestamp', () => {
   const whole = { start: 0, end: WHOLE_SEGMENT_END_SECONDS, charStart: 0, charEnd: 42 };
   const real = { start: 0.1, end: 0.4, charStart: 0, charEnd: 5 };
 
-  it('PDF: the primary is the sentence, so it takes the sentence color and the sentence slot stays empty', async () => {
+  it('PDF: the primary is the sentence, so it takes the sentence color, and the sentence is still kept', async () => {
     const pdf = fakePDF('word');
     pdf.reader._internalReader._readAloudManager.activeTimestamp = whole;
     const { styling: s } = styling();
@@ -529,8 +530,10 @@ describe('word mode with the whole-segment stand-in timestamp', () => {
     pdf.view._readAloudHighlightedPosition = primary;
     pdf.page._pushHighlightedPosition([], primary, ZOTERO_SEGMENT);
     expect(pdf.pushed[0].color).toBe(SENTENCE);
+    // The primary may hold a selector that fails only at render time (broken
+    // CFI), which is undetectable here — so the slot is kept regardless
     await pdf.view.setReadAloudState(pdfState(A, 1));
-    expect(pdf.view._readAloudSentenceHighlightedPosition).toBeNull();
+    expect(pdf.view._readAloudSentenceHighlightedPosition).toBe(A.sourcePosition);
   });
 
   it('PDF: a real word timestamp keeps the word color and the kept sentence', async () => {
@@ -546,13 +549,13 @@ describe('word mode with the whole-segment stand-in timestamp', () => {
     expect(pdf.view._readAloudSentenceHighlightedPosition).toBe(A.sourcePosition);
   });
 
-  it('DOM: the primary spotlight takes the sentence color and the sentence spotlight is not doubled', () => {
+  it('DOM: the primary spotlight takes the sentence color, and the sentence spotlight is kept too', () => {
     const dom = fakeDOM('word');
     dom.reader._internalReader._readAloudManager.activeTimestamp = whole;
     styling().styling.attach(dom.reader);
     expect(dom.view._getSpotlightColor('ReadAloudActiveSegment')).toBe(SENTENCE);
     dom.helper.setState({ popupOpen: true, activeSegment: A });
-    expect(dom.view._spotlights.get('ReadAloudActiveSentence')).toBeUndefined();
+    expect(dom.view._spotlights.get('ReadAloudActiveSentence')).toEqual({ selectorFor: A });
   });
 
   it('DOM: a real word timestamp keeps the word color', () => {
@@ -581,5 +584,100 @@ describe('the gap between segments (no active timestamp, stale primary still dra
     dom.reader._internalReader._readAloudManager.activeTimestamp = null;
     styling().styling.attach(dom.reader);
     expect(dom.view._getSpotlightColor('ReadAloudActiveSegment')).toBe(SENTENCE);
+  });
+});
+
+// ---- issue #3: the primary fails to resolve (broken CFI in an EPUB) --------
+
+describe('word mode with a stand-in whose primary position fails to resolve', () => {
+  const whole = { start: 0, end: WHOLE_SEGMENT_END_SECONDS, charStart: 0, charEnd: 42 };
+
+  it('PDF: puts the sentence into the secondary slot when the primary is not drawn', async () => {
+    const pdf = fakePDF('word');
+    pdf.reader._internalReader._readAloudManager.activeTimestamp = whole;
+    const { styling: s } = styling();
+    s.attach(pdf.reader);
+    await pdf.view.setReadAloudState({ ...pdfState(A, 1), activeWordSourcePosition: null });
+    expect(pdf.view._readAloudHighlightedPosition).toBeNull();
+    expect(pdf.view._readAloudSentenceHighlightedPosition).toBe(A.sourcePosition);
+  });
+
+  it('PDF: keeps the slot when the primary resolves again — a doubled tint beats going dark', async () => {
+    const pdf = fakePDF('word');
+    pdf.reader._internalReader._readAloudManager.activeTimestamp = whole;
+    const { styling: s } = styling();
+    s.attach(pdf.reader);
+    await pdf.view.setReadAloudState({ ...pdfState(A, 1), activeWordSourcePosition: null });
+    expect(pdf.view._readAloudSentenceHighlightedPosition).toBe(A.sourcePosition);
+    await pdf.view.setReadAloudState(pdfState(A, 2));
+    expect(pdf.view._readAloudSentenceHighlightedPosition).toBe(A.sourcePosition);
+  });
+
+  it('DOM: sets the sentence spotlight when the primary spotlight is not drawn', () => {
+    const dom = fakeDOM('word');
+    dom.reader._internalReader._readAloudManager.activeTimestamp = whole;
+    styling().styling.attach(dom.reader);
+    dom.helper.setState({ popupOpen: true, activeSegment: A, primarySelector: null });
+    expect(dom.view._spotlights.get('ReadAloudActiveSegment')).toBeUndefined();
+    expect(dom.view._spotlights.get('ReadAloudActiveSentence')).toEqual({ selectorFor: A });
+  });
+
+  it('DOM: keeps the sentence spotlight while the primary is drawn as well', () => {
+    const dom = fakeDOM('word');
+    dom.reader._internalReader._readAloudManager.activeTimestamp = whole;
+    styling().styling.attach(dom.reader);
+    dom.helper.setState({ popupOpen: true, activeSegment: A });
+    expect(dom.view._spotlights.get('ReadAloudActiveSegment')).toBeTruthy();
+    expect(dom.view._spotlights.get('ReadAloudActiveSentence')).toEqual({ selectorFor: A });
+  });
+});
+
+// ---- issue #3 root cause: the resolver cannot resolve the generated CFI ----
+
+describe('repairing a sentence selector the resolver cannot resolve', () => {
+  const whole = { start: 0, end: WHOLE_SEGMENT_END_SECONDS, charStart: 0, charEnd: 42 };
+  const SEG = { sourcePosition: { pageIndex: 0, tag: 'seg' }, paragraphSourcePosition: { pageIndex: 0, tag: 'seg-p' }, text: 'Wine and hazelnut country, somewhere.' };
+  const BROKEN = { type: 'FragmentSelector', conformsTo: 'cfi', value: 'epubcfi(/6/16!/4/4/12/3,:32,:168)' };
+  const REPAIRED_VALUE = 'epubcfi(/6/16!/4/4/12/1,:32,:168)';
+
+  function repairableDOM() {
+    const dom = fakeDOM('word');
+    dom.reader._internalReader._readAloudManager.activeTimestamp = whole;
+    dom.helper._resolveSegmentSelector = vi.fn(() => ({ ...BROKEN })) as never;
+    // Like the real reader: an object not cloned into its compartment is unreadable
+    (dom.view as any).toDisplayedRange = vi.fn((sel: any) =>
+      sel?.cloned && sel.value === REPAIRED_VALUE ? { toString: () => 'Wine  and hazelnut country, somewhere.' } : null,
+    );
+    return dom;
+  }
+
+  it('rewrites the text step until the displayed text matches the sentence, cloning the selector for the reader', () => {
+    const dom = repairableDOM();
+    const cloneIntoReader = vi.fn((_reader: unknown, value: unknown) => ({ ...(value as object), cloned: true }));
+    styling({ cloneIntoReader }).styling.attach(dom.reader);
+    dom.helper.setState({ popupOpen: true, activeSegment: SEG, primarySelector: null });
+    const slot = dom.view._spotlights.get('ReadAloudActiveSentence') as any;
+    expect(slot?.value).toBe(REPAIRED_VALUE);
+    expect(slot?.cloned).toBe(true);
+    expect(cloneIntoReader).toHaveBeenCalledWith(dom.reader, expect.objectContaining({ value: REPAIRED_VALUE }));
+  });
+
+  it('sets nothing when no rewrite shows the sentence text — never a wrong highlight', () => {
+    const dom = repairableDOM();
+    (dom.view as any).toDisplayedRange = vi.fn((sel: any) =>
+      sel?.cloned && sel.value === REPAIRED_VALUE ? { toString: () => 'a completely different passage' } : null,
+    );
+    styling({ cloneIntoReader: (_r, value) => ({ ...(value as object), cloned: true }) }).styling.attach(dom.reader);
+    dom.helper.setState({ popupOpen: true, activeSegment: SEG, primarySelector: null });
+    expect(dom.view._spotlights.get('ReadAloudActiveSentence')).toBeUndefined();
+  });
+
+  it('leaves a selector that resolves as it is', () => {
+    const dom = fakeDOM('word');
+    dom.reader._internalReader._readAloudManager.activeTimestamp = whole;
+    (dom.view as any).toDisplayedRange = vi.fn(() => ({ toString: () => 'anything' }));
+    styling().styling.attach(dom.reader);
+    dom.helper.setState({ popupOpen: true, activeSegment: A });
+    expect(dom.view._spotlights.get('ReadAloudActiveSentence')).toEqual({ selectorFor: A });
   });
 });
