@@ -272,6 +272,17 @@ function startReadAloudShortcuts(pluginID: string): void {
     showToast: toastFor,
     // After a skip, what the popup's own buttons do: the view follows the spoken position again
     lockPosition: (reader: any) => reader?._internalReader?._lockPositionToReadAloud?.(),
+    // getSelectionPosition reads the selection-popup state — the same check
+    // Zotero's own Cmd/Ctrl+Shift+R makes before startReadAloudAtPosition()
+    canStartFromSelection: (reader: any) => {
+      const internal = reader?._internalReader;
+      return typeof internal?.startReadAloudAtPosition === 'function' && !!internal.getSelectionPosition?.();
+    },
+    startFromSelection: (reader: any) => reader?._internalReader?.startReadAloudAtPosition?.(),
+    // A queued onStateChange with no audio side effects; with the position
+    // just locked, the PDF view scrolls back on this push (EPUB and
+    // snapshot views wait for the next segment change)
+    emitState: (reader: any) => reader?._internalReader?._readAloudManager?._stateChanged?.(),
     log: (e) => Zotero.logError(e),
   });
   for (const win of mainWindows()) watchWindow(win);

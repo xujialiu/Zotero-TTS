@@ -91,6 +91,10 @@ export const DEFAULTS: Settings = {
     nextSentence: 'ArrowRight',
     previousParagraph: 'Shift+ArrowLeft',
     nextParagraph: 'Shift+ArrowRight',
+    // Taken only while text is selected; Shift+Space keeps paging the reader otherwise
+    startFromSelection: 'Shift+Space',
+    // Taken only while a Read Aloud session is open
+    returnToSpoken: 'Shift+Enter',
   },
   readAloud: { sameForAllDocuments: true, multilingualEverywhere: false },
   // A green word on a yellow sentence, the sentence kept under the word; the reader still
@@ -155,6 +159,8 @@ export function loadSettings(prefs: PrefsBackend): Settings {
       nextSentence: str(prefs, 'shortcuts.nextSentence', DEFAULTS.shortcuts.nextSentence),
       previousParagraph: str(prefs, 'shortcuts.previousParagraph', DEFAULTS.shortcuts.previousParagraph),
       nextParagraph: str(prefs, 'shortcuts.nextParagraph', DEFAULTS.shortcuts.nextParagraph),
+      startFromSelection: str(prefs, 'shortcuts.startFromSelection', DEFAULTS.shortcuts.startFromSelection),
+      returnToSpoken: str(prefs, 'shortcuts.returnToSpoken', DEFAULTS.shortcuts.returnToSpoken),
     },
     readAloud: {
       sameForAllDocuments: bool(prefs, 'readAloud.sameForAllDocuments', DEFAULTS.readAloud.sameForAllDocuments),

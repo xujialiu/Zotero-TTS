@@ -64,6 +64,8 @@ const BINDINGS = {
   nextSentence: 'ArrowRight',
   previousParagraph: 'Shift+ArrowLeft',
   nextParagraph: 'Shift+ArrowRight',
+  startFromSelection: 'Shift+Space',
+  returnToSpoken: 'Shift+Enter',
 };
 const voicesPref = (prefs: { store: Record<string, unknown> }) => JSON.parse(prefs.store[READ_ALOUD_VOICES_PREF] as string);
 
@@ -73,6 +75,9 @@ function setup(over: Partial<ReadAloudShortcutsDeps> = {}) {
   const reader = { id: 'reader' };
   const showToast = vi.fn();
   const lockPosition = vi.fn();
+  const canStartFromSelection = vi.fn(() => true);
+  const startFromSelection = vi.fn();
+  const emitState = vi.fn();
   const log = vi.fn();
   const shortcuts = createReadAloudShortcuts({
     getBindings: () => BINDINGS,
@@ -80,10 +85,13 @@ function setup(over: Partial<ReadAloudShortcutsDeps> = {}) {
     getManager: () => manager,
     showToast,
     lockPosition,
+    canStartFromSelection,
+    startFromSelection,
+    emitState,
     log,
     ...over,
   });
-  return { shortcuts, prefs, manager, reader, showToast, lockPosition, log, resolve: () => reader };
+  return { shortcuts, prefs, manager, reader, showToast, lockPosition, canStartFromSelection, startFromSelection, emitState, log, resolve: () => reader };
 }
 
 describe('handleKeyDown', () => {
@@ -324,6 +332,171 @@ describe('navigation', () => {
     manager.active = false;
     expect(shortcuts.navigate(reader, 'previousParagraph')).toBe(false);
     expect(manager.skipBack).not.toHaveBeenCalled();
+  });
+});
+
+describe('start from selection', () => {
+  const space = (partial: Partial<ShortcutKeyEvent> = {}) => keyEvent({ key: ' ', code: 'Space', shiftKey: true, ...partial });
+
+  it("starts reading at the selection through Zotero's startReadAloudAtPosition", () => {
+    const { shortcuts, reader, startFromSelection, resolve } = setup();
+    const event = space();
+    expect(shortcuts.handleKeyDown(event, resolve)).toBe(true);
+    expect(startFromSelection).toHaveBeenCalledWith(reader);
+    expect(event.preventDefault).toHaveBeenCalled();
+    expect(event.stopPropagation).toHaveBeenCalled();
+  });
+
+  // The point of the shortcut is starting a session that is not open yet
+  it('acts with an idle manager, or none at all', () => {
+    const idle = setup();
+    idle.manager.active = false;
+    expect(idle.shortcuts.handleKeyDown(space(), idle.resolve)).toBe(true);
+    expect(idle.startFromSelection).toHaveBeenCalled();
+    const none = setup({ getManager: () => null });
+    expect(none.shortcuts.handleKeyDown(space(), none.resolve)).toBe(true);
+    expect(none.startFromSelection).toHaveBeenCalled();
+  });
+
+  // Shift+Space pages the reader; it is only borrowed while there is a selection to read from
+  it('falls through without a selection, leaving the key to the reader', () => {
+    const { shortcuts, startFromSelection, canStartFromSelection, resolve } = setup();
+    canStartFromSelection.mockReturnValue(false);
+    const event = space();
+    expect(shortcuts.handleKeyDown(event, resolve)).toBe(false);
+    expect(event.preventDefault).not.toHaveBeenCalled();
+    expect(startFromSelection).not.toHaveBeenCalled();
+  });
+
+  it('falls through when the deps are not wired (an older Zotero without startReadAloudAtPosition)', () => {
+    const { shortcuts, resolve } = setup({ canStartFromSelection: undefined, startFromSelection: undefined });
+    const event = space();
+    expect(shortcuts.handleKeyDown(event, resolve)).toBe(false);
+    expect(event.preventDefault).not.toHaveBeenCalled();
+  });
+
+  it('treats a selection check that throws as "no selection", and records it', () => {
+    const { shortcuts, canStartFromSelection, startFromSelection, log, resolve } = setup();
+    canStartFromSelection.mockImplementation(() => {
+      throw new Error('dead reader');
+    });
+    expect(shortcuts.handleKeyDown(space(), resolve)).toBe(false);
+    expect(startFromSelection).not.toHaveBeenCalled();
+    expect(log).toHaveBeenCalledWith(expect.any(Error));
+  });
+
+  it('logs a start that throws and still consumes the key', () => {
+    const { shortcuts, startFromSelection, log, resolve } = setup();
+    startFromSelection.mockImplementation(() => {
+      throw new Error('boom');
+    });
+    expect(shortcuts.handleKeyDown(space(), resolve)).toBe(true);
+    expect(log).toHaveBeenCalledWith(expect.any(Error));
+  });
+
+  it('lets typing through in editable fields', () => {
+    const { shortcuts, startFromSelection, resolve } = setup();
+    const event = space({ target: { tagName: 'TEXTAREA' } });
+    expect(shortcuts.handleKeyDown(event, resolve)).toBe(false);
+    expect(startFromSelection).not.toHaveBeenCalled();
+  });
+
+  it('swallows auto-repeat: one start per press', () => {
+    const { shortcuts, startFromSelection, resolve } = setup();
+    expect(shortcuts.handleKeyDown(space({ repeat: true }), resolve)).toBe(true);
+    expect(startFromSelection).not.toHaveBeenCalled();
+  });
+
+  it('startFromSelection() reports whether there was a selection to start from', () => {
+    const { shortcuts, reader, startFromSelection, canStartFromSelection } = setup();
+    expect(shortcuts.startFromSelection(reader)).toBe(true);
+    expect(startFromSelection).toHaveBeenCalledWith(reader);
+    canStartFromSelection.mockReturnValue(false);
+    expect(shortcuts.startFromSelection(reader)).toBe(false);
+    expect(startFromSelection).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('return to spoken position', () => {
+  const enter = (partial: Partial<ShortcutKeyEvent> = {}) => keyEvent({ key: 'Enter', code: 'Enter', shiftKey: true, ...partial });
+
+  // Locking makes the view follow the reading again; re-emitting the state
+  // gives it a push to navigate on right away instead of at the next segment
+  it('locks the view to the spoken position and re-emits the manager state', () => {
+    const { shortcuts, reader, lockPosition, emitState, resolve } = setup();
+    const event = enter();
+    expect(shortcuts.handleKeyDown(event, resolve)).toBe(true);
+    expect(lockPosition).toHaveBeenCalledWith(reader);
+    expect(emitState).toHaveBeenCalledWith(reader);
+    expect(event.preventDefault).toHaveBeenCalled();
+    expect(event.stopPropagation).toHaveBeenCalled();
+  });
+
+  it('works while paused: the view returns to the highlight without playing', () => {
+    const { shortcuts, manager, lockPosition, resolve } = setup();
+    manager.paused = true;
+    expect(shortcuts.handleKeyDown(enter(), resolve)).toBe(true);
+    expect(lockPosition).toHaveBeenCalled();
+  });
+
+  it('falls through when no Read Aloud session is open, or there is no manager', () => {
+    const idle = setup();
+    idle.manager.active = false;
+    const event1 = enter();
+    expect(idle.shortcuts.handleKeyDown(event1, idle.resolve)).toBe(false);
+    expect(event1.preventDefault).not.toHaveBeenCalled();
+    expect(idle.lockPosition).not.toHaveBeenCalled();
+    const none = setup({ getManager: () => null });
+    const event2 = enter();
+    expect(none.shortcuts.handleKeyDown(event2, none.resolve)).toBe(false);
+    expect(none.lockPosition).not.toHaveBeenCalled();
+  });
+
+  it('falls through when lockPosition is not wired', () => {
+    const { shortcuts, emitState, resolve } = setup({ lockPosition: undefined });
+    const event = enter();
+    expect(shortcuts.handleKeyDown(event, resolve)).toBe(false);
+    expect(event.preventDefault).not.toHaveBeenCalled();
+    expect(emitState).not.toHaveBeenCalled();
+  });
+
+  // The lock alone still brings the view back at the next highlight update
+  it('still acts without emitState', () => {
+    const { shortcuts, lockPosition, resolve } = setup({ emitState: undefined });
+    expect(shortcuts.handleKeyDown(enter(), resolve)).toBe(true);
+    expect(lockPosition).toHaveBeenCalled();
+  });
+
+  it('logs a lock that throws and still re-emits the state', () => {
+    const { shortcuts, lockPosition, emitState, log, resolve } = setup();
+    lockPosition.mockImplementation(() => {
+      throw new Error('boom');
+    });
+    expect(shortcuts.handleKeyDown(enter(), resolve)).toBe(true);
+    expect(emitState).toHaveBeenCalled();
+    expect(log).toHaveBeenCalledWith(expect.any(Error));
+  });
+
+  it('lets typing through in editable fields', () => {
+    const { shortcuts, lockPosition, resolve } = setup();
+    const event = enter({ target: { tagName: 'TEXTAREA' } });
+    expect(shortcuts.handleKeyDown(event, resolve)).toBe(false);
+    expect(lockPosition).not.toHaveBeenCalled();
+  });
+
+  it('swallows auto-repeat: one return per press', () => {
+    const { shortcuts, lockPosition, resolve } = setup();
+    expect(shortcuts.handleKeyDown(enter({ repeat: true }), resolve)).toBe(true);
+    expect(lockPosition).not.toHaveBeenCalled();
+  });
+
+  it('returnToSpoken() reports whether there was a session to return to', () => {
+    const { shortcuts, manager, reader, lockPosition } = setup();
+    expect(shortcuts.returnToSpoken(reader)).toBe(true);
+    expect(lockPosition).toHaveBeenCalledWith(reader);
+    manager.active = false;
+    expect(shortcuts.returnToSpoken(reader)).toBe(false);
+    expect(lockPosition).toHaveBeenCalledTimes(1);
   });
 });
 

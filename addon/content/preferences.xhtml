@@ -184,7 +184,17 @@
       <button id="ztts-key-nextParagraph" style="min-width: 10em"/>
       <button id="ztts-key-clear-nextParagraph" label="Clear"/>
     </hbox>
-    <description>Sentence and paragraph keys act only while Read Aloud is open; otherwise the arrow keys page and scroll the reader as usual.</description>
+    <hbox align="center">
+      <label value="Read from selection" style="width: 12em"/>
+      <button id="ztts-key-startFromSelection" style="min-width: 10em"/>
+      <button id="ztts-key-clear-startFromSelection" label="Clear"/>
+    </hbox>
+    <hbox align="center">
+      <label value="Go to reading position" style="width: 12em"/>
+      <button id="ztts-key-returnToSpoken" style="min-width: 10em"/>
+      <button id="ztts-key-clear-returnToSpoken" label="Clear"/>
+    </hbox>
+    <description>Sentence, paragraph and Go-to-reading-position keys act only while Read Aloud is open, and Read from selection only while text is selected; otherwise the keys page and scroll the reader as usual.</description>
     <description id="ztts-key-message"/>
     <hbox>
       <button id="ztts-key-defaults" label="Restore default shortcuts"/>

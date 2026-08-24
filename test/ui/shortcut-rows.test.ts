@@ -54,10 +54,14 @@ const IDS = [
   'ztts-key-nextSentence',
   'ztts-key-previousParagraph',
   'ztts-key-nextParagraph',
+  'ztts-key-startFromSelection',
+  'ztts-key-returnToSpoken',
   'ztts-key-clear-previousSentence',
   'ztts-key-clear-nextSentence',
   'ztts-key-clear-previousParagraph',
   'ztts-key-clear-nextParagraph',
+  'ztts-key-clear-startFromSelection',
+  'ztts-key-clear-returnToSpoken',
   'ztts-key-defaults',
   'ztts-key-message',
 ];
@@ -119,6 +123,8 @@ describe('initShortcutRows', () => {
     expect(doc.el('ztts-key-nextSentence').label).toBe('ArrowRight');
     expect(doc.el('ztts-key-previousParagraph').label).toBe('Shift+ArrowLeft');
     expect(doc.el('ztts-key-nextParagraph').label).toBe('Shift+ArrowRight');
+    expect(doc.el('ztts-key-startFromSelection').label).toBe('Shift+Space');
+    expect(doc.el('ztts-key-returnToSpoken').label).toBe('Shift+Enter');
     expect(doc.recording).toBe(0);
   });
 

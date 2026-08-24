@@ -72,6 +72,27 @@ export interface ReadAloudShortcutsDeps {
   showToast?(reader: unknown, speed: number): void;
   /** After a skip, what the popup's own buttons do: lock the view to the spoken position, so it follows again. */
   lockPosition?(reader: unknown): void;
+  /**
+   * Whether the reader has a text selection to start reading from *and* its
+   * Zotero can do so (`reader.startReadAloudAtPosition` exists). Checked
+   * before the key is consumed: without a selection Shift+Space keeps
+   * paging the reader.
+   */
+  canStartFromSelection?(reader: unknown): boolean;
+  /**
+   * Zotero's own "Read Aloud from Here" on the current selection
+   * (`reader.startReadAloudAtPosition()` with no argument): an open session
+   * jumps there, an idle reader opens the popup and starts reading there.
+   */
+  startFromSelection?(reader: unknown): void;
+  /**
+   * Re-emit the manager's state (`manager._stateChanged()`, a queued
+   * onStateChange with no audio side effects), so a view just locked by
+   * lockPosition gets a push to scroll back on right away. The PDF view
+   * navigates on any push while locked; EPUB and snapshot views only on a
+   * segment change, so there the view returns at the next sentence.
+   */
+  emitState?(reader: unknown): void;
   log?(e: unknown): void;
 }
 
@@ -87,6 +108,10 @@ export interface ReadAloudShortcuts {
   adjust(reader: unknown, action: SpeedAction): number;
   /** Skip by sentence or paragraph; false when the reader has no open Read Aloud session to skip in. */
   navigate(reader: unknown, action: NavigationAction): boolean;
+  /** Start reading at the current selection; false when there is no selection to start from. */
+  startFromSelection(reader: unknown): boolean;
+  /** Bring the view back to the spoken position; false when no Read Aloud session is open. */
+  returnToSpoken(reader: unknown): boolean;
   /** Attach a capturing keydown listener to a window; idempotent per window, detaches itself on unload. */
   listen(target: EventTargetLike, resolveReader: () => unknown, options?: HandleOptions): void;
   unlisten(target: EventTargetLike): void;
@@ -172,6 +197,44 @@ export function createReadAloudShortcuts(deps: ReadAloudShortcutsDeps): ReadAlou
     return true;
   }
 
+  const canStartFromSelection = (reader: unknown): boolean => {
+    if (!deps.startFromSelection || !deps.canStartFromSelection) return false;
+    try {
+      return deps.canStartFromSelection(reader);
+    } catch (e) {
+      log(e);
+      return false;
+    }
+  };
+
+  function startFromSelection(reader: unknown): boolean {
+    if (!canStartFromSelection(reader)) return false;
+    try {
+      deps.startFromSelection?.(reader);
+    } catch (e) {
+      log(e);
+    }
+    return true;
+  }
+
+  /** A session is open (the view has a spoken position to return to) and the lock is wired. */
+  const canReturnToSpoken = (reader: unknown): boolean => !!deps.lockPosition && !!managerOf(reader)?.active;
+
+  function returnToSpoken(reader: unknown): boolean {
+    if (!canReturnToSpoken(reader)) return false;
+    try {
+      deps.lockPosition?.(reader);
+    } catch (e) {
+      log(e);
+    }
+    try {
+      deps.emitState?.(reader);
+    } catch (e) {
+      log(e);
+    }
+    return true;
+  }
+
   function handleKeyDown(event: ShortcutKeyEvent, resolveReader: () => unknown, options: HandleOptions = {}): boolean {
     if (event.defaultPrevented) return false;
     const action = actionFor(event);
@@ -182,13 +245,18 @@ export function createReadAloudShortcuts(deps: ReadAloudShortcutsDeps): ReadAlou
     if (!reader) return false;
     // The arrow keys page and scroll the reader: a sentence or paragraph key
     // is borrowed only while a Read Aloud session is open (playing or
-    // paused) and falls through untouched otherwise.
+    // paused) and falls through untouched otherwise. Shift+Space pages too:
+    // it is borrowed only while there is a selection to start reading from.
     if (isNavigationAction(action) && !canSkip(managerOf(reader))) return false;
+    if (action === 'startFromSelection' && !canStartFromSelection(reader)) return false;
+    if (action === 'returnToSpoken' && !canReturnToSpoken(reader)) return false;
     event.preventDefault();
     event.stopPropagation();
     // Holding the key down would restart the current segment on every auto-repeat
     if (event.repeat) return true;
     if (isNavigationAction(action)) navigate(reader, action);
+    else if (action === 'startFromSelection') startFromSelection(reader);
+    else if (action === 'returnToSpoken') returnToSpoken(reader);
     else adjust(reader, action);
     return true;
   }
@@ -226,7 +294,7 @@ export function createReadAloudShortcuts(deps: ReadAloudShortcutsDeps): ReadAlou
     for (const target of [...listeners.keys()]) unlisten(target);
   }
 
-  return { handleKeyDown, adjust, navigate, listen, unlisten, dispose };
+  return { handleKeyDown, adjust, navigate, startFromSelection, returnToSpoken, listen, unlisten, dispose };
 }
 
 /**

@@ -23,7 +23,7 @@ things around the edges. Why it is built this way: [PHILOSOPHY.md](PHILOSOPHY.md
 
 - 🗣️ **More voices in the Local tier** of the Read Aloud popup — Azure Speech, a [Kokoro-FastAPI](https://github.com/remsky/Kokoro-FastAPI) on your machine, OpenAI or any OpenAI-compatible server — next to Zotero's Standard and Premium voices. [→ Providers](#providers)
 - ✨ **Word *and* sentence highlighting at once**, in your own colors and opacities — for Zotero's voices too. [→ Highlight](#highlight)
-- ⌨️ **Keyboard shortcuts**: speed up, down, reset; jump by sentence or paragraph. All rebindable. [→ Shortcuts](#keyboard-shortcuts)
+- ⌨️ **Keyboard shortcuts**: speed up, down, reset; jump by sentence or paragraph; read from the selection; bring the view back to what's being read. All rebindable. [→ Shortcuts](#keyboard-shortcuts)
 - 📌 **One voice and speed for every document**, instead of Zotero's choice per language. [→ Reading](#reading)
 - 💾 **Settings backup** to a file or a WebDAV folder. [→ Backup](#backup)
 
@@ -96,9 +96,13 @@ your reader's theme. The default is a green word on a yellow sentence;
 ### Keyboard shortcuts
 
 `Shift+Z` back to 1.0×, `Shift+X` −0.1, `Shift+C` +0.1; `←` / `→` previous
-/ next sentence, `Shift+←` / `Shift+→` previous / next paragraph. The arrow
-keys act only while Read Aloud is open and page as usual otherwise. Click a
-field to record another key.
+/ next sentence, `Shift+←` / `Shift+→` previous / next paragraph;
+`Shift+Space` starts reading from the selected text — the context menu's
+*Read Aloud from Here* (Zotero itself also has `Ctrl/Cmd+Shift+R`);
+`Shift+Enter` makes the view follow the reading again after you scrolled
+away. The arrow keys and `Shift+Enter` act only while Read Aloud is open,
+`Shift+Space` only while text is selected; otherwise the keys page and
+scroll as usual. Click a field to record another key.
 
 ### Reading
 
@@ -153,12 +157,6 @@ password.
   until the plugin is updated; Zotero's own voices keep working.
 - Word highlighting needs a voice with word timings (Azure, Kokoro). The
   plugin never guesses them.
-
-## TODO
-
-- A shortcut to start reading from the selection: select text, press
-  Shift+Space, and Read Aloud starts there — today that takes the context
-  menu's *Read Aloud from Here*.
 
 ## Development
 

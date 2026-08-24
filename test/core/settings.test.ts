@@ -80,7 +80,7 @@ describe('loadSettings', () => {
     expect(loadSettings(fakePrefs({ 'extensions.zotero.zotero-tts.highlight.sentenceAlpha': -1 })).highlight.sentenceAlpha).toBe(0);
   });
 
-  it('ships Shift+Z / X / C for the speed and the arrow keys for skipping as the default shortcuts', () => {
+  it('ships Shift+Z / X / C for the speed, the arrow keys for skipping, and Shift+Space / Shift+Enter for the position', () => {
     expect(DEFAULTS.shortcuts).toEqual({
       speedReset: 'Shift+Z',
       speedDown: 'Shift+X',
@@ -89,6 +89,8 @@ describe('loadSettings', () => {
       nextSentence: 'ArrowRight',
       previousParagraph: 'Shift+ArrowLeft',
       nextParagraph: 'Shift+ArrowRight',
+      startFromSelection: 'Shift+Space',
+      returnToSpoken: 'Shift+Enter',
     });
   });
 

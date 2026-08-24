@@ -987,3 +987,56 @@ sentence color. In the gap a real-word voice's stale last word now shows the
 sentence color — neutral. System voices have no `activeTimestamp` (non-remote
 controller) and no word positions, unaffected. Diagnostics: `inspect()`
 reports `activeWordTimestamp: real | stand-in | none`.
+
+## Read from selection and go to reading position (added 2026-08-24)
+
+README TODO 3 (Shift+Space reads from the selection) plus a new Shift+Enter
+that brings the view back to the spoken position. Both verified in the
+installed 10.0.x bundle (the same one as the skip research, skipBack at
+~82296) before implementing.
+
+- `reader.startReadAloudAtPosition(position = null)` (bundle ~83952) is the
+  whole feature: the context menu's *Read Aloud from Here* passes the click
+  position, and with no argument it falls back to `getSelectionPosition()`.
+  Active with segments → `_lockPositionToReadAloud()` + `jumpTo(position)`
+  (no selection: `play()`). Idle → `setTargetPosition(...)`, popup opens,
+  and once a voice resolves the reader auto-activates (~83587,
+  `_onReadAloudEngineStateChanged`: popup open, not first-run, voice
+  selected, not active) — reading starts by itself; only the first-run
+  popup (no tier ever chosen) waits for the user. Start priority inside
+  `_captureReadAloudStart` (~83788): view selection (consumed via
+  `clearSelection`) > target > savedPosition if near the view > first
+  visible segment.
+- Zotero already binds this: `Ctrl/Cmd+Shift+R` and `Ctrl/Cmd+Shift+L`
+  (~81690) call `startReadAloudAtPosition()`; active with no selection they
+  close the popup instead. Worth knowing before wiring a duplicate.
+- The plugin takes Shift+Space only when
+  `internalReader.getSelectionPosition()` is truthy (the selection-popup
+  state — the same guard Zotero's own key uses) and the method exists;
+  otherwise the key falls through (pdf.js pages up on Shift+Space). Whether
+  a session is open does not matter: idle is the point.
+- "View back to the spoken position" is two steps because the lock is only
+  a flag: `_lockPositionToReadAloud()` → view `lockPositionToReadAloud()`
+  sets it, nothing scrolls. The scroll happens in the views' state push:
+  the PDF view navigates (`ifNeeded`, centered) on *any*
+  `setReadAloudState` while locked (~76333) — paused included; EPUB and
+  snapshot views only when `state.activeSegment` changed identity (~53239),
+  so they return at the next sentence, and while paused only after resume.
+  `manager._stateChanged()` (~82454) is just a queued
+  `options.onStateChange` — re-emitting state costs nothing and never
+  touches audio — so Shift+Enter = lock + `_stateChanged()`.
+- Rejected for Shift+Enter: `play()` — while playing the controller's
+  `paused` setter re-runs `_speak()` (~40153), which re-fetches and
+  restarts the current segment (offset only survives when `_indexAtPause`
+  happens to match), and while paused it resumes; `jumpTo(current)` —
+  `repositionTo` sets `_paused = false` (~82330), so a paused session
+  starts playing, and the segment restarts. If the EPUB "next sentence"
+  delay ever grates, `jumpTo` is the escalation: immediate on every view
+  type, at the price of those side effects.
+- Both keys live in the existing pipeline: `PositionAction` in
+  core/shortcut-actions.ts, guards in ui/read-aloud-shortcuts.ts
+  (`canStartFromSelection` / `canReturnToSpoken` decide *before*
+  preventDefault, so an unusable key falls through untouched), wiring in
+  index.ts (`startReadAloudAtPosition` feature-detected for older Zotero).
+  Defaults Shift+Space / Shift+Enter; both rebindable, neither allows bare
+  arrows.
