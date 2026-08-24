@@ -119,7 +119,7 @@ Zotero → Settings → TTS → **OpenAI** section:
 | Field | Value |
 |---|---|
 | Enable OpenAI voices | on |
-| Server | **Chatterbox-TTS-Server** (key, model and voices grey out — Chatterbox ignores them); for another server, *Other OpenAI-compatible server* |
+| Server | **Chatterbox-TTS-Server** (key, model and voices gray out — Chatterbox ignores them); for another server, *Other OpenAI-compatible server* |
 | Base URL | `https://tts-windows.example.com` |
 | Extra headers | `CF-Access-Client-Id: <CLIENT_ID>; CF-Access-Client-Secret: <CLIENT_SECRET>` |
 

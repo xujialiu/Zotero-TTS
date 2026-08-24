@@ -454,7 +454,7 @@ describe('listen', () => {
 });
 
 describe('isEditableTarget', () => {
-  it('recognises text entry elements', () => {
+  it('recognizes text entry elements', () => {
     expect(isEditableTarget({ tagName: 'INPUT', type: 'text' })).toBe(true);
     expect(isEditableTarget({ tagName: 'input', type: 'search' })).toBe(true);
     expect(isEditableTarget({ tagName: 'INPUT' })).toBe(true);

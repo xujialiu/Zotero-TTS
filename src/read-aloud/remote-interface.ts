@@ -119,7 +119,7 @@ const NO_CREDITS = { standardCreditsRemaining: null, premiumCreditsRemaining: nu
 /**
  * Segments this short — a section number, a list marker, "No." — are where
  * some servers fail outright: Chatterbox-TTS-Server answers HTTP 500 for
- * inputs of one or two tokens (its alignment analyser needs more), while
+ * inputs of one or two tokens (its alignment analyzer needs more), while
  * every longer sentence is fine. Such a failure costs the user the whole
  * playback, so it becomes a short pause instead. Longer segments that fail
  * still surface the error: that is a real problem, not a quirk.

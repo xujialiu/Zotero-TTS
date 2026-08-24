@@ -154,7 +154,7 @@ function backupFileIO(win: any): BackupFileIO {
 
 /**
  * The theme the reader is showing right now, resolved as the reader does
- * (core/reader-theme.ts): the app's colour scheme picks the light or the
+ * (core/reader-theme.ts): the app's color scheme picks the light or the
  * dark theme pref, among Zotero's themes and the user's custom ones.
  */
 function currentReaderTheme(win: any): ResolvedReaderTheme {

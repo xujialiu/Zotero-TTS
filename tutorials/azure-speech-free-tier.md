@@ -48,7 +48,7 @@ tier below is permanent and independent of it.
    | Pricing tier | **Free F0** |
 
    Only one Free Speech resource is allowed per subscription and region; if
-   *Free F0* is greyed out, you already have one there, or had one: a deleted
+   *Free F0* is grayed out, you already have one there, or had one: a deleted
    resource lingers in a soft-deleted state for a while and still counts. Pick
    another region, or purge it (Azure AI services, Manage deleted resources).
 4. **Review + create**, then **Create**. Deployment takes under a minute;

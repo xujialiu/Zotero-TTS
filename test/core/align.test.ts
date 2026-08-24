@@ -31,7 +31,7 @@ describe('alignWordsToText', () => {
     expect(out.map((t) => t.charStart)).toEqual([0, 4, 8, 12]);
   });
 
-  it('is case-insensitive, because engines normalise capitalisation', () => {
+  it('is case-insensitive, because engines normalize capitalization', () => {
     const out = alignWordsToText([{ text: 'the', start: 0, end: 0.1 }], 'The quick');
     expect(out[0]).toMatchObject({ charStart: 0, charEnd: 3 });
   });

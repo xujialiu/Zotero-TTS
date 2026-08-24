@@ -114,7 +114,7 @@ Zotero → Settings → TTS → **OpenAI** section:
 | Field | Value |
 |---|---|
 | Enable OpenAI voices | on |
-| Server | **Chatterbox-TTS-Server** — this fills in the address and greys out key, model and voices, which Chatterbox ignores |
+| Server | **Chatterbox-TTS-Server** — this fills in the address and grays out key, model and voices, which Chatterbox ignores |
 | Base URL | `http://localhost:8004` (filled in by the preset; change it for another machine) |
 | Extra headers | empty (only needed behind a gateway, see the Cloudflare tutorial) |
 

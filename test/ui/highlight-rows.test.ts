@@ -67,24 +67,24 @@ const CYAN_WORD_DARK = 'background-color: rgba(0, 255, 255, 0.135); mix-blend-mo
 const PINK_SENTENCE_DARK = 'background-color: rgba(255, 128, 192, 0.091); mix-blend-mode: plus-lighter;';
 
 describe('previewStyle', () => {
-  it("folds the reader's rectangle opacity into the colour and multiplies it onto a light page", () => {
+  it("folds the reader's rectangle opacity into the color and multiplies it onto a light page", () => {
     // 45% -> 0x73 = 115/255 = 0.451, drawn at 0.4 -> 0.18
     expect(previewStyle('#00ffff', 45)).toBe(CYAN_WORD);
     expect(previewStyle('#ff80c0', 30)).toBe(PINK_SENTENCE);
     expect(previewStyle('#4072e5', 45, 'light')).toBe(ZOTERO_WORD);
   });
 
-  it('draws at 0.3 and adds the colour on a dark page, as the reader does', () => {
+  it('draws at 0.3 and adds the color on a dark page, as the reader does', () => {
     expect(previewStyle('#00ffff', 45, 'dark')).toBe(CYAN_WORD_DARK);
     expect(previewStyle('#ff80c0', 30, 'dark')).toBe(PINK_SENTENCE_DARK);
   });
 
-  it('paints nothing for a colour that is not one', () => {
+  it('paints nothing for a color that is not one', () => {
     expect(previewStyle('bright red', 45)).toBe('');
     expect(previewStyle('', 45, 'dark')).toBe('');
   });
 
-  it("gives the sample page the theme's colours", () => {
+  it("gives the sample page the theme's colors", () => {
     expect(previewBoxStyle(DARK)).toMatch(/ background: #2E3440; color: #D8DEE9;$/);
     expect(previewBoxStyle(LIGHT)).toMatch(/ background: #ffffff; color: #121212;$/);
   });
@@ -165,7 +165,7 @@ describe('initHighlightRows', () => {
     expect(t.wordSentence()).toBe(DEFAULT_SENTENCE);
   });
 
-  it('leaves an invalid colour unpainted and exposes refresh() for a restore from a backup', () => {
+  it('leaves an invalid color unpainted and exposes refresh() for a restore from a backup', () => {
     const t = setup({ ...cyanPink, [key('wordColor')]: 'nope' });
     expect(t.word()).toBe('');
     t.prefs.set(key('wordColor'), '#00ff00');

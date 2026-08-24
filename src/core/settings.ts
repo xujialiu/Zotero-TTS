@@ -45,7 +45,7 @@ export interface Settings {
      */
     multilingualEverywhere: boolean;
   };
-  /** The colours of Zotero's Read Aloud highlights (read-aloud/highlight-style.ts); opacities in percent. */
+  /** The colors of Zotero's Read Aloud highlights (read-aloud/highlight-style.ts); opacities in percent. */
   highlight: {
     wordColor: string;
     wordAlpha: number;

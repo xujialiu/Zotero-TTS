@@ -1,5 +1,5 @@
 /**
- * The colours of Zotero's Read Aloud highlights, and a sentence highlight
+ * The colors of Zotero's Read Aloud highlights, and a sentence highlight
  * kept under the word one.
  *
  * Zotero draws two highlights from constants hard-coded in its reader
@@ -33,7 +33,7 @@
  * called with what arrived. Prototypes belong to one reader tab's bundle, so
  * each reader is patched once and the secondary (split) view shares the
  * patch. Anything that is not where this expects it — another Zotero
- * version — leaves Zotero's own behaviour in place.
+ * version — leaves Zotero's own behavior in place.
  */
 
 export interface HighlightStyle {
@@ -49,7 +49,7 @@ export interface HighlightStyle {
 
 export type Granularity = 'word' | 'sentence' | 'paragraph';
 
-/** '#rrggbb' (or '#rgb') plus an opacity in percent → '#rrggbbaa', the form Zotero's constants take; null when the colour is not one. */
+/** '#rrggbb' (or '#rgb') plus an opacity in percent → '#rrggbbaa', the form Zotero's constants take; null when the color is not one. */
 export function highlightColor(hex: string, alphaPercent: number): string | null {
   const m = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(String(hex ?? '').trim());
   if (!m) return null;
@@ -60,14 +60,14 @@ export function highlightColor(hex: string, alphaPercent: number): string | null
   return `#${rgb}${alpha.toString(16).padStart(2, '0')}`;
 }
 
-/** The colour for Zotero's primary highlight, by the unit it currently shows: the word colour for a word, the sentence colour otherwise. */
+/** The color for Zotero's primary highlight, by the unit it currently shows: the word color for a word, the sentence color otherwise. */
 export function primaryHighlightColor(style: HighlightStyle, granularity: Granularity | null): string | null {
   return granularity === 'word'
     ? highlightColor(style.wordColor, style.wordAlpha)
     : highlightColor(style.sentenceColor, style.sentenceAlpha);
 }
 
-/** The colour for Zotero's secondary slot: the sentence under a word, or the flash after a skip. */
+/** The color for Zotero's secondary slot: the sentence under a word, or the flash after a skip. */
 export function secondaryHighlightColor(style: HighlightStyle): string | null {
   return highlightColor(style.sentenceColor, style.sentenceAlpha);
 }

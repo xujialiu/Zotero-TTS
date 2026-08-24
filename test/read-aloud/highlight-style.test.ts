@@ -22,7 +22,7 @@ describe('highlightColor', () => {
     expect(highlightColor('#0f0', 20)).toBe(SENTENCE);
   });
 
-  it('clamps the opacity and refuses anything that is not a colour', () => {
+  it('clamps the opacity and refuses anything that is not a color', () => {
     expect(highlightColor('#000000', 250)).toBe('#000000ff');
     expect(highlightColor('#000000', -5)).toBe('#00000000');
     expect(highlightColor('#000000', NaN)).toBe('#000000ff');
@@ -31,7 +31,7 @@ describe('highlightColor', () => {
     expect(highlightColor('', 50)).toBeNull();
   });
 
-  it('picks the word colour for a word and the sentence colour for anything coarser', () => {
+  it('picks the word color for a word and the sentence color for anything coarser', () => {
     expect(primaryHighlightColor(STYLE, 'word')).toBe(WORD);
     expect(primaryHighlightColor(STYLE, 'sentence')).toBe(SENTENCE);
     expect(primaryHighlightColor(STYLE, 'paragraph')).toBe(SENTENCE);
@@ -153,8 +153,8 @@ const pdfState = (seg: typeof A, n = 1, extra: Record<string, unknown> = {}) => 
 
 // ---- PDF --------------------------------------------------------------------
 
-describe('PDF colours', () => {
-  it("recolours Zotero's primary highlight by the unit it shows, and the secondary slot with the sentence colour", () => {
+describe('PDF colors', () => {
+  it("recolours Zotero's primary highlight by the unit it shows, and the secondary slot with the sentence color", () => {
     for (const [granularity, expected] of [
       ['word', WORD],
       ['sentence', SENTENCE],
@@ -176,7 +176,7 @@ describe('PDF colours', () => {
     }
   });
 
-  it("keeps Zotero's colour when the configured one is not a colour", () => {
+  it("keeps Zotero's color when the configured one is not a color", () => {
     const pdf = fakePDF('word');
     const { styling: s } = styling({}, { ...STYLE, wordColor: 'bright red' });
     s.attach(pdf.reader);
@@ -288,7 +288,7 @@ describe('PDF sentence under the word', () => {
 
 // ---- EPUB / snapshot ----------------------------------------------------------
 
-describe('DOM view colours', () => {
+describe('DOM view colors', () => {
   it('recolours the two Read Aloud spotlights and nothing else', () => {
     const dom = fakeDOM('word');
     const { styling: s } = styling();
@@ -302,7 +302,7 @@ describe('DOM view colours', () => {
     expect(sentenceMode.view._getSpotlightColor('ReadAloudActiveSegment')).toBe(SENTENCE);
   });
 
-  it("keeps Zotero's colour when the configured one is not a colour", () => {
+  it("keeps Zotero's color when the configured one is not a color", () => {
     const dom = fakeDOM('word');
     styling({}, { ...STYLE, sentenceColor: '' }).styling.attach(dom.reader);
     expect(dom.view._getSpotlightColor('ReadAloudActiveSentence')).toBe(ZOTERO_SENTENCE);
@@ -394,7 +394,7 @@ function xrays() {
 }
 
 describe('behind Xray wrappers', () => {
-  it('the bug: without waiving, the primary highlight falls back to the sentence colour and the sentence is never kept', async () => {
+  it('the bug: without waiving, the primary highlight falls back to the sentence color and the sentence is never kept', async () => {
     const pdf = fakePDF('word');
     const { wrap } = xrays();
     const { styling: s } = styling();
@@ -408,7 +408,7 @@ describe('behind Xray wrappers', () => {
     expect(pdf.pushed[0].color).toBe(SENTENCE);
   });
 
-  it('waives them: the word colour is found and the sentence is kept, on the real view', async () => {
+  it('waives them: the word color is found and the sentence is kept, on the real view', async () => {
     const pdf = fakePDF('word');
     const { wrap, waiveXrays } = xrays();
     const { styling: s } = styling({ waiveXrays });
@@ -501,7 +501,7 @@ describe('attach / dispose', () => {
     expect(s.inspect(null)).toEqual({ views: [], style: STYLE });
   });
 
-  it('leaves a view it does not recognise alone', () => {
+  it('leaves a view it does not recognize alone', () => {
     const reader = { _internalReader: { _primaryView: { something: 'else' } } };
     const { styling: s, deps } = styling();
     expect(s.attach(reader)).toBe(false);

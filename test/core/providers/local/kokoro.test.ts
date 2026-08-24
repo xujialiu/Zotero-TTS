@@ -19,7 +19,7 @@ describe('localeForKokoroVoice', () => {
     expect(localeForKokoroVoice('jf_alpha')).toBe('ja-JP');
   });
 
-  it('falls back to en-US for an unrecognised prefix', () => {
+  it('falls back to en-US for an unrecognized prefix', () => {
     expect(localeForKokoroVoice('qq_mystery')).toBe('en-US');
     expect(localeForKokoroVoice('nodelimiter')).toBe('en-US');
   });

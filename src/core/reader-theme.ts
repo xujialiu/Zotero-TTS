@@ -1,12 +1,12 @@
 /**
- * The reader's colour theme, as Zotero resolves it (reader bundle
+ * The reader's color theme, as Zotero resolves it (reader bundle
  * `_updateColorScheme`, shared by the PDF and the EPUB/snapshot views): the
- * app's colour scheme picks the `reader.lightTheme` or `reader.darkTheme`
+ * app's color scheme picks the `reader.lightTheme` or `reader.darkTheme`
  * pref, naming one of the built-in themes or one of the user's custom ones
  * (synced setting `readerCustomThemes`); an empty or unknown name means the
  * default light theme, white on #121212. Whether the result counts as light
  * or dark — which decides how highlights are blended — comes from the
- * relative luminance of its two colours, not from the slot it was picked
+ * relative luminance of its two colors, not from the slot it was picked
  * from: a dark custom theme in the light slot is dark.
  */
 
@@ -59,7 +59,7 @@ const isTheme = (t: unknown): t is ReaderTheme => {
 };
 
 export interface ReaderThemeInput {
-  /** The app's colour scheme (`prefers-color-scheme`), which the reader follows. */
+  /** The app's color scheme (`prefers-color-scheme`), which the reader follows. */
   appScheme: ColorScheme;
   /** The `reader.lightTheme` pref: a theme id, or empty for the default light theme. */
   lightTheme: unknown;

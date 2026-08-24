@@ -270,7 +270,7 @@ describe('getAudio', () => {
     expect(result.error).toBe('network');
   });
 
-  it('rejects an unrecognised voice id without calling the provider', async () => {
+  it('rejects an unrecognized voice id without calling the provider', async () => {
     const synthesize = vi.fn();
     const iface = createRemoteInterface(deps(fakeProvider({ synthesize: synthesize as never })));
     const result = await iface.getAudio({ text: 'Hello' }, { id: 'bogus' });
@@ -573,7 +573,7 @@ describe('onVoicesRequested', () => {
 
 describe('tiny segments the server refuses', () => {
   // Chatterbox-TTS-Server answers HTTP 500 for "1.", "No", "I." — its
-  // alignment analyser needs more tokens — while whole sentences are fine
+  // alignment analyzer needs more tokens — while whole sentences are fine
   const refusing = () =>
     fakeProvider({
       synthesize: async () => {

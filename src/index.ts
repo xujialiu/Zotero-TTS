@@ -347,9 +347,9 @@ function stopReadAloudMemory(): void {
   readAloudMemory = null;
 }
 
-// ---- Highlight colours -----------------------------------------------------
+// ---- Highlight colors -----------------------------------------------------
 //
-// Zotero's highlight colours are constants in its reader bundle; see
+// Zotero's highlight colors are constants in its reader bundle; see
 // read-aloud/highlight-style.ts for how they are replaced per reader.
 
 function startHighlightStyling(): void {
@@ -391,7 +391,7 @@ async function startup({ id, version, rootURI }: StartupParams): Promise<void> {
     startHighlightStyling();
   } catch (e) {
     Zotero.logError(e);
-    Zotero.debug('[zotero-tts] failed to install the highlight colours');
+    Zotero.debug('[zotero-tts] failed to install the highlight colors');
   }
   // Caught deliberately: if _readers or any other Zotero internal we
   // reach into gets renamed or moved, it will throw here. Without

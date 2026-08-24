@@ -4,7 +4,7 @@ import { PRESETS, SERVER_PRESETS, serverPreset, type OpenAIField, type ServerPre
 /**
  * The Server dropdown of the OpenAI section. Not bound with preference=:
  * switching presets has side effects — the preset's defaults are written
- * once, the fields it does not use are greyed out — which must happen on
+ * once, the fields it does not use are grayed out — which must happen on
  * the user's action only, never on load, so that stored values survive.
  * The bound inputs redraw themselves when the defaults are written.
  */

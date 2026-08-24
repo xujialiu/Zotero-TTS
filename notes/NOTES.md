@@ -429,7 +429,7 @@ Mechanism (`modes/hijack/read-aloud-memory.ts` + `memory-sync.ts`):
   remembered voice is multilingual. Then the original runs and Zotero's own
   resolution picks the voice and speed. Nothing else of Zotero's is touched.
 - `readAloud.sameForAllDocuments` (default on) is read on every sync, so the
-  pane checkbox applies at once; off = Zotero's per-language behaviour.
+  pane checkbox applies at once; off = Zotero's per-language behavior.
 - Costs: on `mul`, sentence splitting uses sentencex's English rules (`K()`
   falls back to `en` for unknown codes) — the same as when the user picks
   "Multiple languages" by hand; the popup's language dropdown then shows
@@ -624,7 +624,7 @@ model and voices for compatible servers. Rejected: hosted compatible services
 model, servers without a voice list need voices. Built instead
 (`core/server-presets.ts`, `ui/server-preset-rows.ts`): a Server dropdown
 with OpenAI / Chatterbox-TTS-Server / Other. A preset fills its defaults once
-on switch (never on load), greys out only the fields the server provably
+on switch (never on load), grays out only the fields the server provably
 ignores, and `applyPreset` blanks those fields in the factory so leftovers
 from another server are not sent. `other` disables nothing. The stored pref
 `openai.server` is empty for settings saved before the preset existed; then
@@ -742,17 +742,17 @@ Shift+ArrowLeft / Shift+ArrowRight = previous / next paragraph.
 - Not exposed: `accelerate` (×5). No toast for a skip — the moving
   highlight is the feedback. Holding a key does not repeat the skip.
 
-## Highlight colours and the sentence under the word (added 2026-08-23)
+## Highlight colors and the sentence under the word (added 2026-08-23)
 
-README TODO: change the colour of the Read Aloud highlight; and, in word
+README TODO: change the color of the Read Aloud highlight; and, in word
 mode, keep the sentence highlighted as well. Research first, in the 10.0.1
 bundle:
 
-- Colours are constants: `READ_ALOUD_BASE_COLOR = '#4072e5'`,
+- Colors are constants: `READ_ALOUD_BASE_COLOR = '#4072e5'`,
   `READ_ALOUD_ACTIVE_SEGMENT_COLOR = base + '73'` (45%) for the unit at the
   chosen granularity, `READ_ALOUD_ACTIVE_SENTENCE_COLOR = base + '4d'` (30%)
   for the secondary slot. No pref, no CSS variable. PDF pages draw them as
-  `<div class="overlayRect">` with the colour in the inline style (plus
+  `<div class="overlayRect">` with the color in the inline style (plus
   opacity .4/.3 and `mix-blend-mode` multiply / plus-lighter by theme);
   EPUB and snapshot views draw SVG paths through a "spotlight" map keyed
   `ReadAloudActiveSegment` / `ReadAloudActiveSentence`.
@@ -772,8 +772,8 @@ calling the originals through `Reflect.apply`:
 - PDF: `Page.prototype._pushHighlightedPosition(items, position, color)` —
   the position's identity against the view's `_readAloudHighlightedPosition`
   / `_readAloudSentenceHighlightedPosition` says which highlight it is, so
-  the constants are never matched; the primary gets the word colour when
-  the effective granularity is word, the sentence colour otherwise. The
+  the constants are never matched; the primary gets the word color when
+  the effective granularity is word, the sentence color otherwise. The
   Page prototype is reached through `view._pages[0]`, so attaching waits
   for a rendered page (retried from renderToolbar and getVoices).
   `PDFView.prototype.setReadAloudState` keeps the sentence in the secondary
@@ -783,7 +783,7 @@ calling the originals through `Reflect.apply`:
   `reader._iframeWindow.clearTimeout` — the timer is the reader iframe's,
   not the sandbox's); a paragraph flash is left to expire.
 - EPUB / snapshot: `DOMView.prototype._getSpotlightColor(key)` for the
-  colours; `ReadAloud.prototype.setState` (the helper at `view._readAloud`)
+  colors; `ReadAloud.prototype.setState` (the helper at `view._readAloud`)
   for the sentence: `view.setSpotlight('ReadAloudActiveSentence', selector,
   null)` with the selector resolved once per segment
   (`helper._resolveSegmentSelector`). Zotero's flash timer removes only
@@ -800,21 +800,21 @@ pref works like any other bound input (value `#rrggbb`); the opacities are
 integer percent prefs, because an int pref cannot hold a fraction
 (see "Synthesis speed setting removed").
 
-### Incident: the word kept the sentence colour (2026-08-23)
+### Incident: the word kept the sentence color (2026-08-23)
 
-First build in Zotero: word mode painted the word in the *sentence* colour
+First build in Zotero: word mode painted the word in the *sentence* color
 and never kept the sentence. `Zotero.ZoteroTTS.diagnostics.highlight()` (the
 sandbox reaching out to `_internalReader._primaryView`) reported the
 effective granularity `word` and the method present; the rendered rects
 (`.overlayRect` in the PDF viewer document, read from Tools → Developer →
-Run JavaScript) were the sentence colour at 0.4 multiply. So the same
+Run JavaScript) were the sentence color at 0.4 multiply. So the same
 call failed only *inside* the exported wrappers. Cause: what the reader
 passes into an exported function — `this` and the arguments — arrives
 behind Xray wrappers. A JS Xray shows a plain object's own properties
 (`_layer`, `_readAloudState`, the highlight slots) but not its prototype's
 methods (`_effectiveReadAloudPrimaryGranularity` reads as undefined), and
 an assignment through it lands on the wrapper, not the object — so the
-granularity fell back to null (sentence colour) and the sentence slot was
+granularity fell back to null (sentence color) and the sentence slot was
 never really set. Objects reached from the sandbox side (`Zotero.Reader
 ._readers[i]._internalReader…`) are plain cross-compartment wrappers with
 full semantics, which is why memory-sync.ts, which uses its captured
@@ -829,12 +829,12 @@ The explanatory paragraph was replaced by a sample page (ui/highlight-rows.ts):
 two lines of serif text on white, one with the sentence highlighted, one
 with the word highlighted inside the sentence (the sentence only while the
 switch is on). Each highlight is an inline span whose background is the
-colour at its opacity with the reader's rectangle opacity (0.4, light
+color at its opacity with the reader's rectangle opacity (0.4, light
 theme) folded in, under `mix-blend-mode: multiply` — the same compositing
 as the PDF view's `.overlayRect`, and black text stays black under it. The
 bound inputs write the prefs first (Zotero's listeners were attached when
 the pane was built), so the rows just listen for `input`/`change`/`command`
-and repaint from the prefs; "Restore default colours" writes
+and repaint from the prefs; "Restore default colors" writes
 DEFAULTS.highlight and repaints. The dark-theme reader (opacity 0.3,
 `plus-lighter`) is not previewed.
 
@@ -846,21 +846,21 @@ prefs-pane.ts): Zotero resolves the theme in the reader bundle's
 reader-theme.ts) and the synced setting `readerCustomThemes`; an empty or
 unknown id is the default light theme (#ffffff/#121212), and
 `getModeBasedOnColors` decides light or dark by relative luminance of the
-two colours. The PDF view then draws highlight rectangles at opacity 0.4
+two colors. The PDF view then draws highlight rectangles at opacity 0.4
 with `multiply` (light) or 0.3 with `plus-lighter` (dark); the preview
 folds those into the span's rgba and blend mode. The prefs pane reads the
 app scheme from its own window's `matchMedia`, the same query the reader
-iframe uses. The EPUB overlay draws the same colours as SVG paths at 50%
+iframe uses. The EPUB overlay draws the same colors as SVG paths at 50%
 opacity; the preview shows the PDF rendering.
 
 ### Defaults: a green word on a yellow sentence (2026-08-23, 1.4.2)
 
-The defaults moved from Zotero's colours (#4072e5 at 45%/30%, switch off)
+The defaults moved from Zotero's colors (#4072e5 at 45%/30%, switch off)
 to a green word (#00ff00, 100%) on a yellow sentence (#ffff00, 100%) with
 the sentence kept under the word. Full opacity still reaches the page at
 the reader's own 0.4 (light) / 0.3 (dark). Default prefs are not stored,
 so an installed copy that never touched the Highlight group picks the new
-defaults up on update, while one that pressed "Restore default colours"
+defaults up on update, while one that pressed "Restore default colors"
 under 1.4.0/1.4.1 keeps Zotero's blue: the button wrote those as user
 values. `DEFAULTS.highlight` is still what the button restores.
 

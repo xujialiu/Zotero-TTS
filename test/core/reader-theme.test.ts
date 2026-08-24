@@ -25,7 +25,7 @@ describe('resolveReaderTheme', () => {
     expect(resolveReaderTheme({ ...base, appScheme: 'dark', lightTheme: 'sepia' })).toMatchObject({ id: 'dark' });
   });
 
-  it('takes custom themes, and judges light or dark by their colours, not by their slot', () => {
+  it('takes custom themes, and judges light or dark by their colors, not by their slot', () => {
     const customThemes = [{ id: 'custom1', label: 'Night', background: '#101820', foreground: '#e0e0e0' }];
     expect(resolveReaderTheme({ ...base, appScheme: 'light', lightTheme: 'custom1', customThemes })).toEqual({
       id: 'custom1',

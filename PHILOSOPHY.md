@@ -1,10 +1,10 @@
 # Philosophy
 
-**Zotero TTS is a helper for Zotero's Read Aloud, not a replacement for it.**
+**Zotero TTS is an enhancer for Zotero's Read Aloud, not a replacement for it.**
 
 ## The idea
 
-Zotero 10 reads documents aloud better than a plugin could. It analyses
+Zotero 10 reads documents aloud better than a plugin could. It analyzes
 the document and skips citations, headers, footers, tables and equations;
 it segments sentences and reads across columns and pages; it highlights
 what is being read, keeps its place, and ships voices of its own. A plugin
@@ -14,7 +14,7 @@ would leave you with two Read Alouds in one window.
 So this plugin builds none of that. It adds voices to Read Aloud's Local
 tier through the same interface Zotero's own remote voices use — next to
 Zotero's Standard and Premium voices, not instead of them — and changes Read
-Aloud's behaviour only where Zotero offers nothing. Zotero reads; the plugin
+Aloud's behavior only where Zotero offers nothing. Zotero reads; the plugin
 speaks.
 
 ## Rules
@@ -25,7 +25,7 @@ speaks.
    Premium voices, which stay exactly as they are: the list grows, nothing on
    it is replaced.
 2. **Add, never take away.** Everything the plugin changes is a setting
-   whose alternative is Zotero's own behaviour: the colours have a Restore
+   whose alternative is Zotero's own behavior: the colors have a Restore
    button, the one-voice-everywhere memory has a switch, every shortcut can
    be cleared. Uninstall the plugin and Zotero is as it was.
 3. **Honest signals.** A voice that does not report word timings highlights
@@ -45,7 +45,7 @@ speaks.
 ## When Zotero catches up
 
 Every feature here is a stand-in for something Zotero does not offer yet.
-When Zotero starts offering it — rebindable shortcuts, highlight colours,
+When Zotero starts offering it — rebindable shortcuts, highlight colors,
 one voice across documents, whatever comes next — the plugin's version is
 removed in the following releases, not kept as a competing implementation.
 The plugin is meant to shrink as Zotero grows; the voices may be the last

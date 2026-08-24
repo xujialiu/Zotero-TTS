@@ -5,12 +5,12 @@ Zotero 10 plugin that adds voices to Zotero's built-in **Read Aloud**: OpenAI
 Zotero's own Standard/Premium voices keep working; ours join the Local tier as
 `TTS-<Provider>-<voice>`. Also: shortcuts for the speed (Shift+Z/X/C) and for
 skipping by sentence / paragraph (arrows / Shift+arrows), one voice and speed
-across documents, settings backup/restore (file or WebDAV), highlight colours.
+across documents, settings backup/restore (file or WebDAV), highlight colors.
 
 - `README.md` — user-facing docs, kept short and scannable (header with
   badges, a GIF, emoji feature list, install, providers table, settings;
   long detail goes into `<details>` blocks or `tutorials/`, never into the
-  body). `PHILOSOPHY.md` — the plugin is a helper for Read Aloud, not a
+  body). `PHILOSOPHY.md` — the plugin is an enhancer for Read Aloud, not a
   replacement; the yardstick for new features.
   `tutorials/` — Azure's free tier, Kokoro-FastAPI and Chatterbox-TTS-Server
   in Docker, remote access through Cloudflare. Provider and server how-tos
@@ -25,8 +25,9 @@ across documents, settings backup/restore (file or WebDAV), highlight colours.
 ## Working with the user
 
 - Reply in **Chinese**, always, whatever language the input (logs, source,
-  instructions) is in. Everything else is **English only** — code,
-  identifiers, comments, commit messages, README, NOTES.md. Verbatim
+  instructions) is in. Everything else is **English only, American
+  spelling** (color, gray, license, -ize) — code, identifiers, comments,
+  commit messages, README, NOTES.md. Verbatim
   product strings (Azure's "多语言" voice names, the rendered "多语种"
   label) and test fixtures for the Chinese collation are data, not prose,
   and stay as they are.
@@ -110,7 +111,7 @@ src/read-aloud/     the Read Aloud integration: index (intercepts Zotero.Reader.
                     overrides _getReadAloudRemoteInterface per reader), remote-interface
                     (composite of Zotero's native interface + our voices), voice-catalog,
                     catalog, read-aloud-memory (+ memory-sync: one voice/speed across documents),
-                    highlight-style (Zotero's highlight colours, sentence under word)
+                    highlight-style (Zotero's highlight colors, sentence under word)
 src/ui/             prefs pane (prefs-pane, shortcut-rows, backup-rows, webdav-rows,
                     server-preset-rows, highlight-rows, shortcut-recorder),
                     read-aloud-shortcuts, speed-toast
@@ -170,7 +171,7 @@ assets/             README media (the word-highlight GIF, popup and settings scr
   playback; `skipBack/skipAhead('sentence' | 'paragraph', accelerate)` are
   the popup's skip buttons, followed by `_lockPositionToReadAloud()`. Choices persist in `extensions.zotero.reader.readAloudVoices`,
   keyed by the *detected* base language (`mul` for "Multiple languages");
-  `_syncPersistedVoicesToManager` restores them. Highlight colours are
+  `_syncPersistedVoicesToManager` restores them. Highlight colors are
   constants in the bundle (`READ_ALOUD_ACTIVE_SEGMENT_COLOR` / `…SENTENCE_COLOR`),
   reached only by shadowing prototype methods per reader (highlight-style.ts);
   each reader tab has its own bundle and classes. Tiers are hard-coded

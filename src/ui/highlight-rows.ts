@@ -3,7 +3,7 @@ import { DEFAULTS, loadSettings, PREF_PREFIX, type PrefsBackend } from '../core/
 import { highlightColor } from '../read-aloud/highlight-style';
 
 /**
- * The Highlight group's preview and its Restore button. The colour inputs
+ * The Highlight group's preview and its Restore button. The color inputs
  * and the switch are preference=-bound and write the prefs themselves
  * (Zotero's listeners, attached when the pane was built, run before
  * these), so the rows only listen for their events to repaint the preview
@@ -12,11 +12,11 @@ import { highlightColor } from '../read-aloud/highlight-style';
  * The preview is a sample page in the reader's current theme (the one the
  * PDF and EPUB views share, core/reader-theme.ts), with the highlights
  * blended as the PDF view blends its rectangles: in a light theme the
- * colour at its opacity, drawn at 0.4 and multiplied onto the page; in a
+ * color at its opacity, drawn at 0.4 and multiplied onto the page; in a
  * dark theme drawn at 0.3 and added (`plus-lighter`). Here that is one
  * rgba background with the 0.4 or 0.3 folded in and the blend mode on the
  * span, which leaves the text as the reader's rectangle over it would.
- * The word sits inside the sentence, so its colour blends onto the
+ * The word sits inside the sentence, so its color blends onto the
  * sentence's, as in the reader.
  */
 
@@ -41,7 +41,7 @@ export const PAGE_RECT: Record<ColorScheme, { opacity: number; blend: string }> 
   dark: { opacity: 0.3, blend: 'plus-lighter' },
 };
 
-/** Inline style for a preview span, or '' when the colour is not one. */
+/** Inline style for a preview span, or '' when the color is not one. */
 export function previewStyle(hex: string, alphaPercent: number, scheme: ColorScheme = 'light'): string {
   const color = highlightColor(hex, alphaPercent);
   if (!color) return '';
@@ -54,7 +54,7 @@ export function previewStyle(hex: string, alphaPercent: number, scheme: ColorSch
 const PREVIEW_BOX_STYLE =
   "border: 1px solid rgba(128, 128, 128, 0.4); border-radius: 4px; padding: 8px 12px; margin: 6px 0; max-width: 40em; font-family: Georgia, 'Times New Roman', serif; font-size: 13px; line-height: 1.7;";
 
-/** Inline style for the sample page: the theme's colours on the box. */
+/** Inline style for the sample page: the theme's colors on the box. */
 export function previewBoxStyle(theme: { background: string; foreground: string }): string {
   return `${PREVIEW_BOX_STYLE} background: ${theme.background}; color: ${theme.foreground};`;
 }

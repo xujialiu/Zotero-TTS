@@ -92,7 +92,7 @@ describe('loadSettings', () => {
     });
   });
 
-  it('reads customised shortcuts as raw text, including an empty string meaning "disabled"', () => {
+  it('reads customized shortcuts as raw text, including an empty string meaning "disabled"', () => {
     const prefs = fakePrefs({
       'extensions.zotero.zotero-tts.shortcuts.speedUp': 'Ctrl+K',
       'extensions.zotero.zotero-tts.shortcuts.speedDown': '',

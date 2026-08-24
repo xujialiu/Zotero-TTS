@@ -6,7 +6,7 @@ import type { Settings } from './settings';
  * they read — OpenAI wants a key and a model, Chatterbox-TTS-Server ignores
  * both and publishes its own voices, a hosted service such as Groq or
  * SiliconFlow wants everything. A preset says which fields a known server
- * uses, so the pane can grey out the rest and the provider can leave them
+ * uses, so the pane can gray out the rest and the provider can leave them
  * unsent; `other` keeps every field in play and lets Test connection tell.
  * A field is disabled only when the server provably ignores it — never
  * on a guess, since a wrongly disabled field locks a whole class of

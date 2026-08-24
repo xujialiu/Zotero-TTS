@@ -1,6 +1,6 @@
 <h1 align="center">Zotero TTS</h1>
 
-<p align="center"><em>A helper for Zotero 10's Read Aloud: more voices in its Local tier, word-and-sentence highlighting in your colours, keyboard shortcuts.</em></p>
+<p align="center"><em>An enhancer for Zotero 10's Read Aloud: more voices in its Local tier, word-and-sentence highlighting in your colors, keyboard shortcuts.</em></p>
 
 <p align="center">
   <a href="https://www.zotero.org"><img src="https://img.shields.io/badge/Zotero-10-green?style=flat-square&logo=zotero&logoColor=CC2936" alt="Zotero 10"></a>
@@ -14,7 +14,7 @@
 ## What is this?
 
 Zotero 10 reads documents aloud on its own. This plugin does not replace
-that — it adds to it. Zotero keeps doing the reading: the player, the
+that — it enhances it. Zotero keeps doing the reading: the player, the
 sentence segmentation, the skip buttons, the highlighting, its Standard and
 Premium voices. The plugin adds voices to its Local tier and adjusts a few
 things around the edges. Why it is built this way: [PHILOSOPHY.md](PHILOSOPHY.md).
@@ -22,7 +22,7 @@ things around the edges. Why it is built this way: [PHILOSOPHY.md](PHILOSOPHY.md
 ## What it adds
 
 - 🗣️ **More voices in the Local tier** of the Read Aloud popup — Azure Speech, a [Kokoro-FastAPI](https://github.com/remsky/Kokoro-FastAPI) on your machine, OpenAI or any OpenAI-compatible server — next to Zotero's Standard and Premium voices. [→ Providers](#providers)
-- ✨ **Word *and* sentence highlighting at once**, in your own colours and opacities — for Zotero's voices too. [→ Highlight](#highlight)
+- ✨ **Word *and* sentence highlighting at once**, in your own colors and opacities — for Zotero's voices too. [→ Highlight](#highlight)
 - ⌨️ **Keyboard shortcuts**: speed up, down, reset; jump by sentence or paragraph. All rebindable. [→ Shortcuts](#keyboard-shortcuts)
 - 📌 **One voice and speed for every document**, instead of Zotero's choice per language. [→ Reading](#reading)
 - 💾 **Settings backup** to a file or a WebDAV folder. [→ Backup](#backup)
@@ -55,7 +55,7 @@ plugin setting, and go into the settings backup file.
 
 The **Server** dropdown names the server — *OpenAI*, *Chatterbox-TTS-Server*,
 or *Other OpenAI-compatible server* — and fills in the address and model,
-greying out the fields that server ignores. **Base URL** is the server, with
+graying out the fields that server ignores. **Base URL** is the server, with
 or without `/v1`. **Model** is the name it expects; **Test connection**
 fetches the server's model list and says whether yours is on it. Leave
 **Voices** empty to take the voices the server publishes on
@@ -87,11 +87,11 @@ Everything is under **Edit → Settings → TTS**.
 
 ### Highlight
 
-A word colour and a sentence colour, an opacity for each, and a switch to
+A word color and a sentence color, an opacity for each, and a switch to
 keep the sentence highlighted under the word. The preview is painted in
 your reader's theme. The default is a green word on a yellow sentence;
-*Restore default colours* brings it back (Zotero's own blue is `#4072e5` at
-45 % and 30 %). The colours apply to Zotero's voices as well.
+*Restore default colors* brings it back (Zotero's own blue is `#4072e5` at
+45 % and 30 %). The colors apply to Zotero's voices as well.
 
 ### Keyboard shortcuts
 
@@ -176,4 +176,4 @@ every incident so far.
 
 ## License
 
-[AGPL-3.0](LICENSE), the same licence as Zotero itself. Not affiliated with Zotero.
+[AGPL-3.0](LICENSE), the same license as Zotero itself. Not affiliated with Zotero.

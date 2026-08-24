@@ -48,7 +48,7 @@ function setup(initial: Record<string, unknown> = {}) {
 }
 
 describe('initServerPresetRows', () => {
-  it('shows the preset in force on load and greys out the fields it does not use', () => {
+  it('shows the preset in force on load and grays out the fields it does not use', () => {
     const fresh = setup();
     expect(fresh.menu.value).toBe('openai');
     expect(fresh.disabled()).toEqual({ apiKey: false, baseURL: false, model: false, voices: false, headers: true });
@@ -62,7 +62,7 @@ describe('initServerPresetRows', () => {
     expect(custom.prefs.store[key('baseURL')]).toBe('http://localhost:8004');
   });
 
-  it('switching writes the choice and the preset defaults, and greys out its unused fields', () => {
+  it('switching writes the choice and the preset defaults, and grays out its unused fields', () => {
     const t = setup({ [key('baseURL')]: 'https://api.openai.com', [key('model')]: 'gpt-4o-mini-tts' });
     t.choose('chatterbox');
     expect(t.prefs.store[key('server')]).toBe('chatterbox');
