@@ -34,7 +34,15 @@
  * each reader is patched once and the secondary (split) view shares the
  * patch. Anything that is not where this expects it — another Zotero
  * version — leaves Zotero's own behavior in place.
+ *
+ * A voice without word timings hands Zotero one timestamp spanning the whole
+ * segment (remote-interface.wholeSegmentTimestamp), so word mode shows the
+ * sentence; the primary then takes the sentence color, not the word color.
+ * The stand-in is told apart by its sentinel end (WHOLE_SEGMENT_END_SECONDS)
+ * on the manager's activeTimestamp.
  */
+
+import { WHOLE_SEGMENT_END_SECONDS } from './remote-interface';
 
 export interface HighlightStyle {
   /** '#rrggbb' */
@@ -154,14 +162,27 @@ export function createHighlightStyling(deps: HighlightStylingDeps): HighlightSty
     );
     return isGranularity(g) ? g : null;
   };
-  const pdfGranularity = (view: any) => granularityOf(view?._effectiveReadAloudPrimaryGranularity, view, view?._readAloudState);
-  const domGranularity = (helper: any) => granularityOf(helper?._effectivePrimaryGranularity, helper, helper?.state);
+  /** The active "word" is the whole-segment stand-in of a voice without word timings: word mode is showing the sentence. */
+  const wholeSegmentWord = (reader: any): boolean => {
+    try {
+      const ts = reader?._internalReader?._readAloudManager?.activeTimestamp;
+      const whole = !!ts && ts.start === 0 && ts.end === WHOLE_SEGMENT_END_SECONDS;
+      logChange('whole-segment', `highlight: the active word ${whole ? 'is' : 'is not'} the whole-segment stand-in`);
+      return whole;
+    } catch (e) {
+      deps.error(e);
+      return false;
+    }
+  };
+  const demote = (g: Granularity | null, reader: unknown): Granularity | null => (g === 'word' && wholeSegmentWord(reader) ? 'sentence' : g);
+  const pdfGranularity = (reader: unknown, view: any) => demote(granularityOf(view?._effectiveReadAloudPrimaryGranularity, view, view?._readAloudState), reader);
+  const domGranularity = (reader: unknown, helper: any) => demote(granularityOf(helper?._effectivePrimaryGranularity, helper, helper?.state), reader);
 
   // ---- PDF ------------------------------------------------------------------
 
   function keepSentencePDF(reader: unknown, view: any, state: any): void {
     const style = deps.style();
-    let want: any = style.sentenceUnderWord && state?.popupOpen && pdfGranularity(view) === 'word' ? (state.activeSegment?.sourcePosition ?? null) : null;
+    let want: any = style.sentenceUnderWord && state?.popupOpen && pdfGranularity(reader, view) === 'word' ? (state.activeSegment?.sourcePosition ?? null) : null;
     if (want && want.pageIndex === undefined) want = null;
     const slot = view._readAloudSentenceHighlightedPosition ?? null;
     const mine = oursPDF.get(view) ?? null;
@@ -206,7 +227,7 @@ export function createHighlightStyling(deps: HighlightStylingDeps): HighlightSty
           if (drawn && layer) {
             if (drawn === layer._readAloudHighlightedPosition) {
               const style = deps.style();
-              replaced = primaryHighlightColor(style, pdfGranularity(layer)) ?? color;
+              replaced = primaryHighlightColor(style, pdfGranularity(reader, layer)) ?? color;
               logChange('pdf-primary', `highlight: primary ${String(replaced)} (word ${style.wordColor}/${style.wordAlpha}, sentence ${style.sentenceColor}/${style.sentenceAlpha}, Zotero ${String(color)})`);
             } else if (drawn === layer._readAloudSentenceHighlightedPosition) {
               replaced = secondaryHighlightColor(deps.style()) ?? color;
@@ -237,13 +258,13 @@ export function createHighlightStyling(deps: HighlightStylingDeps): HighlightSty
 
   // ---- EPUB / snapshot ------------------------------------------------------
 
-  function keepSentenceDOM(helper: any, state: any): void {
+  function keepSentenceDOM(reader: unknown, helper: any, state: any): void {
     const view = helper?._view;
     const spotlights: Map<unknown, unknown> | undefined = view?._spotlights;
     if (!spotlights || typeof view.setSpotlight !== 'function') return;
     const style = deps.style();
     const cached = oursDOM.get(helper);
-    const want = !!(style.sentenceUnderWord && state?.popupOpen && state.activeSegment && domGranularity(helper) === 'word');
+    const want = !!(style.sentenceUnderWord && state?.popupOpen && state.activeSegment && domGranularity(reader, helper) === 'word');
     if (!want) {
       if (cached && spotlights.get(SENTENCE_KEY) === cached.selector) view.setSpotlight(SENTENCE_KEY, null);
       oursDOM.delete(helper);
@@ -264,7 +285,7 @@ export function createHighlightStyling(deps: HighlightStylingDeps): HighlightSty
     view.setSpotlight(SENTENCE_KEY, selector, null);
   }
 
-  function patchDOM(view: any): boolean {
+  function patchDOM(reader: unknown, view: any): boolean {
     const helper = view._readAloud;
     const viewProto = ownerOf(view, '_getSpotlightColor');
     const helperProto = helper ? ownerOf(helper, 'setState') : null;
@@ -273,7 +294,7 @@ export function createHighlightStyling(deps: HighlightStylingDeps): HighlightSty
       function (this: any, key: unknown) {
         try {
           if (key === SEGMENT_KEY) {
-            const color = primaryHighlightColor(deps.style(), domGranularity(waive(this)?._readAloud));
+            const color = primaryHighlightColor(deps.style(), domGranularity(reader, waive(this)?._readAloud));
             if (color) return color;
           } else if (key === SENTENCE_KEY) {
             const color = secondaryHighlightColor(deps.style());
@@ -289,7 +310,7 @@ export function createHighlightStyling(deps: HighlightStylingDeps): HighlightSty
       function (this: any, ...args: unknown[]) {
         const result = Reflect.apply(original, this, args);
         try {
-          keepSentenceDOM(waive(this), waive(args[0]));
+          keepSentenceDOM(reader, waive(this), waive(args[0]));
         } catch (e) {
           deps.error(e);
         }
@@ -314,7 +335,7 @@ export function createHighlightStyling(deps: HighlightStylingDeps): HighlightSty
         continue;
       }
       try {
-        const ok = Array.isArray(view._pages) ? patchPDF(reader, view) : view._readAloud ? patchDOM(view) : false;
+        const ok = Array.isArray(view._pages) ? patchPDF(reader, view) : view._readAloud ? patchDOM(reader, view) : false;
         if (ok) {
           patchedViews.add(view);
           deps.debug?.(`highlight style attached to a ${Array.isArray(view._pages) ? 'PDF' : 'DOM'} view`);
@@ -344,7 +365,8 @@ export function createHighlightStyling(deps: HighlightStylingDeps): HighlightSty
           patched: patchedViews.has(raw),
           pages: pdf ? view._pages.length : undefined,
           method: typeof (pdf ? view._effectiveReadAloudPrimaryGranularity : view._readAloud?._effectivePrimaryGranularity),
-          granularity: pdf ? pdfGranularity(view) : domGranularity(view._readAloud),
+          granularity: pdf ? pdfGranularity(reader, view) : domGranularity(reader, view._readAloud),
+          wholeSegmentWord: wholeSegmentWord(reader),
           state: state
             ? {
                 popupOpen: !!state.popupOpen,

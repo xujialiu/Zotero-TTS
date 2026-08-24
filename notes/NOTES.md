@@ -924,3 +924,44 @@ Beside the warmer, `getAudio` now dedupes in-flight synthesis per cache
 key (registered synchronously, so interleaved awaits cannot double-bill):
 Zotero fetches up to two segments concurrently and the warmer runs beside
 them, and before this the same sentence could be synthesized twice.
+
+## The green sentence in word mode (researched 2026-08-24)
+
+Report: on Zotero 10.0 stable, word mode with *keep the sentence*, an
+OpenAI voice (and, on that machine, Kokoro) paints the whole sentence in
+the WORD color (green) while reading; skips flash yellow. Premium,
+Standard and the system Local voices look right. The beta machine looked
+fine, so it read as a stable-vs-beta difference. It is not:
+
+- `resource/reader/reader.js` is byte-identical between 10.0 stable and
+  10.0.1-beta.2 (md5 94c37771ed676a8277bbe1aba555592f, both 5,043,893
+  bytes; stable taken from the official Linux tarball, beta from this
+  machine's omni.ja). The chrome side differs only in setAnnotations /
+  unsetAnnotations awaiting `_initPromise`. No Read Aloud difference at
+  all between the two versions.
+- The real chain: for a voice without word timestamps the plugin returns
+  one timestamp spanning the whole segment (remote-interface
+  `wholeSegmentTimestamp`, by design — word mode never falls back to the
+  sentence on its own, it draws nothing). Zotero schedules that timestamp
+  as a word event, so `activeWordSourcePosition` covers the whole
+  sentence and the primary highlight IS the sentence, while
+  `_effectivePrimaryGranularity` still says `word` (it checks only the
+  prefs/segment granularity, reader.js 53347/76405). highlight-style
+  colors the primary by that granularity, so the whole sentence gets the
+  word color.
+- Invisible until 1.4.2: word and sentence defaults were both #4072e5
+  (45 % / 30 %), so the mispainted sentence looked like sentence mode.
+  1.4.2 split the defaults (green word / yellow sentence) and exposed it.
+  Any voice that yields no word timestamps shows it — OpenAI always;
+  Kokoro when its server does not answer `/dev/captioned_speech` (the
+  debug line says `no word timestamps for N chars`). Zotero and plugin
+  versions are irrelevant; the beta machine reproduces it with an OpenAI
+  voice too.
+- Fixed the same day (highlight-style.ts): when the effective granularity
+  is `word` but `reader._internalReader._readAloudManager.activeTimestamp`
+  is the stand-in (start 0, end WHOLE_SEGMENT_END_SECONDS — a sentinel no
+  real timestamp carries), the primary is demoted to `sentence`: sentence
+  color, and the kept-sentence slot stays empty (the primary already is
+  the sentence). The manager's `activeTimestamp` getter returns null for
+  non-remote controllers, so system voices never demote. Diagnostics:
+  `inspect()` now reports `wholeSegmentWord`.

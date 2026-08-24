@@ -7,6 +7,7 @@ import {
   type HighlightStyle,
   type HighlightStylingDeps,
 } from '../../src/read-aloud/highlight-style';
+import { WHOLE_SEGMENT_END_SECONDS } from '../../src/read-aloud/remote-interface';
 
 const STYLE: HighlightStyle = { wordColor: '#ff0000', wordAlpha: 50, sentenceColor: '#00ff00', sentenceAlpha: 20, sentenceUnderWord: true };
 const WORD = '#ff000080';
@@ -85,7 +86,7 @@ function fakePDF(granularity: string) {
   }
   const view = new PDFView();
   view._pages.push(new Page(view), new Page(view));
-  const reader = { _internalReader: { _primaryView: view }, _iframeWindow: { clearTimeout: vi.fn() } };
+  const reader = { _internalReader: { _primaryView: view, _readAloudManager: { activeTimestamp: null as unknown } }, _iframeWindow: { clearTimeout: vi.fn() } };
   return { view, page: view._pages[0], pushed, reader, Page, PDFView };
 }
 
@@ -126,7 +127,7 @@ function fakeDOM(granularity: string) {
   }
   const view = new DOMView();
   view._readAloud = new ReadAloud(view);
-  const reader = { _internalReader: { _primaryView: view }, _iframeWindow: { clearTimeout: vi.fn() } };
+  const reader = { _internalReader: { _primaryView: view, _readAloudManager: { activeTimestamp: null as unknown } }, _iframeWindow: { clearTimeout: vi.fn() } };
   return { view, helper: view._readAloud as ReadAloud, reader, DOMView, ReadAloud };
 }
 
@@ -493,6 +494,7 @@ describe('attach / dispose', () => {
         pages: 2,
         method: 'function',
         granularity: 'word',
+        wholeSegmentWord: false,
         state: { popupOpen: true, highlightGranularity: null, segmentGranularity: null, segment: true, segmentPage: 0, wordPosition: true },
         sentenceSlot: 'ours',
       },
@@ -506,5 +508,54 @@ describe('attach / dispose', () => {
     const { styling: s, deps } = styling();
     expect(s.attach(reader)).toBe(false);
     expect(deps.error).not.toHaveBeenCalled();
+  });
+});
+
+// ---- the whole-segment stand-in (a voice without word timestamps) ----------
+
+describe('word mode with the whole-segment stand-in timestamp', () => {
+  const whole = { start: 0, end: WHOLE_SEGMENT_END_SECONDS, charStart: 0, charEnd: 42 };
+  const real = { start: 0.1, end: 0.4, charStart: 0, charEnd: 5 };
+
+  it('PDF: the primary is the sentence, so it takes the sentence color and the sentence slot stays empty', async () => {
+    const pdf = fakePDF('word');
+    pdf.reader._internalReader._readAloudManager.activeTimestamp = whole;
+    const { styling: s } = styling();
+    s.attach(pdf.reader);
+    const primary = { pageIndex: 0, tag: 'primary' };
+    pdf.view._readAloudHighlightedPosition = primary;
+    pdf.page._pushHighlightedPosition([], primary, ZOTERO_SEGMENT);
+    expect(pdf.pushed[0].color).toBe(SENTENCE);
+    await pdf.view.setReadAloudState(pdfState(A, 1));
+    expect(pdf.view._readAloudSentenceHighlightedPosition).toBeNull();
+  });
+
+  it('PDF: a real word timestamp keeps the word color and the kept sentence', async () => {
+    const pdf = fakePDF('word');
+    pdf.reader._internalReader._readAloudManager.activeTimestamp = real;
+    const { styling: s } = styling();
+    s.attach(pdf.reader);
+    const primary = { pageIndex: 0, tag: 'primary' };
+    pdf.view._readAloudHighlightedPosition = primary;
+    pdf.page._pushHighlightedPosition([], primary, ZOTERO_SEGMENT);
+    expect(pdf.pushed[0].color).toBe(WORD);
+    await pdf.view.setReadAloudState(pdfState(A, 1));
+    expect(pdf.view._readAloudSentenceHighlightedPosition).toBe(A.sourcePosition);
+  });
+
+  it('DOM: the primary spotlight takes the sentence color and the sentence spotlight is not doubled', () => {
+    const dom = fakeDOM('word');
+    dom.reader._internalReader._readAloudManager.activeTimestamp = whole;
+    styling().styling.attach(dom.reader);
+    expect(dom.view._getSpotlightColor('ReadAloudActiveSegment')).toBe(SENTENCE);
+    dom.helper.setState({ popupOpen: true, activeSegment: A });
+    expect(dom.view._spotlights.get('ReadAloudActiveSentence')).toBeUndefined();
+  });
+
+  it('DOM: a real word timestamp keeps the word color', () => {
+    const dom = fakeDOM('word');
+    dom.reader._internalReader._readAloudManager.activeTimestamp = real;
+    styling().styling.attach(dom.reader);
+    expect(dom.view._getSpotlightColor('ReadAloudActiveSegment')).toBe(WORD);
   });
 });
