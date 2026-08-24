@@ -158,9 +158,9 @@ password.
 
 ## TODO
 
-- Prefetch further ahead for slow self-hosted servers. Zotero fetches three
-  segments ahead on its own; the *Prefetch (sentences)* setting is reserved
-  for the plugin's own look-ahead and has no effect yet.
+- A shortcut to start reading from the selection: select text, press
+  Shift+Space, and Read Aloud starts there — today that takes the context
+  menu's *Read Aloud from Here*.
 
 ## Development
 
