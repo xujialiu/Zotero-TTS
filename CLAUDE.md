@@ -35,8 +35,10 @@ across documents, settings backup/restore (file or WebDAV), highlight colors.
   recommendation, then wait. Implementation details: pick the sane default,
   state it in one line, move on.
 - Research first when asked to: report findings, do not change code.
-- Commit only when told ("commit"); work on a `feat/...` branch; merge into
-  `main` with `--ff-only` only when told; push only when told. Commit
+- Commit only when told ("commit"); push only when told. Simple work
+  (docs, wording, one-liners) goes directly on `main`; only hard work
+  (bug fixes, features) gets a `feat/...`/`fix/...` branch, merged into
+  `main` with `--ff-only` when told. Commit
   messages: `feat: …` / `fix: …` / `docs: …` / `chore: …`, as short as
   possible — usually the subject line alone; a body only when the why is
   not obvious, and then a line or two, never a long description. No
