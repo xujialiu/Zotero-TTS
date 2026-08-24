@@ -153,7 +153,7 @@ function createKokoroProvider(rawBaseURL: string, deps: LocalEngineDeps): TTSPro
           const timestamps = words.length ? alignWordsToText(words, text) : undefined;
           return {
             audio: audioBlob,
-            ...(timestamps?.length ? { timestamps } : {}),
+            ...(timestamps?.length ? { timestamps } : { note: 'the captioned reply came without word timestamps' }),
           };
         }
       }
@@ -161,12 +161,47 @@ function createKokoroProvider(rawBaseURL: string, deps: LocalEngineDeps): TTSPro
       // Older versions or minimal deployments may not have
       // /dev/captioned_speech. Fall back to the plain endpoint, at the cost
       // of losing word-level timestamps — per spec §4.1, fall back to
-      // sentence-level rather than estimating.
+      // sentence-level rather than estimating. The note says why, so the
+      // debug output can tell a wrong server from a wordless voice.
+      const note = captioned.ok
+        ? 'the captioned reply had no audio; fell back to /v1/audio/speech'
+        : `/dev/captioned_speech returned ${captioned.status}; fell back to /v1/audio/speech`;
       const plain = await call('/v1/audio/speech', init);
       if (!plain.ok) {
         throw statusError('Kokoro speech', plain.status);
       }
-      return { audio: await plain.blob() };
+      return { audio: await plain.blob(), note };
+    },
+
+    /**
+     * Issue #1: any OpenAI-compatible server answers /v1/audio/voices and
+     * /v1/audio/speech, so a wrong address "works" with the word timestamps
+     * silently gone. This proves /dev/captioned_speech itself, so Test
+     * connection can say so while the user is still in the pane.
+     */
+    async checkWordTimestamps(voice: string): Promise<{ ok: boolean; detail?: string }> {
+      const init: RequestInit = {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model: 'kokoro', input: 'Test.', voice, response_format: 'mp3', return_timestamps: true, stream: false }),
+      };
+      const notKokoro = 'this looks like a plain OpenAI-compatible server (those belong in the OpenAI provider), or an old Kokoro-FastAPI';
+      const captioned = await call('/dev/captioned_speech', init);
+      if (captioned.status === 401 || captioned.status === 403) {
+        throw statusError('Kokoro speech', captioned.status);
+      }
+      if (!captioned.ok) {
+        return { ok: false, detail: `/dev/captioned_speech returned ${captioned.status} — ${notKokoro}` };
+      }
+      let body: CaptionedResponse;
+      try {
+        body = (await captioned.json()) as CaptionedResponse;
+      } catch {
+        return { ok: false, detail: `the reply to /dev/captioned_speech is not captioned JSON — ${notKokoro}` };
+      }
+      return toTimedWords(body.timestamps).length
+        ? { ok: true }
+        : { ok: false, detail: 'the server answered /dev/captioned_speech without word timestamps' };
     },
   };
 }

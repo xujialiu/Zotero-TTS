@@ -83,13 +83,27 @@ export async function testConnection(
         return { ok: false, models, message: `Connected, but synthesis failed: ${detail}` };
       }
     }
+    // A provider that can prove word timestamps (Kokoro) does so here: any
+    // OpenAI-compatible server lists voices fine, so only this tells a wrong
+    // server apart while the user is still in the pane (issue #1).
+    let timestampsPart = '';
+    const timestampsVoice = listed.voices[0]?.id;
+    if (timestampsVoice && provider.checkWordTimestamps) {
+      try {
+        const probed = await withTimeout(provider.checkWordTimestamps(timestampsVoice), timeoutMs, timeout);
+        timestampsPart = probed.ok ? ' Word timestamps available.' : ` No word timestamps: ${probed.detail ?? 'the server did not return any'}.`;
+      } catch (e) {
+        const detail = e instanceof Error ? e.message : String(e);
+        return { ok: false, models, message: `Connected, but the word-timestamp check failed: ${detail}` };
+      }
+    }
     const voicesPart = `${listed.voices.length} voices available.`;
     if (models?.length && options.model) {
       return models.includes(options.model)
-        ? { ok: true, models, message: `Connected. Model ${options.model} available. ${voicesPart}${synthesisPart}` }
-        : { ok: true, models, message: `Connected, but model "${options.model}" is not listed by this server. ${voicesPart}${synthesisPart}` };
+        ? { ok: true, models, message: `Connected. Model ${options.model} available. ${voicesPart}${synthesisPart}${timestampsPart}` }
+        : { ok: true, models, message: `Connected, but model "${options.model}" is not listed by this server. ${voicesPart}${synthesisPart}${timestampsPart}` };
     }
-    return { ok: true, models, message: `Connected. ${voicesPart}${synthesisPart}` };
+    return { ok: true, models, message: `Connected. ${voicesPart}${synthesisPart}${timestampsPart}` };
   } catch (e) {
     const kind = (e as { kind?: string })?.kind;
     const detail = e instanceof Error ? e.message : String(e);

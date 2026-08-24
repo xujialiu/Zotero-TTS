@@ -17,6 +17,8 @@ export type SynthesisResult = {
   audio: Blob;
   /** Omitted means this provider has no word-level timestamps; highlighting automatically falls back to sentence level. Never interpolate or estimate. */
   timestamps?: Timestamp[];
+  /** Why the timestamps are missing, when the provider knows (e.g. the captioned endpoint was missing and a plain one answered). For the debug output. */
+  note?: string;
 };
 
 /**
@@ -70,4 +72,12 @@ export interface TTSProvider {
    * from auth from network.
    */
   checkSynthesis?(voice: string): Promise<void>;
+  /**
+   * Whether this configuration yields word timestamps, proven with a tiny
+   * real synthesis (Test connection runs it with the first listed voice).
+   * ok=false with a human-readable detail when the server answers but
+   * without timestamps — a wrong server behind the Kokoro provider looks
+   * exactly like that. Rejects like synthesize (auth, server down).
+   */
+  checkWordTimestamps?(voice: string): Promise<{ ok: boolean; detail?: string }>;
 }

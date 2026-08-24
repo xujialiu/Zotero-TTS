@@ -176,3 +176,64 @@ describe('extra headers and gateways', () => {
     expect(forbidden).toHaveBeenCalledTimes(2);
   });
 });
+
+// ---- issue #1: a non-Kokoro server behind the Kokoro provider --------------
+
+describe('checkWordTimestamps', () => {
+  it('confirms word timestamps when the captioned endpoint answers with them', async () => {
+    const fetchImpl = vi.fn(async () => Response.json({ audio: AUDIO_B64, timestamps: [{ word: 'Test', start_time: 0, end_time: 0.4 }] }));
+    const p = provider(fetchImpl);
+    expect(await p.checkWordTimestamps!('af_bella')).toEqual({ ok: true });
+    expect((fetchImpl as any).mock.calls[0][0]).toBe('http://localhost:8880/dev/captioned_speech');
+    const payload = JSON.parse((fetchImpl as any).mock.calls[0][1].body);
+    expect(payload.voice).toBe('af_bella');
+    expect(payload.stream).toBe(false);
+    expect(payload.return_timestamps).toBe(true);
+  });
+
+  it('names the missing endpoint and points at the OpenAI provider when the server is not Kokoro-FastAPI', async () => {
+    const result = await provider(vi.fn(async () => new Response('nope', { status: 404 }))).checkWordTimestamps!('af_bella');
+    expect(result.ok).toBe(false);
+    expect(result.detail).toMatch(/\/dev\/captioned_speech returned 404/);
+    expect(result.detail).toMatch(/OpenAI provider/);
+  });
+
+  it('says so when the endpoint answers without word timestamps', async () => {
+    const result = await provider(vi.fn(async () => Response.json({ audio: AUDIO_B64, timestamps: [] }))).checkWordTimestamps!('af_bella');
+    expect(result.ok).toBe(false);
+    expect(result.detail).toMatch(/without word timestamps/);
+  });
+
+  it('treats a non-JSON 200 as a wrong server, not as a crash', async () => {
+    const result = await provider(vi.fn(async () => new Response('RIFFbinary', { status: 200 }))).checkWordTimestamps!('af_bella');
+    expect(result.ok).toBe(false);
+    expect(result.detail).toMatch(/OpenAI provider/);
+  });
+
+  it('propagates auth and server-down as errors, not as capability answers', async () => {
+    await expect(provider(vi.fn(async () => new Response('no', { status: 403 }))).checkWordTimestamps!('af_bella')).rejects.toMatchObject({ kind: 'auth' });
+    await expect(
+      provider(
+        vi.fn(async () => {
+          throw new TypeError('NetworkError when attempting to fetch resource.');
+        }),
+      ).checkWordTimestamps!('af_bella'),
+    ).rejects.toMatchObject({ kind: 'local-server-down' });
+  });
+});
+
+describe('fallback notes', () => {
+  it('notes why the timestamps are missing when it falls back to the plain endpoint', async () => {
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValueOnce(new Response('nope', { status: 404 }))
+      .mockResolvedValueOnce(new Response(new Blob([new Uint8Array([9])]), { status: 200 }));
+    const result = await provider(fetchImpl).synthesize('Hello', opts);
+    expect(result.note).toMatch(/captioned_speech returned 404/);
+  });
+
+  it('notes a captioned answer that carried no word timestamps', async () => {
+    const result = await provider(vi.fn(async () => Response.json({ audio: AUDIO_B64 }))).synthesize('Hello', opts);
+    expect(result.note).toMatch(/without word timestamps/);
+  });
+});

@@ -218,3 +218,58 @@ describe('testConnection probeSynthesis', () => {
     expect(result.ok).toBe(true);
   });
 });
+
+describe('testConnection word-timestamp probe', () => {
+  const provider = (checkWordTimestamps: (voice: string) => Promise<{ ok: boolean; detail?: string }>, voices = 2) =>
+    ({
+      id: 'local',
+      capabilities: { wordTimestamps: true },
+      listVoices: async () => [{ id: 'af_bella', label: 'Bella', locale: 'en-US' }, { id: 'af_heart', label: 'Heart', locale: 'en-US' }].slice(0, voices),
+      synthesize: vi.fn(),
+      checkWordTimestamps,
+    }) as unknown as TTSProvider;
+
+  it('appends that word timestamps are available, probing the first listed voice', async () => {
+    const check = vi.fn(async () => ({ ok: true }));
+    const result = await testConnection(provider(check));
+    expect(check).toHaveBeenCalledWith('af_bella');
+    expect(result.ok).toBe(true);
+    expect(result.message).toBe('Connected. 2 voices available. Word timestamps available.');
+  });
+
+  it('carries the provider detail when word timestamps are missing, still connected', async () => {
+    const result = await testConnection(
+      provider(async () => ({ ok: false, detail: '/dev/captioned_speech returned 404 — those belong in the OpenAI provider' })),
+    );
+    expect(result.ok).toBe(true);
+    expect(result.message).toMatch(/^Connected\./);
+    expect(result.message).toMatch(/No word timestamps: .*404.*OpenAI provider/);
+  });
+
+  it('reports a probe error as a failed check, not as a missing capability', async () => {
+    const result = await testConnection(
+      provider(async () => {
+        throw new SynthesisError('auth', 'the server rejected the credentials (403)');
+      }),
+    );
+    expect(result.ok).toBe(false);
+    expect(result.message).toMatch(/^Connected, but the word-timestamp check failed/);
+    expect(result.message).toMatch(/403/);
+  });
+
+  it('skips the probe when the server lists no voices', async () => {
+    const check = vi.fn(async () => ({ ok: true }));
+    const result = await testConnection(provider(check, 0));
+    expect(check).not.toHaveBeenCalled();
+    expect(result.message).not.toContain('timestamps');
+  });
+
+  it('bounds the probe by the timeout instead of hanging', async () => {
+    const result = await testConnection(
+      provider(() => new Promise(() => {})),
+      { timeoutMs: 10 },
+    );
+    expect(result.ok).toBe(false);
+    expect(result.message).toMatch(/word-timestamp check failed/);
+  });
+});

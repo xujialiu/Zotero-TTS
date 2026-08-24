@@ -755,3 +755,15 @@ describe('prefetch skips in-flight segments instead of joining them', () => {
     expect(cache.store.size).toBe(3);
   });
 });
+
+describe('the fallback note of a provider reaches the debug output', () => {
+  it('names the cause next to the missing timestamps', async () => {
+    const debug = vi.fn();
+    const iface = createRemoteInterface({
+      ...deps(fakeProvider({ synthesize: async () => ({ audio: new Blob(['x']), note: '/dev/captioned_speech returned 404; fell back to /v1/audio/speech' }) })),
+      debug,
+    });
+    await iface.getAudio({ text: 'Hello' }, voice);
+    expect(debug).toHaveBeenCalledWith(expect.stringMatching(/no word timestamps for 5 chars \(.*captioned_speech returned 404.*\), highlighting the sentence/));
+  });
+});
