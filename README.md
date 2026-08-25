@@ -110,6 +110,9 @@ scroll as usual. Click a field to record another key.
   per document language; the plugin keeps your last choice instead.
 - *Offer multilingual voices under every language* — otherwise Azure's
   multilingual voices and OpenAI's sit under one "Multiple languages" entry.
+- *Hide Zotero's own Local voices* — the Local tier then offers only the
+  plugin's entries, which drop their `TTS-` prefix. Takes effect the next
+  time the Read Aloud popup opens.
 - *Cache synthesized audio* — skipping back or reopening a document costs no
   new request.
 
@@ -160,8 +163,6 @@ password.
 
 ## TODO
 
-- A switch to hide Zotero's own Local voices, so the Local tier offers only
-  the plugin's entries — which then drop their `TTS-` prefix.
 - A voice browser in the settings: locales on one side, that locale's
   voices on the other, each with a play button for a short sample in the
   locale's language (English plus Chinese for multilingual voices) and a

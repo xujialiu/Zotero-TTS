@@ -1166,3 +1166,51 @@ per text node; both range endpoints are rewritten through the map and
 the result must still display exactly the segment text. Deeper range
 parts (`,/2/3:0`) stay out of scope. DOM nodes reached through the CCW
 (childNodes/nodeType/parentNode) read fine from the sandbox.
+
+## Hiding Zotero's own Local voices (added 2026-08-26)
+
+README TODO: a switch (`readAloud.hideZoteroLocalVoices`, default off) so
+the Local tier offers only the plugin's entries, which then drop their
+`TTS-` prefix. Verified in the installed 10.0.x bundle before implementing:
+
+- The OS voices never pass through the remote interface.
+  BrowserReadAloudProvider lists them straight from the reader iframe's
+  `window.speechSynthesis` (~39696), and ReadAloudManager.loadVoices
+  concatenates `_allVoices = [...remoteVoices, ...browserVoices]` (~82023)
+  from provider instances it creates locally — so the composite getVoices
+  cannot filter them, and there is no eagerly-reachable provider instance
+  to patch either.
+- The main popup renders from the manager's state. `useVoiceData` (~40556),
+  which lists voices through provider instances of its own, feeds only the
+  one-time first-run promo popup — the single surface the switch does not
+  cover (`read-aloud-voices.js` / `read-aloud-first-run.js` are separate
+  bundles).
+- Every path that (re)builds or re-reads the list calls `_resolveVoice`
+  synchronously right after: loadVoices (every popup open —
+  `_prepareReadAloud`, ~83984), setLanguage, selectTier,
+  applyPersistedVoices. So read-aloud/system-voices.ts shadows
+  `_resolveVoice` per reader (the highlight-style pattern: exportFunction,
+  waive `this`, Reflect.apply the original) and splices the system voices
+  out of `_allVoices` in place first, with the array's own splice and
+  primitive arguments.
+- Telling the voices apart is exact: BrowserReadAloudVoice ids read
+  `local-<voiceURI>` (~39626) while RemoteReadAloudVoice returns the
+  published `impl.id` verbatim (~40436) — so "system" = tier `local` and
+  the id does not decode with decodeVoiceId. Zotero's cloud voices sit in
+  standard/premium and are untouched.
+- loadVoices rebuilds `_allVoices` from scratch on each popup open, so the
+  switch applies, in both directions, the next time the popup opens. A
+  persisted OS-voice choice simply falls through Zotero's own
+  `_findFallbackVoice`. With no enabled provider the Local tier disappears
+  from the tier row (the `tiers` getter reads the filtered list).
+- The label prefix rides the same switch into buildVoicesResponse as
+  `plainLabels` ("Azure-Ava" instead of "TTS-Azure-Ava"); voice ids never
+  change, so persisted choices and the audio cache survive.
+- Attach point: `onVoicesRequested` fires synchronously at the start of the
+  composite getVoices — i.e. while loadVoices awaits its Promise.all and
+  before this very listing's `_resolveVoice` — so the first popup open is
+  already filtered. renderToolbar (watchReader) attaches too but may run
+  before the manager exists; attach() returning false there is fine, the
+  next voices request retries. Diagnostics:
+  `Zotero.ZoteroTTS.diagnostics.systemVoices()` reports enabled/patched and
+  per-tier voice counts per reader.

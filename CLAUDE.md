@@ -113,7 +113,8 @@ src/read-aloud/     the Read Aloud integration: index (intercepts Zotero.Reader.
                     overrides _getReadAloudRemoteInterface per reader), remote-interface
                     (composite of Zotero's native interface + our voices), voice-catalog,
                     catalog, read-aloud-memory (+ memory-sync: one voice/speed across documents),
-                    highlight-style (Zotero's highlight colors, sentence under word)
+                    highlight-style (Zotero's highlight colors, sentence under word),
+                    system-voices (hide Zotero's own Local voices)
 src/ui/             prefs pane (prefs-pane, shortcut-rows, backup-rows, webdav-rows,
                     server-preset-rows, highlight-rows, shortcut-recorder),
                     read-aloud-shortcuts, speed-toast
