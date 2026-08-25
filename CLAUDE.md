@@ -59,6 +59,17 @@ npm run build         # esbuild → addon/content/zotero-tts.js, zip → build/z
 After any change: tests, typecheck, build — then the user installs the xpi
 (Tools → Plugins → Install from file) and restarts Zotero.
 
+**Every xpi handed over comes with a Run JavaScript verification snippet
+and its expected output** — proof that the *mechanism* works, not only the
+visible effect. A fix that merely looks right may be working by accident
+(2026-08-26, multilingual-first: the dropdown looked fixed while
+diagnostics showed the patch absent — the "fix" and the symptom's cause
+had not actually met); every such delivery quietly turns into debt.
+Prefer `Zotero.ZoteroTTS.diagnostics.*`, which runs inside the plugin
+sandbox — plain Run JavaScript is chrome scope and cannot reproduce the
+sandbox's view. A purely visual change states that instead, and names
+exactly what to check by eye.
+
 ## Releasing
 
 Installed copies auto-update through the manifest's `update_url`, which
