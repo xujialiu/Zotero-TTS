@@ -181,6 +181,12 @@ password.
   sentence highlight should leave the word's own span alone.
 - Remember where Read Aloud stopped when a document is closed, and a shortcut
   that resumes there the next time it is opened.
+- A speed in the voice browser, so a sample plays at the speed it will be
+  read at.
+- The voice browser as the place to pick the default voice and default
+  speed: the selected row is what Read Aloud starts with. With *Offer only
+  favorite voices in the Read Aloud popup* on, only a favorite can be
+  selected.
 
 ## Development
 
