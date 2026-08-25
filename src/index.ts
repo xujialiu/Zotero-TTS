@@ -1,14 +1,14 @@
 import { getChromeWebSocket, newRequestId } from './core/providers/azure';
 import { createProvider } from './core/providers/factory';
-import type { ProviderId, VoiceInfo } from './core/providers/types';
 import { createMemoryCache } from './core/memory-cache';
-import { getLocalEngine } from './core/providers/local/registry';
-import { createZoteroPrefs, enabledProviders, loadSettings, migrateLegacyProviderPref } from './core/settings';
+import { createZoteroPrefs, loadSettings, migrateLegacyProviderPref } from './core/settings';
 import { installHijack } from './read-aloud';
 import { createReadAloudMemorySync, type ReadAloudMemorySync } from './read-aloud/memory-sync';
 import { createHighlightStyling, type HighlightStyling } from './read-aloud/highlight-style';
 import { createSystemVoiceHiding, type SystemVoiceHiding } from './read-aloud/system-voices';
-import { collectCatalog } from './read-aloud/catalog';
+import { createMultilingualFirst, type MultilingualFirst } from './read-aloud/multilingual-first';
+import { listNamedCatalog, type CatalogEntry } from './read-aloud/catalog';
+import { parseFavoriteVoices } from './read-aloud/favorites';
 import {
   createRemoteInterface,
   type NativeRemoteInterface,
@@ -38,6 +38,7 @@ let readerOpenedListener: ((event: any) => void) | null = null;
 let readAloudMemory: ReadAloudMemorySync | null = null;
 let highlightStyling: HighlightStyling | null = null;
 let systemVoiceHiding: SystemVoiceHiding | null = null;
+let multilingualFirst: MultilingualFirst | null = null;
 
 const prefs = createZoteroPrefs();
 
@@ -61,17 +62,9 @@ function providerDeps() {
 }
 
 /** The voices of every enabled provider; one failing is logged and skipped, not fatal. */
-async function listCatalog(): Promise<{ provider: ProviderId; name?: string; voices: VoiceInfo[] }[]> {
+async function listCatalog(): Promise<CatalogEntry[]> {
   const settings = loadSettings(prefs);
-  const entries = await collectCatalog(
-    enabledProviders(settings),
-    (id) => createProvider(id, settings, providerDeps()),
-    (e) => Zotero.logError(e),
-  );
-  // Local voices are named after the engine serving them ("TTS-Kokoro-…"),
-  // since "Local" says nothing once several engines exist.
-  const engineName = getLocalEngine(settings.local.engine)?.voiceName;
-  return entries.map((e) => (e.provider === 'local' && engineName ? { ...e, name: engineName } : e));
+  return listNamedCatalog(settings, (id) => createProvider(id, settings, providerDeps()), (e) => Zotero.logError(e));
 }
 
 /**
@@ -138,10 +131,16 @@ function startHijack(): void {
           // The manager exists and this very listing's _resolveVoice has not
           // run yet, so even the first popup open is filtered
           systemVoiceHiding?.attach(reader);
+          // The popup renders its language options after the voices arrive,
+          // so the label patch is in place for the first open too
+          multilingualFirst?.attach(reader);
         },
         listCatalog,
-        getMultilingualEverywhere: () => loadSettings(prefs).readAloud.multilingualEverywhere,
         getHideZoteroLocalVoices: () => loadSettings(prefs).readAloud.hideZoteroLocalVoices,
+        getFavoriteVoices: () => {
+          const s = loadSettings(prefs);
+          return s.readAloud.favoritesOnly ? parseFavoriteVoices(s.readAloud.favoriteVoices) : null;
+        },
         getPrefetch: () => {
           const s = loadSettings(prefs);
           return { enabled: s.prefetchEnabled, count: s.prefetch };
@@ -262,6 +261,7 @@ function watchReader(reader: any): void {
   readAloudMemory?.attach(reader);
   highlightStyling?.attach(reader);
   systemVoiceHiding?.attach(reader);
+  multilingualFirst?.attach(reader);
   const iframe = reader._iframeWindow;
   if (iframe) {
     readAloudShortcuts.listen(iframe, () => reader, {
@@ -346,7 +346,6 @@ function startReadAloudMemory(): void {
   readAloudMemory = createReadAloudMemorySync({
     prefs,
     enabled: () => loadSettings(prefs).readAloud.sameForAllDocuments,
-    multilingualEverywhere: () => loadSettings(prefs).readAloud.multilingualEverywhere,
     registerObserver: (name, handler) => Zotero.Prefs.registerObserver(name, handler),
     unregisterObserver: (token) => Zotero.Prefs.unregisterObserver(token),
     readers: () => Zotero.Reader._readers ?? [],
@@ -414,6 +413,30 @@ function stopSystemVoiceHiding(): void {
   systemVoiceHiding = null;
 }
 
+// ---- "Multiple languages" first in the language dropdown --------------------
+//
+// The popup sorts languages by display label, hard-coded; see
+// read-aloud/multilingual-first.ts for the label patch that wins that sort.
+
+function startMultilingualFirst(): void {
+  stopMultilingualFirst();
+  multilingualFirst = createMultilingualFirst({
+    exportFunction: (fn, target) => Components.utils.exportFunction(fn, target),
+    waiveXrays: (value) => ((value && typeof value === 'object') || typeof value === 'function' ? Components.utils.waiveXrays(value) : value),
+    // The diagnostics probe hands an options object to a reader-compartment
+    // constructor; a sandbox-built object is unreadable there
+    cloneInto: (reader: any, value) => (reader?._iframeWindow ? Components.utils.cloneInto(value, reader._iframeWindow) : value),
+    error: (e) => Zotero.logError(e),
+    debug: (message) => Zotero.debug('[zotero-tts] ' + message),
+  });
+  for (const reader of Zotero.Reader._readers ?? []) multilingualFirst.attach(reader);
+}
+
+function stopMultilingualFirst(): void {
+  multilingualFirst?.dispose();
+  multilingualFirst = null;
+}
+
 async function startup({ id, version, rootURI }: StartupParams): Promise<void> {
   pluginVersion = version;
   try {
@@ -440,6 +463,12 @@ async function startup({ id, version, rootURI }: StartupParams): Promise<void> {
   } catch (e) {
     Zotero.logError(e);
     Zotero.debug('[zotero-tts] failed to install the system-voice hiding');
+  }
+  try {
+    startMultilingualFirst();
+  } catch (e) {
+    Zotero.logError(e);
+    Zotero.debug('[zotero-tts] failed to install the Multiple-languages-first ordering');
   }
   // Caught deliberately: if _readers or any other Zotero internal we
   // reach into gets renamed or moved, it will throw here. Without
@@ -470,6 +499,7 @@ async function shutdown(): Promise<void> {
   stopReadAloudMemory();
   stopHighlightStyling();
   stopSystemVoiceHiding();
+  stopMultilingualFirst();
   Zotero.debug('[zotero-tts] stopped');
 }
 
@@ -490,6 +520,7 @@ function onMainWindowUnload(win: any): void {
 const diagnostics = {
   highlight: () => JSON.stringify((Zotero.Reader._readers ?? []).map((r: any) => highlightStyling?.inspect(r) ?? null), null, 1),
   systemVoices: () => JSON.stringify((Zotero.Reader._readers ?? []).map((r: any) => systemVoiceHiding?.inspect(r) ?? null), null, 1),
+  multilingualFirst: () => JSON.stringify((Zotero.Reader._readers ?? []).map((r: any) => multilingualFirst?.inspect(r) ?? null), null, 1),
 };
 
 Zotero.ZoteroTTS = { startup, shutdown, onMainWindowLoad, onMainWindowUnload, prefsPane: { onPaneLoad }, diagnostics };

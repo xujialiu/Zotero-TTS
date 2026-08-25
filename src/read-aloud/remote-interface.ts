@@ -2,6 +2,7 @@ import { SynthesisError, toZoteroError } from '../core/providers/errors';
 import { silentWav } from '../core/silence';
 import type { ProviderId, SynthesisResult, Timestamp, TTSProvider, VoiceInfo } from '../core/providers/types';
 import { withTimeout } from '../core/timeout';
+import { filterCatalogToFavorites } from './favorites';
 import { buildVoicesResponse, decodeVoiceId } from './voice-catalog';
 
 export const SAMPLE_TEXT = 'The quick brown fox jumps over the lazy dog.';
@@ -51,10 +52,15 @@ export interface NativeRemoteInterface {
 
 export type RemoteInterfaceDeps = {
   listCatalog(): Promise<{ provider: ProviderId; name?: string; voices: VoiceInfo[] }[]>;
-  /** Publish multilingual voices under every language (`*`) instead of a "Multiple languages" entry. Read per call so the pane checkbox applies at once. */
-  getMultilingualEverywhere?(): boolean;
   /** Zotero's own Local voices are hidden (read-aloud/system-voices.ts); the plugin's labels then drop their TTS- prefix. Read per call. */
   getHideZoteroLocalVoices?(): boolean;
+  /**
+   * The favorite voice ids while "offer only favorites" is on; null (or
+   * empty) offers everything. Read per call so the pane switch applies at
+   * the next popup open. Favorites that match nothing listed also offer
+   * everything (read-aloud/favorites.ts) — the tier must never come up empty.
+   */
+  getFavoriteVoices?(): readonly string[] | null;
   getProvider(provider: ProviderId): TTSProvider;
   cacheVersion(): string;
   cache?: AudioCache;
@@ -213,9 +219,9 @@ export function createRemoteInterface(deps: RemoteInterfaceDeps): RemoteInterfac
         timeoutMs,
         () => new SynthesisError('network', `Listing the plugin's voices took longer than ${seconds(timeoutMs)}`),
       );
+      const offered = filterCatalogToFavorites(catalog, deps.getFavoriteVoices?.() ?? []);
       return {
-        voices: buildVoicesResponse(catalog, deps.cacheVersion(), {
-          multilingualEverywhere: deps.getMultilingualEverywhere?.() ?? false,
+        voices: buildVoicesResponse(offered, deps.cacheVersion(), {
           plainLabels: deps.getHideZoteroLocalVoices?.() ?? false,
         }),
       };

@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { ProviderId, TTSProvider } from '../../src/core/providers/types';
-import { collectCatalog } from '../../src/read-aloud/catalog';
+import { DEFAULTS } from '../../src/core/settings';
+import { collectCatalog, listNamedCatalog } from '../../src/read-aloud/catalog';
 
 function provider(id: ProviderId, voices: { id: string; label: string; locale: string }[] | Error): TTSProvider {
   return {
@@ -56,5 +57,31 @@ describe('collectCatalog', () => {
     const getProvider = vi.fn();
     expect(await collectCatalog([], getProvider)).toEqual([]);
     expect(getProvider).not.toHaveBeenCalled();
+  });
+});
+
+// The one shared way to list the catalog — the Read Aloud interface and the
+// settings' voice browser must show the same voices under the same names.
+describe('listNamedCatalog', () => {
+  const bella = { id: 'af_bella', label: 'af_bella', locale: 'en-US' };
+
+  it('lists the enabled providers and names local voices after their engine', async () => {
+    const settings = { ...DEFAULTS, local: { ...DEFAULTS.local, enabled: true } };
+    const providers = { openai: provider('openai', [alloy]), local: provider('local', [bella]) } as Record<ProviderId, TTSProvider>;
+    const catalog = await listNamedCatalog(settings, (id) => providers[id]);
+    expect(catalog).toEqual([
+      { provider: 'openai', voices: [alloy] },
+      { provider: 'local', name: 'Kokoro', voices: [bella] },
+    ]);
+  });
+
+  it('leaves an unknown engine nameless instead of failing', async () => {
+    const settings = {
+      ...DEFAULTS,
+      openai: { ...DEFAULTS.openai, enabled: false },
+      local: { ...DEFAULTS.local, enabled: true, engine: 'piper' },
+    };
+    const catalog = await listNamedCatalog(settings, () => provider('local', [bella]));
+    expect(catalog).toEqual([{ provider: 'local', voices: [bella] }]);
   });
 });

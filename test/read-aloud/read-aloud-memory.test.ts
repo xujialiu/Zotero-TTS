@@ -50,8 +50,8 @@ describe('memoryFromVoices', () => {
     expect(memoryFromVoices(voices)).toEqual({ speed: 1.4, voice: { id: ISABELLA, lang: MULTILINGUAL } });
   });
 
-  // With multilingualEverywhere, multilingual voices are chosen under
-  // concrete languages; the id is the only trace that the choice is global
+  // The removed multilingualEverywhere switch had multilingual voices chosen
+  // under concrete languages; the id is the only trace that the choice is global
   it('falls back to a voice that is multilingual by its id', () => {
     const { [MULTILINGUAL]: _omit, ...withoutMul } = voices;
     expect(memoryFromVoices(withoutMul)).toEqual({
@@ -162,19 +162,8 @@ describe('planSync', () => {
     expect(planSync('fr', voices, EMPTY_MEMORY)).toEqual({ lang: 'fr', voices: null });
   });
 
-  // multilingualEverywhere publishes these voices under `*`, valid for the
-  // detected language itself: write into that entry, leave the language alone
-  it('with multilingualEverywhere writes the voice into the detected language instead of moving to mul', () => {
-    expect(planSync('zh', voices, multilingual, true)).toEqual({
-      lang: 'zh',
-      voices: { ...voices, zh: { ...voices.zh, speed: 1.4, voice: ISABELLA, tierVoices: { local: ISABELLA } } },
-    });
-    // A single-language voice is still left to Zotero's own per-language memory
-    expect(planSync('zh', voices, english, true)).toEqual({ lang: 'zh', voices: { ...voices, zh: { ...voices.zh, speed: 1.4 } } });
-  });
-
-  // A voice picked under a concrete language while multilingualEverywhere was
-  // on is still global after the toggle goes off — its id says so
+  // A voice picked under a concrete language while the removed
+  // multilingualEverywhere switch was on is still global — its id says so
   it('treats a voice that is multilingual by id as global even when remembered under a concrete language', () => {
     const learnedUnderEn: ReadAloudMemory = { speed: 1.4, voice: { id: ISABELLA, lang: 'en' } };
     expect(planSync('zh', voices, learnedUnderEn)).toEqual({ lang: MULTILINGUAL, voices: null });

@@ -34,8 +34,6 @@ export interface ReadAloudMemoryDeps {
   prefs: PrefsBackend;
   /** The "same voice and speed for every document" setting, read on every use so the pane's checkbox applies at once. */
   enabled(): boolean;
-  /** Whether the catalog publishes multilingual voices under `*` (see read-aloud-memory.planSync); read on every use. */
-  multilingualEverywhere?(): boolean;
   registerObserver(name: string, handler: () => void): unknown;
   unregisterObserver(token: unknown): void;
   /** The readers currently open, so dispose() can restore what attach() patched. */
@@ -96,7 +94,7 @@ export function createReadAloudMemorySync(deps: ReadAloudMemoryDeps): ReadAloudM
     const manager = internal?._readAloudManager;
     if (!manager || typeof manager.setLanguage !== 'function') return;
     const managerLang = typeof manager.lang === 'string' && manager.lang ? manager.lang : null;
-    const plan = planSync(managerLang, readReadAloudVoices(deps.prefs), memory, deps.multilingualEverywhere?.() ?? false);
+    const plan = planSync(managerLang, readReadAloudVoices(deps.prefs), memory);
     if (plan.voices) {
       applying = true;
       try {

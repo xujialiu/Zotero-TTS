@@ -1,4 +1,6 @@
 import type { ProviderId, TTSProvider, VoiceInfo } from '../core/providers/types';
+import { getLocalEngine } from '../core/providers/local/registry';
+import { enabledProviders, type Settings } from '../core/settings';
 
 /** `name` overrides the provider's display name in voice labels; the local provider sets it to its engine's name. */
 export type CatalogEntry = { provider: ProviderId; name?: string; voices: VoiceInfo[] };
@@ -27,4 +29,21 @@ export async function collectCatalog(
     }
   });
   return out;
+}
+
+/**
+ * The catalog as the plugin publishes it: every enabled provider's voices,
+ * local voices named after the engine serving them ("TTS-Kokoro-…", since
+ * "Local" says nothing once several engines exist). The Read Aloud
+ * interface and the settings' voice browser both list through this, so
+ * they agree on voices and names.
+ */
+export async function listNamedCatalog(
+  settings: Settings,
+  getProvider: (id: ProviderId) => TTSProvider,
+  log?: (e: unknown) => void,
+): Promise<CatalogEntry[]> {
+  const entries = await collectCatalog(enabledProviders(settings), getProvider, log);
+  const engineName = getLocalEngine(settings.local.engine)?.voiceName;
+  return entries.map((e) => (e.provider === 'local' && engineName ? { ...e, name: engineName } : e));
 }

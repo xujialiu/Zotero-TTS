@@ -22,6 +22,7 @@ things around the edges. Why it is built this way: [PHILOSOPHY.md](PHILOSOPHY.md
 ## What it adds
 
 - 🗣️ **More voices in the Local tier** of the Read Aloud popup — Azure Speech, a [Kokoro-FastAPI](https://github.com/remsky/Kokoro-FastAPI) on your machine, OpenAI or any OpenAI-compatible server — next to Zotero's Standard and Premium voices. [→ Providers](#providers)
+- 🎧 **A voice browser** in the settings: every voice by language, a play button for a short sample, hearts for favorites — and a switch to offer only the favorites. [→ Voice browser](#voice-browser)
 - ✨ **Word *and* sentence highlighting at once**, in your own colors and opacities — for Zotero's voices too. [→ Highlight](#highlight)
 - ⌨️ **Keyboard shortcuts**: speed up, down, reset; jump by sentence or paragraph; read from the selection; bring the view back to what's being read. All rebindable. [→ Shortcuts](#keyboard-shortcuts)
 - 📌 **One voice and speed for every document**, instead of Zotero's choice per language. [→ Reading](#reading)
@@ -104,12 +105,22 @@ away. The arrow keys and `Shift+Enter` act only while Read Aloud is open,
 `Shift+Space` only while text is selected; otherwise the keys page and
 scroll as usual. Click a field to record another key.
 
+### Voice browser
+
+Every voice your enabled providers publish, grouped by language —
+multilingual voices first. **▶** plays a short sample in the voice's own
+language (English plus Chinese for multilingual voices), synthesized by
+your provider like any sentence; **♥** marks a favorite. *Offer only
+favorite voices* then trims the Read Aloud popup to the marked ones —
+with none marked (or none currently listed), everything is offered.
+Favorites travel with the settings backup.
+
 ### Reading
 
 - *Use the same voice and speed for every document* — Zotero remembers them
   per document language; the plugin keeps your last choice instead.
-- *Offer multilingual voices under every language* — otherwise Azure's
-  multilingual voices and OpenAI's sit under one "Multiple languages" entry.
+  Multilingual voices (Azure's, OpenAI's) sit under the popup's "Multiple
+  languages" entry, which the plugin pins to the top of the language list.
 - *Hide Zotero's own Local voices* — the Local tier then offers only the
   plugin's entries, which drop their `TTS-` prefix. Takes effect the next
   time the Read Aloud popup opens.
@@ -163,11 +174,13 @@ password.
 
 ## TODO
 
-- A voice browser in the settings: locales on one side, that locale's
-  voices on the other, each with a play button for a short sample in the
-  locale's language (English plus Chinese for multilingual voices) and a
-  heart to mark it as a favorite — plus a switch to offer only the
-  favorites.
+- Zotero's own Standard and Premium voices in the voice browser, so they can
+  be sampled and marked as favorites like the plugin's.
+- Word highlighting with a translucent word color lets the sentence color
+  behind it show through, so the word is not the color that was picked. The
+  sentence highlight should leave the word's own span alone.
+- Remember where Read Aloud stopped when a document is closed, and a shortcut
+  that resumes there the next time it is opened.
 
 ## Development
 

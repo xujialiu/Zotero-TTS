@@ -179,21 +179,31 @@ describe('readAloud.sameForAllDocuments', () => {
     const prefs = fakePrefs();
     saveSettings(prefs, {
       ...DEFAULTS,
-      readAloud: { sameForAllDocuments: false, multilingualEverywhere: true, hideZoteroLocalVoices: true },
+      readAloud: { ...DEFAULTS.readAloud, sameForAllDocuments: false, hideZoteroLocalVoices: true },
     });
     expect(prefs.store[PREF_PREFIX + 'readAloud.sameForAllDocuments']).toBe(false);
-    expect(prefs.store[PREF_PREFIX + 'readAloud.multilingualEverywhere']).toBe(true);
     expect(prefs.store[PREF_PREFIX + 'readAloud.hideZoteroLocalVoices']).toBe(true);
   });
 });
 
-describe('readAloud.multilingualEverywhere', () => {
-  it('is off by default and reads the stored switch', () => {
-    expect(loadSettings(fakePrefs()).readAloud.multilingualEverywhere).toBe(false);
-    expect(loadSettings(fakePrefs({ [PREF_PREFIX + 'readAloud.multilingualEverywhere']: true })).readAloud.multilingualEverywhere).toBe(true);
+describe('readAloud favorites', () => {
+  it('has no favorites and offers everything by default', () => {
+    expect(loadSettings(fakePrefs()).readAloud.favoriteVoices).toBe('');
+    expect(loadSettings(fakePrefs()).readAloud.favoritesOnly).toBe(false);
+  });
+
+  it('reads the stored favorites and the switch', () => {
+    const stored = fakePrefs({
+      [PREF_PREFIX + 'readAloud.favoriteVoices']: '["azure::x"]',
+      [PREF_PREFIX + 'readAloud.favoritesOnly']: true,
+    });
+    expect(loadSettings(stored).readAloud.favoriteVoices).toBe('["azure::x"]');
+    expect(loadSettings(stored).readAloud.favoritesOnly).toBe(true);
   });
 });
 
+// readAloud.multilingualEverywhere was removed in 1.6.0; a leftover user
+// value is undeclared now and nothing reads it
 describe('readAloud.hideZoteroLocalVoices', () => {
   it('is off by default and reads the stored switch', () => {
     expect(loadSettings(fakePrefs()).readAloud.hideZoteroLocalVoices).toBe(false);

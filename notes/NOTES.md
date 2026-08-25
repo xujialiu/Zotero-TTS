@@ -1214,3 +1214,177 @@ the Local tier offers only the plugin's entries, which then drop their
   next voices request retries. Diagnostics:
   `Zotero.ZoteroTTS.diagnostics.systemVoices()` reports enabled/patched and
   per-tier voice counts per reader.
+
+## Voice browser and favorites (added 2026-08-26)
+
+README TODO: a voice browser in the settings — locales on the left, that
+locale's voices on the right, a play button per voice, a heart, and an
+"offer only favorites" switch. Entirely plugin-side; nothing of Zotero's
+Read Aloud is touched, so no bundle research was needed for once.
+
+- Both the browser and the remote interface list through
+  `listNamedCatalog` (read-aloud/catalog.ts; the engine-name mapping moved
+  out of index.ts), so the pane and the popup agree on voices and names.
+  The browser drops the TTS- prefix — everything in it is the plugin's.
+  The pane auto-loads the catalog on open: the same one request per
+  enabled provider the popup makes on every open, so no new cost class.
+- Samples: `sampleTextForLocale` (core/sample-text.ts), one short sentence
+  per language keyed by the BCP-47 base tag (zh-TW/HK/MO get traditional
+  script, yue its own), `mul`/`*` get English plus Chinese in one sample —
+  switching mid-sample is what a multilingual voice is for — and unknown
+  languages fall back to English. Synthesis is the provider's normal
+  `synthesize` bounded by the Test-connection timeout, with the
+  AbortController taken from the pane's chrome window (the sandbox has
+  none); results are cached in a Map for the pane's lifetime, so replays
+  are free. Sample failures land in the status line, never a dialog.
+- Playback: a detached `<audio>` element created in the pane document,
+  fed a data: URL (`blobToDataURL`) — `URL.createObjectURL` from the
+  sandbox is untested ground and a sample is small enough to inline.
+  Closing the pane window tears the element down and stops playback.
+- Favorites: pref `readAloud.favoriteVoices`, a JSON array of encoded ids
+  (`azure::…`) — voice ids may contain any character, which rules out a
+  comma-separated pref. The `favoritesOnly` switch filters in
+  remote-interface (`getFavoriteVoices` → `filterCatalogToFavorites`);
+  with nothing marked, or when no favorite matches anything listed (its
+  provider switched off, its server gone), the full catalog is offered —
+  a filter that silently emptied the Local tier would read as "the plugin
+  broke". Both prefs are settings, so they ride the backup; hearts are
+  repainted through the pane's onRestored like the other unbound rows.
+
+### Follow-up: blank language dropdown (reported 2026-08-26, same day)
+
+First live use of favorites: with the favorites reduced to multilingual
+voices only, multilingualEverywhere on and the OS voices hidden, the
+popup's language dropdown went blank. Verified in the installed 10.0.x
+bundle before fixing:
+
+- The dropdown's entries are `manager.languages` =
+  `getSupportedLanguages(this.voices)` — **tier-filtered** (81997), and
+  `getSupportedLanguages` **skips `*`** (39275, "wildcard voices … shouldn't
+  appear as a selectable language option"). A Local tier holding nothing
+  but wildcard voices therefore has zero language entries: the popup's
+  LanguageRegionSelect renders an empty option list and the collapsed
+  value shows nothing.
+- Zotero's own recovery cannot run: `_resolveVoice` resets a language
+  that is no longer offered (~82135) but the reset is guarded by
+  `languages.length` — with an empty list even the stale `_lang` stays.
+  Playback itself still works (`isLanguageSupported('*', anything)` is
+  true), which is why only the dropdown looked broken.
+- The tier only degenerates to wildcard-only when the OS voices are
+  hidden AND every offered voice is multilingual — which the favorites
+  filter can now produce at runtime from a mixed catalog.
+
+Fix (remote-interface.ts ownVoices): in exactly that combination the
+multilingualEverywhere transform is skipped for the favorites-filtered
+catalog, so the voices go back under `mul` and its "Multiple languages"
+entry becomes the tier's one language. With no concrete language on
+offer there is nothing for the wildcard to spread the voices under, so
+the switch loses nothing; any concrete-language voice beside them (or
+unhiding the OS voices) restores the wildcard, and a manager stranded on
+another language recovers through Zotero's own reset once the language
+list is non-empty again.
+
+## multilingualEverywhere removed; "Multiple languages" pinned first (2026-08-26)
+
+The user's verdict after the blank-dropdown episode: the wildcard switch
+now showed the very entry it promises to remove (the 1.5.8 degenerate-case
+fallback), so drop the feature and instead put "Multiple languages" at the
+top of the popup's language dropdown, the rest alphabetical. The 2026-08-23
+research had called that ordering impossible — the dropdown is sorted by
+display label, hard-coded (`result.sort((a, b) =>
+a.label.localeCompare(b.label))`, LanguageRegionSelect ~38149) and the
+catalog controls only which languages exist. That verdict missed one step:
+the sort key is the LABEL, and the label is produced by
+`Intl.DisplayNames.prototype.of` — a prototype method of the reader
+iframe's compartment, patchable per reader exactly like Zotero's own
+prototypes. Overturned; built as read-aloud/multilingual-first.ts.
+
+- The shadow returns the `mul` label with one leading U+0020. Two runtime
+  facts carry it, both verified:
+  - ICU collates the space before every letter and Han character — checked
+    for en/zh/ja/de/fr/es via node (same ICU family as Gecko), including
+    Han-vs-space under zh collation, and pinned in the module's test. The
+    component's comparator runs with no explicit locale, i.e. the app's.
+  - HTML white-space collapsing removes a leading space when rendering:
+    the option rows and the closed trigger are `white-space: nowrap`
+    (reader.css `.custom-select…`), so the entry sorts first and displays
+    unchanged. Mid-sentence (the "no {tier} voices for {language}" status,
+    reader.js ~40818, the only other DisplayNames.of caller in reader.js)
+    the doubled space collapses to one.
+- Component internals that make the patch land: LanguageRegionSelect
+  creates its DisplayNames instances inside the component (~38114) and
+  calls `.of()` per render — method lookup is dynamic, so a patch attached
+  before the next state sync applies; `manager.languages` returns a fresh
+  array per read, so the options useMemo recomputes on every state change.
+- Costs, accepted: the dropdown's type-ahead compares
+  `label.toLowerCase().startsWith(...)`, so typing "m"/"d" no longer jumps
+  to the entry (it is already first); the first-run promo popups
+  (read-aloud-voices.js / read-aloud-first-run.js) are separate windows
+  and keep the plain label and alphabetical position. If a Zotero update
+  changes the sort or the rendering, the entry falls back to sorting
+  alphabetically — nothing breaks.
+- The removal itself: pref, pane checkbox, `VoicesResponseOptions.
+  multilingualEverywhere` (`*` publishing), the remote-interface dep, the
+  1.5.8 degenerate-case fallback, and planSync's fourth parameter are all
+  gone — multilingual voices always publish under `mul` and memory-sync
+  always restores through the mul lane. `isMultilingualVoiceId` stays:
+  pref entries written while the switch was on hold multilingual voices
+  under concrete languages, and it is what still recognizes those. A
+  leftover `readAloud.multilingualEverywhere` user value is undeclared
+  now and reads as undefined (the `speed` precedent); backups from
+  switch-era versions list it under "ignored".
+- Diagnostics: `Zotero.ZoteroTTS.diagnostics.multilingualFirst()` reports
+  per reader whether the prototype is patched and what the live mul label
+  reads (leading space = working).
+
+### Incident: patched: false everywhere, then a diagnostics crash (2026-08-26)
+
+First install of multilingual-first: no reader patched, the dropdown
+unchanged, and `diagnostics.multilingualFirst()` printed bare
+`{patched: false}` per reader — no mulLabel field, meaning the sandbox
+read `reader._iframeWindow.Intl` as undefined (a visible Intl would have
+produced either the label or an error entry). WebIDL members of the same
+window read fine (highlight-style's clearTimeout always worked); only
+the JS engine globals were missing — an Xray-flavored view. Fixed by
+waiving the window before reaching Intl
+(`waiveXrays(reader._iframeWindow).Intl…`), which the user verified
+live: "Multiple languages" pinned first.
+
+Unresolved wrinkle, recorded deliberately: a probe sandbox built like the
+plugin's (`new Cu.Sandbox(systemPrincipal, {sandboxName})`, run from Run
+JavaScript with the window injected from chrome) saw `typeof win.Intl`
+=== 'object' *directly* — contradicting the Xray reading, though it ran
+in a different session (after a restart) and with the window handed in
+from chrome rather than read off the reader proxy in-sandbox. So the
+exact trigger for the invisible-Intl state is not pinned down; the waiver
+is kept unconditionally, since waiving an already-transparent wrapper
+returns the same object and costs nothing. inspect() now reports
+`intl: {direct, waived}` from the real plugin sandbox, so the next
+occurrence answers the question by itself.
+
+The user's first diagnostics run after the fix crashed with
+`TypeError: missing "type" option in DisplayNames()` — a second, separate
+compartment bug: inspect handed `new win.Intl.DisplayNames(undefined,
+{type: 'language'})` an options object **allocated in the sandbox**, and
+the reader-compartment native cannot read a sandbox object's properties.
+Note the failure shape: not "Permission denied" but the native seeing
+*no* `type` at all — a native reading a foreign object degrades to
+"option missing", which is quieter and easier to misread than the script
+case. The rule from the Read Aloud button incident therefore extends to
+natives: anything object-shaped handed to reader-compartment code —
+script or built-in constructor — must be cloned over first
+(deps.cloneInto). And the crash swallowed the whole report including the
+intl views (the very data needed above): inspect probes are now guarded
+per field, so one failing probe costs its own field, never the report.
+
+Resolution data (same day, second run, from the real plugin sandbox):
+`intl: {direct: "object", waived: "object"}` and mulLabel carried the
+prefix — the invisible-Intl state was observed once and has not
+reproduced; the waiver stays regardless. The same run exposed one more
+membrane fact: the report's `stillPatched` identity check read false
+while the patch demonstrably worked, because `proto.of` read back
+through the waived window is a *different wrapper object* than the
+reference exportFunction returned at install time — identity comparisons
+across membranes are meaningless. The field is gone; the prefixed
+mulLabel, produced through the real prototype, is the proof that
+matters.

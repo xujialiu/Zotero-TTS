@@ -90,15 +90,31 @@
     </hbox>
   </groupbox>
 
+  <!-- Every voice the enabled providers publish, grouped by language, with a
+       sample player and favorites; wired by ui/voice-browser-rows.ts. -->
+  <groupbox>
+    <label><html:h2>Voice browser</html:h2></label>
+    <hbox align="center">
+      <checkbox label="Offer only favorite voices in the Read Aloud popup"
+                preference="extensions.zotero.zotero-tts.readAloud.favoritesOnly"/>
+    </hbox>
+    <html:div id="ztts-voices-browser" style="display: flex; gap: 8px; margin-top: 4px; max-width: 44em;">
+      <html:div id="ztts-voices-locales"
+                style="width: 15em; flex-shrink: 0; height: 16em; overflow-y: auto; border: 1px solid rgba(128, 128, 128, 0.4); border-radius: 4px; padding: 2px;"/>
+      <html:div id="ztts-voices-list"
+                style="flex: 1; min-width: 0; height: 16em; overflow-y: auto; border: 1px solid rgba(128, 128, 128, 0.4); border-radius: 4px; padding: 2px;"/>
+    </html:div>
+    <hbox align="center">
+      <button id="ztts-voices-reload" label="Reload voices"/>
+      <description id="ztts-voices-status"/>
+    </hbox>
+  </groupbox>
+
   <groupbox>
     <label><html:h2>Reading</html:h2></label>
     <hbox align="center">
       <checkbox label="Use the same voice and speed for every document"
                 preference="extensions.zotero.zotero-tts.readAloud.sameForAllDocuments"/>
-    </hbox>
-    <hbox align="center">
-      <checkbox label="Offer multilingual voices under every language (removes the “Multiple languages” entry)"
-                preference="extensions.zotero.zotero-tts.readAloud.multilingualEverywhere"/>
     </hbox>
     <hbox align="center">
       <checkbox label="Hide Zotero’s own Local voices (the plugin’s voices then drop their TTS- prefix)"

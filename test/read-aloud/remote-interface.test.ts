@@ -44,6 +44,24 @@ describe('getVoices', () => {
     expect(labelOf(shown)).toBe('TTS-OpenAI-Alloy');
   });
 
+  // The "offer only favorites" switch: the ids come from the voice browser's
+  // hearts; with none marked (deps return null) everything is published.
+  it('publishes only the favorite voices while the switch is on', async () => {
+    const provider = fakeProvider({
+      listVoices: async () => [
+        { id: 'alloy', label: 'Alloy', locale: 'en-US' },
+        { id: 'echo', label: 'Echo', locale: 'en-US' },
+      ],
+    });
+    const favorite = encodeVoiceId('openai', 'echo');
+    const result = await createRemoteInterface({ ...deps(provider), getFavoriteVoices: () => [favorite] }).getVoices();
+    const configs = result.voices!.local as { voices: Record<string, unknown> }[];
+    expect(configs).toHaveLength(1);
+    expect(Object.keys(configs[0].voices)).toEqual([favorite]);
+    const all = await createRemoteInterface({ ...deps(provider), getFavoriteVoices: () => null }).getVoices();
+    expect(all.voices!.local).toHaveLength(2);
+  });
+
   it('reports an error field instead of throwing when listing fails', async () => {
     const failing = {
       ...deps(),

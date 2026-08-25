@@ -63,9 +63,9 @@ export function writeMemory(prefs: PrefsBackend, memory: ReadAloudMemory): void 
  * slider), and a globally-usable voice — the `mul` entry's, since a voice
  * chosen under "Multiple languages" can only have been meant for every
  * document, else any entry holding a voice that is multilingual by its id
- * (the only trace multilingualEverywhere leaves — such voices are chosen
- * under concrete languages). A single-language voice says nothing about
- * what the user wants elsewhere.
+ * (the trace left by the removed multilingualEverywhere switch, which had
+ * such voices chosen under concrete languages). A single-language voice
+ * says nothing about what the user wants elsewhere.
  */
 export function memoryFromVoices(voices: VoicesMap): ReadAloudMemory {
   let speed: number | null = null;
@@ -116,13 +116,14 @@ export interface SyncPlan {
 }
 
 /**
- * Whether this voice id can read any language. With multilingualEverywhere
- * the catalog offers such voices under every language, so they are chosen
- * under `en` or `zh` — the `lang === 'mul'` marker never appears — and this
- * is the only way to tell a globally-usable choice from a single-language
- * one. Every OpenAI(-compatible) voice is multilingual by construction;
- * Azure's say so in their id ("en-US-AvaMultilingualNeural"); the local
- * engines' voices all have concrete locales.
+ * Whether this voice id can read any language. The catalog offers such
+ * voices under "Multiple languages" now, so new choices carry the
+ * `lang === 'mul'` marker — but pref entries written while the removed
+ * multilingualEverywhere switch published them under every language hold
+ * them under `en` or `zh`, and this is what still recognizes those. Every
+ * OpenAI(-compatible) voice is multilingual by construction; Azure's say
+ * so in their id ("en-US-AvaMultilingualNeural"); the local engines'
+ * voices all have concrete locales.
  */
 export function isMultilingualVoiceId(id: string): boolean {
   const decoded = decodeVoiceId(id);
@@ -138,22 +139,14 @@ export function isMultilingualVoiceId(id: string): boolean {
  * goes through Zotero's own pref and its own resolution, so its popup,
  * fallbacks and persistence keep working as they are. A remembered voice is
  * applied to every document when it is globally usable — chosen under
- * "Multiple languages", or multilingual by its id. Where it is written
- * depends on how the catalog publishes such voices: under `mul` the manager
- * must be moved there first (Zotero drops voices whose language does not
- * match the manager's); under the `*` wildcard (multilingualEverywhere) the
- * voice is valid for the detected language itself, so the entry Zotero is
- * about to read gets it and the language is left alone.
+ * "Multiple languages", or multilingual by its id (see above). The manager
+ * is moved to `mul` first, where the catalog publishes such voices: Zotero
+ * drops voices whose language does not match the manager's.
  */
-export function planSync(
-  managerLang: string | null,
-  voices: VoicesMap,
-  memory: ReadAloudMemory,
-  multilingualEverywhere = false,
-): SyncPlan {
+export function planSync(managerLang: string | null, voices: VoicesMap, memory: ReadAloudMemory): SyncPlan {
   if (!managerLang) return { lang: null, voices: null };
   const global = memory.voice && (memory.voice.lang === MULTILINGUAL || isMultilingualVoiceId(memory.voice.id)) ? memory.voice : null;
-  const lang = global && !multilingualEverywhere ? MULTILINGUAL : managerLang;
+  const lang = global ? MULTILINGUAL : managerLang;
   const key = resolveVoiceLang(lang, Object.keys(voices)) ?? lang;
   const entry = voices[key] ?? {};
   let next = entry;

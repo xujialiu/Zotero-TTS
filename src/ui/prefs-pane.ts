@@ -1,16 +1,18 @@
-import type { TTSProvider } from '../core/providers/types';
+import type { ProviderId, TTSProvider } from '../core/providers/types';
 import { LOCAL_ENGINES } from '../core/providers/local/registry';
 import { createProvider } from '../core/providers/factory';
-import { createZoteroPrefs, loadSettings, PROVIDER_IDS } from '../core/settings';
+import { createZoteroPrefs, loadSettings, PROVIDER_IDS, type PrefsBackend } from '../core/settings';
 import { getChromeWebSocket, newRequestId } from '../core/providers/azure';
 import { SynthesisError } from '../core/providers/errors';
 import { withTimeout } from '../core/timeout';
 import { createWebDAVClient } from '../core/webdav';
+import { listNamedCatalog } from '../read-aloud/catalog';
 import { initShortcutRows } from './shortcut-rows';
 import { initBackupRows, type BackupFileIO } from './backup-rows';
 import { initServerPresetRows } from './server-preset-rows';
 import { initWebDAVRows } from './webdav-rows';
 import { initHighlightRows } from './highlight-rows';
+import { createSamplePlayer, initVoiceBrowserRows } from './voice-browser-rows';
 import { resolveReaderTheme, type ResolvedReaderTheme } from '../core/reader-theme';
 
 const XHTML = 'http://www.w3.org/1999/xhtml';
@@ -167,6 +169,30 @@ function backupFileIO(win: any): BackupFileIO {
 }
 
 /**
+ * One bounded sample synthesis for the voice browser's play button. The
+ * AbortController comes from the pane's chrome window — the plugin
+ * sandbox's whitelist has none — and without one the timeout still fires,
+ * only the request is not cancelled.
+ */
+async function synthesizeSample(win: any, prefs: PrefsBackend, id: ProviderId, voiceId: string, text: string): Promise<Blob> {
+  const provider = createProvider(id, loadSettings(prefs), { fetch, getWebSocket: getChromeWebSocket, newRequestId });
+  let controller: { signal: AbortSignal; abort(): void } | null = null;
+  try {
+    if (win?.AbortController) controller = new win.AbortController();
+  } catch {
+    controller = null;
+  }
+  const signal = controller?.signal ?? ({ aborted: false, addEventListener() {}, removeEventListener() {} } as unknown as AbortSignal);
+  const result = await withTimeout(
+    provider.synthesize(text, { voice: voiceId, signal }),
+    TEST_CONNECTION_TIMEOUT_MS,
+    () => new SynthesisError('network', `No audio within ${Math.round(TEST_CONNECTION_TIMEOUT_MS / 1000)} s`),
+    () => controller?.abort(),
+  );
+  return result.audio;
+}
+
+/**
  * The theme the reader is showing right now, resolved as the reader does
  * (core/reader-theme.ts): the app's color scheme picks the light or the
  * dark theme pref, among Zotero's themes and the user's custom ones.
@@ -199,6 +225,34 @@ export function onPaneLoad(doc: Document): void {
   const highlightRows = initHighlightRows(doc, prefs, { theme: () => currentReaderTheme(doc.defaultView) });
 
   const win = doc.defaultView;
+  const voiceBrowserRows = initVoiceBrowserRows(doc, {
+    prefs,
+    // The very catalog the Read Aloud interface publishes, so the browser
+    // and the popup agree on voices and names. Bounded like every network
+    // call: a hanging server must become a status line, not a spinner.
+    listCatalog: () => {
+      const settings = loadSettings(prefs);
+      return withTimeout(
+        listNamedCatalog(settings, (id) => createProvider(id, settings, { fetch, getWebSocket: getChromeWebSocket, newRequestId }), (e) => Zotero.logError(e)),
+        TEST_CONNECTION_TIMEOUT_MS,
+        () => new SynthesisError('network', `No voice list within ${Math.round(TEST_CONNECTION_TIMEOUT_MS / 1000)} s`),
+      );
+    },
+    synthesizeSample: (id, voiceId, text) => synthesizeSample(win, prefs, id, voiceId, text),
+    // A detached element plays fine; the pane window closing stops it
+    player: createSamplePlayer(() => doc.createElementNS(XHTML, 'audio') as HTMLAudioElement),
+    localeName: (code) => {
+      try {
+        return new Intl.DisplayNames([Zotero.locale ?? 'en'], { type: 'language' }).of(code) ?? code;
+      } catch {
+        return code;
+      }
+    },
+  });
+  // The popup lists the catalog on every open; the pane doing the same on
+  // load costs one request per enabled provider and spends nothing.
+  void voiceBrowserRows.load();
+
   const restoreDeps = {
     prefs,
     pluginVersion,
@@ -209,6 +263,7 @@ export function onPaneLoad(doc: Document): void {
       shortcutRows.refresh();
       presetRows.refresh();
       highlightRows.refresh();
+      voiceBrowserRows.refresh();
     },
   };
   initBackupRows(doc, { ...backupFileIO(win), ...restoreDeps });
