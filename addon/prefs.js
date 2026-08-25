@@ -33,6 +33,7 @@ pref('extensions.zotero.zotero-tts.shortcuts.startFromSelection', 'Shift+Space')
 pref('extensions.zotero.zotero-tts.shortcuts.returnToSpoken', 'Shift+Enter');
 pref('extensions.zotero.zotero-tts.readAloud.sameForAllDocuments', true);
 pref('extensions.zotero.zotero-tts.readAloud.multilingualEverywhere', false);
+pref('extensions.zotero.zotero-tts.readAloud.hideZoteroLocalVoices', false);
 pref('extensions.zotero.zotero-tts.highlight.wordColor', '#00ff00');
 pref('extensions.zotero.zotero-tts.highlight.wordAlpha', 100);
 pref('extensions.zotero.zotero-tts.highlight.sentenceColor', '#ffff00');

@@ -177,9 +177,13 @@ describe('readAloud.sameForAllDocuments', () => {
 
   it('is written back by saveSettings', () => {
     const prefs = fakePrefs();
-    saveSettings(prefs, { ...DEFAULTS, readAloud: { sameForAllDocuments: false, multilingualEverywhere: true } });
+    saveSettings(prefs, {
+      ...DEFAULTS,
+      readAloud: { sameForAllDocuments: false, multilingualEverywhere: true, hideZoteroLocalVoices: true },
+    });
     expect(prefs.store[PREF_PREFIX + 'readAloud.sameForAllDocuments']).toBe(false);
     expect(prefs.store[PREF_PREFIX + 'readAloud.multilingualEverywhere']).toBe(true);
+    expect(prefs.store[PREF_PREFIX + 'readAloud.hideZoteroLocalVoices']).toBe(true);
   });
 });
 
@@ -187,6 +191,13 @@ describe('readAloud.multilingualEverywhere', () => {
   it('is off by default and reads the stored switch', () => {
     expect(loadSettings(fakePrefs()).readAloud.multilingualEverywhere).toBe(false);
     expect(loadSettings(fakePrefs({ [PREF_PREFIX + 'readAloud.multilingualEverywhere']: true })).readAloud.multilingualEverywhere).toBe(true);
+  });
+});
+
+describe('readAloud.hideZoteroLocalVoices', () => {
+  it('is off by default and reads the stored switch', () => {
+    expect(loadSettings(fakePrefs()).readAloud.hideZoteroLocalVoices).toBe(false);
+    expect(loadSettings(fakePrefs({ [PREF_PREFIX + 'readAloud.hideZoteroLocalVoices']: true })).readAloud.hideZoteroLocalVoices).toBe(true);
   });
 });
 

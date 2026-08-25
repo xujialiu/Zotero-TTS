@@ -34,6 +34,16 @@ describe('getVoices', () => {
     expect(result.voices!.standard).toBeUndefined();
   });
 
+  // The switch that hides Zotero's own Local voices (system-voices.ts) also
+  // drops the TTS- prefix: ours are then the only entries in the tier
+  it('drops the TTS- label prefix while the system voices are hidden', async () => {
+    const labelOf = (result: any) => (Object.values((result.voices!.local as any[])[0].voices)[0] as { label: string }).label;
+    const hidden = await createRemoteInterface({ ...deps(), getHideZoteroLocalVoices: () => true }).getVoices();
+    expect(labelOf(hidden)).toBe('OpenAI-Alloy');
+    const shown = await createRemoteInterface(deps()).getVoices();
+    expect(labelOf(shown)).toBe('TTS-OpenAI-Alloy');
+  });
+
   it('reports an error field instead of throwing when listing fails', async () => {
     const failing = {
       ...deps(),

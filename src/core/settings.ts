@@ -44,6 +44,12 @@ export interface Settings {
      * creates a language entry of its own).
      */
     multilingualEverywhere: boolean;
+    /**
+     * Hide Zotero's own Local voices — the operating system's — so the
+     * Local tier offers only the plugin's entries, which then drop their
+     * TTS- prefix (read-aloud/system-voices.ts).
+     */
+    hideZoteroLocalVoices: boolean;
   };
   /** The colors of Zotero's Read Aloud highlights (read-aloud/highlight-style.ts); opacities in percent. */
   highlight: {
@@ -96,7 +102,7 @@ export const DEFAULTS: Settings = {
     // Taken only while a Read Aloud session is open
     returnToSpoken: 'Shift+Enter',
   },
-  readAloud: { sameForAllDocuments: true, multilingualEverywhere: false },
+  readAloud: { sameForAllDocuments: true, multilingualEverywhere: false, hideZoteroLocalVoices: false },
   // A green word on a yellow sentence, the sentence kept under the word; the reader still
   // draws them at its own 0.4 (light) / 0.3 (dark). Zotero's own is #4072e5 at 45% and 30%
   highlight: { wordColor: '#00ff00', wordAlpha: 100, sentenceColor: '#ffff00', sentenceAlpha: 100, sentenceUnderWord: true },
@@ -165,6 +171,7 @@ export function loadSettings(prefs: PrefsBackend): Settings {
     readAloud: {
       sameForAllDocuments: bool(prefs, 'readAloud.sameForAllDocuments', DEFAULTS.readAloud.sameForAllDocuments),
       multilingualEverywhere: bool(prefs, 'readAloud.multilingualEverywhere', DEFAULTS.readAloud.multilingualEverywhere),
+      hideZoteroLocalVoices: bool(prefs, 'readAloud.hideZoteroLocalVoices', DEFAULTS.readAloud.hideZoteroLocalVoices),
     },
     highlight: {
       wordColor: str(prefs, 'highlight.wordColor', DEFAULTS.highlight.wordColor),

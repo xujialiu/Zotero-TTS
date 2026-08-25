@@ -53,6 +53,8 @@ export type RemoteInterfaceDeps = {
   listCatalog(): Promise<{ provider: ProviderId; name?: string; voices: VoiceInfo[] }[]>;
   /** Publish multilingual voices under every language (`*`) instead of a "Multiple languages" entry. Read per call so the pane checkbox applies at once. */
   getMultilingualEverywhere?(): boolean;
+  /** Zotero's own Local voices are hidden (read-aloud/system-voices.ts); the plugin's labels then drop their TTS- prefix. Read per call. */
+  getHideZoteroLocalVoices?(): boolean;
   getProvider(provider: ProviderId): TTSProvider;
   cacheVersion(): string;
   cache?: AudioCache;
@@ -211,7 +213,12 @@ export function createRemoteInterface(deps: RemoteInterfaceDeps): RemoteInterfac
         timeoutMs,
         () => new SynthesisError('network', `Listing the plugin's voices took longer than ${seconds(timeoutMs)}`),
       );
-      return { voices: buildVoicesResponse(catalog, deps.cacheVersion(), deps.getMultilingualEverywhere?.() ?? false) };
+      return {
+        voices: buildVoicesResponse(catalog, deps.cacheVersion(), {
+          multilingualEverywhere: deps.getMultilingualEverywhere?.() ?? false,
+          plainLabels: deps.getHideZoteroLocalVoices?.() ?? false,
+        }),
+      };
     } catch (e) {
       log(e);
       return { error: toZoteroError(e) };

@@ -7,6 +7,7 @@ import { createZoteroPrefs, enabledProviders, loadSettings, migrateLegacyProvide
 import { installHijack } from './read-aloud';
 import { createReadAloudMemorySync, type ReadAloudMemorySync } from './read-aloud/memory-sync';
 import { createHighlightStyling, type HighlightStyling } from './read-aloud/highlight-style';
+import { createSystemVoiceHiding, type SystemVoiceHiding } from './read-aloud/system-voices';
 import { collectCatalog } from './read-aloud/catalog';
 import {
   createRemoteInterface,
@@ -36,6 +37,7 @@ let readAloudShortcuts: ReadAloudShortcuts | null = null;
 let readerOpenedListener: ((event: any) => void) | null = null;
 let readAloudMemory: ReadAloudMemorySync | null = null;
 let highlightStyling: HighlightStyling | null = null;
+let systemVoiceHiding: SystemVoiceHiding | null = null;
 
 const prefs = createZoteroPrefs();
 
@@ -133,9 +135,13 @@ function startHijack(): void {
           readAloudMemory?.attach(reader);
           // The popup is open, so the document is rendered and its views exist
           highlightStyling?.attach(reader);
+          // The manager exists and this very listing's _resolveVoice has not
+          // run yet, so even the first popup open is filtered
+          systemVoiceHiding?.attach(reader);
         },
         listCatalog,
         getMultilingualEverywhere: () => loadSettings(prefs).readAloud.multilingualEverywhere,
+        getHideZoteroLocalVoices: () => loadSettings(prefs).readAloud.hideZoteroLocalVoices,
         getPrefetch: () => {
           const s = loadSettings(prefs);
           return { enabled: s.prefetchEnabled, count: s.prefetch };
@@ -255,6 +261,7 @@ function watchReader(reader: any): void {
   watchWindow(reader._window);
   readAloudMemory?.attach(reader);
   highlightStyling?.attach(reader);
+  systemVoiceHiding?.attach(reader);
   const iframe = reader._iframeWindow;
   if (iframe) {
     readAloudShortcuts.listen(iframe, () => reader, {
@@ -385,6 +392,28 @@ function stopHighlightStyling(): void {
   highlightStyling = null;
 }
 
+// ---- Hiding Zotero's own Local voices --------------------------------------
+//
+// The OS voices never pass through the remote interface; see
+// read-aloud/system-voices.ts for the manager-side filter.
+
+function startSystemVoiceHiding(): void {
+  stopSystemVoiceHiding();
+  systemVoiceHiding = createSystemVoiceHiding({
+    enabled: () => loadSettings(prefs).readAloud.hideZoteroLocalVoices,
+    exportFunction: (fn, target) => Components.utils.exportFunction(fn, target),
+    waiveXrays: (value) => ((value && typeof value === 'object') || typeof value === 'function' ? Components.utils.waiveXrays(value) : value),
+    error: (e) => Zotero.logError(e),
+    debug: (message) => Zotero.debug('[zotero-tts] ' + message),
+  });
+  for (const reader of Zotero.Reader._readers ?? []) systemVoiceHiding.attach(reader);
+}
+
+function stopSystemVoiceHiding(): void {
+  systemVoiceHiding?.dispose();
+  systemVoiceHiding = null;
+}
+
 async function startup({ id, version, rootURI }: StartupParams): Promise<void> {
   pluginVersion = version;
   try {
@@ -405,6 +434,12 @@ async function startup({ id, version, rootURI }: StartupParams): Promise<void> {
   } catch (e) {
     Zotero.logError(e);
     Zotero.debug('[zotero-tts] failed to install the highlight colors');
+  }
+  try {
+    startSystemVoiceHiding();
+  } catch (e) {
+    Zotero.logError(e);
+    Zotero.debug('[zotero-tts] failed to install the system-voice hiding');
   }
   // Caught deliberately: if _readers or any other Zotero internal we
   // reach into gets renamed or moved, it will throw here. Without
@@ -434,6 +469,7 @@ async function shutdown(): Promise<void> {
   stopReadAloudShortcuts();
   stopReadAloudMemory();
   stopHighlightStyling();
+  stopSystemVoiceHiding();
   Zotero.debug('[zotero-tts] stopped');
 }
 
@@ -450,9 +486,10 @@ function onMainWindowUnload(win: any): void {
   }
 }
 
-/** For Tools → Developer → Run JavaScript: `Zotero.ZoteroTTS.diagnostics.highlight()` */
+/** For Tools → Developer → Run JavaScript: `Zotero.ZoteroTTS.diagnostics.highlight()` etc. */
 const diagnostics = {
   highlight: () => JSON.stringify((Zotero.Reader._readers ?? []).map((r: any) => highlightStyling?.inspect(r) ?? null), null, 1),
+  systemVoices: () => JSON.stringify((Zotero.Reader._readers ?? []).map((r: any) => systemVoiceHiding?.inspect(r) ?? null), null, 1),
 };
 
 Zotero.ZoteroTTS = { startup, shutdown, onMainWindowLoad, onMainWindowUnload, prefsPane: { onPaneLoad }, diagnostics };

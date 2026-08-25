@@ -55,6 +55,13 @@ describe('pluginVoiceLabel', () => {
     expect(pluginVoiceLabel('local', 'voice', 'Piper')).toBe('TTS-Piper-voice');
     expect(pluginVoiceLabel('local', 'af_bella')).toBe('TTS-Local-af_bella');
   });
+
+  // While Zotero's own Local voices are hidden, ours are the only entries in
+  // the tier and the TTS- marker that told them apart says nothing
+  it('drops the TTS- prefix when asked, keeping the provider name', () => {
+    expect(pluginVoiceLabel('azure', 'Ava Multilingual', undefined, false)).toBe('Azure-Ava Multilingual');
+    expect(pluginVoiceLabel('local', 'af_bella', 'Kokoro', false)).toBe('Kokoro-af_bella');
+  });
 });
 
 describe('compareVoiceLabels', () => {
@@ -171,7 +178,7 @@ describe('multilingualEverywhere', () => {
   // entry of its own (getSupportedLanguages skips it): the voices appear
   // under every language and the "Multiple languages" entry disappears
   it('publishes multilingual voices under the * wildcard when enabled', () => {
-    expect(localesOf(buildVoicesResponse(entries, 'v1', true)).sort()).toEqual(['*', '*', 'en-US']);
+    expect(localesOf(buildVoicesResponse(entries, 'v1', { multilingualEverywhere: true })).sort()).toEqual(['*', '*', 'en-US']);
   });
 
   it('keeps the mul locale by default', () => {
@@ -179,8 +186,32 @@ describe('multilingualEverywhere', () => {
   });
 
   it('never rewrites concrete locales', () => {
-    const out = buildVoicesResponse(entries, 'v1', true);
+    const out = buildVoicesResponse(entries, 'v1', { multilingualEverywhere: true });
     const ava = (out.local as any[]).find((c) => Object.values(c.voices).some((v: any) => v.label === 'TTS-Azure-Ava'));
     expect(Object.keys(ava.locales)).toEqual(['en-US']);
+  });
+});
+
+describe('plainLabels', () => {
+  const entries = [
+    { provider: 'azure' as const, voices: [{ id: 'en-US-AvaNeural', label: 'Ava', locale: 'en-US' }] },
+    { provider: 'local' as const, name: 'Kokoro', voices: [{ id: 'af_bella', label: 'af_bella', locale: 'en-US' }] },
+  ];
+
+  // The switch that hides Zotero's own Local voices also drops the prefix;
+  // the ids stay identical, so persisted voice choices survive the rename
+  it('labels the voices without the TTS- prefix, leaving the ids untouched', () => {
+    const out = buildVoicesResponse(entries, 'v1', { plainLabels: true });
+    const configs = out.local as any[];
+    expect(configs.map((c) => (Object.values(c.voices)[0] as { label: string }).label)).toEqual(['Azure-Ava', 'Kokoro-af_bella']);
+    expect(configs.map((c) => Object.keys(c.voices)[0])).toEqual([
+      encodeVoiceId('azure', 'en-US-AvaNeural'),
+      encodeVoiceId('local', 'af_bella'),
+    ]);
+  });
+
+  it('keeps the prefix by default', () => {
+    const configs = buildVoicesResponse(entries, 'v1').local as any[];
+    expect(configs.map((c) => (Object.values(c.voices)[0] as { label: string }).label)).toEqual(['TTS-Azure-Ava', 'TTS-Kokoro-af_bella']);
   });
 });
