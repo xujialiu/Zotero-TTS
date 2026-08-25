@@ -158,6 +158,16 @@ password.
 - Word highlighting needs a voice with word timings (Azure, Kokoro). The
   plugin never guesses them.
 
+## TODO
+
+- A switch to hide Zotero's own Local voices, so the Local tier offers only
+  the plugin's entries — which then drop their `TTS-` prefix.
+- A voice browser in the settings: locales on one side, that locale's
+  voices on the other, each with a play button for a short sample in the
+  locale's language (English plus Chinese for multilingual voices) and a
+  heart to mark it as a favorite — plus a switch to offer only the
+  favorites.
+
 ## Development
 
 ```
