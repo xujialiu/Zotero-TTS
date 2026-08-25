@@ -120,7 +120,11 @@ function fakeDOM(granularity: string) {
         this._view.setSpotlight('ReadAloudActiveSentence', null);
         return null;
       }
-      this._view.setSpotlight('ReadAloudActiveSegment', state.primarySelector !== undefined ? state.primarySelector : { primary: true }, null);
+      this._view.setSpotlight(
+        'ReadAloudActiveSegment',
+        state.primarySelector !== undefined ? state.primarySelector : state.activeWordSourcePosition !== undefined ? state.activeWordSourcePosition : { primary: true },
+        null,
+      );
       if (state.activeSegment !== previous?.activeSegment) {
         const flash = state.flash ?? null;
         this._view.setSpotlight('ReadAloudActiveSentence', flash, flash ? 2000 : null);
@@ -679,5 +683,141 @@ describe('repairing a sentence selector the resolver cannot resolve', () => {
     styling().styling.attach(dom.reader);
     dom.helper.setState({ popupOpen: true, activeSegment: A });
     expect(dom.view._spotlights.get('ReadAloudActiveSentence')).toEqual({ selectorFor: A });
+  });
+});
+
+// ---- issue #4: the selector resolves, but to the wrong text node -----------
+
+describe('a sentence selector that resolves to the wrong text', () => {
+  const whole = { start: 0, end: WHOLE_SEGMENT_END_SECONDS, charStart: 0, charEnd: 42 };
+  const SEG = { sourcePosition: { pageIndex: 0, tag: 'seg' }, paragraphSourcePosition: { pageIndex: 0, tag: 'seg-p' }, text: 'In truth, I lean away.' };
+  const WRONG = 'epubcfi(/6/16!/4/4/26/3,:0,:22)';
+  const RIGHT = 'epubcfi(/6/16!/4/4/26/1,:0,:22)';
+
+  function misresolvingDOM() {
+    const dom = fakeDOM('word');
+    dom.reader._internalReader._readAloudManager.activeTimestamp = whole;
+    dom.helper._resolveSegmentSelector = vi.fn(() => ({ type: 'FragmentSelector', conformsTo: 'cfi', value: WRONG })) as never;
+    (dom.view as any).toDisplayedRange = vi.fn((sel: any) => {
+      if (sel?.value === WRONG) return { toString: () => 'turning to syrup in the' };
+      if (sel?.cloned && sel.value === RIGHT) return { toString: () => 'In truth,  I lean away.' };
+      if (sel?.primary) return { toString: () => 'turning to syrup in the' };
+      return null;
+    });
+    return dom;
+  }
+  const clone = { cloneIntoReader: (_r: unknown, value: unknown) => ({ ...(value as object), cloned: true }) };
+
+  it('rewrites the selector when the displayed text is not the sentence, though it resolves', () => {
+    const dom = misresolvingDOM();
+    styling(clone).styling.attach(dom.reader);
+    dom.helper.setState({ popupOpen: true, activeSegment: SEG });
+    const slot = dom.view._spotlights.get('ReadAloudActiveSentence') as any;
+    expect(slot?.value).toBe(RIGHT);
+  });
+
+  it('repairs the misplaced stand-in word position, so the primary lands right in the sentence color', () => {
+    const dom = misresolvingDOM();
+    styling(clone).styling.attach(dom.reader);
+    dom.helper.setState({ popupOpen: true, activeSegment: SEG, activeWordSourcePosition: { type: 'FragmentSelector', conformsTo: 'cfi', value: WRONG } });
+    const primary = dom.view._spotlights.get('ReadAloudActiveSegment') as any;
+    expect(primary?.value).toBe(RIGHT);
+    expect(dom.view._getSpotlightColor('ReadAloudActiveSegment')).toBe(SENTENCE);
+
+    const good = fakeDOM('word');
+    good.reader._internalReader._readAloudManager.activeTimestamp = whole;
+    good.helper._resolveSegmentSelector = vi.fn(() => ({ type: 'FragmentSelector', conformsTo: 'cfi', value: RIGHT })) as never;
+    (good.view as any).toDisplayedRange = vi.fn((sel: any) => (sel?.value === RIGHT || sel?.primary ? { toString: () => 'In truth, I lean away.' } : null));
+    styling(clone).styling.attach(good.reader);
+    good.helper.setState({ popupOpen: true, activeSegment: SEG });
+    expect(good.view._getSpotlightColor('ReadAloudActiveSegment')).toBe(SENTENCE);
+  });
+});
+
+describe('a real word whose position resolves to the wrong text', () => {
+  const SEG = { sourcePosition: { pageIndex: 0, tag: 'seg' }, paragraphSourcePosition: { pageIndex: 0, tag: 'seg-p' }, text: 'In truth, I lean away.' };
+  const real = { start: 0.4, end: 0.7, charStart: 12, charEnd: 16 }; // "lean"
+  const WRONG_WORD = 'epubcfi(/6/16!/4/4/26/3,:12,:16)';
+  const RIGHT_WORD = 'epubcfi(/6/16!/4/4/26/1,:12,:16)';
+  const SENT = 'epubcfi(/6/16!/4/4/26/1,:0,:22)';
+  const clone = { cloneIntoReader: (_r: unknown, value: unknown) => ({ ...(value as object), cloned: true }) };
+
+  function domReading(rightWordResolves: boolean) {
+    const dom = fakeDOM('word');
+    dom.reader._internalReader._readAloudManager.activeTimestamp = real;
+    dom.helper._resolveSegmentSelector = vi.fn(() => ({ type: 'FragmentSelector', conformsTo: 'cfi', value: SENT })) as never;
+    (dom.view as any).toDisplayedRange = vi.fn((sel: any) => {
+      if (sel?.value === WRONG_WORD) return { toString: () => 'syru' };
+      if (sel?.value === RIGHT_WORD && (rightWordResolves ? true : false)) return { toString: () => 'lean' };
+      if (sel?.value === SENT) return { toString: () => 'In truth, I lean away.' };
+      return null;
+    });
+    styling(clone).styling.attach(dom.reader);
+    return dom;
+  }
+
+  it('repairs the word position before Zotero draws it, so the word color lands on the right word', () => {
+    const dom = domReading(true);
+    const state = { popupOpen: true, activeSegment: SEG, activeWordSourcePosition: { type: 'FragmentSelector', conformsTo: 'cfi', value: WRONG_WORD } };
+    dom.helper.setState(state);
+    const primary = dom.view._spotlights.get('ReadAloudActiveSegment') as any;
+    expect(primary?.value).toBe(RIGHT_WORD);
+    expect(dom.view._getSpotlightColor('ReadAloudActiveSegment')).toBe(WORD);
+  });
+
+  it('paints the primary transparent when no rewrite shows the active word', () => {
+    const dom = domReading(false);
+    dom.helper.setState({ popupOpen: true, activeSegment: SEG, activeWordSourcePosition: { type: 'FragmentSelector', conformsTo: 'cfi', value: WRONG_WORD } });
+    const primary = dom.view._spotlights.get('ReadAloudActiveSegment') as any;
+    expect(primary?.value).toBe(WRONG_WORD);
+    expect(dom.view._getSpotlightColor('ReadAloudActiveSegment')).toBe('#00000000');
+  });
+
+  it('leaves a correct word position untouched, with the word color', () => {
+    const dom = domReading(true);
+    const right = { type: 'FragmentSelector', conformsTo: 'cfi', value: RIGHT_WORD };
+    dom.helper.setState({ popupOpen: true, activeSegment: SEG, activeWordSourcePosition: right });
+    expect(dom.view._spotlights.get('ReadAloudActiveSegment')).toBe(right);
+    expect(dom.view._getSpotlightColor('ReadAloudActiveSegment')).toBe(WORD);
+  });
+});
+
+describe('a sentence spanning two text nodes (range endpoints in different nodes)', () => {
+  const SEG = { sourcePosition: { pageIndex: 0, tag: 'seg' }, paragraphSourcePosition: { pageIndex: 0, tag: 'seg-p' }, text: 'I have seen cousins pulled into secondary.' };
+  const whole = { start: 0, end: WHOLE_SEGMENT_END_SECONDS, charStart: 0, charEnd: 42 };
+  const WRONG_CROSS = 'epubcfi(/6/16!/4/4/26,/3:64,/5:130)';
+  const RIGHT_CROSS = 'epubcfi(/6/16!/4/4/26,/1:64,/3:130)';
+  const PROBE_1 = 'epubcfi(/6/16!/4/4/26/1,:0,:1)';
+  // The paragraph: [pagebreak span, textA, inline span, textB]
+  const PARENT = { childNodes: [{ nodeType: 1 }, { nodeType: 3 }, { nodeType: 1 }, { nodeType: 3 }] };
+  const clone = { cloneIntoReader: (_r: unknown, value: unknown) => ({ ...(value as object), cloned: true }) };
+
+  it('maps the spec text steps through the real child structure and repairs both endpoints', () => {
+    const dom = fakeDOM('word');
+    dom.reader._internalReader._readAloudManager.activeTimestamp = whole;
+    dom.helper._resolveSegmentSelector = vi.fn(() => ({ type: 'FragmentSelector', conformsTo: 'cfi', value: WRONG_CROSS })) as never;
+    (dom.view as any).toDisplayedRange = vi.fn((sel: any) => {
+      if (sel?.cloned && sel.value === PROBE_1) return { toString: (): string => 'I', startContainer: { parentNode: PARENT } };
+      if (sel?.cloned && sel.value === RIGHT_CROSS) return { toString: (): string => 'I have  seen cousins pulled into secondary.' };
+      return null;
+    });
+    styling(clone).styling.attach(dom.reader);
+    dom.helper.setState({ popupOpen: true, activeSegment: SEG, activeWordSourcePosition: null });
+    const slot = dom.view._spotlights.get('ReadAloudActiveSentence') as any;
+    expect(slot?.value).toBe(RIGHT_CROSS);
+  });
+
+  it('sets nothing when the repaired range does not show the sentence', () => {
+    const dom = fakeDOM('word');
+    dom.reader._internalReader._readAloudManager.activeTimestamp = whole;
+    dom.helper._resolveSegmentSelector = vi.fn(() => ({ type: 'FragmentSelector', conformsTo: 'cfi', value: WRONG_CROSS })) as never;
+    (dom.view as any).toDisplayedRange = vi.fn((sel: any) => {
+      if (sel?.cloned && sel.value === PROBE_1) return { toString: (): string => 'I', startContainer: { parentNode: PARENT } };
+      if (sel?.cloned && sel.value === RIGHT_CROSS) return { toString: (): string => 'some other passage entirely' };
+      return null;
+    });
+    styling(clone).styling.attach(dom.reader);
+    dom.helper.setState({ popupOpen: true, activeSegment: SEG, activeWordSourcePosition: null });
+    expect(dom.view._spotlights.get('ReadAloudActiveSentence')).toBeUndefined();
   });
 });

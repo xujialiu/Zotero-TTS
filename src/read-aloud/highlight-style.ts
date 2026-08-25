@@ -149,6 +149,8 @@ export function createHighlightStyling(deps: HighlightStylingDeps): HighlightSty
   /** The sentence position / selector this module put into a view's secondary slot, to tell it from Zotero's flashes. */
   const oursPDF = new WeakMap<object, unknown>();
   const oursDOM = new WeakMap<object, { segment: unknown; selector: unknown }>();
+  /** Per helper: Zotero's primary spotlight currently shows the wrong text, so its color is transparent. Recomputed on every state push (a real word moves every word). */
+  const hiddenPrimary = new WeakMap<object, boolean>();
 
   const waive = (value: unknown): any => (deps.waiveXrays ? deps.waiveXrays(value) : value);
 
@@ -183,17 +185,19 @@ export function createHighlightStyling(deps: HighlightStylingDeps): HighlightSty
     return isGranularity(g) ? g : null;
   };
   /** What the manager's active word timestamp is: a real word, the whole-segment stand-in of a wordless voice, or none (the gap between segments, system voices). */
-  const activeWordTimestamp = (reader: any): 'real' | 'stand-in' | 'none' => {
+  const activeWordInfo = (reader: any): { kind: 'real' | 'stand-in' | 'none'; timestamp: any } => {
     let kind: 'real' | 'stand-in' | 'none' = 'none';
+    let timestamp: any = null;
     try {
-      const ts = reader?._internalReader?._readAloudManager?.activeTimestamp;
-      if (ts) kind = ts.start === 0 && ts.end === WHOLE_SEGMENT_END_SECONDS ? 'stand-in' : 'real';
+      timestamp = reader?._internalReader?._readAloudManager?.activeTimestamp ?? null;
+      if (timestamp) kind = timestamp.start === 0 && timestamp.end === WHOLE_SEGMENT_END_SECONDS ? 'stand-in' : 'real';
     } catch (e) {
       deps.error(e);
     }
     logChange('word-timestamp', `highlight: active word timestamp ${kind}`);
-    return kind;
+    return { kind, timestamp };
   };
+  const activeWordTimestamp = (reader: any): 'real' | 'stand-in' | 'none' => activeWordInfo(reader).kind;
   const demote = (g: Granularity | null, reader: unknown): Granularity | null => (g === 'word' && activeWordTimestamp(reader) !== 'real' ? 'sentence' : g);
   const pdfRawGranularity = (view: any) => granularityOf(view?._effectiveReadAloudPrimaryGranularity, view, view?._readAloudState);
   const domRawGranularity = (helper: any) => granularityOf(helper?._effectivePrimaryGranularity, helper, helper?.state);
@@ -292,38 +296,142 @@ export function createHighlightStyling(deps: HighlightStylingDeps): HighlightSty
    * first rewrite whose displayed text is exactly the segment's text.
    */
   const normText = (s: unknown) => String(s ?? '').replace(/\s+/g, ' ').trim();
-  function resolvableSelector(reader: unknown, view: any, selector: any, segment: any): any {
-    if (typeof view?.toDisplayedRange !== 'function') return selector;
-    const rangeOf = (sel: any) => {
-      try {
-        return view.toDisplayedRange(sel) ?? null;
-      } catch (e) {
-        deps.error(e);
-        return null;
-      }
-    };
-    if (rangeOf(selector)) return selector;
-    const value = typeof selector?.value === 'string' ? selector.value : '';
-    const m = /^epubcfi\(([^,[\]]*)\/(\d*[13579])(,[^,[\]]*,[^,[\]]*)?\)$/.exec(value);
-    const text = normText(segment?.text);
-    if (!m || !text) {
-      logChange('sentence-repair', `highlight: sentence selector does not resolve and cannot be rewritten (${value || 'no value'})`);
+  /** The selector's displayed text (normalized), or null when it does not resolve. */
+  const displayedText = (view: any, sel: any): string | null => {
+    try {
+      const range = sel != null ? view.toDisplayedRange(sel) : null;
+      return range ? normText(range.toString()) : null;
+    } catch (e) {
+      deps.error(e);
       return null;
     }
-    for (const step of [1, 3, 5, 7, 9]) {
-      if (String(step) === m[2]) continue;
-      // Cloned before probing: reader code cannot read a sandbox object,
-      // so an unprobed clone would make every candidate "fail to resolve"
-      const raw = { type: selector.type, conformsTo: selector.conformsTo, value: `epubcfi(${m[1]}/${step}${m[3] ?? ''})` };
-      const candidate = deps.cloneIntoReader ? deps.cloneIntoReader(reader, raw) : raw;
-      const range = rangeOf(candidate);
-      if (range && normText(range.toString()) === text) {
-        logChange('sentence-repair', `highlight: sentence selector repaired, text step /${m[2]} -> /${step}`);
-        return candidate;
+  };
+  /** The parent's spec-to-legacy text-step map, from its real child list: spec numbers a text step by elements-before (2k+1), the resolver by its position in the text-node list. */
+  function textStepMap(parent: any): Map<number, number> | null {
+    try {
+      const nodes = parent?.childNodes;
+      if (!nodes) return null;
+      const map = new Map<number, number>();
+      let elements = 0;
+      let texts = 0;
+      for (let i = 0; i < nodes.length; i++) {
+        const kind = nodes[i]?.nodeType;
+        if (kind === 1) elements += 1;
+        else if (kind === 3) {
+          const spec = 2 * elements + 1;
+          if (!map.has(spec)) map.set(spec, 2 * texts + 1);
+          texts += 1;
+        }
       }
+      return map;
+    } catch (e) {
+      deps.error(e);
+      return null;
     }
-    logChange('sentence-repair', 'highlight: sentence selector does not resolve and no rewrite shows the sentence');
+  }
+  /**
+   * Rewrite the selector's text steps through the resolver's own convention;
+   * only a rewrite whose displayed text equals `text` counts. Two shapes: a
+   * path ending in a text step (offsets bare, one text node) is retried with
+   * the candidate steps; a range whose endpoints sit in different text nodes
+   * of the same parent (`,/3:64,/5:130`) is rewritten through the parent's
+   * real child structure, discovered with a one-character probe. Candidates
+   * are cloned before probing — reader code cannot read a sandbox object.
+   */
+  function repairSelectorForText(reader: unknown, view: any, selector: any, text: string): any {
+    const value = typeof selector?.value === 'string' ? selector.value : '';
+    if (!text) return null;
+    const mk = (v: string) => {
+      const raw = { type: selector.type, conformsTo: selector.conformsTo, value: v };
+      return deps.cloneIntoReader ? deps.cloneIntoReader(reader, raw) : raw;
+    };
+    const single = /^epubcfi\(([^,[\]]*)\/(\d*[13579])(,[^,[\]]*,[^,[\]]*)?\)$/.exec(value);
+    if (single) {
+      for (const step of [1, 3, 5, 7, 9]) {
+        if (String(step) === single[2]) continue;
+        const candidate = mk(`epubcfi(${single[1]}/${step}${single[3] ?? ''})`);
+        if (displayedText(view, candidate) === text) return candidate;
+      }
+      return null;
+    }
+    const cross = /^epubcfi\(([^,[\]]+),\/(\d*[13579])(:\d+),\/(\d*[13579])(:\d+)\)$/.exec(value);
+    if (cross) {
+      let parent: any = null;
+      for (const step of [1, 3, 5, 7, 9]) {
+        try {
+          const range = view.toDisplayedRange(mk(`epubcfi(${cross[1]}/${step},:0,:1)`));
+          parent = range?.startContainer?.parentNode ?? null;
+          if (parent) break;
+        } catch (e) {
+          deps.error(e);
+        }
+      }
+      const map = textStepMap(parent);
+      const start = map?.get(Number(cross[2]));
+      const end = map?.get(Number(cross[4]));
+      if (!start || !end) return null;
+      const candidate = mk(`epubcfi(${cross[1]},/${start}${cross[3]},/${end}${cross[5]})`);
+      if (displayedText(view, candidate) === text) return candidate;
+    }
     return null;
+  }
+  function resolvableSelector(reader: unknown, view: any, selector: any, segment: any): any {
+    if (typeof view?.toDisplayedRange !== 'function') return selector;
+    // The resolver can also land on the WRONG text node without failing: a
+    // paragraph with an inline element mid-text has two text nodes, and the
+    // legacy numbering reads the spec's /3 as the second of them (issue #4).
+    // So a resolved range only counts when its text is the sentence.
+    const text = normText(segment?.text);
+    const shown = displayedText(view, selector);
+    if (shown !== null && (!text || shown === text)) return selector;
+    const repaired = repairSelectorForText(reader, view, selector, text);
+    if (repaired) {
+      logChange('sentence-repair', 'highlight: sentence selector repaired');
+      return repaired;
+    }
+    logChange('sentence-repair', 'highlight: sentence selector does not resolve to the sentence and no rewrite does');
+    return null;
+  }
+
+  /**
+   * Zotero's word position resolves to the wrong node the same way the
+   * sentence selector does (issues #3/#4). Runs BEFORE the original
+   * setState: verify the state's word position against the text it should
+   * show — the active timestamp's slice of the sentence for a real word,
+   * the whole sentence for the stand-in — and swap in a verified rewrite so
+   * Zotero draws the primary at the right place. When no rewrite shows the
+   * expected text, the primary's color goes transparent instead (the
+   * plugin cannot reposition what it cannot repair). Re-evaluated on every
+   * push, since a real word moves with every word event.
+   */
+  function repairWordPosition(reader: unknown, helper: any, state: any): void {
+    const view = helper?._view;
+    if (!view || typeof view.toDisplayedRange !== 'function') return;
+    if (!state?.popupOpen) {
+      hiddenPrimary.set(helper, false);
+      return;
+    }
+    const segment = state.activeSegment;
+    const selector = state.activeWordSourcePosition;
+    if (!segment || !selector || domRawGranularity(helper) !== 'word') return;
+    const { kind, timestamp } = activeWordInfo(reader);
+    if (kind === 'none') return;
+    const wholeText = String(segment.text ?? '');
+    const expected = normText(kind === 'real' && timestamp ? wholeText.slice(timestamp.charStart, timestamp.charEnd) : wholeText);
+    if (!expected) return;
+    if (displayedText(view, selector) === expected) {
+      hiddenPrimary.set(helper, false);
+      return;
+    }
+    const repaired = repairSelectorForText(reader, view, selector, expected);
+    if (repaired) {
+      logChange('word-repair', 'highlight: word position repaired before drawing');
+      state.activeWordSourcePosition = repaired;
+      hiddenPrimary.set(helper, false);
+      return;
+    }
+    logChange('word-repair', 'highlight: word position shows the wrong text and no rewrite fixes it; painting the primary transparent');
+    hiddenPrimary.set(helper, true);
   }
 
   function keepSentenceDOM(reader: unknown, helper: any, state: any): void {
@@ -364,7 +472,9 @@ export function createHighlightStyling(deps: HighlightStylingDeps): HighlightSty
       function (this: any, key: unknown) {
         try {
           if (key === SEGMENT_KEY) {
-            const color = primaryHighlightColor(deps.style(), domGranularity(reader, waive(this)?._readAloud));
+            const helper = waive(this)?._readAloud;
+            if (hiddenPrimary.get(helper)) return '#00000000';
+            const color = primaryHighlightColor(deps.style(), domGranularity(reader, helper));
             if (color) return color;
           } else if (key === SENTENCE_KEY) {
             const color = secondaryHighlightColor(deps.style());
@@ -378,6 +488,11 @@ export function createHighlightStyling(deps: HighlightStylingDeps): HighlightSty
     );
     shadow(helperProto, 'setState', (original) =>
       function (this: any, ...args: unknown[]) {
+        try {
+          repairWordPosition(reader, waive(this), waive(args[0]));
+        } catch (e) {
+          deps.error(e);
+        }
         const result = Reflect.apply(original, this, args);
         try {
           keepSentenceDOM(reader, waive(this), waive(args[0]));

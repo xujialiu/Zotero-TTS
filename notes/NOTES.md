@@ -1115,3 +1115,54 @@ chrome compartment — hand-built selectors read as empty inside the
 reader; clone with Components.utils.cloneInto(obj, view._iframeWindow)
 or every probe returns false (two rounds of garbage data until a
 known-good positive control exposed it).
+
+### Follow-up: silent misresolution (issue #4, 2026-08-25)
+
+The numbering mismatch also resolves WRONG without failing: a paragraph
+with an inline element mid-text (El Akkad p. 10: pagebreak span, textA,
+a <span> around the letter ع, textB) has two text nodes, and the
+resolver reads the spec's /3 (textA) as text-node-list entry [1] (textB)
+— the first sentence's offsets highlighted three lines below the spoken
+text, no console error. The 1.5.5 repair only engaged on resolution
+failure. Fixed: the sentence selector's displayed text is verified
+against the segment text unconditionally (mismatch runs the same rewrite
+search); and the demoted stand-in primary is painted transparent
+(#00000000) when its own displayed text is not the sentence, since the
+plugin cannot reposition Zotero's primary. Upstream note added to
+zotero/reader#244: a resolution-side fallback cannot cover this case —
+with two text nodes both numberings resolve, to different nodes; the
+generator and resolver must agree on one convention.
+
+### Follow-up: real words too (issue #4, 2026-08-25)
+
+With a word-timestamp voice the *word* primary is misresolved the same
+way (green word landing on "syrup" while sentence 1 is read). Final
+design — repair BEFORE Zotero draws: the setState wrapper runs
+repairWordPosition ahead of the original and verifies
+state.activeWordSourcePosition against the text it should show (the
+active timestamp's charStart..charEnd slice of segment.text for a real
+word, the whole sentence for the stand-in); on mismatch it swaps in a
+rewrite verified by displayed text (same machinery as the sentence,
+cloned into the reader compartment) — assignment through the waived
+state reaches the reader's object, so Zotero itself draws the primary
+at the right place. Only when no rewrite shows the expected text does
+the fallback remain: hiddenPrimary (own WeakMap, re-evaluated per push,
+kept through the gap, reset on popup close) paints the primary
+transparent via _getSpotlightColor. So misresolving paragraphs get a
+correct green word again; only unrepairable shapes lose the word
+highlight.
+
+### Follow-up: sentences spanning two text nodes (issue #4, 2026-08-25)
+
+Sentence 2 of the El Akkad paragraph crosses the inline element (textA +
+span(ع) + textB), so its selector is a cross-node range
+(`(P,/3:64,/5:130)`) — the single-step rewrite shape did not match and
+the sentence slot stayed empty (word highlight fine, sentence gone).
+Fixed with an exact mapping instead of guessing: a one-character probe
+(`(P/c,:0,:1)`, c = 1,3,5,7,9, cloned) resolves once, its
+range.startContainer.parentNode gives the real child list, and
+textStepMap computes spec (2*elementsBefore+1) -> legacy (2*textIndex+1)
+per text node; both range endpoints are rewritten through the map and
+the result must still display exactly the segment text. Deeper range
+parts (`,/2/3:0`) stay out of scope. DOM nodes reached through the CCW
+(childNodes/nodeType/parentNode) read fine from the sandbox.
