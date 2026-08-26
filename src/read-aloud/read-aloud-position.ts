@@ -87,6 +87,29 @@ export function putPosition(
   return [{ lib, key, pos, ts: now }, ...rest].slice(0, MAX_POSITIONS);
 }
 
+/**
+ * What resume hands to `startReadAloudAtPosition`. A whole-sentence PDF
+ * rect position lands one segment early: Zotero's rect→segment mapping
+ * resolves the leading boundary into the *previous* segment (verified
+ * deterministically 2026-08-27, notes/NOTES.md — the same stored sentence
+ * passed twice started at its predecessor twice). The context menu's
+ * "Read Aloud from Here" passes a zero-area point rect
+ * (`{pageIndex, rects: [[x, y, x, y]]}`, reader bundle ~79159) and lands
+ * exactly, so resume passes the center of the sentence's first line
+ * instead. EPUB and snapshot selectors are strings to Zotero and to us —
+ * they pass through unchanged.
+ */
+export function resumeTarget(pos: unknown): unknown {
+  const p = pos as { pageIndex?: unknown; rects?: unknown } | null;
+  if (!p || typeof p !== 'object' || typeof p.pageIndex !== 'number' || !Array.isArray(p.rects)) return pos;
+  const first = p.rects[0] as unknown;
+  if (!Array.isArray(first) || first.length !== 4 || !first.every((n) => typeof n === 'number' && Number.isFinite(n))) return pos;
+  const [x1, y1, x2, y2] = first as number[];
+  const cx = (x1 + x2) / 2;
+  const cy = (y1 + y2) / 2;
+  return { pageIndex: p.pageIndex, rects: [[cx, cy, cx, cy]] };
+}
+
 /** Whether two positions are the same — the test Zotero itself makes (xpcom/reader.js:1040). */
 export function samePosition(a: unknown, b: unknown): boolean {
   try {

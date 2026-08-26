@@ -1774,3 +1774,142 @@ bare `startReadAloudAtPosition()`. `resumeLastPosition` and the
 
 `diagnostics.smartKey()` reports, per reader, the state the key sees and
 which branch it would take.
+
+## Resume landed one sentence early: the close was riding on the tick (2026-08-26)
+
+Reported as "sometimes the sentence at close, sometimes the one before".
+position-sync recorded by polling only, so the pref at close held whatever
+the last tick saw. The windows: ≤500 ms after a sentence starts (the
+speaking tick); ≤3 s while paused (arrow-key skips move `savedPosition`
+but the tick had slowed); ≤3 s right after a session starts; and the
+inter-sentence gap itself, where Zotero's `savedPosition` legitimately
+still names the finished sentence (stamped only when the *next* audio
+starts, ~83601 — with our voices `sentenceDelay: 0` + prefetch this is
+~0–200 ms and was left as is).
+
+The 2026-08-26 "adaptive tick" entry claimed reading *at* close would be
+too late, the compartment already going away. Re-verified and overturned:
+on tab close, chrome-side `notify` runs `reader.uninit()` *before*
+splicing `_readers`, and `uninit` itself reads reader state
+(`_flushState`); the iframe's unload dispatch happens while the
+compartment is alive — the shortcuts module has always relied on that same
+unload to detach. And closing the *popup* (`deactivate` +
+`_resetReadAloudSegmentState`) freezes but does not clear
+`savedPosition` — the reset only touches `segmentAnnotations` — so the
+value stays readable indefinitely.
+
+Fix (all reads, still no patching): `captureClose(reader)` records the one
+closing reader from its iframe unload and flushes past the throttle
+(index.ts `hookPositionCapture`, idempotent per iframe, detached on stop);
+after deactivate the sampler keeps reading readers that were active this
+session (a `wasActive` set — never a fresh document, whose savedPosition
+is Zotero's restored copy, not something just listened to); the fast tick
+now runs while a session is open (`ACTIVE_TICK_MS`, paused included, for
+the skip-while-paused case); `stop()` samples once before its final flush
+(quit path). `diagnostics.position()` reports `captureHooks` — one per
+open reader iframe.
+
+## The unload hook never fired; capture moved into a reader.uninit wrap (2026-08-26)
+
+Field evidence from the A/B/C procedure (play → close tab → inspect),
+courtesy of `diagnostics.position()` run seconds after a tab close:
+
+- `captureHooks` stayed at 3 — the iframe 'unload' hook of the previous
+  entry **never fired**. Removing the iframe's node at tab close does not
+  dispatch unload (unload is for navigation/window close). This also means
+  the shortcuts module's unload-based `unlisten` has never fired for tab
+  closes — its listener map holds dead iframes until dispose; harmless,
+  but the previous entry's "the shortcuts module has always relied on that
+  same unload" was wrong on both counts.
+- The closed reader **lingered in `Zotero.Reader._readers`** (`active:
+  false`, state readable — the close notification had not finished), and
+  Zotero's own `savedPosition` had **regressed one sentence backward**
+  during teardown (before close: rects starting x=349.9 on the shared
+  line; after: the sentence ending x=346.9 on that same line). The
+  `wasActive` continued-read then copied the regressed value over the
+  correct one — the fix corrupted the very store it was protecting, which
+  is what put "resume" a sentence (or, earlier, several segments) early.
+
+Current design, replacing both mechanisms:
+
+- `captureClose` is called from a per-reader wrap of the chrome-side
+  `reader.uninit` (index.ts `hookPositionCapture`): the tab-close
+  notification runs uninit synchronously while the state is whole — uninit
+  itself reads it for `_flushState`. Capture first, then the original;
+  the wrap restores itself on fire and on plugin stop. Same chrome-side
+  per-reader patch pattern as read-aloud/index.ts; no compartment ceremony.
+- `record(reader, force)`: ticks read open sessions only. The forced read
+  (captureClose, stop()) also takes a session deactivated earlier — the
+  popup-close value stays frozen in `savedPosition` — but never a document
+  that has not played this plugin session.
+- `captureClose` then **freezes** the attachment (drops it from
+  `wasActive`): whatever the lingering reader's teardown does to
+  `savedPosition` afterwards is noise and is not copied. Playing again
+  unfreezes.
+- `stop()` runs a forced pass over all readers before its final flush.
+
+## Tab close, the real sequence: capture moved to tab.onClose (2026-08-27)
+
+The uninit wrap was never reached either: a second A/B/C run showed
+`captureHooks` still at 3 seconds after the close, the reader still in
+`_readers` (deactivated, state readable) — `Reader.notify`'s close branch,
+which runs `uninit`, lags the actual close by a long stretch. Reading
+`Zotero_Tabs.close` (tabs.js ~726) settled the sequence: splice from
+`_tabs` → **synchronous `tab.onClose()`** → DOM removal *deferred in a
+setTimeout* → `Notifier.trigger('close', 'tab', …)` last. Two traps worth
+keeping:
+
+- Patching `Zotero_Tabs.close` misses the × button: the tab bar is wired
+  at init with `onTabClose: this.close.bind(this)` (~541), a reference to
+  the original taken before any patch.
+- Wrapping the tab object's own `onClose` catches every path — close()
+  itself invokes it through the property — and is Zotero's own pattern
+  (xpcom/reader.js ~1968 wraps it exactly like that).
+
+So: primary capture = per-tab `onClose` wrap (index.ts `hookTabClose`,
+found via `reader._window.Zotero_Tabs._tabs` by `reader.tabID`); the
+`reader.uninit` wrap stays as backstop (separate reader windows close via
+`uninit` directly; the late notify's second capture is a no-op after the
+freeze). The same run also confirmed the freeze works: the lingering
+reader's entry stayed untouched, `ts` unchanged.
+
+## Hooks that vanish: waive before assigning through reader._window (2026-08-27)
+
+Third A/B/C run, tab.onClose wrap in place — and `tabHooks` still did not
+drop on close: the wrap was never entered, though our side could read it
+back. Best explanation on record is NOTES' own invisible-Intl incident:
+objects reached **through `reader._window`** can present an Xray-flavored
+view with an unpinned trigger, and an assignment then lands on the
+wrapper — our side reads the expando back happily while chrome keeps
+calling the original. (Assignments on objects reached through the
+`Zotero.…` chain demonstrably land — installHijack's per-reader
+`_getReadAloudRemoteInterface` has always worked — which is why only the
+tab hook, reached via `reader._window.Zotero_Tabs._tabs`, went silent.)
+
+Both hook installers now assign through `Components.utils.waiveXrays`
+(no-op on a transparent wrapper), verify by reading back through the
+waived view, and throw loudly into the error log if the wrap did not
+stick — no more silent no-op hooks. `diagnostics.position()` reports
+`live: {tabs, uninits}`, the counts chrome can actually see, next to the
+map counts; live below map = the Xray trap again.
+
+## Resume passed the right sentence; Zotero started one earlier (2026-08-27)
+
+With the whole capture chain finally firing (the waived hooks work — the
+trace shows tab.onClose → capture → uninit on every × close), the last
+off-by-one isolated itself: the trace's `resume … pos` line proved the
+stored sentence was handed to `startReadAloudAtPosition` verbatim, and
+playback still began at its *predecessor* — deterministically, twice in a
+row with the same input. So Zotero's PDF rect→segment mapping
+(`_findReadAloudStartIndex` → `sourceToSDTPosition`) resolves a
+whole-sentence rect position into the boundary's previous segment.
+
+Fix: don't argue with the mapping — feed it the shape it handles every
+day. The context menu's "Read Aloud from Here" passes a zero-area point
+(`{pageIndex, rects: [[x, y, x, y]]}`, `pointerEventToPosition`, bundle
+~79159). `resumeTarget()` (read-aloud-position.ts) converts a stored PDF
+position into the center point of its first rect — inside the sentence's
+first line, so the mapping cannot land anywhere else. EPUB/snapshot
+FragmentSelectors pass through unchanged (no off-by-one observed there).
+The close-path trace (`diagnostics.position().trace`) stays — it earned
+its keep.

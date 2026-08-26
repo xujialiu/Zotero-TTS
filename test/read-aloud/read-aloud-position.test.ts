@@ -8,6 +8,7 @@ import {
   readPositions,
   samePosition,
   writePositions,
+  resumeTarget,
   type PositionEntry,
 } from '../../src/read-aloud/read-aloud-position';
 
@@ -126,5 +127,56 @@ describe('samePosition', () => {
 
   it('treats null and undefined alike', () => {
     expect(samePosition(null, undefined)).toBe(true);
+  });
+});
+
+
+describe('resumeTarget', () => {
+  // Passing a whole-sentence rect position back to startReadAloudAtPosition
+  // starts one sentence early on PDFs (Zotero's rect→segment mapping takes
+  // the boundary segment; verified 2026-08-27, notes/NOTES.md). The context
+  // menu's "Read Aloud from Here" passes a zero-area point rect
+  // ({pageIndex, rects: [[x, y, x, y]]}, reader bundle ~79159) and lands
+  // exactly — so resume hands Zotero the center of the sentence's first
+  // line instead of the full rects.
+  it('turns a PDF position into the center point of its first rect', () => {
+    expect(resumeTarget({ pageIndex: 1, rects: [[306.7, 605, 526.1, 613]] })).toEqual({
+      pageIndex: 1,
+      rects: [[416.4, 609, 416.4, 609]],
+    });
+  });
+
+  it('uses the first rect only — the first line of the sentence', () => {
+    const pos = {
+      pageIndex: 3,
+      rects: [
+        [349.9, 682, 553.3, 690],
+        [306.7, 671, 347.5, 679],
+      ],
+    };
+    const cx = (349.9 + 553.3) / 2;
+    expect(resumeTarget(pos)).toEqual({ pageIndex: 3, rects: [[cx, 686, cx, 686]] });
+  });
+
+  it('does not touch the stored object', () => {
+    const pos = { pageIndex: 1, rects: [[0, 0, 10, 10]] };
+    resumeTarget(pos);
+    expect(pos.rects[0]).toEqual([0, 0, 10, 10]);
+  });
+
+  it('passes EPUB and snapshot selectors through unchanged', () => {
+    const cfi = { type: 'FragmentSelector', conformsTo: 'http://www.idpf.org/epub/linking/cfi/epub-cfi.html', value: 'epubcfi(/6/16!/4/4/54/1:0)' };
+    expect(resumeTarget(cfi)).toBe(cfi);
+  });
+
+  it('passes malformed PDF shapes through unchanged', () => {
+    const noRects = { pageIndex: 1, rects: [] };
+    expect(resumeTarget(noRects)).toBe(noRects);
+    const badRect = { pageIndex: 1, rects: [[1, 2, 3]] };
+    expect(resumeTarget(badRect)).toBe(badRect);
+    const nan = { pageIndex: 1, rects: [[1, 2, 3, Number.NaN]] };
+    expect(resumeTarget(nan)).toBe(nan);
+    expect(resumeTarget(null)).toBe(null);
+    expect(resumeTarget('epubcfi(...)')).toBe('epubcfi(...)');
   });
 });

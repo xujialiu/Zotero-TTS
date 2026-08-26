@@ -3,7 +3,7 @@ import type { PrefsBackend } from '../../src/core/settings';
 import {
   createPositionSync,
   IDLE_TICK_MS,
-  SPEAKING_TICK_MS,
+  ACTIVE_TICK_MS,
   WRITE_THROTTLE_MS,
   type PositionSyncDeps,
 } from '../../src/read-aloud/position-sync';
@@ -116,7 +116,7 @@ describe('createPositionSync', () => {
     h.advance(IDLE_TICK_MS);
     expect(h.store[READ_ALOUD_POSITIONS_PREF]).toBeUndefined();
     readers[0].saved = LATER_POS;
-    h.advance(SPEAKING_TICK_MS);
+    h.advance(ACTIVE_TICK_MS);
     expect(h.store[READ_ALOUD_POSITIONS_PREF]).toBeUndefined();
     h.advance(WRITE_THROTTLE_MS);
     expect(readPositions(h.prefs)[0].pos).toEqual(LATER_POS);
@@ -149,17 +149,21 @@ describe('createPositionSync', () => {
     expect(h.timers).toHaveLength(1);
   });
 
-  it('polls fast while a reader is speaking and slowly when it is not', () => {
+  it('polls fast while a session is open — paused included — and slowly otherwise', () => {
     const readers = [reader()];
     const h = harness(readers);
     h.sync.start();
     // Nothing observed yet, so the first tick is the cheap one
     expect(h.nextDelay()).toBe(IDLE_TICK_MS);
     h.advance(IDLE_TICK_MS);
-    expect(h.nextDelay()).toBe(SPEAKING_TICK_MS);
-    // Paused: the position is not moving, so there is nothing to catch
+    expect(h.nextDelay()).toBe(ACTIVE_TICK_MS);
+    // Paused still moves the position: the arrow keys skip without playing
     readers[0].paused = true;
-    h.advance(SPEAKING_TICK_MS);
+    h.advance(ACTIVE_TICK_MS);
+    expect(h.nextDelay()).toBe(ACTIVE_TICK_MS);
+    // Popup closed: nothing can move any more
+    readers[0].active = false;
+    h.advance(ACTIVE_TICK_MS);
     expect(h.nextDelay()).toBe(IDLE_TICK_MS);
   });
 
@@ -169,7 +173,7 @@ describe('createPositionSync', () => {
     h.sync.start();
     h.advance(IDLE_TICK_MS);
     readers[0].saved = LATER_POS;
-    h.advance(SPEAKING_TICK_MS);
+    h.advance(ACTIVE_TICK_MS);
     expect(h.sync.lookup(reader())).toEqual(LATER_POS);
   });
 
@@ -247,7 +251,7 @@ describe('createPositionSync', () => {
     // Recorded, but still inside the throttle window
     expect(h.store[READ_ALOUD_POSITIONS_PREF]).toBeUndefined();
     readers.length = 0; // the tab was closed
-    h.advance(SPEAKING_TICK_MS);
+    h.advance(ACTIVE_TICK_MS);
     expect(readPositions(h.prefs)[0].key).toBe('ABCD1234');
   });
 
@@ -269,6 +273,112 @@ describe('createPositionSync', () => {
     h.advance(IDLE_TICK_MS);
     expect(h.errors).toHaveLength(1);
     expect(h.timers).toHaveLength(1);
+  });
+
+  // The unload hook: one last read while the closing reader is still alive,
+  // written out at once — the fix for resuming one sentence early when the
+  // tab closed inside the tick window (notes/NOTES.md 2026-08-26)
+  it('captureClose() records the closing reader at once, past the throttle', () => {
+    const readers = [reader()];
+    const h = harness(readers);
+    h.sync.start();
+    h.advance(IDLE_TICK_MS);
+    // The sentence changed after the last tick — exactly the race
+    readers[0].saved = LATER_POS;
+    h.sync.captureClose(readers[0]);
+    expect(readPositions(h.prefs)[0].pos).toEqual(LATER_POS);
+  });
+
+  it('captureClose() writes what was already pending even if the final read fails', () => {
+    const readers = [reader()];
+    const h = harness(readers);
+    h.sync.start();
+    h.advance(IDLE_TICK_MS);
+    expect(h.store[READ_ALOUD_POSITIONS_PREF]).toBeUndefined();
+    h.sync.captureClose({ dead: true });
+    expect(readPositions(h.prefs)[0].pos).toEqual(PDF_POS);
+  });
+
+  it('captureClose() on a reader that never played stores nothing', () => {
+    const h = harness([reader({ active: false })]);
+    h.sync.captureClose(reader({ active: false }));
+    expect(readPositions(h.prefs)).toEqual([]);
+  });
+
+  // Ticks read only open sessions: what a deactivated reader's state does
+  // afterwards is teardown noise, not listening (2026-08-26: Zotero's own
+  // savedPosition regressed a sentence during tab teardown, and a periodic
+  // read faithfully copied the regression over the correct value)
+  it('stops following a reader once its session closed', () => {
+    const readers = [reader()];
+    const h = harness(readers);
+    h.sync.start();
+    h.advance(IDLE_TICK_MS);
+    readers[0].active = false;
+    readers[0].saved = LATER_POS;
+    h.advance(IDLE_TICK_MS * 3);
+    expect(h.sync.lookup(reader())).toEqual(PDF_POS);
+  });
+
+  // The popup was closed (savedPosition frozen at the final sentence) and
+  // the tab closed later: the uninit capture must still read the frozen value
+  it('captureClose() reads a deactivated reader that played this session', () => {
+    const readers = [reader()];
+    const h = harness(readers);
+    h.sync.start();
+    h.advance(IDLE_TICK_MS);
+    readers[0].active = false;
+    readers[0].saved = LATER_POS;
+    h.sync.captureClose(readers[0]);
+    expect(readPositions(h.prefs)[0].pos).toEqual(LATER_POS);
+  });
+
+  // The incident: after the capture, the closed reader lingered in _readers
+  // with a savedPosition that had regressed — it must not be copied
+  it('freezes an attachment after captureClose() until it plays again', () => {
+    const readers = [reader()];
+    const h = harness(readers);
+    h.sync.start();
+    h.advance(IDLE_TICK_MS);
+    readers[0].active = false;
+    h.sync.captureClose(readers[0]);
+    readers[0].saved = LATER_POS; // teardown noise on the lingering reader
+    h.advance(IDLE_TICK_MS * 3);
+    expect(h.sync.lookup(reader())).toEqual(PDF_POS);
+    // Played again (the tab was reopened): recording resumes
+    readers[0].active = true;
+    readers[0].saved = LATER_POS;
+    h.advance(IDLE_TICK_MS);
+    expect(h.sync.lookup(reader())).toEqual(LATER_POS);
+  });
+
+  it('still never imports from a reader that has not played this session', () => {
+    const readers = [reader({ active: false })];
+    const h = harness(readers);
+    h.sync.start();
+    h.advance(IDLE_TICK_MS * 2);
+    expect(h.sync.lookup(reader())).toBeNull();
+  });
+
+  it('stop() takes a last look before writing', () => {
+    const readers = [reader()];
+    const h = harness(readers);
+    h.sync.start();
+    h.advance(IDLE_TICK_MS);
+    readers[0].saved = LATER_POS;
+    h.sync.stop();
+    expect(readPositions(h.prefs)[0].pos).toEqual(LATER_POS);
+  });
+
+  it('stop() still reads a deactivated reader that played this session', () => {
+    const readers = [reader()];
+    const h = harness(readers);
+    h.sync.start();
+    h.advance(IDLE_TICK_MS);
+    readers[0].active = false;
+    readers[0].saved = LATER_POS;
+    h.sync.stop();
+    expect(readPositions(h.prefs)[0].pos).toEqual(LATER_POS);
   });
 
   it('lookup() returns null for an attachment with nothing stored', () => {

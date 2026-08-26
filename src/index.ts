@@ -7,8 +7,8 @@ import { createReadAloudMemorySync, type ReadAloudMemorySync } from './read-alou
 import { createHighlightStyling, type HighlightStyling } from './read-aloud/highlight-style';
 import { createSystemVoiceHiding, type SystemVoiceHiding } from './read-aloud/system-voices';
 import { createMultilingualFirst, type MultilingualFirst } from './read-aloud/multilingual-first';
-import { createPositionSync, IDLE_TICK_MS, SPEAKING_TICK_MS, type PositionSync } from './read-aloud/position-sync';
-import { readPositions } from './read-aloud/read-aloud-position';
+import { createPositionSync, ACTIVE_TICK_MS, IDLE_TICK_MS, type PositionSync } from './read-aloud/position-sync';
+import { readPositions, resumeTarget } from './read-aloud/read-aloud-position';
 import { listNamedCatalog, type CatalogEntry } from './read-aloud/catalog';
 import { parseFavoriteVoices } from './read-aloud/favorites';
 import { decodeVoiceId } from './read-aloud/voice-catalog';
@@ -276,6 +276,208 @@ function watchReader(reader: any): void {
       isEditable: (event) => isEditableTarget(event.target) || isEditableTarget(deepActiveElement(iframe.document)),
     });
   }
+  hookPositionCapture(reader);
+  hookTabClose(reader);
+}
+
+/**
+ * The closing tab's last chance: a per-reader wrap of the chrome-side
+ * `reader.uninit`, which the tab-close notification runs synchronously
+ * while the reader's state is still whole (uninit itself reads it to flush
+ * the view state). The capture runs first, then the original — so the
+ * sentence being read *at* close is stored instead of whatever the last
+ * tick saw. An iframe 'unload' hook was tried first and never fired:
+ * removing the iframe's node does not dispatch unload (verified
+ * 2026-08-26, notes/NOTES.md). Same chrome-side per-reader pattern as
+ * read-aloud/index.ts. Entries drop off as uninit runs; the rest are
+ * restored on stop, so a reloaded plugin leaves no wrap behind.
+ */
+const positionCaptureHooks = new Map<any, { original: any; wrapper: any }>();
+
+/**
+ * Chrome objects reached through `reader._window` have shown Xray-flavored
+ * views before (the invisible-Intl incident, NOTES.md): an assignment can
+ * land on the wrapper, where our side reads it back happily while chrome
+ * keeps seeing the original — exactly a silent no-op hook. The team
+ * remedy stands: waive unconditionally (a no-op on a transparent wrapper)
+ * and assign through the waived view, which is the target itself.
+ */
+function waived(obj: any): any {
+  try {
+    return Components.utils.waiveXrays(obj) ?? obj;
+  } catch {
+    return obj;
+  }
+}
+
+/**
+ * Ring buffer tracing the close path, because three rounds of evidence say
+ * the user's close gesture reaches neither tab.onClose nor reader.uninit.
+ * Shown by diagnostics.position() as `trace`; cheap enough to keep.
+ */
+const closeTrace: string[] = [];
+
+function trace(msg: string): void {
+  try {
+    closeTrace.push(new Date().toISOString().slice(11, 23) + ' ' + msg);
+    if (closeTrace.length > 60) closeTrace.splice(0, closeTrace.length - 60);
+  } catch {
+    // Tracing must never be the thing that throws
+  }
+}
+
+/** Every tab notifier event, timestamped, so a close gesture shows its real path. */
+let tabNotifierID: string | null = null;
+
+function startCloseTrace(): void {
+  if (tabNotifierID !== null) return;
+  try {
+    tabNotifierID = Zotero.Notifier.registerObserver(
+      {
+        notify: (event: string, _type: string, ids: unknown[]) => {
+          try {
+            trace(`notifier tab ${event} ${JSON.stringify(ids)}`);
+          } catch {
+            trace(`notifier tab ${event}`);
+          }
+        },
+      },
+      ['tab'],
+      'zotero-tts-trace',
+    );
+  } catch (e) {
+    Zotero.logError(e);
+  }
+}
+
+function stopCloseTrace(): void {
+  if (tabNotifierID === null) return;
+  try {
+    Zotero.Notifier.unregisterObserver(tabNotifierID);
+  } catch {
+    // Already gone at shutdown
+  }
+  tabNotifierID = null;
+}
+
+/**
+ * The primary capture point. `Zotero_Tabs.close` calls `tab.onClose()`
+ * synchronously for every close path — the × button included — while the
+ * tab's DOM removal is still a setTimeout away and the Reader.notify
+ * uninit runs much later still (observed lagging by many seconds, the
+ * reader lingering deactivated in `_readers`). Wrapping the tab object's
+ * own `onClose` is Zotero's own pattern (xpcom/reader.js ~1968). Patching
+ * `Zotero_Tabs.close` instead would miss the × button, which goes through
+ * a reference bound at init (tabs.js ~541).
+ */
+const tabCloseHooks = new Map<any, { original: any; wrapper: any }>();
+
+function hookTabClose(reader: any): void {
+  try {
+    const tabs = reader?._window?.Zotero_Tabs?._tabs;
+    const tabID = reader?.tabID;
+    if (!Array.isArray(tabs) || !tabID) return;
+    const raw = tabs.find((t: any) => t?.id === tabID);
+    if (!raw) return;
+    const tab = waived(raw);
+    if (tabCloseHooks.has(tab)) return;
+    const original = tab.onClose;
+    const wrapper = function zttsTabCloseCapture(this: unknown) {
+      tabCloseHooks.delete(tab);
+      trace(`tab.onClose fired ${String(tabID)}`);
+      try {
+        positionSync?.captureClose(reader);
+      } catch (e) {
+        Zotero.logError(e);
+      }
+      return original?.call(tab);
+    };
+    tab.onClose = wrapper;
+    // Read back through the waived view — the target itself. A mismatch
+    // means the hook silently landed somewhere chrome will not look.
+    if (tab.onClose !== wrapper) {
+      throw new Error('zotero-tts: tab.onClose wrap did not stick');
+    }
+    tabCloseHooks.set(tab, { original, wrapper });
+    trace(`hooked tab ${String(tabID)}`);
+  } catch (e) {
+    Zotero.logError(e);
+  }
+}
+
+function unhookTabCloses(): void {
+  for (const [tab, { original, wrapper }] of [...tabCloseHooks]) {
+    try {
+      if (tab.onClose === wrapper) tab.onClose = original;
+    } catch {
+      // A tab already gone took its wrap with it
+    }
+  }
+  tabCloseHooks.clear();
+}
+
+/** How many hooks chrome can actually see right now, per family. */
+function liveHookCounts(): { tabs: number; uninits: number } {
+  let tabs = 0;
+  for (const [tab, { wrapper }] of tabCloseHooks) {
+    try {
+      if (tab.onClose === wrapper) tabs++;
+    } catch {
+      // A dead tab counts as not live
+    }
+  }
+  let uninits = 0;
+  for (const [reader, { wrapper }] of positionCaptureHooks) {
+    try {
+      if (waived(reader).uninit === wrapper) uninits++;
+    } catch {
+      // A dead reader counts as not live
+    }
+  }
+  return { tabs, uninits };
+}
+
+function hookPositionCapture(reader: any): void {
+  try {
+    if (positionCaptureHooks.has(reader)) return;
+    const target = waived(reader);
+    if (typeof target?.uninit !== 'function') return;
+    const original = target.uninit;
+    const wrapper = function zttsUninitCapture(this: unknown, ...args: unknown[]) {
+      positionCaptureHooks.delete(reader);
+      trace(`reader.uninit fired item ${String(reader?.itemID)}`);
+      try {
+        positionSync?.captureClose(reader);
+      } catch (e) {
+        Zotero.logError(e);
+      }
+      try {
+        target.uninit = original;
+      } catch {
+        // A frozen reader keeps the wrap; original still runs below
+      }
+      return Reflect.apply(original, this, args);
+    };
+    target.uninit = wrapper;
+    if (target.uninit !== wrapper) {
+      throw new Error('zotero-tts: reader.uninit wrap did not stick');
+    }
+    positionCaptureHooks.set(reader, { original, wrapper });
+  } catch (e) {
+    Zotero.logError(e);
+  }
+}
+
+function unhookPositionCaptures(): void {
+  for (const [reader, { original, wrapper }] of [...positionCaptureHooks]) {
+    try {
+      const target = waived(reader);
+      if (target.uninit === wrapper) target.uninit = original;
+    } catch {
+      // A reader already gone took its wrap with it
+    }
+  }
+  positionCaptureHooks.clear();
 }
 
 function startReadAloudShortcuts(pluginID: string): void {
@@ -314,9 +516,17 @@ function startReadAloudShortcuts(pluginID: string): void {
       positionSync.sample();
       const pos = positionSync.lookup(reader);
       if (pos === null || pos === undefined) return false;
+      // A PDF sentence rect lands one segment early; hand Zotero the same
+      // point shape the context menu's "Read Aloud from Here" uses
+      const target = resumeTarget(pos);
+      try {
+        trace(`resume item ${String(reader?.itemID)} target ${JSON.stringify(target).slice(0, 100)}`);
+      } catch {
+        // Tracing only
+      }
       // A sandbox-built object reads as empty inside the reader
       const win = reader?._iframeWindow;
-      reader._internalReader.startReadAloudAtPosition(win ? Components.utils.cloneInto(pos, win) : pos);
+      reader._internalReader.startReadAloudAtPosition(win ? Components.utils.cloneInto(target, win) : target);
       return true;
     },
     log: (e) => Zotero.logError(e),
@@ -418,9 +628,13 @@ function startPositionSync(): void {
     error: (e) => Zotero.logError(e),
   });
   positionSync.start();
+  startCloseTrace();
 }
 
 function stopPositionSync(): void {
+  stopCloseTrace();
+  unhookTabCloses();
+  unhookPositionCaptures();
   positionSync?.stop();
   positionSync = null;
 }
@@ -647,7 +861,21 @@ const diagnostics = {
       stored: safe(() => positionSync?.lookup(r)),
     }));
     return JSON.stringify(
-      { sampling: !!positionSync, tickMs: { speaking: SPEAKING_TICK_MS, idle: IDLE_TICK_MS }, stored: safe(() => readPositions(prefs)), readers },
+      {
+        sampling: !!positionSync,
+        tickMs: { active: ACTIVE_TICK_MS, idle: IDLE_TICK_MS },
+        // Close-capture wiring: one tabHook per reader tab (fires inside
+        // Zotero_Tabs.close, the primary), one captureHook per reader (the
+        // reader.uninit backstop); each drops off as it fires
+        tabHooks: tabCloseHooks.size,
+        captureHooks: positionCaptureHooks.size,
+        // What chrome actually sees right now — below the map counts means
+        // a wrap silently landed on an Xray wrapper
+        live: safe(() => liveHookCounts()),
+        trace: closeTrace.slice(-30),
+        stored: safe(() => readPositions(prefs)),
+        readers,
+      },
       null,
       1,
     );
