@@ -44,7 +44,8 @@ const DEFAULT_TIMER: ToastTimer = {
 
 const hideTimers = new WeakMap<object, unknown>();
 
-export function showSpeedToast(doc: ToastDocument, speed: number, timer: ToastTimer = DEFAULT_TIMER, durationMs = 900): void {
+/** A short overlay message. `showSpeedToast` is this with the speed formatted. */
+export function showToast(doc: ToastDocument, text: string, timer: ToastTimer = DEFAULT_TIMER, durationMs = 900): void {
   let el = doc.getElementById(SPEED_TOAST_ID);
   if (!el) {
     // Explicit XHTML namespace: the chrome window is XUL/XHTML mixed and a bare createElement there is not reliably HTML
@@ -53,7 +54,7 @@ export function showSpeedToast(doc: ToastDocument, speed: number, timer: ToastTi
     el.style.cssText = STYLE;
     (doc.body ?? doc.documentElement).appendChild(el);
   }
-  el.textContent = `${speed.toFixed(1)}×`;
+  el.textContent = text;
   el.style.opacity = '1';
   if (hideTimers.has(doc)) timer.clear(hideTimers.get(doc));
   hideTimers.set(
@@ -62,6 +63,10 @@ export function showSpeedToast(doc: ToastDocument, speed: number, timer: ToastTi
       el.style.opacity = '0';
     }, durationMs),
   );
+}
+
+export function showSpeedToast(doc: ToastDocument, speed: number, timer: ToastTimer = DEFAULT_TIMER, durationMs = 900): void {
+  showToast(doc, `${speed.toFixed(1)}×`, timer, durationMs);
 }
 
 export function removeSpeedToast(doc: ToastDocument): void {

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { removeSpeedToast, showSpeedToast, SPEED_TOAST_ID } from '../../src/ui/speed-toast';
+import { removeSpeedToast, showSpeedToast, showToast, SPEED_TOAST_ID } from '../../src/ui/speed-toast';
 
 function fakeDoc() {
   const children: any[] = [];
@@ -93,5 +93,22 @@ describe('removeSpeedToast', () => {
     showSpeedToast(doc, 1.1, fakeTimer());
     removeSpeedToast(doc);
     expect(doc.children).toHaveLength(0);
+  });
+});
+
+describe('showToast', () => {
+  it('shows arbitrary text in the same overlay', () => {
+    const doc = fakeDoc();
+    showToast(doc, 'No saved position');
+    expect(doc.getElementById(SPEED_TOAST_ID).textContent).toBe('No saved position');
+    expect(doc.getElementById(SPEED_TOAST_ID).style.opacity).toBe('1');
+  });
+
+  it('reuses the element a speed toast created', () => {
+    const doc = fakeDoc();
+    showSpeedToast(doc, 1.3);
+    showToast(doc, 'No saved position');
+    expect(doc.children).toHaveLength(1);
+    expect(doc.getElementById(SPEED_TOAST_ID).textContent).toBe('No saved position');
   });
 });
