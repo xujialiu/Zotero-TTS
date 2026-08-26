@@ -22,7 +22,7 @@ things around the edges. Why it is built this way: [PHILOSOPHY.md](PHILOSOPHY.md
 ## What it adds
 
 - 🗣️ **More voices in the Local tier** of the Read Aloud popup — Azure Speech, a [Kokoro-FastAPI](https://github.com/remsky/Kokoro-FastAPI) on your machine, OpenAI or any OpenAI-compatible server — next to Zotero's Standard and Premium voices. [→ Providers](#providers)
-- 🎧 **A voice browser** in the settings: every voice by language, a play button for a short sample, hearts for favorites — and a switch to offer only the favorites. [→ Voice browser](#voice-browser)
+- 🎧 **A voice browser** in the settings: every voice by tier and language — yours and Zotero's own — a play button for a short sample, hearts for favorites, and a switch to offer only the favorites. [→ Voice browser](#voice-browser)
 - ✨ **Word *and* sentence highlighting at once**, in your own colors and opacities — for Zotero's voices too. [→ Highlight](#highlight)
 - ⌨️ **Keyboard shortcuts**: speed up, down, reset; jump by sentence or paragraph; read from the selection; bring the view back to what's being read. All rebindable. [→ Shortcuts](#keyboard-shortcuts)
 - 📌 **One voice and speed for every document**, instead of Zotero's choice per language. [→ Reading](#reading)
@@ -107,12 +107,21 @@ scroll as usual. Click a field to record another key.
 
 ### Voice browser
 
-Every voice your enabled providers publish, grouped by language —
-multilingual voices first. **▶** plays a short sample in the voice's own
+Every voice Read Aloud can use, in three columns — tier, language, voice —
+the same three steps the reader's popup takes (*Voice Mode* → language →
+voice). **Local** holds the voices your enabled providers publish,
+**Standard** and **Premium** are Zotero's own; multilingual voices sit
+under "Multiple languages", first in the language column.
+
+**▶** plays a short sample: your voices speak a sentence in the voice's own
 language (English plus Chinese for multilingual voices), synthesized by
-your provider like any sentence; **♥** marks a favorite. *Offer only
-favorite voices* then trims the Read Aloud popup to the marked ones —
-with none marked (or none currently listed), everything is offered.
+your provider like any sentence; Zotero's voices speak Zotero's own sample,
+which needs no account and spends no credits — reading with them still
+does. **♥** marks a favorite. *Offer only favorite voices* then trims the
+Read Aloud popup to the marked ones **in every tier** — a tier you marked
+nothing in comes up empty, and Zotero grays it out in *Voice Mode*. With
+nothing marked at all, or when none of the marked voices is listed any more
+(a provider switched off, a server gone), everything is offered again.
 Favorites travel with the settings backup.
 
 ### Reading
@@ -174,8 +183,6 @@ password.
 
 ## TODO
 
-- Zotero's own Standard and Premium voices in the voice browser, so they can
-  be sampled and marked as favorites like the plugin's.
 - Remember where Read Aloud stopped when a document is closed, and a shortcut
   that resumes there the next time it is opened.
 - A speed in the voice browser, so a sample plays at the speed it will be

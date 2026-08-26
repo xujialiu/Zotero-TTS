@@ -31,16 +31,83 @@ export function toggleFavoriteVoice(ids: readonly string[], id: string): string[
 
 /**
  * The catalog reduced to the favorites, for the "offer only favorites"
- * switch. With nothing marked, or when no favorite matches any listed
- * voice (its provider switched off, its server gone), the full catalog is
- * returned instead: a filter that silently emptied the Local tier would
- * read as "the plugin broke", and the full list is the useful failure mode.
+ * switch: only the marked voices are kept, and a provider left without any
+ * is dropped. With nothing marked at all the catalog is returned untouched.
+ *
+ * The filter is strict — "only favorites" means only favorites, in every
+ * tier. The guard against a popup with nothing in it lives in
+ * read-aloud/remote-interface.ts, where Zotero's own tiers are in view too:
+ * only when nothing marked is listed *anywhere* is everything offered again.
  */
 export function filterCatalogToFavorites(entries: CatalogEntry[], favorites: readonly string[]): CatalogEntry[] {
   if (!favorites.length) return entries;
   const wanted = new Set(favorites);
-  const filtered = entries
+  return entries
     .map((entry) => ({ ...entry, voices: entry.voices.filter((voice) => wanted.has(encodeVoiceId(entry.provider, voice.id))) }))
     .filter((entry) => entry.voices.length > 0);
-  return filtered.length ? filtered : entries;
+}
+
+/**
+ * Zotero's own voices response (the format=2 shape its `parseVoicesResponse`
+ * reads), reduced to the favorites — so a heart on a Standard or Premium
+ * voice trims the popup exactly as a heart on one of the plugin's does.
+ *
+ * Strict, like the catalog filter beside it: a tier none of whose voices is
+ * marked comes back empty, which is what "offer only favorite voices" says —
+ * Zotero's Voice Mode dropdown then shows that tier disabled. Filtered
+ * locales are emitted as the plain array form, which Zotero's parser
+ * tolerates explicitly (`Array.isArray(localeConfig)`); the
+ * `{ default, other }` form it also accepts is read, never rebuilt.
+ */
+export function filterVoicesResponseToFavorites<T extends Record<string, unknown>>(
+  response: T,
+  favorites: readonly string[],
+): T {
+  if (!favorites.length) return response;
+  const wanted = new Set(favorites);
+  const isRecord = (value: unknown): value is Record<string, unknown> => !!value && typeof value === 'object';
+  const ids = (entry: unknown): string[] => {
+    const list = Array.isArray(entry)
+      ? entry
+      : isRecord(entry)
+        ? [...(Array.isArray(entry.default) ? entry.default : []), ...(Array.isArray(entry.other) ? entry.other : [])]
+        : [];
+    return list.filter((id): id is string => typeof id === 'string');
+  };
+
+  const out: Record<string, unknown> = { ...response };
+  for (const [tier, configs] of Object.entries(response)) {
+    if (!Array.isArray(configs)) continue;
+    const filtered: unknown[] = [];
+    for (const config of configs) {
+      if (!isRecord(config) || !isRecord(config.locales) || !isRecord(config.voices)) continue;
+      const published = config.voices;
+      const voices: Record<string, unknown> = {};
+      const locales: Record<string, string[]> = {};
+      for (const [locale, entry] of Object.entries(config.locales)) {
+        const kept = ids(entry).filter((id) => wanted.has(id) && !!published[id]);
+        if (!kept.length) continue;
+        locales[locale] = kept;
+        for (const id of kept) voices[id] = published[id];
+      }
+      if (!Object.keys(locales).length) continue;
+      filtered.push({ ...config, voices, locales });
+    }
+    out[tier] = filtered;
+  }
+  return out as T;
+}
+
+/** How many voices a format=2 response publishes; the emptiness check behind the guard above. */
+export function countVoicesResponse(response: unknown): number {
+  const isRecord = (value: unknown): value is Record<string, unknown> => !!value && typeof value === 'object';
+  if (!isRecord(response)) return 0;
+  let n = 0;
+  for (const configs of Object.values(response)) {
+    if (!Array.isArray(configs)) continue;
+    for (const config of configs) {
+      if (isRecord(config) && isRecord(config.voices)) n += Object.keys(config.voices).length;
+    }
+  }
+  return n;
 }

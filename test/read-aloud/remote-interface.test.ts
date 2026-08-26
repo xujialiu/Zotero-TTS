@@ -426,6 +426,51 @@ describe("alongside Zotero's own interface", () => {
     expect(result.devMode).toBe(true);
   });
 
+  // "Offer only favorite voices" means only those, in every tier: a heart on
+  // a Standard or Premium voice trims the popup exactly as one on a plugin
+  // voice does, and a tier nobody marked comes up empty (Zotero's Voice Mode
+  // then shows it disabled).
+  const twoTiers = () =>
+    fakeNative({
+      getVoices: vi.fn(async () => ({
+        voices: {
+          standard: [{ voices: { s1: { label: 'One' }, s2: { label: 'Two' } }, locales: { 'en-US': ['s1', 's2'] } }],
+          premium: [standardConfig],
+        },
+        standardCreditsRemaining: null,
+        premiumCreditsRemaining: null,
+      })),
+    });
+
+  it("trims Zotero's own tiers to the favorites while the switch is on", async () => {
+    const result = await withNative(twoTiers(), { getFavoriteVoices: () => ['s2'] }).iface.getVoices();
+    const standard = result.voices!.standard as { voices: Record<string, unknown>; locales: Record<string, string[]> }[];
+    expect(Object.keys(standard[0].voices)).toEqual(['s2']);
+    expect(standard[0].locales).toEqual({ 'en-US': ['s2'] });
+    expect(result.voices!.premium).toEqual([]);
+  });
+
+  // The same rule the other way round: a favorite of Zotero's leaves the
+  // plugin's own tier empty, rather than offering all of it beside the one
+  // marked cloud voice.
+  it("empties the plugin's tier when only one of Zotero's voices is marked", async () => {
+    const result = await withNative(twoTiers(), { getFavoriteVoices: () => ['s2'] }).iface.getVoices();
+    // An empty tier is a missing key here: buildVoicesResponse publishes
+    // nothing at all rather than an empty config list, which Zotero's
+    // parseVoicesResponse reads the same way.
+    expect(result.voices!.local ?? []).toEqual([]);
+  });
+
+  // Favorites outlive the voices they name (a provider switched off, an
+  // account signed out). Trimming everything away would read as "the plugin
+  // broke", so that one case offers the lot again.
+  it('offers every tier again when not one favorite is listed any more', async () => {
+    const result = await withNative(twoTiers(), { getFavoriteVoices: () => ['gone::forever'] }).iface.getVoices();
+    expect(result.voices!.premium).toEqual([standardConfig]);
+    expect((result.voices!.standard as unknown[])).toHaveLength(1);
+    expect(result.voices!.local).toHaveLength(1);
+  });
+
   it('appends to, rather than replaces, a local tier Zotero itself reports', async () => {
     const theirs = { voices: { l1: { label: 'theirs' } }, locales: { 'en-US': ['l1'] } };
     const native = fakeNative({ getVoices: vi.fn(async () => ({ voices: { local: [theirs] } })) });

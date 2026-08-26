@@ -5,6 +5,7 @@ import { sampleTextForLocale } from '../../src/core/sample-text';
 import type { CatalogEntry } from '../../src/read-aloud/catalog';
 import { parseFavoriteVoices } from '../../src/read-aloud/favorites';
 import { encodeVoiceId } from '../../src/read-aloud/voice-catalog';
+import type { ZoteroVoice } from '../../src/read-aloud/zotero-voices';
 import {
   blobToDataURL,
   createSamplePlayer,
@@ -62,13 +63,24 @@ const CATALOG: CatalogEntry[] = [
   { provider: 'local', name: 'Kokoro', voices: [{ id: 'af_bella', label: 'af_bella', locale: 'en-US' }] },
 ];
 
+// Zotero's own cloud voices, as its tts/voices catalog publishes them
+const ZOTERO_VOICES: ZoteroVoice[] = [
+  { id: 'zotero-premium-aria', label: 'Aria', locale: 'en-US', tier: 'premium' },
+  { id: 'zotero-standard-ava', label: 'Ava', locale: 'en-US', tier: 'standard' },
+  { id: 'zotero-standard-andrew', label: 'Andrew', locale: 'en-US', tier: 'standard' },
+  { id: 'zotero-standard-ben', label: 'Ben', locale: 'de-DE', tier: 'standard' },
+];
+
 const LOCALE_NAMES: Record<string, string> = {
   mul: 'Multiple languages',
   'zh-CN': 'Chinese (China)',
   'en-US': 'English (United States)',
+  'de-DE': 'German (Germany)',
 };
 
-function setup(options: { prefs?: Record<string, unknown>; catalog?: CatalogEntry[] | Error } = {}) {
+function setup(
+  options: { prefs?: Record<string, unknown>; catalog?: CatalogEntry[] | Error; zotero?: ZoteroVoice[] | Error } = {},
+) {
   const els = new Map((Object.values(VOICE_BROWSER_IDS) as string[]).map((id) => [id, new FakeElement()]));
   const doc = {
     getElementById: (id: string) => els.get(id) ?? null,
@@ -83,11 +95,17 @@ function setup(options: { prefs?: Record<string, unknown>; catalog?: CatalogEntr
       return options.catalog ?? CATALOG;
     }),
     synthesizeSample: vi.fn(async (_provider: ProviderId, _voice: string, text: string) => new Blob([`audio:${text}`])),
+    listZoteroVoices: vi.fn(async () => {
+      if (options.zotero instanceof Error) throw options.zotero;
+      return options.zotero ?? ZOTERO_VOICES;
+    }),
+    sampleZoteroVoice: vi.fn(async (voiceId: string) => new Blob([`zotero:${voiceId}`])),
     player,
     localeName: (code: string) => LOCALE_NAMES[code] ?? code,
   } satisfies VoiceBrowserDeps;
   const rows = initVoiceBrowserRows(doc, deps);
   const el = (id: string) => els.get(id)!;
+  const texts = (nodes: FakeElement[]) => nodes.map((n) => n.textContent);
   return {
     prefs,
     deps,
@@ -95,49 +113,127 @@ function setup(options: { prefs?: Record<string, unknown>; catalog?: CatalogEntr
     rows,
     el,
     status: () => el(VOICE_BROWSER_IDS.status).attrs.get('value'),
+    tierButtons: () => el(VOICE_BROWSER_IDS.tiers).children,
+    tiers: () => texts(el(VOICE_BROWSER_IDS.tiers).children),
     localeButtons: () => el(VOICE_BROWSER_IDS.locales).children,
+    locales: () => texts(el(VOICE_BROWSER_IDS.locales).children),
     voiceRows: () => el(VOICE_BROWSER_IDS.voices).children,
+    labels: () => el(VOICE_BROWSER_IDS.voices).children.map((r) => r.children[2].textContent),
     // A row is [play, heart, label]
     play: (i: number) => el(VOICE_BROWSER_IDS.voices).children[i].children[0],
     heart: (i: number) => el(VOICE_BROWSER_IDS.voices).children[i].children[1],
     label: (i: number) => el(VOICE_BROWSER_IDS.voices).children[i].children[2],
+    /** Click a column entry by its label, whatever its position. */
+    pickTier: (label: string) => el(VOICE_BROWSER_IDS.tiers).children.find((b) => b.textContent.startsWith(label))!.fire('click'),
+    pickLocale: (name: string) => el(VOICE_BROWSER_IDS.locales).children.find((b) => b.textContent.startsWith(name))!.fire('click'),
   };
 }
 
+describe('the tier column', () => {
+  // Three tiers, in the order of Zotero's own Voice Mode dropdown, always all
+  // three: an empty one reads "(0)" instead of disappearing and shifting the
+  // others under the pointer.
+  it('lists the three tiers with their voice counts', async () => {
+    const t = setup();
+    await t.rows.load();
+    expect(t.tiers()).toEqual(['Standard (3)', 'Premium (1)', 'Local (5)']);
+  });
+
+  it('starts on the plugin’s own tier, since this is the plugin’s pane', async () => {
+    const t = setup();
+    await t.rows.load();
+    expect(t.locales()).toEqual(['Multiple languages (2)', 'Chinese (China) (1)', 'English (United States) (2)']);
+    expect(t.labels()).toEqual(['Azure-Ava Multilingual', 'OpenAI-alloy']);
+  });
+
+  it('starts on the first tier that has voices when the plugin publishes none', async () => {
+    const t = setup({ catalog: [] });
+    await t.rows.load();
+    expect(t.locales()).toEqual(['English (United States) (2)', 'German (Germany) (1)']);
+    expect(t.labels()).toEqual(['Andrew', 'Ava']);
+  });
+
+  it('switches languages and voices when a tier is clicked', async () => {
+    const t = setup();
+    await t.rows.load();
+    await t.pickTier('Premium');
+    expect(t.locales()).toEqual(['English (United States) (1)']);
+    expect(t.labels()).toEqual(['Aria']);
+  });
+
+  // Standard and Premium mostly speak the same languages; landing back on the
+  // tier's first language after every switch would make comparing two tiers
+  // in one language tedious.
+  it('keeps the chosen language across a tier switch when the new tier has it', async () => {
+    const t = setup();
+    await t.rows.load();
+    await t.pickLocale('English');
+    await t.pickTier('Standard');
+    expect(t.labels()).toEqual(['Andrew', 'Ava']);
+    await t.pickTier('Premium');
+    expect(t.labels()).toEqual(['Aria']);
+  });
+
+  it('falls back to the new tier’s first language when it lacks the chosen one', async () => {
+    const t = setup();
+    await t.rows.load();
+    expect(t.labels()).toEqual(['Azure-Ava Multilingual', 'OpenAI-alloy']);
+    await t.pickTier('Standard');
+    expect(t.locales()[0]).toBe('English (United States) (2)');
+    expect(t.labels()).toEqual(['Andrew', 'Ava']);
+  });
+
+  it('shows an empty tier as empty, without breaking', async () => {
+    const t = setup({ zotero: [] });
+    await t.rows.load();
+    expect(t.tiers()).toEqual(['Standard (0)', 'Premium (0)', 'Local (5)']);
+    await t.pickTier('Premium');
+    expect(t.locales()).toEqual([]);
+    expect(t.labels()).toEqual([]);
+  });
+});
+
 describe('loading the catalog', () => {
-  it('groups voices by locale, Multilingual first, the rest by display name', async () => {
+  it('groups a tier’s voices by locale, Multilingual first, the rest by display name', async () => {
     const t = setup();
     await t.rows.load();
-    expect(t.localeButtons().map((b) => b.textContent)).toEqual([
-      'Multiple languages (2)',
-      'Chinese (China) (1)',
-      'English (United States) (2)',
-    ]);
-    expect(t.status()).toContain('5 voices');
+    expect(t.locales()).toEqual(['Multiple languages (2)', 'Chinese (China) (1)', 'English (United States) (2)']);
+    expect(t.status()).toContain('9 voices');
   });
 
-  it('shows the first locale’s voices sorted by label, named without the TTS- prefix', async () => {
+  it('shows the voices sorted by label, the plugin’s named without the TTS- prefix', async () => {
     const t = setup();
     await t.rows.load();
-    expect(t.voiceRows().map((r) => r.children[2].textContent)).toEqual(['Azure-Ava Multilingual', 'OpenAI-alloy']);
-  });
-
-  it('switches the voice list when a locale is clicked', async () => {
-    const t = setup();
-    await t.rows.load();
-    await t.localeButtons()[2].fire('click');
-    expect(t.voiceRows().map((r) => r.children[2].textContent)).toEqual(['Azure-Jenny', 'Kokoro-af_bella']);
+    await t.pickLocale('English');
+    expect(t.labels()).toEqual(['Azure-Jenny', 'Kokoro-af_bella']);
   });
 
   it('reports a catalog that could not be listed', async () => {
-    const t = setup({ catalog: new Error('server down') });
+    const t = setup({ catalog: new Error('server down'), zotero: [] });
     await t.rows.load();
     expect(t.status()).toContain('server down');
     expect(t.localeButtons()).toEqual([]);
   });
 
-  it('points at the provider sections when there are no voices', async () => {
-    const t = setup({ catalog: [] });
+  // Either side may fail alone: a provider that cannot list must not hide
+  // Zotero's voices, and Zotero being unreachable must not hide the plugin's.
+  it('keeps the plugin’s voices and says so when Zotero’s cannot be listed', async () => {
+    const t = setup({ zotero: new Error('not signed in') });
+    await t.rows.load();
+    expect(t.tiers()).toEqual(['Standard (0)', 'Premium (0)', 'Local (5)']);
+    expect(t.status()).toContain('not signed in');
+    expect(t.status()).toContain('5 voices');
+  });
+
+  it('keeps Zotero’s voices and says so when the plugin catalog fails', async () => {
+    const t = setup({ catalog: new Error('server down') });
+    await t.rows.load();
+    expect(t.tiers()).toEqual(['Standard (3)', 'Premium (1)', 'Local (0)']);
+    expect(t.labels()).toEqual(['Andrew', 'Ava']);
+  });
+
+  it('points at the provider sections when there are no voices at all', async () => {
+    const t = setup({ catalog: [], zotero: [] });
     await t.rows.load();
     expect(t.status()).toMatch(/provider/i);
   });
@@ -147,6 +243,17 @@ describe('loading the catalog', () => {
     await t.rows.load();
     await t.el(VOICE_BROWSER_IDS.reload).fire('command');
     expect(t.deps.listCatalog).toHaveBeenCalledTimes(2);
+  });
+
+  it('works without the Zotero deps at all', async () => {
+    const t = setup();
+    const rows = initVoiceBrowserRows(
+      { getElementById: (id: string) => t.el(id) ?? null, createElementNS: (_ns: string, tag: string) => new FakeElement(tag) },
+      { ...t.deps, listZoteroVoices: undefined, sampleZoteroVoice: undefined },
+    );
+    await rows.load();
+    expect(t.status()).toContain('5 voices');
+    expect(t.tiers()).toEqual(['Standard (0)', 'Premium (0)', 'Local (5)']);
   });
 
   it('tolerates a pane that lacks the rows', () => {
@@ -161,7 +268,7 @@ describe('favorites', () => {
   it('paints the hearts from the pref', async () => {
     const t = setup({ prefs: { [FAVORITES_PREF]: JSON.stringify([jenny]) } });
     await t.rows.load();
-    await t.localeButtons()[2].fire('click');
+    await t.pickLocale('English');
     expect(t.heart(0).textContent).toBe(GLYPHS.favorite);
     expect(t.heart(1).textContent).toBe(GLYPHS.notFavorite);
   });
@@ -169,7 +276,7 @@ describe('favorites', () => {
   it('toggles the pref when a heart is clicked', async () => {
     const t = setup();
     await t.rows.load();
-    await t.localeButtons()[2].fire('click');
+    await t.pickLocale('English');
     await t.heart(0).fire('click');
     expect(parseFavoriteVoices(t.prefs.store[FAVORITES_PREF])).toEqual([jenny]);
     expect(t.heart(0).textContent).toBe(GLYPHS.favorite);
@@ -178,10 +285,21 @@ describe('favorites', () => {
     expect(t.heart(0).textContent).toBe(GLYPHS.notFavorite);
   });
 
+  // Zotero's voices are marked by their own ids, which never decode as ours
+  // (read-aloud/voice-catalog.ts) — the same ids the popup and getAudio use.
+  it('marks one of Zotero’s own voices by its Zotero id', async () => {
+    const t = setup();
+    await t.rows.load();
+    await t.pickTier('Premium');
+    await t.heart(0).fire('click');
+    expect(parseFavoriteVoices(t.prefs.store[FAVORITES_PREF])).toEqual(['zotero-premium-aria']);
+    expect(t.heart(0).textContent).toBe(GLYPHS.favorite);
+  });
+
   it('repaints from the pref on refresh, for a settings restore', async () => {
     const t = setup();
     await t.rows.load();
-    await t.localeButtons()[2].fire('click');
+    await t.pickLocale('English');
     t.prefs.set(FAVORITES_PREF, JSON.stringify([jenny]));
     t.rows.refresh();
     expect(t.heart(0).textContent).toBe(GLYPHS.favorite);
@@ -192,7 +310,7 @@ describe('playing a sample', () => {
   it('synthesizes the locale’s sample text with the voice and plays it', async () => {
     const t = setup();
     await t.rows.load();
-    await t.localeButtons()[1].fire('click');
+    await t.pickLocale('Chinese');
     await t.play(0).fire('click');
     expect(t.deps.synthesizeSample).toHaveBeenCalledWith('azure', 'zh-CN-XiaoxiaoNeural', sampleTextForLocale('zh-CN'));
     expect(t.player.play).toHaveBeenCalledOnce();
@@ -206,6 +324,30 @@ describe('playing a sample', () => {
     const text = t.deps.synthesizeSample.mock.calls[0][2];
     expect(text).toMatch(/Hello/);
     expect(text).toMatch(/你好/);
+  });
+
+  // Zotero's voices are sampled through Zotero's own free sample endpoint,
+  // which speaks a text of its own — core/sample-text.ts is the plugin's.
+  it('plays one of Zotero’s own voices through Zotero’s sample', async () => {
+    const t = setup();
+    await t.rows.load();
+    await t.pickTier('Premium');
+    await t.play(0).fire('click');
+    expect(t.deps.sampleZoteroVoice).toHaveBeenCalledWith('zotero-premium-aria');
+    expect(t.deps.synthesizeSample).not.toHaveBeenCalled();
+    expect(await t.player.play.mock.calls[0][0].text()).toBe('zotero:zotero-premium-aria');
+    expect(t.play(0).textContent).toBe(GLYPHS.stop);
+  });
+
+  it('replays a Zotero sample from the session cache', async () => {
+    const t = setup();
+    await t.rows.load();
+    await t.pickTier('Premium');
+    await t.play(0).fire('click');
+    t.player.play.mock.calls[0][1]();
+    await t.play(0).fire('click');
+    expect(t.deps.sampleZoteroVoice).toHaveBeenCalledTimes(1);
+    expect(t.player.play).toHaveBeenCalledTimes(2);
   });
 
   it('returns the button to play when the sample ends', async () => {
@@ -259,8 +401,22 @@ describe('playing a sample', () => {
     const t = setup();
     await t.rows.load();
     await t.play(0).fire('click');
-    await t.localeButtons()[1].fire('click');
-    await t.localeButtons()[0].fire('click');
+    await t.pickLocale('Chinese');
+    await t.pickLocale('Multiple');
+    expect(t.play(0).textContent).toBe(GLYPHS.stop);
+  });
+
+  it('keeps playing across a tier switch and back', async () => {
+    const t = setup();
+    await t.rows.load();
+    await t.play(0).fire('click');
+    const stopped = t.player.stop.mock.calls.length;
+    await t.pickTier('Premium');
+    expect(t.player.stop.mock.calls.length).toBe(stopped);
+    // Back on the tier the sample belongs to — the language is kept across
+    // the switch, so its own one has to be picked again
+    await t.pickTier('Local');
+    await t.pickLocale('Multiple');
     expect(t.play(0).textContent).toBe(GLYPHS.stop);
   });
 });

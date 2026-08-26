@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
+  countVoicesResponse,
   filterCatalogToFavorites,
+  filterVoicesResponseToFavorites,
   parseFavoriteVoices,
   serializeFavoriteVoices,
   toggleFavoriteVoice,
@@ -72,10 +74,77 @@ describe('filterCatalogToFavorites', () => {
     expect(filterCatalogToFavorites(catalog, [])).toBe(catalog);
   });
 
-  // Favorites can outlive their provider (switched off, server gone). A
-  // filter that matched nothing would silently empty the Local tier; the
-  // full list is the useful failure mode.
-  it('offers everything when no favorite matches, so the list never comes up empty', () => {
-    expect(filterCatalogToFavorites(catalog, [encodeVoiceId('local', 'af_bella')])).toBe(catalog);
+  // Strict: "only favorites" means only favorites. Favorites can outlive
+  // their provider (switched off, server gone) and empty the tier — the
+  // guard against that is in remote-interface.ts, which sees Zotero's tiers
+  // as well and only then offers everything again.
+  it('keeps nothing when no favorite matches', () => {
+    expect(filterCatalogToFavorites(catalog, [encodeVoiceId('local', 'af_bella')])).toEqual([]);
+  });
+});
+
+describe('filterVoicesResponseToFavorites', () => {
+  const response = () => ({
+    standard: [
+      {
+        voices: { 'std-ava': { label: 'Ava' }, 'std-andrew': { label: 'Andrew' } },
+        locales: { 'en-US': ['std-ava', 'std-andrew'], 'de-DE': ['std-ava'] },
+        segmentGranularity: 'sentence',
+        cacheVersion: '7',
+      },
+    ],
+    premium: [
+      {
+        voices: { 'prm-aria': { label: 'Aria' } },
+        locales: { 'en-US': { default: ['prm-aria'], other: [] } },
+        segmentGranularity: 'sentence',
+        cacheVersion: '7',
+      },
+    ],
+  });
+
+  it('keeps only the favorites of a tier, in its voices and in its locales', () => {
+    const filtered = filterVoicesResponseToFavorites(response(), ['std-ava']);
+    expect(filtered.standard).toEqual([
+      {
+        voices: { 'std-ava': { label: 'Ava' } },
+        locales: { 'en-US': ['std-ava'], 'de-DE': ['std-ava'] },
+        segmentGranularity: 'sentence',
+        cacheVersion: '7',
+      },
+    ]);
+  });
+
+  it('reads the { default, other } locale form and emits the plain array form', () => {
+    const filtered = filterVoicesResponseToFavorites(response(), ['prm-aria']);
+    expect((filtered.premium[0] as any).locales).toEqual({ 'en-US': ['prm-aria'] });
+  });
+
+  it('drops locales and configs a favorite leaves empty', () => {
+    const filtered = filterVoicesResponseToFavorites(response(), ['std-andrew']);
+    expect((filtered.standard[0] as any).locales).toEqual({ 'en-US': ['std-andrew'] });
+  });
+
+  // "Offer only favorite voices" means only those: a tier nobody marked
+  // comes up empty, and Zotero's Voice Mode then shows it disabled.
+  it('empties a tier without a single favorite', () => {
+    expect(filterVoicesResponseToFavorites(response(), ['std-ava']).premium).toEqual([]);
+  });
+
+  it('offers everything while nothing is marked', () => {
+    const original = response();
+    expect(filterVoicesResponseToFavorites(original, [])).toBe(original);
+  });
+
+  it('survives a response of any other shape instead of throwing', () => {
+    expect(filterVoicesResponseToFavorites({ standard: 'nope' } as any, ['std-ava'])).toEqual({ standard: 'nope' });
+    expect(filterVoicesResponseToFavorites({ standard: [null] } as any, ['std-ava'])).toEqual({ standard: [] });
+  });
+
+  it('counts the voices a response publishes', () => {
+    expect(countVoicesResponse(response())).toBe(3);
+    expect(countVoicesResponse(filterVoicesResponseToFavorites(response(), ['std-ava']))).toBe(1);
+    expect(countVoicesResponse(null)).toBe(0);
+    expect(countVoicesResponse({ standard: 'nope' })).toBe(0);
   });
 });

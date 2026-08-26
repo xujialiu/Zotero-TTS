@@ -7,6 +7,7 @@ import { SynthesisError } from '../core/providers/errors';
 import { withTimeout } from '../core/timeout';
 import { createWebDAVClient } from '../core/webdav';
 import { listNamedCatalog } from '../read-aloud/catalog';
+import { createZoteroVoiceService, type ZoteroVoiceService } from '../read-aloud/zotero-voices';
 import { initShortcutRows } from './shortcut-rows';
 import { initBackupRows, type BackupFileIO } from './backup-rows';
 import { initServerPresetRows } from './server-preset-rows';
@@ -193,6 +194,49 @@ async function synthesizeSample(win: any, prefs: PrefsBackend, id: ProviderId, v
 }
 
 /**
+ * Zotero's own Standard and Premium voices, through Zotero's own API client
+ * — the very calls its reader makes (`_getReadAloudRemoteInterface`):
+ * `tts/voices` for the catalog, `tts/sample` for a sample, which Zotero
+ * sends without an API key, so it spends no credits. The client is all
+ * either call needs, so the pane lists and plays these voices whether or
+ * not a document is open.
+ */
+export function zoteroVoiceService(): ZoteroVoiceService {
+  // Zotero's client answers with objects of the chrome compartment, which
+  // this sandbox sees through Xray wrappers. Their contents are plain JSON,
+  // which an Xray does show — but a listing that silently came up empty
+  // would be a wasted round-trip, so the waiver is applied up front, as
+  // read-aloud/system-voices.ts does with what the reader hands it.
+  const waive = (value: unknown): any => {
+    try {
+      return Components.utils.waiveXrays(value);
+    } catch {
+      return value;
+    }
+  };
+  return createZoteroVoiceService({
+    client: async () => {
+      if (typeof Zotero.Sync?.Runner?.getAPIClient !== 'function') return null;
+      let apiKey: string | undefined;
+      try {
+        apiKey = await Zotero.Sync.Data.Local.getAPIKey();
+      } catch {
+        // Not signed in: tts/voices answers without a key, and tts/sample never wants one
+      }
+      const client = Zotero.Sync.Runner.getAPIClient({ apiKey });
+      return {
+        getReadAloudVoices: async () => waive(await client.getReadAloudVoices()),
+        getReadAloudAudio: async (segment: 'sample', voiceId: string) => waive(await client.getReadAloudAudio(segment, voiceId)),
+      };
+    },
+    // Zotero builds the Blob in the chrome window (syncAPIClient.js); the
+    // player expects a sandbox Blob, like every provider's, so the bytes
+    // are copied across rather than the object handed over.
+    adoptAudio: async (audio: any) => new Blob([await audio.arrayBuffer()], { type: audio.type || 'audio/mpeg' }),
+  });
+}
+
+/**
  * The theme the reader is showing right now, resolved as the reader does
  * (core/reader-theme.ts): the app's color scheme picks the light or the
  * dark theme pref, among Zotero's themes and the user's custom ones.
@@ -239,6 +283,10 @@ export function onPaneLoad(doc: Document): void {
       );
     },
     synthesizeSample: (id, voiceId, text) => synthesizeSample(win, prefs, id, voiceId, text),
+    // Zotero's own Standard and Premium voices, listed and sampled beside
+    // the plugin's; failing on its own leaves the plugin's voices listed
+    listZoteroVoices: () => zoteroVoiceService().listVoices(),
+    sampleZoteroVoice: (voiceId) => zoteroVoiceService().sample(voiceId),
     // A detached element plays fine; the pane window closing stops it
     player: createSamplePlayer(() => doc.createElementNS(XHTML, 'audio') as HTMLAudioElement),
     localeName: (code) => {

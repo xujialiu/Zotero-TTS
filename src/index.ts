@@ -9,12 +9,13 @@ import { createSystemVoiceHiding, type SystemVoiceHiding } from './read-aloud/sy
 import { createMultilingualFirst, type MultilingualFirst } from './read-aloud/multilingual-first';
 import { listNamedCatalog, type CatalogEntry } from './read-aloud/catalog';
 import { parseFavoriteVoices } from './read-aloud/favorites';
+import { decodeVoiceId } from './read-aloud/voice-catalog';
 import {
   createRemoteInterface,
   type NativeRemoteInterface,
   type RemoteInterface,
 } from './read-aloud/remote-interface';
-import { onPaneLoad, registerPrefsPane } from './ui/prefs-pane';
+import { onPaneLoad, registerPrefsPane, zoteroVoiceService } from './ui/prefs-pane';
 import {
   createReadAloudShortcuts,
   deepActiveElement,
@@ -521,6 +522,42 @@ const diagnostics = {
   highlight: () => JSON.stringify((Zotero.Reader._readers ?? []).map((r: any) => highlightStyling?.inspect(r) ?? null), null, 1),
   systemVoices: () => JSON.stringify((Zotero.Reader._readers ?? []).map((r: any) => systemVoiceHiding?.inspect(r) ?? null), null, 1),
   multilingualFirst: () => JSON.stringify((Zotero.Reader._readers ?? []).map((r: any) => multilingualFirst?.inspect(r) ?? null), null, 1),
+  /**
+   * What the voice browser sees of Zotero's own voices — through the very
+   * calls the pane makes, from inside the plugin sandbox: the catalog, and
+   * one sample of the first voice (free, no credits) to prove the audio
+   * path as well. Also counts the favorites by side, since a heart on one
+   * of Zotero's voices now trims its tier in the popup too.
+   */
+  zoteroVoices: async () => {
+    try {
+      const service = zoteroVoiceService();
+      const voices = await service.listVoices();
+      const tiers: Record<string, number> = {};
+      const locales = new Set<string>();
+      for (const v of voices) {
+        tiers[v.tier] = (tiers[v.tier] ?? 0) + 1;
+        locales.add(v.locale);
+      }
+      const marked = parseFavoriteVoices(loadSettings(prefs).readAloud.favoriteVoices);
+      const first = voices[0] ?? null;
+      const sample = first ? await service.sample(first.id) : null;
+      return JSON.stringify(
+        {
+          voices: voices.length,
+          tiers,
+          locales: locales.size,
+          favorites: { plugin: marked.filter((id) => decodeVoiceId(id)).length, zotero: marked.filter((id) => !decodeVoiceId(id)).length },
+          first,
+          sample: sample ? { voice: first!.id, bytes: sample.size, type: sample.type } : 'no voice to sample',
+        },
+        null,
+        1,
+      );
+    } catch (e) {
+      return JSON.stringify({ error: String(e) }, null, 1);
+    }
+  },
 };
 
 Zotero.ZoteroTTS = { startup, shutdown, onMainWindowLoad, onMainWindowUnload, prefsPane: { onPaneLoad }, diagnostics };

@@ -2,7 +2,7 @@ import { SynthesisError, toZoteroError } from '../core/providers/errors';
 import { silentWav } from '../core/silence';
 import type { ProviderId, SynthesisResult, Timestamp, TTSProvider, VoiceInfo } from '../core/providers/types';
 import { withTimeout } from '../core/timeout';
-import { filterCatalogToFavorites } from './favorites';
+import { countVoicesResponse, filterCatalogToFavorites, filterVoicesResponseToFavorites } from './favorites';
 import { buildVoicesResponse, decodeVoiceId } from './voice-catalog';
 
 export const SAMPLE_TEXT = 'The quick brown fox jumps over the lazy dog.';
@@ -50,15 +50,19 @@ export interface NativeRemoteInterface {
   resetCredits(): Promise<any>;
 }
 
+/** What `listCatalog` hands over: the plugin's voices, per provider (read-aloud/catalog.ts). */
+export type PluginCatalog = { provider: ProviderId; name?: string; voices: VoiceInfo[] }[];
+
 export type RemoteInterfaceDeps = {
-  listCatalog(): Promise<{ provider: ProviderId; name?: string; voices: VoiceInfo[] }[]>;
+  listCatalog(): Promise<PluginCatalog>;
   /** Zotero's own Local voices are hidden (read-aloud/system-voices.ts); the plugin's labels then drop their TTS- prefix. Read per call. */
   getHideZoteroLocalVoices?(): boolean;
   /**
    * The favorite voice ids while "offer only favorites" is on; null (or
    * empty) offers everything. Read per call so the pane switch applies at
-   * the next popup open. Favorites that match nothing listed also offer
-   * everything (read-aloud/favorites.ts) — the tier must never come up empty.
+   * the next popup open. They trim every tier, Zotero's own included — only
+   * when not one of them is listed any more is everything offered instead,
+   * so the popup can never come up empty.
    */
   getFavoriteVoices?(): readonly string[] | null;
   getProvider(provider: ProviderId): TTSProvider;
@@ -211,7 +215,8 @@ export function createRemoteInterface(deps: RemoteInterfaceDeps): RemoteInterfac
 
   type VoicesResult = Awaited<ReturnType<RemoteInterface['getVoices']>>;
 
-  async function ownVoices(): Promise<{ voices: Record<string, unknown[]> } | { error: string }> {
+  /** The plugin's own catalog, bounded. Favorites are applied later, where Zotero's tiers are in view too. */
+  async function ownCatalog(): Promise<{ catalog: PluginCatalog } | { error: string }> {
     const timeoutMs = deps.catalogTimeoutMs ?? DEFAULT_CATALOG_TIMEOUT_MS;
     try {
       const catalog = await withTimeout(
@@ -219,12 +224,7 @@ export function createRemoteInterface(deps: RemoteInterfaceDeps): RemoteInterfac
         timeoutMs,
         () => new SynthesisError('network', `Listing the plugin's voices took longer than ${seconds(timeoutMs)}`),
       );
-      const offered = filterCatalogToFavorites(catalog, deps.getFavoriteVoices?.() ?? []);
-      return {
-        voices: buildVoicesResponse(offered, deps.cacheVersion(), {
-          plainLabels: deps.getHideZoteroLocalVoices?.() ?? false,
-        }),
-      };
+      return { catalog };
     } catch (e) {
       log(e);
       return { error: toZoteroError(e) };
@@ -349,17 +349,40 @@ export function createRemoteInterface(deps: RemoteInterfaceDeps): RemoteInterfac
       } catch (e) {
         log(e);
       }
-      const [theirs, mine] = await Promise.all([nativeVoices(), ownVoices()]);
+      const [theirs, mine] = await Promise.all([nativeVoices(), ownCatalog()]);
       if (!theirs && 'error' in mine) {
         // RemoteReadAloudProvider checks `error || !voices` and throws,
         // so we return an error field here instead of throwing ourselves.
         return { error: mine.error, ...NO_CREDITS };
       }
-      const voices: Record<string, unknown[]> = { ...(theirs?.voices ?? {}) };
-      if ('voices' in mine) {
-        for (const [tier, configs] of Object.entries(mine.voices)) {
-          voices[tier] = [...(voices[tier] ?? []), ...configs];
+
+      // "Offer only favorite voices" means only those, in every tier — a
+      // heart says the same thing wherever it sits, and a tier nobody marked
+      // comes up empty (Zotero's Voice Mode then shows it disabled). Both
+      // sides are trimmed here, together, because the one case that must not
+      // happen is a popup with nothing in it: favorites outlive the voices
+      // they name (a provider switched off, a server gone, an account signed
+      // out), and when nothing marked is listed anywhere, everything is
+      // offered again rather than reading as "the plugin broke".
+      let catalog: PluginCatalog = 'catalog' in mine ? mine.catalog : [];
+      let theirVoices: Record<string, unknown[]> | null = theirs?.voices ?? null;
+      const favorites = deps.getFavoriteVoices?.() ?? null;
+      if (favorites?.length) {
+        const trimmedCatalog = filterCatalogToFavorites(catalog, favorites);
+        const trimmedTheirs = theirVoices ? filterVoicesResponseToFavorites(theirVoices, favorites) : null;
+        const kept = trimmedCatalog.reduce((n, entry) => n + entry.voices.length, 0) + countVoicesResponse(trimmedTheirs);
+        if (kept) {
+          catalog = trimmedCatalog;
+          theirVoices = trimmedTheirs;
         }
+      }
+
+      const voices: Record<string, unknown[]> = { ...(theirVoices ?? {}) };
+      const ours = buildVoicesResponse(catalog, deps.cacheVersion(), {
+        plainLabels: deps.getHideZoteroLocalVoices?.() ?? false,
+      });
+      for (const [tier, configs] of Object.entries(ours)) {
+        voices[tier] = [...(voices[tier] ?? []), ...configs];
       }
       return {
         voices,

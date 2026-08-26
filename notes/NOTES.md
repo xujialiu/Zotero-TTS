@@ -1533,3 +1533,112 @@ wanted in the first place. For the same reason a state push with no *word*
 out for Zotero's own sentence slot: the pieces stay and the head simply
 draws the whole sentence, since the two slots are drawn at different heights
 and swapping them made the band jump once per sentence.
+
+## Zotero's own voices in the voice browser (added 2026-08-26)
+
+README TODO: list Zotero's own Standard and Premium voices in the browser
+too, so every voice Read Aloud can offer is in one place, to be sampled and
+marked like the plugin's. Verified in the installed 10.0.x `omni.ja` before
+writing any code — and the finding that decided the design is that **none of
+it needs a reader**:
+
+- `ReaderInstance._getReadAloudRemoteInterface` only ever reaches for
+  `Zotero.Sync.Data.Local.getAPIKey()` + `Zotero.Sync.Runner.getAPIClient({
+  apiKey })` (`xpcom/reader.js` 1746-1830). The reader supplies the audio
+  cache and the target window, nothing else. So the settings pane calls the
+  same client directly (`ui/prefs-pane.ts zoteroVoiceService`), with or
+  without a document open.
+- `client.getReadAloudVoices()` → `GET {api}tts/voices?lang=<appLocale>&
+  version=1`, `noAPIKey` when there is no key — signed out still lists.
+  Returns `{ voices, standardCreditsRemaining, premiumCreditsRemaining,
+  devMode }` or `{ error: 'network' | 'unknown' }`; it **never rejects**, so
+  the error field is the only failure signal there is
+  (`xpcom/sync/syncAPIClient.js` 620-668).
+- `client.getReadAloudAudio('sample', id)` → `GET tts/sample?voice=<id>&
+  timestamps=1` with **`noAPIKey: true`** (671-740): a sample costs no
+  credits and needs no account. A real segment is `POST tts/speak` with the
+  key, which does cost credits — which is why the browser only ever asks for
+  `'sample'`, and why a Zotero voice speaks the server's own sentence
+  instead of `core/sample-text.ts`'s. The response is either audio bytes or
+  `application/json { audioURL, timestamps }` and the client resolves both,
+  a second reason to go through it rather than fetching the URL ourselves.
+- The voices response is the same format=2 the plugin publishes
+  (`read-aloud/voice-catalog.ts`), so `parseZoteroVoices` mirrors the
+  reader's `parseVoicesResponse` (bundle 40519) — one entry per voice *and*
+  locale — but guards every field: the native one spreads
+  `localeConfig.default` unguarded and throws on a response we tolerate.
+  That parser is the response's **only** consumer, and it explicitly accepts
+  the plain-array locale form, so a rewritten response may emit arrays for
+  `{ default, other }`.
+- Tier labels are Zotero's own words (`reader.ftl`
+  `reader-read-aloud-voice-tier-*`): Standard / Premium / Local, under the
+  dropdown labeled "Voice Mode". Standard and Premium only appear in it
+  while signed in (`TierSelect`, bundle 38826), so those voices can be
+  listed and sampled here without an account, but not used for reading.
+
+The browser is now **three columns — tier, language, voice** (the user's
+correction to a first attempt that put the tier in a fourth cell of each
+row): the same three steps the popup takes, so what is picked here is found
+there. All three tiers are always listed, an empty one reading "(0)" rather
+than disappearing and shifting the others under the pointer; the pane opens
+on Local (the plugin's own) when it has voices, else on the first tier that
+does. The language is **kept across a tier switch** when the new tier has
+it, which makes comparing two tiers in one language a single click.
+
+Other consequences in the plugin:
+
+- `read-aloud/zotero-voices.ts` (pure, injected client) parses and bounds
+  both calls with `core/timeout`; `ui/prefs-pane.ts` supplies the client and
+  copies the audio into a sandbox `Blob` (Zotero builds it in the chrome
+  window). The client's results are `Cu.waiveXrays`'d in that glue — plain
+  JSON does survive an Xray, but a silently empty list would cost a
+  round-trip, and waiving a transparent wrapper costs nothing.
+- Either catalog may fail alone — a provider that cannot list must not hide
+  Zotero's voices, and Zotero being unreachable must not hide the plugin's —
+  so both are awaited with their own catch and what failed is reported
+  *beside* what arrived.
+- A heart means the same thing in every tier: `favoritesOnly` now also
+  filters Zotero's tiers (`filterVoicesResponseToFavorites`), tier by tier.
+  A tier without a single favorite is left **untouched**, the same
+  never-empty rule the Local tier already had — so marking three Azure
+  voices still leaves Standard and Premium whole, exactly as before.
+- Zotero's own Local (operating-system) voices are still not listed: they
+  never pass through any remote interface (`read-aloud/system-voices.ts`),
+  and the TODO was about the cloud tiers.
+- Diagnostics: `Zotero.ZoteroTTS.diagnostics.zoteroVoices()` runs the pane's
+  path from inside the sandbox and reports the tier counts, the first voice,
+  one real sample's byte count, and how the favorites split between the
+  plugin's ids and Zotero's.
+
+While reading `xpcom/plugins.js` for the sandbox whitelist: it also grants
+`File`, `FileReader`, `URLSearchParams` and `CSS`, which the older note
+(and CLAUDE.md) does not mention.
+
+### Follow-up: "only favorites" is strict (2026-08-26, same day)
+
+Shipped first with a per-tier safety valve — a tier none of whose voices was
+marked was left whole — reasoning from the rule that keeps the Local tier
+from silently emptying. The user's verdict: marking a Standard voice and no
+Premium one still offered the whole Premium tier, which is not what the
+switch says. The valve is now global instead of per tier
+(`remote-interface.getVoices`):
+
+- Both sides are trimmed together — the plugin's catalog
+  (`filterCatalogToFavorites`) and Zotero's response
+  (`filterVoicesResponseToFavorites`), both now strict — and the result is
+  taken only if *something* survives anywhere. Only when not one marked
+  voice is listed any more (a provider switched off, a server gone, an
+  account signed out) is everything offered again, which is the case the
+  valve was for. `ownVoices` therefore became `ownCatalog`: the catalog is
+  filtered where Zotero's tiers are in view, and built into a voices
+  response afterwards.
+- An emptied tier is not hidden: `TierSelect` hard-codes its three entries
+  and only sets `disabled: !tiers.has(tier)` (bundle 38826), so Premium
+  stays in the Voice Mode dropdown, grayed out.
+- Deliberately not done: nudging `_selectedTier` off an emptied tier.
+  Zotero's own `_resolveVoice` falls back **to** local and never to a paid
+  tier (bundle ~82145), which is the right instinct — silently moving a
+  reader onto Standard or Premium spends credits. The cost is one bad
+  state: with the OS voices hidden, the popup on Local, and only cloud
+  voices marked, the language dropdown comes up empty until another tier is
+  picked in Voice Mode (the 1.5.8 blank-dropdown shape, one click to leave).
