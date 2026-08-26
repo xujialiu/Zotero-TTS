@@ -7,6 +7,8 @@ import { createReadAloudMemorySync, type ReadAloudMemorySync } from './read-alou
 import { createHighlightStyling, type HighlightStyling } from './read-aloud/highlight-style';
 import { createSystemVoiceHiding, type SystemVoiceHiding } from './read-aloud/system-voices';
 import { createMultilingualFirst, type MultilingualFirst } from './read-aloud/multilingual-first';
+import { createPositionSync, TICK_MS, type PositionSync } from './read-aloud/position-sync';
+import { readPositions } from './read-aloud/read-aloud-position';
 import { listNamedCatalog, type CatalogEntry } from './read-aloud/catalog';
 import { parseFavoriteVoices } from './read-aloud/favorites';
 import { decodeVoiceId } from './read-aloud/voice-catalog';
@@ -24,7 +26,7 @@ import {
   pickReader,
   type ReadAloudShortcuts,
 } from './ui/read-aloud-shortcuts';
-import { removeSpeedToast, showSpeedToast } from './ui/speed-toast';
+import { removeSpeedToast, showSpeedToast, showToast } from './ui/speed-toast';
 
 export interface StartupParams {
   id: string;
@@ -37,6 +39,7 @@ let pluginVersion = '0.0.0';
 let readAloudShortcuts: ReadAloudShortcuts | null = null;
 let readerOpenedListener: ((event: any) => void) | null = null;
 let readAloudMemory: ReadAloudMemorySync | null = null;
+let positionSync: PositionSync | null = null;
 let highlightStyling: HighlightStyling | null = null;
 let systemVoiceHiding: SystemVoiceHiding | null = null;
 let multilingualFirst: MultilingualFirst | null = null;
@@ -232,13 +235,22 @@ function mainWindows(): any[] {
   return wins;
 }
 
-/** Where the toast goes: the reader, unless its tab is hidden behind another, then the window itself. */
-function toastFor(reader: any, speed: number): void {
+/** Where a toast goes: the reader, unless its tab is hidden behind another, then the window itself. */
+function toastDoc(reader: any): any {
   const win = reader?._window;
   const tabs = win?.Zotero_Tabs;
   const hiddenTab = !!(tabs && reader?.tabID && tabs.selectedID !== reader.tabID);
-  const doc = hiddenTab ? win.document : (reader?._iframeWindow?.document ?? win?.document);
+  return hiddenTab ? win.document : (reader?._iframeWindow?.document ?? win?.document);
+}
+
+function toastFor(reader: any, speed: number): void {
+  const doc = toastDoc(reader);
   if (doc) showSpeedToast(doc, speed);
+}
+
+function messageFor(reader: any, text: string): void {
+  const doc = toastDoc(reader);
+  if (doc) showToast(doc, text);
 }
 
 function watchWindow(win: any): void {
@@ -291,6 +303,27 @@ function startReadAloudShortcuts(pluginID: string): void {
     // just locked, the PDF view scrolls back on this push (EPUB and
     // snapshot views wait for the next segment change)
     emitState: (reader: any) => reader?._internalReader?._readAloudManager?._stateChanged?.(),
+    // Consumed whenever Read Aloud exists, with or without a stored position:
+    // the key must never fall through to the reader.
+    canResumeLastPosition: (reader: any) => typeof reader?._internalReader?.startReadAloudAtPosition === 'function',
+    // Zotero's own resume path. Idle: the popup opens, the position becomes
+    // the manager's target and the reader auto-activates once a voice
+    // resolves. Active: it locks the view and jumps. Passing the position
+    // explicitly takes the consumeTargetPosition branch of
+    // _captureReadAloudStart, so the isPositionNearView gate that erases
+    // Zotero's own copy is never reached.
+    resumeLastPosition: (reader: any) => {
+      if (!positionSync) return false;
+      // Catch up first, so the current sentence counts even between ticks
+      positionSync.sample();
+      const pos = positionSync.lookup(reader);
+      if (pos === null || pos === undefined) return false;
+      // A sandbox-built object reads as empty inside the reader
+      const win = reader?._iframeWindow;
+      reader._internalReader.startReadAloudAtPosition(win ? Components.utils.cloneInto(pos, win) : pos);
+      return true;
+    },
+    showMessage: (reader: any, text: string) => messageFor(reader, text),
     log: (e) => Zotero.logError(e),
   });
   for (const win of mainWindows()) watchWindow(win);
@@ -363,6 +396,38 @@ function startReadAloudMemory(): void {
 function stopReadAloudMemory(): void {
   readAloudMemory?.dispose();
   readAloudMemory = null;
+}
+
+// ---- Where Read Aloud stopped ---------------------------------------------
+//
+// Zotero keeps this itself but erases it as soon as the user scrolls away
+// (reader bundle ~84365); read-aloud/position-sync.ts keeps a copy nothing
+// erases. Everything here is a read — no reader internals are patched.
+
+function startPositionSync(): void {
+  stopPositionSync();
+  positionSync = createPositionSync({
+    prefs,
+    readers: () => Zotero.Reader._readers ?? [],
+    // The item key, not itemID: itemID is a local autoincrement, the key is
+    // what identifies the attachment anywhere.
+    attachmentOf: (reader: any) => {
+      const item = reader?.itemID ? Zotero.Items.get(reader.itemID) : null;
+      return item && typeof item.libraryID === 'number' && item.key ? { lib: item.libraryID, key: item.key } : null;
+    },
+    managerOf: (reader: any) => reader?._internalReader?._readAloudManager ?? null,
+    savedPositionOf: (reader: any) => reader?._internalReader?._state?.readAloudState?.savedPosition ?? null,
+    setTimeout: (fn, ms) => setTimeout(fn, ms),
+    clearTimeout: (handle: any) => clearTimeout(handle),
+    now: () => Date.now(),
+    error: (e) => Zotero.logError(e),
+  });
+  positionSync.start();
+}
+
+function stopPositionSync(): void {
+  positionSync?.stop();
+  positionSync = null;
 }
 
 // ---- Highlight colors -----------------------------------------------------
@@ -449,6 +514,7 @@ async function startup({ id, version, rootURI }: StartupParams): Promise<void> {
 
   try {
     startReadAloudMemory();
+    startPositionSync();
   } catch (e) {
     Zotero.logError(e);
     Zotero.debug('[zotero-tts] failed to install the Read Aloud memory');
@@ -497,6 +563,7 @@ async function shutdown(): Promise<void> {
   uninstallHijack?.();
   uninstallHijack = null;
   stopReadAloudShortcuts();
+  stopPositionSync();
   stopReadAloudMemory();
   stopHighlightStyling();
   stopSystemVoiceHiding();
@@ -522,6 +589,21 @@ const diagnostics = {
   highlight: () => JSON.stringify((Zotero.Reader._readers ?? []).map((r: any) => highlightStyling?.inspect(r) ?? null), null, 1),
   systemVoices: () => JSON.stringify((Zotero.Reader._readers ?? []).map((r: any) => systemVoiceHiding?.inspect(r) ?? null), null, 1),
   multilingualFirst: () => JSON.stringify((Zotero.Reader._readers ?? []).map((r: any) => multilingualFirst?.inspect(r) ?? null), null, 1),
+  /**
+   * The stored Read Aloud positions and what the sampler sees right now.
+   * `zoteroSaved` is Zotero's own copy — it goes null once the user scrolls
+   * away, which is exactly what `stored` is here to survive.
+   */
+  position: () => {
+    positionSync?.sample();
+    const readers = (Zotero.Reader._readers ?? []).map((r: any) => ({
+      itemID: r?.itemID ?? null,
+      active: !!r?._internalReader?._readAloudManager?.active,
+      zoteroSaved: r?._internalReader?._state?.readAloudState?.savedPosition ?? null,
+      stored: positionSync?.lookup(r) ?? null,
+    }));
+    return JSON.stringify({ sampling: !!positionSync, tickMs: TICK_MS, stored: readPositions(prefs).length, readers }, null, 1);
+  },
   /**
    * What the voice browser sees of Zotero's own voices — through the very
    * calls the pane makes, from inside the plugin sandbox: the catalog, and
