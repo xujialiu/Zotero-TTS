@@ -1642,3 +1642,55 @@ switch says. The valve is now global instead of per tier
   state: with the OS voices hidden, the popup on Local, and only cloud
   voices marked, the language dropdown comes up empty until another tier is
   picked in Voice Mode (the 1.5.8 blank-dropdown shape, one click to leave).
+
+## Resuming where Read Aloud stopped (added 2026-08-26)
+
+README TODO 1. Zotero already does most of it, verified in the installed
+10.0.x bundle before implementing:
+
+- `_onReadAloudEngineStateChanged` (83601–83604) sets
+  `_state.readAloudState.savedPosition = activeSegment.sourcePosition` on
+  every active-segment change; `onChangeViewState` (84362–84370) hands it out
+  as `lastReadAloudPosition`, and `xpcom/reader.js:1037-1042` stores it as a
+  per-attachment synced setting (`get/setAttachmentLastReadAloudPosition`,
+  `xpcom/data/item.js:3950`). On reopen, 82702 seeds `savedPosition` back
+  from it, and `startReadAloudAtPosition()` with no argument (83970) starts
+  playback there — which is what Zotero's own `Ctrl/Cmd+Shift+R` (~81690)
+  calls. An unscrolled reopen therefore already resumes.
+- **What is missing is durability.** 84365: on every debounced view-state
+  change, a saved position that is not near the view is persisted as `null`.
+  Near is ±5 pages on PDF (76414) and about −3/+4 viewport heights on EPUB
+  and snapshot (53736). Pause, scroll away to check something, close — the
+  position is gone. `_captureReadAloudStart` (83800) gates restoring the same
+  way.
+- The plugin therefore keeps its own copy: `read-aloud-position.ts` (a
+  bounded LRU of `{lib, key, pos, ts}` in `readAloud.positions`, keyed by
+  item **key** so it does not depend on the local itemID) filled by
+  `position-sync.ts`. `Shift+B` (`resumeLastPosition`) hands the stored
+  position to `startReadAloudAtPosition(position)`, which takes the
+  `consumeTargetPosition()` branch (83795) and so never reaches the
+  near-view gate.
+- **Sampling polls; it does not wrap.** `_state.readAloudState.savedPosition`
+  is read from our side every 3 s while a session is active, which needs no
+  `exportFunction` and no Xray waiving. Wrapping
+  `_onReadAloudEngineStateChanged` would be exact, but it is the same class
+  of instance-method patch that has silently broken the Read Aloud button
+  before, and a bookmark one sentence stale is not worth that. `setInterval`
+  is not in the sandbox whitelist — the tick is a recursive `setTimeout`.
+  Writes are throttled to 10 s; `stop()` flushes, and shutdown calls it.
+- The key is consumed whenever Read Aloud exists, with or without a stored
+  position (a toast says `No saved position`), so it cannot fall through.
+  `Shift+R` was the first choice and is wrong: `pdf/web/viewer.mjs:19958`,
+  modifier mask `cmd === 4` (Shift only) + keyCode 82, rotates the page −90°.
+  `Shift+B` is free — pdf.js has no keyCode 66 binding and the reader
+  bundle's only `b` is Ctrl/Cmd+B for bold inside a note editor (32154,
+  guarded by `!shift`).
+- Deliberately **not** an annotation, and deliberately not a synced setting:
+  the position moves every few sentences, and Zotero writing its own copy
+  that often is what arms auto-sync every 3 s (see the 2026-08-24 note on the
+  sync storm). Our pref is local, and stays out of DEFAULTS so
+  settings-backup does not carry it.
+- Adding a shortcut action now also fails the build if `preferences.xhtml`
+  has no row for it: `test/ui/shortcut-rows.test.ts` walks `SHORTCUT_ACTIONS`
+  against the markup. A missing row used to be invisible — the action simply
+  did not appear in the pane.

@@ -103,9 +103,12 @@ your reader's theme. The default is a green word on a yellow sentence;
 `Shift+Space` starts reading from the selected text — the context menu's
 *Read Aloud from Here* (Zotero itself also has `Ctrl/Cmd+Shift+R`);
 `Shift+Enter` makes the view follow the reading again after you scrolled
-away. The arrow keys and `Shift+Enter` act only while Read Aloud is open,
-`Shift+Space` only while text is selected; otherwise the keys page and
-scroll as usual. Click a field to record another key.
+away; `Shift+B` resumes where Read Aloud stopped in this document, even
+after you closed and reopened it. The arrow keys and `Shift+Enter` act only
+while Read Aloud is open, `Shift+Space` only while text is selected;
+otherwise the keys page and scroll as usual. `Shift+B` always answers — with
+a short *No saved position* if this document has none yet. Click a field to
+record another key.
 
 ### Voice browser
 
@@ -185,8 +188,6 @@ password.
 
 ## TODO
 
-- Remember where Read Aloud stopped when a document is closed, and a shortcut
-  that resumes there the next time it is opened.
 - A speed in the voice browser, so a sample plays at the speed it will be
   read at.
 - The voice browser as the place to pick the default voice and default
