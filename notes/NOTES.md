@@ -1745,3 +1745,32 @@ unchanged sentence costs one stringify and no parse.
 What cannot be fixed: Zotero stamps `savedPosition` at the *start* of a
 sentence, so resuming replays the sentence that was in progress. There is no
 seek-within-segment API, and starting mid-sentence would be worse anyway.
+
+## Shift+Space became the one play key; Shift+B removed (2026-08-26)
+
+The `startFromSelection` action (pref name kept, so custom bindings
+survive) now dispatches: session open → `toggleReadAloudPaused()`; idle →
+selection > stored position (the old Shift+B, still through positionSync) >
+bare `startReadAloudAtPosition()`. `resumeLastPosition` and the
+`NO_SAVED_POSITION` toast are gone. Full decision table and accepted costs:
+`notes/shift_space_logic.md`. Verified in the 10.0.x bundle while designing:
+
+- `_onReadAloudEngineStateChanged` (~83595): unpausing while the view has a
+  non-collapsed selection clears the segments and recomputes — Zotero
+  itself restarts from a selection on resume. So "paused + selection →
+  play from there" needs only the toggle; never pass the selection.
+- `toggleReadAloudPaused` (~83933) locks the view to the spoken position on
+  unpause; the popup's play button calls the same pair.
+- Zotero's own bare Space (~81798) toggles pause only while
+  `readAloudActive`; idle it pages. Shift+Space is now a strict superset,
+  and while a session is open the two are synonyms.
+- Resume-from-pause offset (`_speakInternal`, ~40188): pause <5 s resumes
+  exactly; 5–20 s backs off one word, ≥20 s two words — but only for
+  `lang.startsWith('en')`; every other language resumes exactly.
+- `Complete` (~39499) resets `_position` to `_backwardStopIndex ?? 0`: a
+  finished session replays from where *this session* started, not page 1.
+- `isPositionNearView`: PDF ±5 pages (~76414); EPUB/snapshot 3 viewport
+  heights above to 4 below, unresolvable positions count as near (~53736).
+
+`diagnostics.smartKey()` reports, per reader, the state the key sees and
+which branch it would take.

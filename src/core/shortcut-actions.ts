@@ -15,13 +15,13 @@ export type { SpeedAction };
 export type NavigationAction = 'previousSentence' | 'nextSentence' | 'previousParagraph' | 'nextParagraph';
 
 /** Actions on the reading position rather than within the segment stream. */
-export type PositionAction = 'startFromSelection' | 'returnToSpoken' | 'resumeLastPosition';
+export type PositionAction = 'startFromSelection' | 'returnToSpoken';
 
 export type ShortcutAction = SpeedAction | NavigationAction | PositionAction;
 
 export const NAVIGATION_ACTIONS: readonly NavigationAction[] = ['previousSentence', 'nextSentence', 'previousParagraph', 'nextParagraph'];
 
-export const POSITION_ACTIONS: readonly PositionAction[] = ['startFromSelection', 'returnToSpoken', 'resumeLastPosition'];
+export const POSITION_ACTIONS: readonly PositionAction[] = ['startFromSelection', 'returnToSpoken'];
 
 export const SHORTCUT_ACTIONS: readonly ShortcutAction[] = [...SPEED_ACTIONS, ...NAVIGATION_ACTIONS, ...POSITION_ACTIONS];
 

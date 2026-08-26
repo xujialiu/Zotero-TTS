@@ -24,7 +24,7 @@ things around the edges. Why it is built this way: [PHILOSOPHY.md](PHILOSOPHY.md
 ## What it adds
 
 - 🗣️ **More voices in the Local tier** of the Read Aloud popup — Azure Speech, a [Kokoro-FastAPI](https://github.com/remsky/Kokoro-FastAPI) on your machine, OpenAI or any OpenAI-compatible server — next to Zotero's Standard and Premium voices. [→ Providers](#providers)
-- 🔖 **Resume where you stopped** — close a document, open it again later, press `Shift+B`, and Read Aloud starts at the sentence you left off on. [→ Resume where you stopped](#resume-where-you-stopped)
+- 🔖 **Resume where you stopped** — close a document, open it again later, press `Shift+Space`, and Read Aloud starts at the sentence you left off on. [→ Resume where you stopped](#resume-where-you-stopped)
 - 🎧 **A voice browser** in the settings: every voice by tier and language — yours and Zotero's own — a play button for a short sample, hearts for favorites, and a switch to offer only the favorites. [→ Voice browser](#voice-browser)
 - ✨ **Word *and* sentence highlighting at once**, in your own colors and opacities — for Zotero's voices too. [→ Highlight](#highlight)
 - ⌨️ **Keyboard shortcuts**: speed up, down, reset; jump by sentence or paragraph; read from the selection; bring the view back to what's being read. All rebindable. [→ Shortcuts](#keyboard-shortcuts)
@@ -101,20 +101,20 @@ your reader's theme. The default is a green word on a yellow sentence;
 
 `Shift+Z` back to 1.0×, `Shift+X` −0.1, `Shift+C` +0.1; `←` / `→` previous
 / next sentence, `Shift+←` / `Shift+→` previous / next paragraph;
-`Shift+Space` starts reading from the selected text — the context menu's
-*Read Aloud from Here* (Zotero itself also has `Ctrl/Cmd+Shift+R`);
 `Shift+Enter` makes the view follow the reading again after you scrolled
-away; `Shift+B` resumes where you stopped (below). The arrow keys and
-`Shift+Enter` act only while Read Aloud is open, `Shift+Space` only while
-text is selected; otherwise the keys page and scroll as usual. Click a
-field to record another key.
+away. `Shift+Space` is the one play key and always does the right thing:
+it pauses and resumes an open session, and otherwise starts reading — from
+the selected text (the context menu's *Read Aloud from Here*), from where
+you last stopped (below), or from the visible page. The arrow keys and
+`Shift+Enter` act only while Read Aloud is open and page or scroll as
+usual otherwise. Click a field to record another key.
 
 ### Resume where you stopped
 
 Close a document in the middle of listening, open it again later, press
-`Shift+B` — Read Aloud starts at the sentence you left off on. If the
-document has never been read aloud, the key answers *No saved position* and
-nothing moves.
+`Shift+Space` — Read Aloud starts at the sentence you left off on. If the
+document has never been read aloud, it simply starts from the page you are
+looking at.
 
 <details>
 <summary>Details</summary>
@@ -126,7 +126,7 @@ nothing moves.
 - Positions are kept **on this computer only** — not synced between
   machines, and not part of the [settings backup](#backup).
 - Nothing is drawn in the document and nothing is added to your annotations.
-- `Shift+B` is rebindable like every other shortcut.
+- `Shift+Space` is rebindable like every other shortcut.
 
 </details>
 

@@ -26,9 +26,8 @@ const ACTION_NAMES: Record<ShortcutAction, string> = {
   nextSentence: 'Next sentence',
   previousParagraph: 'Previous paragraph',
   nextParagraph: 'Next paragraph',
-  startFromSelection: 'Read from selection',
+  startFromSelection: 'Play / pause / resume',
   returnToSpoken: 'Go to reading position',
-  resumeLastPosition: 'Resume where it stopped',
 };
 
 /**

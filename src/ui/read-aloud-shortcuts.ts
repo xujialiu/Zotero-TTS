@@ -63,9 +63,6 @@ export interface EventTargetLike {
   removeEventListener(type: string, listener: (event: any) => void, options?: unknown): void;
 }
 
-/** Shown when the key is pressed on a document that has no stored position. */
-export const NO_SAVED_POSITION = 'No saved position';
-
 export interface ReadAloudShortcutsDeps {
   /** Raw binding text per action. Read on every key, so a settings change applies at once. */
   getBindings(): Record<ShortcutAction, string>;
@@ -76,18 +73,33 @@ export interface ReadAloudShortcutsDeps {
   /** After a skip, what the popup's own buttons do: lock the view to the spoken position, so it follows again. */
   lockPosition?(reader: unknown): void;
   /**
-   * Whether the reader has a text selection to start reading from *and* its
-   * Zotero can do so (`reader.startReadAloudAtPosition` exists). Checked
-   * before the key is consumed: without a selection Shift+Space keeps
-   * paging the reader.
+   * Whether Read Aloud exists on this reader at all (Zotero's
+   * `reader.startReadAloudAtPosition` feature-detect). The smart key is
+   * consumed whenever it does, in every session state — it never falls
+   * through to the reader, which would page up on Shift+Space.
    */
-  canStartFromSelection?(reader: unknown): boolean;
+  canReadAloud?(reader: unknown): boolean;
   /**
-   * Zotero's own "Read Aloud from Here" on the current selection
-   * (`reader.startReadAloudAtPosition()` with no argument): an open session
-   * jumps there, an idle reader opens the popup and starts reading there.
+   * Whether the view has a text selection to start reading from (the
+   * selection-popup state). Only consulted while idle, to keep an explicit
+   * resume position from overriding a selection; an open session toggles
+   * regardless (a stray selection must never steal the pause).
    */
-  startFromSelection?(reader: unknown): void;
+  hasSelection?(reader: unknown): boolean;
+  /**
+   * Zotero's own start: bare `reader.startReadAloudAtPosition()`. With a
+   * selection it starts there; without one an idle reader opens the popup
+   * and auto-plays from Zotero's near-view saved position, else the first
+   * visible segment.
+   */
+  startReadAloud?(reader: unknown): void;
+  /**
+   * The popup's play button: `reader.toggleReadAloudPaused()`. Unpausing
+   * locks the view to the spoken position, and with a selection present
+   * Zotero itself restarts from the selection (reader.js ~83595) — the
+   * paused case needs nothing beyond this toggle.
+   */
+  togglePaused?(reader: unknown): void;
   /**
    * Re-emit the manager's state (`manager._stateChanged()`, a queued
    * onStateChange with no audio side effects), so a view just locked by
@@ -97,21 +109,11 @@ export interface ReadAloudShortcutsDeps {
    */
   emitState?(reader: unknown): void;
   /**
-   * Whether this reader could resume at all — Zotero's
-   * `reader.startReadAloudAtPosition` exists. Unlike the other position
-   * keys this does not ask whether there is anything to resume: the key is
-   * consumed either way, so it never falls through to the reader and the
-   * binding may sit on a key the reader itself uses.
-   */
-  canResumeLastPosition?(reader: unknown): boolean;
-  /**
-   * Resume at the position stored for this document. True when there was
+   * Start at the position stored for this document. True when there was
    * one and Zotero was asked to start there; false when this document has
-   * nothing stored, which turns into a toast.
+   * nothing stored — the smart key then falls back to startReadAloud.
    */
   resumeLastPosition?(reader: unknown): boolean;
-  /** A plain-text toast, for telling the user there is nothing to resume. */
-  showMessage?(reader: unknown, text: string): void;
   log?(e: unknown): void;
 }
 
@@ -127,12 +129,10 @@ export interface ReadAloudShortcuts {
   adjust(reader: unknown, action: SpeedAction): number;
   /** Skip by sentence or paragraph; false when the reader has no open Read Aloud session to skip in. */
   navigate(reader: unknown, action: NavigationAction): boolean;
-  /** Start reading at the current selection; false when there is no selection to start from. */
-  startFromSelection(reader: unknown): boolean;
+  /** The smart play key; false when this reader has no Read Aloud to act on, so the key is left alone. */
+  smartPlay(reader: unknown): boolean;
   /** Bring the view back to the spoken position; false when no Read Aloud session is open. */
   returnToSpoken(reader: unknown): boolean;
-  /** Resume at the stored position; false when this reader cannot resume at all, so the key is left alone. */
-  resumeLastPosition(reader: unknown): boolean;
   /** Attach a capturing keydown listener to a window; idempotent per window, detaches itself on unload. */
   listen(target: EventTargetLike, resolveReader: () => unknown, options?: HandleOptions): void;
   unlisten(target: EventTargetLike): void;
@@ -218,20 +218,53 @@ export function createReadAloudShortcuts(deps: ReadAloudShortcutsDeps): ReadAlou
     return true;
   }
 
-  const canStartFromSelection = (reader: unknown): boolean => {
-    if (!deps.startFromSelection || !deps.canStartFromSelection) return false;
+  /** Read Aloud exists here, so the key is ours in every session state. */
+  const canSmartPlay = (reader: unknown): boolean => {
+    if (!deps.startReadAloud || !deps.canReadAloud) return false;
     try {
-      return deps.canStartFromSelection(reader);
+      return deps.canReadAloud(reader);
     } catch (e) {
       log(e);
       return false;
     }
   };
 
-  function startFromSelection(reader: unknown): boolean {
-    if (!canStartFromSelection(reader)) return false;
+  const hasSelection = (reader: unknown): boolean => {
     try {
-      deps.startFromSelection?.(reader);
+      return deps.hasSelection?.(reader) ?? false;
+    } catch (e) {
+      log(e);
+      return false;
+    }
+  };
+
+  /**
+   * The one position key (action `startFromSelection`, its historical pref
+   * name — notes/shift_space_logic.md): a session that is open, playing or
+   * paused, gets the play button; an idle reader starts at the selection,
+   * else at the stored position, else wherever Zotero's own start would.
+   */
+  function smartPlay(reader: unknown): boolean {
+    if (!canSmartPlay(reader)) return false;
+    if (managerOf(reader)?.active) {
+      try {
+        deps.togglePaused?.(reader);
+      } catch (e) {
+        log(e);
+      }
+      return true;
+    }
+    if (!hasSelection(reader)) {
+      let resumed = false;
+      try {
+        resumed = deps.resumeLastPosition?.(reader) ?? false;
+      } catch (e) {
+        log(e);
+      }
+      if (resumed) return true;
+    }
+    try {
+      deps.startReadAloud?.(reader);
     } catch (e) {
       log(e);
     }
@@ -256,35 +289,6 @@ export function createReadAloudShortcuts(deps: ReadAloudShortcutsDeps): ReadAlou
     return true;
   }
 
-  /** Read Aloud exists here, so the key is ours whether or not there is anything stored. */
-  const canResumeLastPosition = (reader: unknown): boolean => {
-    if (!deps.resumeLastPosition || !deps.canResumeLastPosition) return false;
-    try {
-      return deps.canResumeLastPosition(reader);
-    } catch (e) {
-      log(e);
-      return false;
-    }
-  };
-
-  function resumeLastPosition(reader: unknown): boolean {
-    if (!canResumeLastPosition(reader)) return false;
-    let resumed = false;
-    try {
-      resumed = deps.resumeLastPosition?.(reader) ?? false;
-    } catch (e) {
-      log(e);
-    }
-    if (!resumed) {
-      try {
-        deps.showMessage?.(reader, NO_SAVED_POSITION);
-      } catch (e) {
-        log(e);
-      }
-    }
-    return true;
-  }
-
   function handleKeyDown(event: ShortcutKeyEvent, resolveReader: () => unknown, options: HandleOptions = {}): boolean {
     if (event.defaultPrevented) return false;
     const action = actionFor(event);
@@ -295,20 +299,19 @@ export function createReadAloudShortcuts(deps: ReadAloudShortcutsDeps): ReadAlou
     if (!reader) return false;
     // The arrow keys page and scroll the reader: a sentence or paragraph key
     // is borrowed only while a Read Aloud session is open (playing or
-    // paused) and falls through untouched otherwise. Shift+Space pages too:
-    // it is borrowed only while there is a selection to start reading from.
+    // paused) and falls through untouched otherwise. The smart key is
+    // consumed whenever Read Aloud exists — only an older Zotero without
+    // startReadAloudAtPosition leaves Shift+Space paging.
     if (isNavigationAction(action) && !canSkip(managerOf(reader))) return false;
-    if (action === 'startFromSelection' && !canStartFromSelection(reader)) return false;
+    if (action === 'startFromSelection' && !canSmartPlay(reader)) return false;
     if (action === 'returnToSpoken' && !canReturnToSpoken(reader)) return false;
-    if (action === 'resumeLastPosition' && !canResumeLastPosition(reader)) return false;
     event.preventDefault();
     event.stopPropagation();
     // Holding the key down would restart the current segment on every auto-repeat
     if (event.repeat) return true;
     if (isNavigationAction(action)) navigate(reader, action);
-    else if (action === 'startFromSelection') startFromSelection(reader);
+    else if (action === 'startFromSelection') smartPlay(reader);
     else if (action === 'returnToSpoken') returnToSpoken(reader);
-    else if (action === 'resumeLastPosition') resumeLastPosition(reader);
     else adjust(reader, action);
     return true;
   }
@@ -346,7 +349,7 @@ export function createReadAloudShortcuts(deps: ReadAloudShortcutsDeps): ReadAlou
     for (const target of [...listeners.keys()]) unlisten(target);
   }
 
-  return { handleKeyDown, adjust, navigate, startFromSelection, returnToSpoken, resumeLastPosition, listen, unlisten, dispose };
+  return { handleKeyDown, adjust, navigate, smartPlay, returnToSpoken, listen, unlisten, dispose };
 }
 
 /**

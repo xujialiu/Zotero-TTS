@@ -98,12 +98,12 @@ export const DEFAULTS: Settings = {
     nextSentence: 'ArrowRight',
     previousParagraph: 'Shift+ArrowLeft',
     nextParagraph: 'Shift+ArrowRight',
-    // Taken only while text is selected; Shift+Space keeps paging the reader otherwise
+    // The one smart key (notes/shift_space_logic.md), consumed whenever Read
+    // Aloud exists: session open, play/pause; idle, start from the selection,
+    // else the stored position, else Zotero's default start
     startFromSelection: 'Shift+Space',
     // Taken only while a Read Aloud session is open
     returnToSpoken: 'Shift+Enter',
-    // Consumed whenever Read Aloud is available, so it never falls through to the reader
-    resumeLastPosition: 'Shift+B',
   },
   readAloud: {
     sameForAllDocuments: true,
@@ -175,7 +175,6 @@ export function loadSettings(prefs: PrefsBackend): Settings {
       nextParagraph: str(prefs, 'shortcuts.nextParagraph', DEFAULTS.shortcuts.nextParagraph),
       startFromSelection: str(prefs, 'shortcuts.startFromSelection', DEFAULTS.shortcuts.startFromSelection),
       returnToSpoken: str(prefs, 'shortcuts.returnToSpoken', DEFAULTS.shortcuts.returnToSpoken),
-      resumeLastPosition: str(prefs, 'shortcuts.resumeLastPosition', DEFAULTS.shortcuts.resumeLastPosition),
     },
     readAloud: {
       sameForAllDocuments: bool(prefs, 'readAloud.sameForAllDocuments', DEFAULTS.readAloud.sameForAllDocuments),

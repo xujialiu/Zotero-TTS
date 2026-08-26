@@ -26,7 +26,7 @@ import {
   pickReader,
   type ReadAloudShortcuts,
 } from './ui/read-aloud-shortcuts';
-import { removeSpeedToast, showSpeedToast, showToast } from './ui/speed-toast';
+import { removeSpeedToast, showSpeedToast } from './ui/speed-toast';
 
 export interface StartupParams {
   id: string;
@@ -248,11 +248,6 @@ function toastFor(reader: any, speed: number): void {
   if (doc) showSpeedToast(doc, speed);
 }
 
-function messageFor(reader: any, text: string): void {
-  const doc = toastDoc(reader);
-  if (doc) showToast(doc, text);
-}
-
 function watchWindow(win: any): void {
   if (!win || !readAloudShortcuts) return;
   readAloudShortcuts.listen(
@@ -292,26 +287,27 @@ function startReadAloudShortcuts(pluginID: string): void {
     showToast: toastFor,
     // After a skip, what the popup's own buttons do: the view follows the spoken position again
     lockPosition: (reader: any) => reader?._internalReader?._lockPositionToReadAloud?.(),
+    // The smart key is consumed whenever Read Aloud exists — never left to
+    // the reader (notes/shift_space_logic.md)
+    canReadAloud: (reader: any) => typeof reader?._internalReader?.startReadAloudAtPosition === 'function',
     // getSelectionPosition reads the selection-popup state — the same check
     // Zotero's own Cmd/Ctrl+Shift+R makes before startReadAloudAtPosition()
-    canStartFromSelection: (reader: any) => {
-      const internal = reader?._internalReader;
-      return typeof internal?.startReadAloudAtPosition === 'function' && !!internal.getSelectionPosition?.();
-    },
-    startFromSelection: (reader: any) => reader?._internalReader?.startReadAloudAtPosition?.(),
+    hasSelection: (reader: any) => !!reader?._internalReader?.getSelectionPosition?.(),
+    // Zotero's own start: selection > near-view saved position > first
+    // visible segment; an idle reader opens the popup and auto-plays
+    startReadAloud: (reader: any) => reader?._internalReader?.startReadAloudAtPosition?.(),
+    // The popup's play button; unpausing with a selection restarts from it
+    // (Zotero native, reader.js ~83595)
+    togglePaused: (reader: any) => reader?._internalReader?.toggleReadAloudPaused?.(),
     // A queued onStateChange with no audio side effects; with the position
     // just locked, the PDF view scrolls back on this push (EPUB and
     // snapshot views wait for the next segment change)
     emitState: (reader: any) => reader?._internalReader?._readAloudManager?._stateChanged?.(),
-    // Consumed whenever Read Aloud exists, with or without a stored position:
-    // the key must never fall through to the reader.
-    canResumeLastPosition: (reader: any) => typeof reader?._internalReader?.startReadAloudAtPosition === 'function',
     // Zotero's own resume path. Idle: the popup opens, the position becomes
     // the manager's target and the reader auto-activates once a voice
-    // resolves. Active: it locks the view and jumps. Passing the position
-    // explicitly takes the consumeTargetPosition branch of
-    // _captureReadAloudStart, so the isPositionNearView gate that erases
-    // Zotero's own copy is never reached.
+    // resolves. Passing the position explicitly takes the
+    // consumeTargetPosition branch of _captureReadAloudStart, so the
+    // isPositionNearView gate that erases Zotero's own copy is never reached.
     resumeLastPosition: (reader: any) => {
       if (!positionSync) return false;
       // Catch up first, so the current sentence counts even between ticks
@@ -323,7 +319,6 @@ function startReadAloudShortcuts(pluginID: string): void {
       reader._internalReader.startReadAloudAtPosition(win ? Components.utils.cloneInto(pos, win) : pos);
       return true;
     },
-    showMessage: (reader: any, text: string) => messageFor(reader, text),
     log: (e) => Zotero.logError(e),
   });
   for (const win of mainWindows()) watchWindow(win);
@@ -589,6 +584,41 @@ const diagnostics = {
   highlight: () => JSON.stringify((Zotero.Reader._readers ?? []).map((r: any) => highlightStyling?.inspect(r) ?? null), null, 1),
   systemVoices: () => JSON.stringify((Zotero.Reader._readers ?? []).map((r: any) => systemVoiceHiding?.inspect(r) ?? null), null, 1),
   multilingualFirst: () => JSON.stringify((Zotero.Reader._readers ?? []).map((r: any) => multilingualFirst?.inspect(r) ?? null), null, 1),
+  /**
+   * What the smart play key (Shift+Space) would do on each reader right
+   * now, mirroring smartPlay's dispatch (notes/shift_space_logic.md):
+   * session open → togglePaused; idle → selection > stored > plain start.
+   */
+  smartKey: () => {
+    const safe = (fn: () => unknown): unknown => {
+      try {
+        return JSON.parse(JSON.stringify(fn() ?? null));
+      } catch (e) {
+        return String(e);
+      }
+    };
+    safe(() => positionSync?.sample());
+    const readers = (Zotero.Reader._readers ?? []).map((r: any) => {
+      const canReadAloud = safe(() => typeof r?._internalReader?.startReadAloudAtPosition === 'function') === true;
+      const active = safe(() => !!r?._internalReader?._readAloudManager?.active) === true;
+      const paused = safe(() => !!r?._internalReader?._readAloudManager?.paused) === true;
+      const hasSelection = safe(() => !!r?._internalReader?.getSelectionPosition?.()) === true;
+      const stored = safe(() => positionSync?.lookup(r));
+      const wouldDo = !canReadAloud
+        ? 'fall through (no Read Aloud)'
+        : active
+          ? paused
+            ? 'togglePaused (resume; a selection restarts from it)'
+            : 'togglePaused (pause)'
+          : hasSelection
+            ? 'startReadAloud (from the selection)'
+            : stored !== null && stored !== undefined
+              ? 'resume at the stored position'
+              : 'startReadAloud (plain start)';
+      return { itemID: safe(() => r?.itemID), canReadAloud, active, paused, hasSelection, stored, wouldDo };
+    });
+    return JSON.stringify({ shortcut: loadSettings(prefs).shortcuts.startFromSelection, readers }, null, 1);
+  },
   /**
    * The stored Read Aloud positions and what the sampler sees right now.
    * `zoteroSaved` is Zotero's own copy — it goes null once the user scrolls
