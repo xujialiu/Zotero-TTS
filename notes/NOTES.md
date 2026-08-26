@@ -1727,3 +1727,21 @@ Reading the position *at* close, as the obvious design would, cannot work:
 that is precisely the moment the compartment goes away. Periodic sampling is
 what guarantees a usable value is already in hand — the close event is only
 worth acting on to persist it.
+
+### Adaptive tick, so resuming lands on the right sentence (2026-08-26)
+
+With one sample every 3 s, resuming was reliably a sentence early: a
+sentence lasts 3–6 s, so what was in hand when the tab closed was often the
+previous one. Recording was always sentence-triggered (an entry is touched
+only when the sentence changes); what was too slow was *noticing*. The tick
+is now 500 ms while a reader is speaking (`active && !paused`) and 3 s
+otherwise — half a second is shorter than any sentence, and idle readers
+cost a few property reads. The exact alternative, wrapping
+`_onReadAloudEngineStateChanged`, buys half a second for an instance-method
+patch on the Read Aloud path; not worth it. Each pass now also serializes
+the position once and compares the text against the last seen, so an
+unchanged sentence costs one stringify and no parse.
+
+What cannot be fixed: Zotero stamps `savedPosition` at the *start* of a
+sentence, so resuming replays the sentence that was in progress. There is no
+seek-within-segment API, and starting mid-sentence would be worse anyway.

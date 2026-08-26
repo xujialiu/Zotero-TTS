@@ -7,7 +7,7 @@ import { createReadAloudMemorySync, type ReadAloudMemorySync } from './read-alou
 import { createHighlightStyling, type HighlightStyling } from './read-aloud/highlight-style';
 import { createSystemVoiceHiding, type SystemVoiceHiding } from './read-aloud/system-voices';
 import { createMultilingualFirst, type MultilingualFirst } from './read-aloud/multilingual-first';
-import { createPositionSync, TICK_MS, type PositionSync } from './read-aloud/position-sync';
+import { createPositionSync, IDLE_TICK_MS, SPEAKING_TICK_MS, type PositionSync } from './read-aloud/position-sync';
 import { readPositions } from './read-aloud/read-aloud-position';
 import { listNamedCatalog, type CatalogEntry } from './read-aloud/catalog';
 import { parseFavoriteVoices } from './read-aloud/favorites';
@@ -616,7 +616,11 @@ const diagnostics = {
       zoteroSaved: safe(() => r?._internalReader?._state?.readAloudState?.savedPosition),
       stored: safe(() => positionSync?.lookup(r)),
     }));
-    return JSON.stringify({ sampling: !!positionSync, tickMs: TICK_MS, stored: safe(() => readPositions(prefs)), readers }, null, 1);
+    return JSON.stringify(
+      { sampling: !!positionSync, tickMs: { speaking: SPEAKING_TICK_MS, idle: IDLE_TICK_MS }, stored: safe(() => readPositions(prefs)), readers },
+      null,
+      1,
+    );
   },
   /**
    * What the voice browser sees of Zotero's own voices — through the very

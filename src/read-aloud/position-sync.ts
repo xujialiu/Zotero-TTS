@@ -21,9 +21,19 @@ import { lookupPosition, putPosition, readPositions, samePosition, writePosition
  * `setInterval` is not in the sandbox whitelist, so the tick is a recursive
  * `setTimeout`. Writes go through a throttle: continuous listening moves the
  * position every few seconds and every pref write hits prefs.js.
+ *
+ * Recording is already sentence-triggered — an entry is only touched when
+ * the sentence actually changes — so the tick is just how fast that change
+ * is noticed. While a reader is speaking it runs twice a second, well under
+ * the length of any sentence, so what is captured at the moment a tab
+ * closes is the sentence that was being read and not the one before it;
+ * the rest of the time nothing can move and the cheap interval is enough.
  */
 
-export const TICK_MS = 3000;
+/** Twice a second while speaking: shorter than any sentence, so none is missed. */
+export const SPEAKING_TICK_MS = 500;
+/** Nothing is moving — a few property reads to notice when that changes. */
+export const IDLE_TICK_MS = 3000;
 export const WRITE_THROTTLE_MS = 10000;
 
 export interface Attachment {
@@ -37,8 +47,8 @@ export interface PositionSyncDeps {
   readers(): unknown[];
   /** The reader's attachment (`Zotero.Items.get(reader.itemID)`), or null when it has none. */
   attachmentOf(reader: unknown): Attachment | null;
-  /** `reader._internalReader._readAloudManager`. */
-  managerOf(reader: unknown): { active?: boolean } | null;
+  /** `reader._internalReader._readAloudManager`. `active` means the session is open; paused leaves it true. */
+  managerOf(reader: unknown): { active?: boolean; paused?: boolean } | null;
   /** `reader._internalReader._state.readAloudState.savedPosition`. */
   savedPositionOf(reader: unknown): unknown;
   setTimeout(fn: () => void, ms: number): unknown;
@@ -65,6 +75,10 @@ export function createPositionSync(deps: PositionSyncDeps): PositionSync {
   let lastWrite = 0;
   let tick: unknown = null;
   let running = false;
+  let speaking = false;
+  // The last position seen per attachment, already serialized: an unchanged
+  // sentence then costs one stringify and no parse.
+  const lastSeen = new Map<string, string>();
   // The attachments seen open on the previous pass, as `lib/key` strings —
   // never reader references, which would be the very thing that dies.
   let tracked = new Set<string>();
@@ -86,33 +100,39 @@ export function createPositionSync(deps: PositionSyncDeps): PositionSync {
 
   const clock = (): number => guard(() => deps.now(), 0);
 
-  /**
-   * A copy owned by us. What Zotero hands back lives in the *reader's*
-   * compartment: keeping that reference means holding a pointer into a
-   * window that dies with its tab, and every later touch then throws
-   * `TypeError: can't access dead object` — which is what silently broke
-   * resuming (2026-08-26: the pref on disk was correct, the copy in memory
-   * was a corpse, and cloneInto threw on it). The position has to survive as
-   * plain data anyway, since it goes into a pref.
-   */
-  function plainCopy(value: unknown): unknown {
-    return guard(() => JSON.parse(JSON.stringify(value)) as unknown, null);
-  }
+  /** What one pass learned about a reader: the attachment it holds open, and whether it is speaking. */
+  type Seen = Attachment & { speaking: boolean };
 
-  /** Records this reader if it is speaking, and reports which attachment it holds open. */
-  function record(reader: unknown): Attachment | null {
+  /**
+   * Nothing read from the reader is ever *kept*. What Zotero hands back
+   * lives in the reader's compartment: holding that reference means holding
+   * a pointer into a window that dies with its tab, and every later touch
+   * then throws `TypeError: can't access dead object` — which is what
+   * silently broke resuming (2026-08-26: the pref on disk was correct, the
+   * copy in memory was a corpse, and cloneInto threw on it). So the position
+   * is serialized on the way in; it has to survive as plain data anyway,
+   * since it goes into a pref.
+   */
+  function record(reader: unknown): Seen | null {
     const attachment = guard(() => deps.attachmentOf(reader), null);
     if (!attachment) return null;
     const manager = guard(() => deps.managerOf(reader), null);
-    if (!manager?.active) return attachment;
+    const seen: Seen = { ...attachment, speaking: !!manager?.active && !manager.paused };
+    if (!manager?.active) return seen;
     const raw = guard(() => deps.savedPositionOf(reader), null);
-    if (raw === null || raw === undefined) return attachment;
-    const pos = plainCopy(raw);
-    if (pos === null) return attachment;
-    if (samePosition(lookupPosition(entries, attachment.lib, attachment.key), pos)) return attachment;
+    if (raw === null || raw === undefined) return seen;
+    // Serialize once: it is both the change test and the copy.
+    const text = guard(() => JSON.stringify(raw), null);
+    if (text === null || text === undefined) return seen;
+    const id = attachment.lib + '/' + attachment.key;
+    if (lastSeen.get(id) === text) return seen;
+    lastSeen.set(id, text);
+    const pos = guard(() => JSON.parse(text) as unknown, null);
+    if (pos === null) return seen;
+    if (samePosition(lookupPosition(entries, attachment.lib, attachment.key), pos)) return seen;
     entries = putPosition(entries, attachment.lib, attachment.key, pos, clock());
     dirty = true;
-    return attachment;
+    return seen;
   }
 
   function flush(): void {
@@ -124,10 +144,14 @@ export function createPositionSync(deps: PositionSyncDeps): PositionSync {
 
   function sample(): void {
     const open = new Set<string>();
+    let anySpeaking = false;
     for (const reader of guard(() => deps.readers(), [] as unknown[])) {
-      const attachment = record(reader);
-      if (attachment) open.add(attachment.lib + '/' + attachment.key);
+      const seen = record(reader);
+      if (!seen) continue;
+      open.add(seen.lib + '/' + seen.key);
+      if (seen.speaking) anySpeaking = true;
     }
+    speaking = anySpeaking;
     // A reader that was open and is not any more: its tab was closed, so put
     // what we have on disk now rather than waiting out the throttle. This is
     // the closest thing to a close event there is — Zotero's
@@ -140,7 +164,7 @@ export function createPositionSync(deps: PositionSyncDeps): PositionSync {
     if (closed || (dirty && clock() - lastWrite >= WRITE_THROTTLE_MS)) flush();
   }
 
-  function arm(): void {
+  function arm(delay: number): void {
     tick = guard(
       () =>
         deps.setTimeout(() => {
@@ -157,9 +181,9 @@ export function createPositionSync(deps: PositionSyncDeps): PositionSync {
               // Reporting must never be the thing that stops the tick
             }
           } finally {
-            if (running) arm();
+            if (running) arm(speaking ? SPEAKING_TICK_MS : IDLE_TICK_MS);
           }
-        }, TICK_MS),
+        }, delay),
       null,
     );
   }
@@ -168,12 +192,15 @@ export function createPositionSync(deps: PositionSyncDeps): PositionSync {
     if (running) return;
     running = true;
     lastWrite = clock();
-    arm();
+    // Nothing observed yet, so start on the cheap interval
+    arm(IDLE_TICK_MS);
   }
 
   function stop(): void {
     running = false;
+    speaking = false;
     tracked = new Set<string>();
+    lastSeen.clear();
     if (tick !== null) {
       guard(() => deps.clearTimeout(tick), undefined);
       tick = null;

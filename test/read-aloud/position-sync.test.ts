@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import type { PrefsBackend } from '../../src/core/settings';
-import { createPositionSync, TICK_MS, WRITE_THROTTLE_MS, type PositionSyncDeps } from '../../src/read-aloud/position-sync';
+import {
+  createPositionSync,
+  IDLE_TICK_MS,
+  SPEAKING_TICK_MS,
+  WRITE_THROTTLE_MS,
+  type PositionSyncDeps,
+} from '../../src/read-aloud/position-sync';
 import { READ_ALOUD_POSITIONS_PREF, readPositions } from '../../src/read-aloud/read-aloud-position';
 
 const PDF_POS = { pageIndex: 12, rects: [[10, 20, 30, 40]] };
@@ -11,10 +17,18 @@ interface FakeReader {
   lib: number;
   key: string;
   active: boolean;
+  paused: boolean;
   saved: unknown;
 }
 
-const reader = (over: Partial<FakeReader> = {}): FakeReader => ({ lib: 1, key: 'ABCD1234', active: true, saved: PDF_POS, ...over });
+const reader = (over: Partial<FakeReader> = {}): FakeReader => ({
+  lib: 1,
+  key: 'ABCD1234',
+  active: true,
+  paused: false,
+  saved: PDF_POS,
+  ...over,
+});
 
 function harness(readers: FakeReader[], over: Partial<PositionSyncDeps> = {}) {
   const store: Record<string, unknown> = {};
@@ -31,7 +45,7 @@ function harness(readers: FakeReader[], over: Partial<PositionSyncDeps> = {}) {
       const f = r as FakeReader;
       return f.key ? { lib: f.lib, key: f.key } : null;
     },
-    managerOf: (r) => ({ active: (r as FakeReader).active }),
+    managerOf: (r) => ({ active: (r as FakeReader).active, paused: (r as FakeReader).paused }),
     savedPositionOf: (r) => (r as FakeReader).saved,
     setTimeout: (fn, ms) => {
       const handle = nextHandle++;
@@ -60,7 +74,10 @@ function harness(readers: FakeReader[], over: Partial<PositionSyncDeps> = {}) {
     clock = target;
   };
 
-  return { sync: createPositionSync(deps), store, prefs, errors, advance, timers };
+  /** How long the next tick is scheduled for, so the cadence can be asserted. */
+  const nextDelay = () => (timers.length ? timers[0].at - clock : null);
+
+  return { sync: createPositionSync(deps), store, prefs, errors, advance, timers, nextDelay };
 }
 
 describe('createPositionSync', () => {
@@ -96,11 +113,11 @@ describe('createPositionSync', () => {
     const readers = [reader()];
     const h = harness(readers);
     h.sync.start();
-    h.advance(TICK_MS);
-    const afterFirst = h.store[READ_ALOUD_POSITIONS_PREF];
+    h.advance(IDLE_TICK_MS);
+    expect(h.store[READ_ALOUD_POSITIONS_PREF]).toBeUndefined();
     readers[0].saved = LATER_POS;
-    h.advance(TICK_MS);
-    expect(h.store[READ_ALOUD_POSITIONS_PREF]).toBe(afterFirst);
+    h.advance(SPEAKING_TICK_MS);
+    expect(h.store[READ_ALOUD_POSITIONS_PREF]).toBeUndefined();
     h.advance(WRITE_THROTTLE_MS);
     expect(readPositions(h.prefs)[0].pos).toEqual(LATER_POS);
   });
@@ -121,15 +138,39 @@ describe('createPositionSync', () => {
     h.sync.stop();
     expect(readPositions(h.prefs)).toHaveLength(1);
     expect(h.timers).toHaveLength(0);
-    h.advance(TICK_MS * 3);
+    h.advance(IDLE_TICK_MS * 3);
     expect(h.timers).toHaveLength(0);
   });
 
   it('keeps ticking until stopped', () => {
     const h = harness([reader()]);
     h.sync.start();
-    h.advance(TICK_MS * 3);
+    h.advance(IDLE_TICK_MS * 3);
     expect(h.timers).toHaveLength(1);
+  });
+
+  it('polls fast while a reader is speaking and slowly when it is not', () => {
+    const readers = [reader()];
+    const h = harness(readers);
+    h.sync.start();
+    // Nothing observed yet, so the first tick is the cheap one
+    expect(h.nextDelay()).toBe(IDLE_TICK_MS);
+    h.advance(IDLE_TICK_MS);
+    expect(h.nextDelay()).toBe(SPEAKING_TICK_MS);
+    // Paused: the position is not moving, so there is nothing to catch
+    readers[0].paused = true;
+    h.advance(SPEAKING_TICK_MS);
+    expect(h.nextDelay()).toBe(IDLE_TICK_MS);
+  });
+
+  it('catches a sentence change within one speaking tick', () => {
+    const readers = [reader()];
+    const h = harness(readers);
+    h.sync.start();
+    h.advance(IDLE_TICK_MS);
+    readers[0].saved = LATER_POS;
+    h.advance(SPEAKING_TICK_MS);
+    expect(h.sync.lookup(reader())).toEqual(LATER_POS);
   });
 
   it('reports a broken reader and keeps going', () => {
@@ -202,11 +243,11 @@ describe('createPositionSync', () => {
     const readers = [reader()];
     const h = harness(readers);
     h.sync.start();
-    h.advance(TICK_MS);
+    h.advance(IDLE_TICK_MS);
     // Recorded, but still inside the throttle window
     expect(h.store[READ_ALOUD_POSITIONS_PREF]).toBeUndefined();
     readers.length = 0; // the tab was closed
-    h.advance(TICK_MS);
+    h.advance(SPEAKING_TICK_MS);
     expect(readPositions(h.prefs)[0].key).toBe('ABCD1234');
   });
 
@@ -225,7 +266,7 @@ describe('createPositionSync', () => {
       },
     });
     h.sync.start();
-    h.advance(TICK_MS);
+    h.advance(IDLE_TICK_MS);
     expect(h.errors).toHaveLength(1);
     expect(h.timers).toHaveLength(1);
   });
