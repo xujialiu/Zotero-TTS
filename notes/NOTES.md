@@ -1694,3 +1694,36 @@ README TODO 1. Zotero already does most of it, verified in the installed
   has no row for it: `test/ui/shortcut-rows.test.ts` walks `SHORTCUT_ACTIONS`
   against the markup. A missing row used to be invisible — the action simply
   did not appear in the pane.
+
+### The stored position was a corpse (fixed 2026-08-26, same day)
+
+First build resumed nothing: `Shift+B` always answered `No saved position`,
+and `diagnostics.position()` itself threw `TypeError: can't access dead
+object`. The pref on disk was **correct** — it held the right CFI, written
+while the tab was still open — so nothing was wrong with recording or with
+the attachment key. What was wrong was the copy in memory.
+
+`savedPosition` belongs to the reader's window. The sampler kept the
+*reference*, so when the tab closed and that compartment was torn down the
+entry became a dead object: `JSON.stringify` over it threw (killing the
+diagnostics probe), and on `Shift+B` `Components.utils.cloneInto` threw —
+swallowed by the shortcut's try, leaving `resumed = false`, which is exactly
+the "nothing stored" toast. A correct value on disk and a corpse in memory
+look identical from the outside.
+
+Rule: **safe to read across the compartment is not safe to keep.** Anything
+from the reader that outlives the call is copied into our compartment at the
+boundary (`plainCopy`, a JSON round-trip — the position has to survive as
+data anyway). Three further hardenings came with it: the tick re-arms in a
+`finally`, so one unexpected throw can no longer end the heartbeat silently;
+a pass that finds a previously-tracked attachment gone flushes at once (the
+closest thing to a close event — `Reader.registerEventListener` carries only
+render and context-menu hooks, and `ReaderTab.close()` notifies nobody);
+and every field of `diagnostics.position()` is read behind its own guard and
+copied before it leaves, since a probe that dies on the first dead object is
+how this hid in the first place.
+
+Reading the position *at* close, as the obvious design would, cannot work:
+that is precisely the moment the compartment goes away. Periodic sampling is
+what guarantees a usable value is already in hand — the close event is only
+worth acting on to persist it.

@@ -595,14 +595,28 @@ const diagnostics = {
    * away, which is exactly what `stored` is here to survive.
    */
   position: () => {
-    positionSync?.sample();
+    // Every field is read behind its own guard and copied before it leaves:
+    // a probe that throws on one dead object tells you nothing about the
+    // rest, which is how the 2026-08-26 bug hid.
+    const safe = (fn: () => unknown): unknown => {
+      try {
+        return JSON.parse(JSON.stringify(fn() ?? null));
+      } catch (e) {
+        return String(e);
+      }
+    };
+    safe(() => positionSync?.sample());
     const readers = (Zotero.Reader._readers ?? []).map((r: any) => ({
-      itemID: r?.itemID ?? null,
-      active: !!r?._internalReader?._readAloudManager?.active,
-      zoteroSaved: r?._internalReader?._state?.readAloudState?.savedPosition ?? null,
-      stored: positionSync?.lookup(r) ?? null,
+      itemID: safe(() => r?.itemID),
+      attachment: safe(() => {
+        const item = r?.itemID ? Zotero.Items.get(r.itemID) : null;
+        return item ? item.libraryID + '/' + item.key : null;
+      }),
+      active: safe(() => !!r?._internalReader?._readAloudManager?.active),
+      zoteroSaved: safe(() => r?._internalReader?._state?.readAloudState?.savedPosition),
+      stored: safe(() => positionSync?.lookup(r)),
     }));
-    return JSON.stringify({ sampling: !!positionSync, tickMs: TICK_MS, stored: readPositions(prefs).length, readers }, null, 1);
+    return JSON.stringify({ sampling: !!positionSync, tickMs: TICK_MS, stored: safe(() => readPositions(prefs)), readers }, null, 1);
   },
   /**
    * What the voice browser sees of Zotero's own voices — through the very

@@ -175,6 +175,61 @@ describe('createPositionSync', () => {
     expect(fresh.lookup({})).toEqual(PDF_POS);
   });
 
+  it('stores a copy, not the object it read from the reader', () => {
+    // The reader's own object dies with its tab; keeping the reference is
+    // what made every later touch throw "can't access dead object"
+    const source = { type: 'FragmentSelector', value: 'epubcfi(/6/16!/4/4/152)' };
+    const h = harness([reader({ saved: source })]);
+    h.sync.sample();
+    expect(h.sync.lookup(reader())).toEqual(source);
+    expect(h.sync.lookup(reader())).not.toBe(source);
+  });
+
+  it('skips a position it cannot copy, and reports it', () => {
+    const dead = {
+      get value(): string {
+        throw new TypeError("can't access dead object");
+      },
+    };
+    const h = harness([reader({ saved: dead })]);
+    h.sync.sample();
+    h.sync.flush();
+    expect(readPositions(h.prefs)).toEqual([]);
+    expect(h.errors).toHaveLength(1);
+  });
+
+  it('flushes as soon as a reader it was tracking is gone', () => {
+    const readers = [reader()];
+    const h = harness(readers);
+    h.sync.start();
+    h.advance(TICK_MS);
+    // Recorded, but still inside the throttle window
+    expect(h.store[READ_ALOUD_POSITIONS_PREF]).toBeUndefined();
+    readers.length = 0; // the tab was closed
+    h.advance(TICK_MS);
+    expect(readPositions(h.prefs)[0].key).toBe('ABCD1234');
+  });
+
+  it('keeps ticking after a pass throws', () => {
+    let broken = true;
+    const h = harness([], {
+      readers: () => {
+        if (!broken) return [];
+        broken = false;
+        // What a torn-down window can look like: even iterating throws
+        return {
+          [Symbol.iterator]() {
+            throw new TypeError("can't access dead object");
+          },
+        } as unknown as unknown[];
+      },
+    });
+    h.sync.start();
+    h.advance(TICK_MS);
+    expect(h.errors).toHaveLength(1);
+    expect(h.timers).toHaveLength(1);
+  });
+
   it('lookup() returns null for an attachment with nothing stored', () => {
     const h = harness([reader()]);
     h.sync.sample();
