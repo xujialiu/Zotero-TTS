@@ -4,6 +4,7 @@ import type { PrefsBackend } from '../../src/core/settings';
 import {
   createReadAloudShortcuts,
   deepActiveElement,
+  NO_SAVED_POSITION,
   isEditableTarget,
   isSpeaking,
   pickReader,
@@ -79,6 +80,9 @@ function setup(over: Partial<ReadAloudShortcutsDeps> = {}) {
   const canStartFromSelection = vi.fn(() => true);
   const startFromSelection = vi.fn();
   const emitState = vi.fn();
+  const canResumeLastPosition = vi.fn(() => true);
+  const resumeLastPosition = vi.fn(() => true);
+  const showMessage = vi.fn();
   const log = vi.fn();
   const shortcuts = createReadAloudShortcuts({
     getBindings: () => BINDINGS,
@@ -89,10 +93,28 @@ function setup(over: Partial<ReadAloudShortcutsDeps> = {}) {
     canStartFromSelection,
     startFromSelection,
     emitState,
+    canResumeLastPosition,
+    resumeLastPosition,
+    showMessage,
     log,
     ...over,
   });
-  return { shortcuts, prefs, manager, reader, showToast, lockPosition, canStartFromSelection, startFromSelection, emitState, log, resolve: () => reader };
+  return {
+    shortcuts,
+    prefs,
+    manager,
+    reader,
+    showToast,
+    lockPosition,
+    canStartFromSelection,
+    startFromSelection,
+    emitState,
+    canResumeLastPosition,
+    resumeLastPosition,
+    showMessage,
+    log,
+    resolve: () => reader,
+  };
 }
 
 describe('handleKeyDown', () => {
@@ -668,5 +690,62 @@ describe('deepActiveElement', () => {
   it('returns null without a focused element', () => {
     expect(deepActiveElement({ activeElement: null })).toBeNull();
     expect(deepActiveElement(null)).toBeNull();
+  });
+});
+
+describe('resumeLastPosition', () => {
+  const shiftB = () => keyEvent({ key: 'B', code: 'KeyB' });
+
+  it('asks the dep to resume and consumes the key', () => {
+    const { shortcuts, reader, resumeLastPosition, showMessage, resolve } = setup();
+    const event = shiftB();
+    expect(shortcuts.handleKeyDown(event, resolve)).toBe(true);
+    expect(event.preventDefault).toHaveBeenCalled();
+    expect(resumeLastPosition).toHaveBeenCalledWith(reader);
+    expect(showMessage).not.toHaveBeenCalled();
+  });
+
+  it('toasts instead of resuming when nothing is stored, and still takes the key', () => {
+    const { shortcuts, reader, showMessage, resolve } = setup({ resumeLastPosition: () => false });
+    const event = shiftB();
+    expect(shortcuts.handleKeyDown(event, resolve)).toBe(true);
+    expect(event.preventDefault).toHaveBeenCalled();
+    expect(showMessage).toHaveBeenCalledWith(reader, NO_SAVED_POSITION);
+  });
+
+  it('lets the key through when the reader cannot resume', () => {
+    const { shortcuts, resumeLastPosition, resolve } = setup({ canResumeLastPosition: () => false });
+    const event = shiftB();
+    expect(shortcuts.handleKeyDown(event, resolve)).toBe(false);
+    expect(event.preventDefault).not.toHaveBeenCalled();
+    expect(resumeLastPosition).not.toHaveBeenCalled();
+  });
+
+  it('lets the key through when the deps are not wired at all', () => {
+    const { shortcuts, resolve } = setup({ canResumeLastPosition: undefined, resumeLastPosition: undefined });
+    const event = shiftB();
+    expect(shortcuts.handleKeyDown(event, resolve)).toBe(false);
+    expect(event.preventDefault).not.toHaveBeenCalled();
+  });
+
+  it('reports a dep that throws and still consumes the key', () => {
+    const { shortcuts, log, showMessage, resolve } = setup({
+      resumeLastPosition: () => {
+        throw new Error('cloneInto');
+      },
+    });
+    const event = shiftB();
+    expect(shortcuts.handleKeyDown(event, resolve)).toBe(true);
+    expect(event.preventDefault).toHaveBeenCalled();
+    expect(log).toHaveBeenCalledTimes(1);
+    // A dep that blew up is not a document without a position, but the user
+    // still gets told the key did nothing
+    expect(showMessage).toHaveBeenCalledWith(expect.anything(), NO_SAVED_POSITION);
+  });
+
+  it('is exposed on its own for callers that are not keys', () => {
+    const { shortcuts, reader, resumeLastPosition } = setup();
+    expect(shortcuts.resumeLastPosition(reader)).toBe(true);
+    expect(resumeLastPosition).toHaveBeenCalledWith(reader);
   });
 });

@@ -63,6 +63,9 @@ export interface EventTargetLike {
   removeEventListener(type: string, listener: (event: any) => void, options?: unknown): void;
 }
 
+/** Shown when the key is pressed on a document that has no stored position. */
+export const NO_SAVED_POSITION = 'No saved position';
+
 export interface ReadAloudShortcutsDeps {
   /** Raw binding text per action. Read on every key, so a settings change applies at once. */
   getBindings(): Record<ShortcutAction, string>;
@@ -93,6 +96,22 @@ export interface ReadAloudShortcutsDeps {
    * segment change, so there the view returns at the next sentence.
    */
   emitState?(reader: unknown): void;
+  /**
+   * Whether this reader could resume at all — Zotero's
+   * `reader.startReadAloudAtPosition` exists. Unlike the other position
+   * keys this does not ask whether there is anything to resume: the key is
+   * consumed either way, so it never falls through to the reader and the
+   * binding may sit on a key the reader itself uses.
+   */
+  canResumeLastPosition?(reader: unknown): boolean;
+  /**
+   * Resume at the position stored for this document. True when there was
+   * one and Zotero was asked to start there; false when this document has
+   * nothing stored, which turns into a toast.
+   */
+  resumeLastPosition?(reader: unknown): boolean;
+  /** A plain-text toast, for telling the user there is nothing to resume. */
+  showMessage?(reader: unknown, text: string): void;
   log?(e: unknown): void;
 }
 
@@ -112,6 +131,8 @@ export interface ReadAloudShortcuts {
   startFromSelection(reader: unknown): boolean;
   /** Bring the view back to the spoken position; false when no Read Aloud session is open. */
   returnToSpoken(reader: unknown): boolean;
+  /** Resume at the stored position; false when this reader cannot resume at all, so the key is left alone. */
+  resumeLastPosition(reader: unknown): boolean;
   /** Attach a capturing keydown listener to a window; idempotent per window, detaches itself on unload. */
   listen(target: EventTargetLike, resolveReader: () => unknown, options?: HandleOptions): void;
   unlisten(target: EventTargetLike): void;
@@ -235,6 +256,35 @@ export function createReadAloudShortcuts(deps: ReadAloudShortcutsDeps): ReadAlou
     return true;
   }
 
+  /** Read Aloud exists here, so the key is ours whether or not there is anything stored. */
+  const canResumeLastPosition = (reader: unknown): boolean => {
+    if (!deps.resumeLastPosition || !deps.canResumeLastPosition) return false;
+    try {
+      return deps.canResumeLastPosition(reader);
+    } catch (e) {
+      log(e);
+      return false;
+    }
+  };
+
+  function resumeLastPosition(reader: unknown): boolean {
+    if (!canResumeLastPosition(reader)) return false;
+    let resumed = false;
+    try {
+      resumed = deps.resumeLastPosition?.(reader) ?? false;
+    } catch (e) {
+      log(e);
+    }
+    if (!resumed) {
+      try {
+        deps.showMessage?.(reader, NO_SAVED_POSITION);
+      } catch (e) {
+        log(e);
+      }
+    }
+    return true;
+  }
+
   function handleKeyDown(event: ShortcutKeyEvent, resolveReader: () => unknown, options: HandleOptions = {}): boolean {
     if (event.defaultPrevented) return false;
     const action = actionFor(event);
@@ -250,8 +300,7 @@ export function createReadAloudShortcuts(deps: ReadAloudShortcutsDeps): ReadAlou
     if (isNavigationAction(action) && !canSkip(managerOf(reader))) return false;
     if (action === 'startFromSelection' && !canStartFromSelection(reader)) return false;
     if (action === 'returnToSpoken' && !canReturnToSpoken(reader)) return false;
-    // Wired in the next commit; until then the key is not ours to take.
-    if (action === 'resumeLastPosition') return false;
+    if (action === 'resumeLastPosition' && !canResumeLastPosition(reader)) return false;
     event.preventDefault();
     event.stopPropagation();
     // Holding the key down would restart the current segment on every auto-repeat
@@ -259,6 +308,7 @@ export function createReadAloudShortcuts(deps: ReadAloudShortcutsDeps): ReadAlou
     if (isNavigationAction(action)) navigate(reader, action);
     else if (action === 'startFromSelection') startFromSelection(reader);
     else if (action === 'returnToSpoken') returnToSpoken(reader);
+    else if (action === 'resumeLastPosition') resumeLastPosition(reader);
     else adjust(reader, action);
     return true;
   }
@@ -296,7 +346,7 @@ export function createReadAloudShortcuts(deps: ReadAloudShortcutsDeps): ReadAlou
     for (const target of [...listeners.keys()]) unlisten(target);
   }
 
-  return { handleKeyDown, adjust, navigate, startFromSelection, returnToSpoken, listen, unlisten, dispose };
+  return { handleKeyDown, adjust, navigate, startFromSelection, returnToSpoken, resumeLastPosition, listen, unlisten, dispose };
 }
 
 /**
