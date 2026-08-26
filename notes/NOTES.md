@@ -1388,3 +1388,148 @@ reference exportFunction returned at install time — identity comparisons
 across membranes are meaningless. The field is gone; the prefixed
 mulLabel, produced through the real prototype, is the proof that
 matters.
+
+## The sentence leaves the word alone (added 2026-08-26)
+
+README TODO: in word mode the word was not the color that was picked,
+because the kept sentence and the word tinted the same pixels. Verified
+against the installed bundle (`resource/reader/reader.js`, sha1
+c29b36de..., byte-identical to the unpacked copy) and the matching
+zotero-reader sources.
+
+How Zotero draws the two highlights, and why an overlap is neither color:
+
+- PDF (`Page._buildDisplayList`): the primary is pushed first, the
+  secondary second, and each rectangle becomes a
+  `div.overlayRect` with `background-color: <color+alpha>; opacity: 0.4;
+  mix-blend-mode: multiply` (0.3 / `plus-lighter` in a dark theme).
+  Multiply is commutative, so paint order does not matter: the overlap is
+  the *product* of the two tints. With the defaults (green `#00ff00` and
+  yellow `#ffff00`, both 100%) the word renders `#99FF99` alone but
+  `#99FF5C` over the sentence.
+- EPUB / snapshot: both are `<path opacity="50%">` with the color as
+  `fill`, inside one `<svg class="annotation-container blended">` that
+  multiplies (dark: `screen`). Inside the SVG it is plain source-over, so
+  order *does* matter — and it flips: `setSpotlight(key, null)` deletes,
+  so whenever the primary selector is momentarily null its key is
+  re-inserted at the end of the map. The same defaults render `#80FF80`
+  alone, `#BFFF40` with the sentence on top, `#80FF40` with the word on
+  top. Two different wrong colors, alternating.
+- Alpha 100% does not help: Zotero's own 0.4 / 0.5 opacity is applied on
+  top of the color's alpha, so both highlights are always translucent.
+
+Solving for a replacement color (draw the word in whatever composites to
+the picked color over the sentence) was rejected: multiply can only
+darken and `plus-lighter` only lighten, so per channel it is often
+unsolvable (a yellow word on a green sentence needs the red channel
+*brighter*), and it would depend on 0.4/0.5, the blend mode and the
+theme — the most likely things to change upstream.
+
+What was built instead is geometric, and stated as one rule: **the
+secondary highlight is drawn only where the primary is not.** Besides the
+word, that also removes two older doubled tints: the stand-in word
+position of a wordless voice (the primary covers the whole sentence, so
+the kept sentence now subtracts to nothing) and a sentence-granularity
+flash landing on the sentence already shown.
+
+- PDF: in the shadowed `_pushHighlightedPosition`, when the secondary is
+  the one being drawn, `subtractRects` cuts the primary's rectangles for
+  this page out of it and the pieces are pushed instead (cloned into the
+  reader first — reader code cannot read a sandbox object). Both position
+  rectangle sets are line boxes from the same mapper
+  (`pdf-position-mapper.textNodeSpansToSourcePosition` -> `mergeLineRects`,
+  `sameLine` = 60% vertical overlap), so they line up. A true rectangle
+  difference, not a full-height cut: the word box is usually shorter than
+  its line box, and the strips above and below it stay sentence-colored
+  rather than becoming a hole in the band. Doing it at paint time keeps
+  the slot holding the real sentence position (all the identity
+  bookkeeping is untouched) and costs no extra render — Zotero rebuilds
+  the display list on every word and diffs it by `JSON.stringify`
+  signature.
+- EPUB / snapshot: two slots of our own, `ZoteroTTSSentenceHead` /
+  `ZoteroTTSSentenceTail`. `_renderAnnotations` iterates the whole
+  `_spotlights` map and asks `_getSpotlightColor(key)` per entry, which is
+  already shadowed, so any key draws. What the slots hold is not a
+  selector but a piece of one (`{ztts, sentence, word}`), turned into a
+  range by a third shadow, `toDisplayedRange`: both selectors are resolved
+  through Zotero's own resolver *at render time* and the sentence range is
+  cut at the word's boundary points. Nothing of ours is ever a generated
+  CFI — `toSelector` is the generator whose text-step convention the
+  resolver disagrees with (issues #3/#4), so a CFI we built would be wrong
+  exactly where those are. It also means no staleness: the pieces are cut
+  from the very ranges Zotero is drawing.
+
+Details worth keeping:
+
+- The pieces are prepared *before* the original `setState`, so Zotero's
+  own render of the moved word draws them. A word update only rewrites
+  what the two slots hold, never the map, so the render count is
+  unchanged; one render is added when the pieces appear and one when they
+  go.
+- Anything that leaves the word unusable falls back to the whole sentence
+  in the head slot and nothing in the tail — the word position resolving
+  to nothing, or resolving *outside* the sentence (the right text in the
+  wrong place, issue #4). When it cannot even be verified, `hiddenPrimary`
+  is already set and the pieces are not used at all: the sentence goes
+  back into Zotero's own slot in one piece.
+- `dispose()` must take our two keys out of every DOM view *before* the
+  prototypes are restored: Zotero's own `_getSpotlightColor` throws
+  `Unknown highlight key` on anything but its three, which would break the
+  whole annotation render. The views are held as `WeakRef`s for that.
+- Whether a view's `toDisplayedRange` was patched is marked with a property
+  on the view (`_zoteroTTSSentencePieces`), not a WeakSet, and "are the
+  pieces out?" is read from the spotlight map by key. The view is reached
+  one way when attaching (from `_internalReader`) and another way while
+  drawing (off the waived Xray `this` of `setState`), and those are
+  different wrapper objects for the same reader object — the membrane
+  identity trap the `stillPatched` field fell into. A boolean and a string
+  key read the same through either wrapper.
+- Cosmetic, accepted: `annotation-overlay.tsx` expands a spotlight
+  rectangle by 2px inline and to the full line height, and only for
+  Zotero's own two keys (`isSpotlight`). The pieces are therefore
+  glyph-height, like an ordinary highlight annotation, while the word keeps
+  its taller box and stands a little proud of them — closer to how the PDF
+  view already looks, since its rectangles are glyph-height too. The word's
+  2px inline expansion also overlaps each piece by 2px; invisible in
+  practice.
+- Left alone: a *paragraph* flash after a paragraph skip still covers the
+  word for its two seconds, as before.
+- The pane preview (ui/highlight-rows.ts, the `-word-before` / `-word`
+  / `-word-after` spans) shows the new rendering: three siblings, the
+  sentence color never behind the word.
+- `diagnostics.highlight()` proves the mechanism rather than the look:
+  `secondaryTrim` (PDF) counts the sentence's rectangles, the primary's,
+  and the pieces left of them, and `sentencePieces` (EPUB / snapshot) is
+  the text each of our two slots actually draws — resolved through the
+  patched `toDisplayedRange`, so it is the same path the renderer takes.
+
+### Two things the first build got wrong, found in use (2026-08-26)
+
+**The whole line flickered as the word moved.** The first cut was a true
+rectangle difference, which leaves a strip above and below the word running
+the full width of the line whenever the word's box is shorter than its
+line's — and that thickness changes with every word (ascenders, descenders,
+a taller character somewhere on the line, or just a hundredth of a point of
+disagreement between the two positions). The cut now runs the **full height
+of the line rectangle**, gated by Zotero's own `sameLine` test (60% of the
+shorter height), so the highlight's outline never changes; only the slot
+moves. To keep that slot from showing bare page around a shorter word, the
+primary's rectangles are grown to the height of the sentence line each sits
+on (`fittedPrimaryPDF`) — which is also what the EPUB view already does to
+a spotlight of its own (`expandRect` to the line height).
+
+**A patch of sentence color was left where the last word had been.** Between
+segments the manager fires `ActiveSegmentChange(null)`, which nulls both the
+active segment and the timestamp (manager.ts), and `setReadAloudState` then
+skips its whole update — `if (activePosition?.pageIndex !== undefined)` —
+so the previous word's primary stays on the page. With no timestamp it is
+demoted to the sentence color (issue #2), and our own code, seeing no active
+segment, took the sentence away from around it: one word-sized patch of
+sentence color, alone on the page. Both view kinds now leave what is drawn
+alone while the popup is open in word mode with no active segment, so the
+gap shows the whole sentence in the sentence color, which is what issue #2
+wanted in the first place. For the same reason a state push with no *word*
+(the first push of each segment does that too) no longer swaps the pieces
+out for Zotero's own sentence slot: the pieces stay and the head simply
+draws the whole sentence, since the two slots are drawn at different heights
+and swapping them made the band jump once per sentence.

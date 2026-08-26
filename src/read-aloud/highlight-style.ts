@@ -1,6 +1,6 @@
 /**
  * The colors of Zotero's Read Aloud highlights, and a sentence highlight
- * kept under the word one.
+ * kept around the word one.
  *
  * Zotero draws two highlights from constants hard-coded in its reader
  * bundle: READ_ALOUD_ACTIVE_SEGMENT_COLOR ('#4072e573') for the unit at the
@@ -51,8 +51,37 @@
  * undetectable from outside, because the slot holds a selector that only
  * fails at render time. So in word mode the kept-sentence slot is filled
  * regardless (the segment's own selector, computed at segmentation time,
- * always resolves); when the primary does draw, the doubled tint over the
- * same region is what every version before 1.5.3 showed (issue #3).
+ * always resolves); when the primary does draw, the two are kept from
+ * tinting the same pixels by the rule below.
+ *
+ * The two highlights never overlap: the secondary is drawn only where the
+ * primary is not. Both are translucent and Zotero draws them at its own
+ * opacity — PDF rectangles at .4 `multiply` (.3 `plus-lighter` in a dark
+ * theme), EPUB paths at 50% inside one `multiply` container — so an overlap
+ * is the product of the two colors and is neither of them: the word came
+ * out darker than the color that was picked, and a primary covering the
+ * whole sentence (the stand-in position of a wordless voice) tinted it
+ * twice. How the sentence is cut differs by view kind:
+ *
+ * - PDF: at paint time, in the same `_pushHighlightedPosition`. The
+ *   position rectangles of the word and of the sentence are line boxes
+ *   built by the same mapper, so the word is simply subtracted from the
+ *   sentence (subtractRects) and the pieces are pushed instead. The slot
+ *   still holds the real sentence position, and the hole follows the word
+ *   with no extra render: Zotero rebuilds the display list on every word
+ *   anyway, and diffs it by signature.
+ * - EPUB / snapshot: two spotlight slots of our own, keyed
+ *   'ZoteroTTSSentenceHead' / 'ZoteroTTSSentenceTail' — `_renderAnnotations`
+ *   iterates the whole `_spotlights` map, and the shadowed
+ *   `_getSpotlightColor` answers for them. What they hold is not a selector
+ *   but a piece of one (SentencePiece), turned into a range by the shadowed
+ *   `toDisplayedRange`: the sentence and the word are resolved through
+ *   Zotero's own resolver at render time and the one is cut at the other.
+ *   No CFI of ours is ever generated — Zotero's generator and resolver
+ *   disagree about text steps (issues #3/#4), so a CFI we built would be
+ *   wrong exactly where those are. Zotero expands a spotlight rectangle to
+ *   the line height, and only for its own two keys, so the pieces are
+ *   glyph-height and the word stands a little proud of them.
  */
 
 import { WHOLE_SEGMENT_END_SECONDS } from './remote-interface';
@@ -93,6 +122,51 @@ export function secondaryHighlightColor(style: HighlightStyle): string | null {
   return highlightColor(style.sentenceColor, style.sentenceAlpha);
 }
 
+/** Below what a piece of a highlight is not worth drawing, in PDF points. */
+const RECT_EPSILON = 0.1;
+
+const isRect = (r: unknown): r is number[] => Array.isArray(r) && r.length === 4 && r.every((n) => Number.isFinite(n));
+
+/** Zotero's own `sameLine` (pdf-position-mapper): 60% of the shorter height has to overlap. */
+export function sameLine(a: number[], b: number[]): boolean {
+  if (!isRect(a) || !isRect(b)) return false;
+  const overlap = Math.min(a[3], b[3]) - Math.max(a[1], b[1]);
+  const shorter = Math.max(0.001, Math.min(a[3] - a[1], b[3] - b[1]));
+  return overlap / shorter >= 0.6;
+}
+
+/**
+ * `rect` minus `hole`, in Zotero's `[x1, y1, x2, y2]`: the piece left and
+ * the piece right of it. The cut runs the full height of the rectangle, not
+ * only the hole's own — a word box is a little shorter than its line box
+ * whenever the line has a taller character on it, and a strip left above or
+ * below the word would change thickness with every word, so the whole line
+ * would flicker. Rectangles that are not on the same line do not cut each
+ * other; a rectangle nothing cuts comes back by identity.
+ */
+function subtractRect(rect: number[], hole: number[]): number[][] {
+  if (!isRect(rect) || !isRect(hole) || !sameLine(rect, hole)) return [rect];
+  const [ax1, ay1, ax2, ay2] = rect;
+  const [bx1, , bx2] = hole;
+  if (bx2 <= ax1 + RECT_EPSILON || bx1 >= ax2 - RECT_EPSILON) return [rect];
+  const pieces: number[][] = [];
+  if (bx1 - ax1 > RECT_EPSILON) pieces.push([ax1, ay1, bx1, ay2]);
+  if (ax2 - bx2 > RECT_EPSILON) pieces.push([bx2, ay1, ax2, ay2]);
+  return pieces;
+}
+
+/** Every rectangle of `rects` with every rectangle of `holes` cut out of it; a rectangle nothing overlaps comes back by identity. */
+export function subtractRects(rects: number[][], holes: number[][]): number[][] {
+  let pieces = rects;
+  for (const hole of holes) {
+    if (!pieces.length) break;
+    const next: number[][] = [];
+    for (const piece of pieces) next.push(...subtractRect(piece, hole));
+    pieces = next;
+  }
+  return pieces;
+}
+
 type AnyFn = (...args: any[]) => any;
 
 export interface HighlightStylingDeps {
@@ -130,6 +204,23 @@ export interface HighlightStyling {
 
 const SENTENCE_KEY = 'ReadAloudActiveSentence';
 const SEGMENT_KEY = 'ReadAloudActiveSegment';
+/** Spotlight slots of our own, for the sentence cut in two around the word. Zotero iterates its `_spotlights` map by key, so any key draws. */
+const PIECE_KEYS = { head: 'ZoteroTTSSentenceHead', tail: 'ZoteroTTSSentenceTail' } as const;
+
+/** What one of our slots holds: a piece of the sentence, cut at the word when it is drawn. */
+interface SentencePiece {
+  ztts: 'head' | 'tail';
+  sentence: unknown;
+  word: unknown;
+}
+/**
+ * Set on a view whose `toDisplayedRange` is patched, so a piece put in its
+ * map resolves. A property and not a WeakSet: a view reached from a waived
+ * Xray is a different wrapper object than the same view reached from here,
+ * and comparing identities across the membrane is meaningless — a boolean
+ * reads the same through either.
+ */
+const PIECES_READY = '_zoteroTTSSentencePieces';
 
 const isGranularity = (g: unknown): g is Granularity => g === 'word' || g === 'sentence' || g === 'paragraph';
 
@@ -151,8 +242,19 @@ export function createHighlightStyling(deps: HighlightStylingDeps): HighlightSty
   const oursDOM = new WeakMap<object, { segment: unknown; selector: unknown }>();
   /** Per helper: Zotero's primary spotlight currently shows the wrong text, so its color is transparent. Recomputed on every state push (a real word moves every word). */
   const hiddenPrimary = new WeakMap<object, boolean>();
+  /** Per helper: the two pieces of the sentence, and whether the map they are in has been drawn since. */
+  const piecesDOM = new WeakMap<object, { head: SentencePiece; tail: SentencePiece; dirty: boolean }>();
+  /** The views whose slots we may have filled, to take them back on dispose: Zotero's own `_getSpotlightColor` throws on a key it does not know. */
+  const domViews: Array<{ deref(): any }> = [];
 
   const waive = (value: unknown): any => (deps.waiveXrays ? deps.waiveXrays(value) : value);
+  const renderAnnotations = (view: any): void => {
+    try {
+      if (typeof view?._renderAnnotations === 'function') view._renderAnnotations();
+    } catch (e) {
+      deps.error(e);
+    }
+  };
 
   function shadow(proto: any, name: string, make: (original: AnyFn) => AnyFn): void {
     if (patches.some((p) => p.proto === proto && p.name === name)) return;
@@ -207,9 +309,70 @@ export function createHighlightStyling(deps: HighlightStylingDeps): HighlightSty
 
   // ---- PDF ------------------------------------------------------------------
 
+  /** Zotero's `_rectsForThisPage`: the rectangles a position has on the page being drawn. */
+  function rectsOnPage(position: any, pageIndex: unknown): number[][] | null {
+    if (!position || typeof pageIndex !== 'number') return null;
+    if (position.pageIndex === pageIndex) return Array.isArray(position.rects) ? position.rects : null;
+    if (position.pageIndex + 1 === pageIndex) return Array.isArray(position.nextPageRects) ? position.nextPageRects : null;
+    return null;
+  }
+
+  /**
+   * The primary's rectangles grown to the height of the sentence line each
+   * sits on, so the primary fills the slot the sentence leaves for it
+   * exactly — the cut runs the full height of the line, and a word box is
+   * often a little shorter than that. `null` when there is no sentence
+   * under it, or when it already fits.
+   */
+  function fittedPrimaryPDF(reader: unknown, page: any, layer: any, primary: any): unknown {
+    const rects = rectsOnPage(primary, page?._pageIndex);
+    const lines = rectsOnPage(layer._readAloudSentenceHighlightedPosition, page?._pageIndex);
+    if (!rects?.length || !lines?.length) return null;
+    let changed = false;
+    const fitted = rects.map((rect) => {
+      const line = rects === lines ? null : lines.find((candidate) => sameLine(candidate, rect));
+      if (!line || (line[1] === rect[1] && line[3] === rect[3])) return [rect[0], rect[1], rect[2], rect[3]];
+      changed = true;
+      return [rect[0], line[1], rect[2], line[3]];
+    });
+    if (!changed) return null;
+    logChange('pdf-primary-fit', 'highlight: the primary is grown to the height of the sentence line it sits on');
+    const grown = { pageIndex: page._pageIndex, rects: fitted };
+    return deps.cloneIntoReader ? deps.cloneIntoReader(reader, grown) : grown;
+  }
+
+  /**
+   * The secondary position with the primary's rectangles cut out of it, so
+   * the two never tint the same pixels: the sentence leaves the word alone
+   * (both are translucent and Zotero's rectangles multiply, so an overlap is
+   * neither color), and a primary that covers the whole sentence — the
+   * stand-in word position of a voice without word timestamps — leaves
+   * nothing of it to draw twice. `null` means draw what Zotero passed;
+   * `'nothing'` means do not draw at all.
+   */
+  function withoutPrimaryPDF(reader: unknown, page: any, layer: any, secondary: any): unknown | 'nothing' | null {
+    const rects = rectsOnPage(secondary, page?._pageIndex);
+    const holes = rectsOnPage(layer._readAloudHighlightedPosition, page?._pageIndex);
+    if (!rects?.length || !holes?.length) return null;
+    const pieces = subtractRects(rects, holes);
+    if (pieces.length === rects.length && pieces.every((piece, i) => piece === rects[i])) return null;
+    logChange('pdf-secondary-trim', `highlight: the secondary highlight gives ${holes.length} rectangle(s) of the primary back, ${pieces.length} left of ${rects.length}`);
+    if (!pieces.length) return 'nothing';
+    // Copied, not passed on: an untouched line comes back as the reader's own
+    // array, and what goes to cloneInto is plain data of ours
+    const trimmed = { pageIndex: page._pageIndex, rects: pieces.map((r) => [r[0], r[1], r[2], r[3]]) };
+    return deps.cloneIntoReader ? deps.cloneIntoReader(reader, trimmed) : trimmed;
+  }
+
   function keepSentencePDF(reader: unknown, view: any, state: any): void {
     const style = deps.style();
-    let want: any = style.sentenceUnderWord && state?.popupOpen && pdfRawGranularity(view) === 'word' ? (state.activeSegment?.sourcePosition ?? null) : null;
+    const on = !!(style.sentenceUnderWord && state?.popupOpen && pdfRawGranularity(view) === 'word');
+    // Between segments the manager drops the active segment and the word
+    // timestamp, and Zotero skips its own update — the last word's primary
+    // stays on the page, now in the sentence color. Taking the sentence from
+    // around it would leave that one word alone there.
+    if (on && !state.activeSegment) return;
+    let want: any = on ? (state.activeSegment?.sourcePosition ?? null) : null;
     if (want && want.pageIndex === undefined) want = null;
     const slot = view._readAloudSentenceHighlightedPosition ?? null;
     const mine = oursPDF.get(view) ?? null;
@@ -248,23 +411,30 @@ export function createHighlightStyling(deps: HighlightStylingDeps): HighlightSty
     shadow(pageProto, '_pushHighlightedPosition', (original) =>
       function (this: any, items: unknown, position: unknown, color: unknown) {
         let replaced = color;
+        let drawnPosition = position;
         try {
-          const layer = waive(this)?._layer;
+          const page = waive(this);
+          const layer = page?._layer;
           const drawn = waive(position);
           if (drawn && layer) {
             if (drawn === layer._readAloudHighlightedPosition) {
               const style = deps.style();
               replaced = primaryHighlightColor(style, pdfGranularity(reader, layer)) ?? color;
               logChange('pdf-primary', `highlight: primary ${String(replaced)} (word ${style.wordColor}/${style.wordAlpha}, sentence ${style.sentenceColor}/${style.sentenceAlpha}, Zotero ${String(color)})`);
+              const fitted = fittedPrimaryPDF(reader, page, layer, drawn);
+              if (fitted) drawnPosition = fitted;
             } else if (drawn === layer._readAloudSentenceHighlightedPosition) {
               replaced = secondaryHighlightColor(deps.style()) ?? color;
               logChange('pdf-secondary', `highlight: secondary ${String(replaced)} (Zotero ${String(color)})`);
+              const trimmed = withoutPrimaryPDF(reader, page, layer, drawn);
+              if (trimmed === 'nothing') return undefined;
+              if (trimmed) drawnPosition = trimmed;
             }
           }
         } catch (e) {
           deps.error(e);
         }
-        return Reflect.apply(original, this, [items, position, replaced]);
+        return Reflect.apply(original, this, [items, drawnPosition, replaced]);
       },
     );
     shadow(viewProto, 'setReadAloudState', (original) =>
@@ -434,26 +604,143 @@ export function createHighlightStyling(deps: HighlightStylingDeps): HighlightSty
     hiddenPrimary.set(helper, true);
   }
 
+  /** The segment's selector, verified (and repaired) once per segment. */
+  function sentenceSelector(reader: unknown, helper: any, state: any): unknown {
+    const cached = oursDOM.get(helper);
+    if (cached && cached.segment === state.activeSegment) return cached.selector;
+    const resolved = helper._resolveSegmentSelector(state);
+    if (!resolved) return null;
+    const selector = resolvableSelector(reader, helper._view, resolved, state.activeSegment);
+    if (!selector) return null;
+    oursDOM.set(helper, { segment: state.activeSegment, selector });
+    return selector;
+  }
+
+  /**
+   * The two pieces the sentence is cut into around the word, put in
+   * spotlight slots of our own. Runs BEFORE the original setState, so
+   * Zotero's own render of the moved word draws them; a word update only
+   * rewrites what the slots hold, leaving the map — and the render count —
+   * alone. What the slots hold is not a selector but a piece of one, turned
+   * into a range by the `toDisplayedRange` below: no CFI of ours is ever
+   * generated, and the pieces are cut from the very ranges Zotero draws.
+   */
+  function preparePiecesDOM(reader: unknown, helper: any, state: any): void {
+    const view = helper?._view;
+    const spotlights: Map<unknown, unknown> | undefined = view?._spotlights;
+    if (!spotlights || !view[PIECES_READY]) return;
+    const style = deps.style();
+    const on = !!(style.sentenceUnderWord && state?.popupOpen && domRawGranularity(helper) === 'word');
+    // The gap between segments: Zotero keeps the last word's spotlight on
+    // screen, so the sentence stays around it (see keepSentencePDF)
+    if (on && !state.activeSegment) return;
+    const selector = on && state.activeSegment ? sentenceSelector(reader, helper, state) : null;
+    const pieces = piecesDOM.get(helper);
+    const shown = spotlights.has(PIECE_KEYS.head);
+    if (!selector) {
+      if (shown) {
+        spotlights.delete(PIECE_KEYS.head);
+        spotlights.delete(PIECE_KEYS.tail);
+        if (pieces) pieces.dirty = true;
+        logChange('dom-pieces', 'highlight: the sentence goes back to one piece');
+      }
+      return;
+    }
+    const kept = pieces ?? { head: { ztts: 'head' as const, sentence: null, word: null }, tail: { ztts: 'tail' as const, sentence: null, word: null }, dirty: false };
+    // No word to cut out — between two words, or one Zotero is painting
+    // transparent because it lands on the wrong text — draws the sentence
+    // whole, out of the head, rather than putting it in another slot: the
+    // two are drawn differently (Zotero grows a rectangle of its own to the
+    // line height) and swapping them would make the highlight jump.
+    const word = hiddenPrimary.get(helper) ? null : (state.activeWordSourcePosition ?? null);
+    for (const piece of [kept.head, kept.tail]) {
+      piece.sentence = selector;
+      piece.word = word;
+    }
+    piecesDOM.set(helper, kept);
+    if (!shown) {
+      spotlights.set(PIECE_KEYS.head, kept.head);
+      spotlights.set(PIECE_KEYS.tail, kept.tail);
+      kept.dirty = true;
+      logChange('dom-pieces', 'highlight: the sentence is drawn around the word');
+    }
+  }
+
+  /** One render when the pieces appeared or went, none while they only follow the word. */
+  function flushPiecesDOM(helper: any): void {
+    const pieces = piecesDOM.get(helper);
+    if (!pieces?.dirty) return;
+    pieces.dirty = false;
+    renderAnnotations(helper?._view);
+  }
+
+  /**
+   * One piece of the sentence, as a range: resolve the sentence and the word
+   * through Zotero's own resolver and cut the one at the other. Anything
+   * that leaves the word unusable — it does not resolve, or it resolves
+   * outside the sentence — falls back to the whole sentence in the head and
+   * nothing in the tail, which is what Zotero drew before this existed.
+   */
+  function pieceRange(view: any, original: AnyFn, piece: SentencePiece): unknown {
+    const resolve = (selector: unknown) => {
+      if (selector == null) return null;
+      try {
+        return Reflect.apply(original, view, [selector]) ?? null;
+      } catch (e) {
+        deps.error(e);
+        return null;
+      }
+    };
+    const sentence: any = resolve(piece.sentence);
+    const whole = piece.ztts === 'head' ? sentence : null;
+    if (!sentence || typeof sentence.cloneRange !== 'function' || typeof sentence.comparePoint !== 'function') return whole;
+    const word: any = resolve(piece.word);
+    if (!word) return whole;
+    const inside = (node: unknown, offset: unknown) => {
+      try {
+        return sentence.comparePoint(node, offset) === 0;
+      } catch {
+        return false;
+      }
+    };
+    if (!inside(word.startContainer, word.startOffset) || !inside(word.endContainer, word.endOffset)) return whole;
+    try {
+      const cut = sentence.cloneRange();
+      if (piece.ztts === 'head') cut.setEnd(word.startContainer, word.startOffset);
+      else cut.setStart(word.endContainer, word.endOffset);
+      return cut.collapsed ? null : cut;
+    } catch (e) {
+      deps.error(e);
+      return whole;
+    }
+  }
+
   function keepSentenceDOM(reader: unknown, helper: any, state: any): void {
     const view = helper?._view;
     const spotlights: Map<unknown, unknown> | undefined = view?._spotlights;
     if (!spotlights || typeof view.setSpotlight !== 'function') return;
     const style = deps.style();
     const cached = oursDOM.get(helper);
-    const want = !!(style.sentenceUnderWord && state?.popupOpen && state.activeSegment && domRawGranularity(helper) === 'word');
+    if (spotlights.has(PIECE_KEYS.head)) {
+      // The pieces already show the sentence around the word. Zotero's own
+      // flash of the same sentence would draw it a second time, over the
+      // word as well; its timer only removes the selector it set, so
+      // dropping it is safe. A flash of another unit is left to expire.
+      const flash = spotlights.get(SENTENCE_KEY);
+      if (flash && (flash === cached?.selector || state?.lastSkipGranularity === 'sentence')) view.setSpotlight(SENTENCE_KEY, null);
+      return;
+    }
+    const on = !!(style.sentenceUnderWord && state?.popupOpen && domRawGranularity(helper) === 'word');
+    // The gap between segments: leave what is drawn (see keepSentencePDF)
+    if (on && !state.activeSegment) return;
+    const want = on && !!state.activeSegment;
     if (!want) {
       if (cached && spotlights.get(SENTENCE_KEY) === cached.selector) view.setSpotlight(SENTENCE_KEY, null);
       oursDOM.delete(helper);
       return;
     }
-    let selector = cached && cached.segment === state.activeSegment ? cached.selector : null;
-    if (!selector) {
-      selector = helper._resolveSegmentSelector(state);
-      if (!selector) return;
-      selector = resolvableSelector(reader, view, selector, state.activeSegment);
-      if (!selector) return;
-      oursDOM.set(helper, { segment: state.activeSegment, selector });
-    }
+    const selector = sentenceSelector(reader, helper, state);
+    if (!selector) return;
     const current = spotlights.get(SENTENCE_KEY);
     if (current === selector) return;
     // Zotero's flash of this very sentence (after a sentence skip) is
@@ -476,9 +763,11 @@ export function createHighlightStyling(deps: HighlightStylingDeps): HighlightSty
             if (hiddenPrimary.get(helper)) return '#00000000';
             const color = primaryHighlightColor(deps.style(), domGranularity(reader, helper));
             if (color) return color;
-          } else if (key === SENTENCE_KEY) {
+          } else if (key === SENTENCE_KEY || key === PIECE_KEYS.head || key === PIECE_KEYS.tail) {
             const color = secondaryHighlightColor(deps.style());
             if (color) return color;
+            // Zotero knows no key of ours to fall back to; its sentence color is the one we stand in for
+            if (key !== SENTENCE_KEY) return Reflect.apply(original, this, [SENTENCE_KEY]);
           }
         } catch (e) {
           deps.error(e);
@@ -486,16 +775,41 @@ export function createHighlightStyling(deps: HighlightStylingDeps): HighlightSty
         return Reflect.apply(original, this, [key]);
       },
     );
+    const rangeProto = ownerOf(view, 'toDisplayedRange');
+    if (rangeProto) {
+      shadow(rangeProto, 'toDisplayedRange', (original) =>
+        function (this: any, selector: unknown) {
+          let piece: SentencePiece | null = null;
+          try {
+            const held = waive(selector) as SentencePiece | null;
+            if (held && (held.ztts === 'head' || held.ztts === 'tail')) piece = held;
+          } catch (e) {
+            deps.error(e);
+          }
+          if (!piece) return Reflect.apply(original, this, [selector]);
+          try {
+            return pieceRange(this, original, piece);
+          } catch (e) {
+            deps.error(e);
+            return null;
+          }
+        },
+      );
+      view[PIECES_READY] = true;
+      domViews.push(typeof WeakRef === 'function' ? new WeakRef(view) : { deref: () => view });
+    }
     shadow(helperProto, 'setState', (original) =>
       function (this: any, ...args: unknown[]) {
         try {
           repairWordPosition(reader, waive(this), waive(args[0]));
+          preparePiecesDOM(reader, waive(this), waive(args[0]));
         } catch (e) {
           deps.error(e);
         }
         const result = Reflect.apply(original, this, args);
         try {
           keepSentenceDOM(reader, waive(this), waive(args[0]));
+          flushPiecesDOM(waive(this));
         } catch (e) {
           deps.error(e);
         }
@@ -538,6 +852,31 @@ export function createHighlightStyling(deps: HighlightStylingDeps): HighlightSty
     const views = [internal?._primaryView, internal?._secondaryView, internal?._primarySDTView, internal?._secondarySDTView].filter(
       (v) => v && typeof v === 'object',
     );
+    /** PDF: what the sentence gives back to the primary on the primary's page. */
+    const trim = (view: any) => {
+      try {
+        const pageIndex = view._readAloudHighlightedPosition?.pageIndex;
+        const rects = rectsOnPage(view._readAloudSentenceHighlightedPosition, pageIndex);
+        const holes = rectsOnPage(view._readAloudHighlightedPosition, pageIndex);
+        if (!rects?.length || !holes?.length) return null;
+        return { page: pageIndex, rects: rects.length, holes: holes.length, pieces: subtractRects(rects, holes).length };
+      } catch (e) {
+        return String(e);
+      }
+    };
+    /** EPUB / snapshot: the text a slot of ours draws, which is the proof it resolves. */
+    const pieceText = (view: any, key: string) => {
+      try {
+        const selector = view._spotlights?.get(key);
+        if (!selector) return null;
+        const range = view.toDisplayedRange(selector);
+        if (range === null || range === undefined) return null;
+        const text = String(range);
+        return text.length > 40 ? `${text.slice(0, 40)}…` : text;
+      } catch (e) {
+        return String(e);
+      }
+    };
     const describe = (raw: any) => {
       try {
         const view = waive(raw);
@@ -564,6 +903,12 @@ export function createHighlightStyling(deps: HighlightStylingDeps): HighlightSty
               }
             : null,
           sentenceSlot: slot === null ? 'empty' : slot === mine ? 'ours' : 'other',
+          secondaryTrim: pdf ? trim(view) : undefined,
+          sentencePieces: pdf
+            ? undefined
+            : view._spotlights?.has(PIECE_KEYS.head)
+              ? { head: pieceText(view, PIECE_KEYS.head), tail: pieceText(view, PIECE_KEYS.tail) }
+              : false,
         };
       } catch (e) {
         return { error: String(e) };
@@ -573,6 +918,22 @@ export function createHighlightStyling(deps: HighlightStylingDeps): HighlightSty
   }
 
   function dispose(): void {
+    // Before the originals are back: Zotero's own _getSpotlightColor throws
+    // on a key it does not know, and ours would still be in the map
+    for (const ref of domViews) {
+      try {
+        const view = ref.deref();
+        const spotlights: Map<unknown, unknown> | undefined = view?._spotlights;
+        if (!spotlights) continue;
+        delete view[PIECES_READY];
+        const head = spotlights.delete(PIECE_KEYS.head);
+        const tail = spotlights.delete(PIECE_KEYS.tail);
+        if (head || tail) renderAnnotations(view);
+      } catch (e) {
+        deps.error(e);
+      }
+    }
+    domViews.length = 0;
     for (const { proto, name, original } of patches.reverse()) {
       try {
         proto[name] = original;

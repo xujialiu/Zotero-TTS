@@ -176,9 +176,6 @@ password.
 
 - Zotero's own Standard and Premium voices in the voice browser, so they can
   be sampled and marked as favorites like the plugin's.
-- Word highlighting with a translucent word color lets the sentence color
-  behind it show through, so the word is not the color that was picked. The
-  sentence highlight should leave the word's own span alone.
 - Remember where Read Aloud stopped when a document is closed, and a shortcut
   that resumes there the next time it is opened.
 - A speed in the voice browser, so a sample plays at the speed it will be

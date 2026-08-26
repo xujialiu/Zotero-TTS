@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_THEMES, LIGHT_THEME, type ResolvedReaderTheme } from '../../src/core/reader-theme';
 import { DEFAULTS, PREF_PREFIX, type PrefsBackend } from '../../src/core/settings';
@@ -30,7 +31,8 @@ const IDS: string[] = [
   ...HIGHLIGHT_IDS.inputs,
   HIGHLIGHT_IDS.preview,
   HIGHLIGHT_IDS.previewSentence,
-  HIGHLIGHT_IDS.previewWordSentence,
+  HIGHLIGHT_IDS.previewWordBefore,
+  HIGHLIGHT_IDS.previewWordAfter,
   HIGHLIGHT_IDS.previewWord,
   HIGHLIGHT_IDS.defaults,
 ];
@@ -52,7 +54,8 @@ function setup(initial: Record<string, unknown> = {}, theme: ResolvedReaderTheme
     el: (id: string) => els.get(id)!,
     box: () => els.get(HIGHLIGHT_IDS.preview)!.style,
     sentence: () => els.get(HIGHLIGHT_IDS.previewSentence)!.style,
-    wordSentence: () => els.get(HIGHLIGHT_IDS.previewWordSentence)!.style,
+    before: () => els.get(HIGHLIGHT_IDS.previewWordBefore)!.style,
+    after: () => els.get(HIGHLIGHT_IDS.previewWordAfter)!.style,
     word: () => els.get(HIGHLIGHT_IDS.previewWord)!.style,
   };
 }
@@ -99,12 +102,13 @@ describe('initHighlightRows', () => {
     [key('sentenceUnderWord')]: true,
   };
 
-  it('paints the sample from the prefs: the sentence, and the word with the sentence under it', () => {
+  it('paints the sample from the prefs: the sentence, and the word with the sentence around it', () => {
     const t = setup(cyanPink);
     expect(t.box()).toMatch(/background: #ffffff; color: #121212;$/);
     expect(t.sentence()).toBe(PINK_SENTENCE);
     expect(t.word()).toBe(CYAN_WORD);
-    expect(t.wordSentence()).toBe(PINK_SENTENCE);
+    expect(t.before()).toBe(PINK_SENTENCE);
+    expect(t.after()).toBe(PINK_SENTENCE);
   });
 
   it("paints the sample in the reader's theme, blended for a dark page when the theme is dark", () => {
@@ -112,7 +116,8 @@ describe('initHighlightRows', () => {
     expect(t.box()).toMatch(/background: #2E3440; color: #D8DEE9;$/);
     expect(t.word()).toBe(CYAN_WORD_DARK);
     expect(t.sentence()).toBe(PINK_SENTENCE_DARK);
-    expect(t.wordSentence()).toBe(PINK_SENTENCE_DARK);
+    expect(t.before()).toBe(PINK_SENTENCE_DARK);
+    expect(t.after()).toBe(PINK_SENTENCE_DARK);
   });
 
   it('re-reads the theme on every repaint', () => {
@@ -129,18 +134,20 @@ describe('initHighlightRows', () => {
     expect(t.word()).toBe(CYAN_WORD);
   });
 
-  it('shows no sentence under the word while the switch is off', () => {
+  it('shows no sentence around the word while the switch is off', () => {
     const t = setup({ ...cyanPink, [key('sentenceUnderWord')]: false });
     expect(t.word()).toBe(CYAN_WORD);
-    expect(t.wordSentence()).toBe('');
+    expect(t.before()).toBe('');
+    expect(t.after()).toBe('');
     expect(t.sentence()).toBe(PINK_SENTENCE);
   });
 
-  it('starts from the defaults when nothing is stored: a green word on a yellow sentence, the sentence kept under the word', () => {
+  it('starts from the defaults when nothing is stored: a green word on a yellow sentence, the sentence kept around the word', () => {
     const t = setup();
     expect(t.word()).toBe(DEFAULT_WORD);
     expect(t.sentence()).toBe(DEFAULT_SENTENCE);
-    expect(t.wordSentence()).toBe(DEFAULT_SENTENCE);
+    expect(t.before()).toBe(DEFAULT_SENTENCE);
+    expect(t.after()).toBe(DEFAULT_SENTENCE);
   });
 
   it('repaints when an input or the switch fires, after Zotero has written the pref', () => {
@@ -153,7 +160,8 @@ describe('initHighlightRows', () => {
     expect(t.sentence()).toBe('background-color: rgba(255, 128, 192, 0.4); mix-blend-mode: multiply;');
     t.prefs.set(key('sentenceUnderWord'), false);
     t.el('ztts-highlight-sentenceUnderWord').fire('command');
-    expect(t.wordSentence()).toBe('');
+    expect(t.before()).toBe('');
+    expect(t.after()).toBe('');
   });
 
   it('restores the defaults into the prefs, the switch included, and repaints', () => {
@@ -162,7 +170,8 @@ describe('initHighlightRows', () => {
     for (const [k, v] of Object.entries(DEFAULTS.highlight)) expect(t.prefs.store[key(k)], k).toBe(v);
     expect(t.word()).toBe(DEFAULT_WORD);
     expect(t.sentence()).toBe(DEFAULT_SENTENCE);
-    expect(t.wordSentence()).toBe(DEFAULT_SENTENCE);
+    expect(t.before()).toBe(DEFAULT_SENTENCE);
+    expect(t.after()).toBe(DEFAULT_SENTENCE);
   });
 
   it('leaves an invalid color unpainted and exposes refresh() for a restore from a backup', () => {
@@ -175,5 +184,12 @@ describe('initHighlightRows', () => {
 
   it('tolerates a pane that lacks the rows', () => {
     expect(() => initHighlightRows({ getElementById: () => null }, fakePrefs())).not.toThrow();
+  });
+
+  // An id that only the markup or only this module has leaves the preview
+  // silently unpainted; nothing else notices
+  it('finds every element it paints in the pane markup', () => {
+    const markup = readFileSync(new URL('../../addon/content/preferences.xhtml', import.meta.url), 'utf8');
+    for (const id of IDS) expect(markup, id).toContain(`id="${id}"`);
   });
 });

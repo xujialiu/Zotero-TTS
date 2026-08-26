@@ -16,8 +16,9 @@ import { highlightColor } from '../read-aloud/highlight-style';
  * dark theme drawn at 0.3 and added (`plus-lighter`). Here that is one
  * rgba background with the 0.4 or 0.3 folded in and the blend mode on the
  * span, which leaves the text as the reader's rectangle over it would.
- * The word sits inside the sentence, so its color blends onto the
- * sentence's, as in the reader.
+ * In word mode the sentence is drawn as the piece before and the piece
+ * after the word, never under it, so the word is the color that was
+ * picked — as the reader draws it (read-aloud/highlight-style.ts).
  */
 
 export const HIGHLIGHT_IDS = {
@@ -30,7 +31,8 @@ export const HIGHLIGHT_IDS = {
   ],
   preview: 'ztts-highlight-preview',
   previewSentence: 'ztts-highlight-preview-sentence',
-  previewWordSentence: 'ztts-highlight-preview-word-sentence',
+  previewWordBefore: 'ztts-highlight-preview-word-before',
+  previewWordAfter: 'ztts-highlight-preview-word-after',
   previewWord: 'ztts-highlight-preview-word',
   defaults: 'ztts-highlight-defaults',
 } as const;
@@ -82,7 +84,8 @@ export function initHighlightRows(doc: RowsDocument, prefs: PrefsBackend, deps: 
     paint(HIGHLIGHT_IDS.preview, previewBoxStyle(theme));
     const sentence = previewStyle(h.sentenceColor, h.sentenceAlpha, theme.scheme);
     paint(HIGHLIGHT_IDS.previewSentence, sentence);
-    paint(HIGHLIGHT_IDS.previewWordSentence, h.sentenceUnderWord ? sentence : '');
+    paint(HIGHLIGHT_IDS.previewWordBefore, h.sentenceUnderWord ? sentence : '');
+    paint(HIGHLIGHT_IDS.previewWordAfter, h.sentenceUnderWord ? sentence : '');
     paint(HIGHLIGHT_IDS.previewWord, previewStyle(h.wordColor, h.wordAlpha, theme.scheme));
   };
 
