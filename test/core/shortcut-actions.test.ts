@@ -14,7 +14,7 @@ describe('shortcut actions', () => {
   it('lists the speed actions first, then the navigation ones, then the position ones', () => {
     expect(SHORTCUT_ACTIONS).toEqual([...SPEED_ACTIONS, ...NAVIGATION_ACTIONS, ...POSITION_ACTIONS]);
     expect(NAVIGATION_ACTIONS).toEqual(['previousSentence', 'nextSentence', 'previousParagraph', 'nextParagraph']);
-    expect(POSITION_ACTIONS).toEqual(['startFromSelection', 'returnToSpoken']);
+    expect(POSITION_ACTIONS).toEqual(['startFromSelection', 'returnToSpoken', 'resumeLastPosition']);
   });
 
   it("maps each navigation action to a direction and a granularity Zotero's manager understands", () => {

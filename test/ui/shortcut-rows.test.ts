@@ -1,4 +1,8 @@
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it, vi } from 'vitest';
+import { SHORTCUT_ACTIONS } from '../../src/core/shortcut-actions';
 import { DEFAULTS, PREF_PREFIX, type PrefsBackend } from '../../src/core/settings';
 import { initShortcutRows } from '../../src/ui/shortcut-rows';
 
@@ -238,5 +242,21 @@ describe('initShortcutRows', () => {
   it('tolerates a pane that lacks the rows entirely', () => {
     const doc = { getElementById: () => null, addEventListener: vi.fn(), removeEventListener: vi.fn() };
     expect(() => initShortcutRows(doc, fakePrefs(), 'Meta')).not.toThrow();
+  });
+});
+
+// The pane finds its rows by id (initShortcutRows). An action without a row
+// is invisible and unbindable, and nothing else would catch it.
+describe('addon/content/preferences.xhtml', () => {
+  const xhtml = readFileSync(
+    join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'addon', 'content', 'preferences.xhtml'),
+    'utf8',
+  );
+
+  it('has a row and a Clear button for every shortcut action', () => {
+    for (const action of SHORTCUT_ACTIONS) {
+      expect(xhtml, action).toContain(`id="ztts-key-${action}"`);
+      expect(xhtml, action).toContain(`id="ztts-key-clear-${action}"`);
+    }
   });
 });

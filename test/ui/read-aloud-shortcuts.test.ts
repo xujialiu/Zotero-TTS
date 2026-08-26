@@ -66,6 +66,7 @@ const BINDINGS = {
   nextParagraph: 'Shift+ArrowRight',
   startFromSelection: 'Shift+Space',
   returnToSpoken: 'Shift+Enter',
+  resumeLastPosition: 'Shift+B',
 };
 const voicesPref = (prefs: { store: Record<string, unknown> }) => JSON.parse(prefs.store[READ_ALOUD_VOICES_PREF] as string);
 

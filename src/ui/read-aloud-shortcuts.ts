@@ -250,6 +250,8 @@ export function createReadAloudShortcuts(deps: ReadAloudShortcutsDeps): ReadAlou
     if (isNavigationAction(action) && !canSkip(managerOf(reader))) return false;
     if (action === 'startFromSelection' && !canStartFromSelection(reader)) return false;
     if (action === 'returnToSpoken' && !canReturnToSpoken(reader)) return false;
+    // Wired in the next commit; until then the key is not ours to take.
+    if (action === 'resumeLastPosition') return false;
     event.preventDefault();
     event.stopPropagation();
     // Holding the key down would restart the current segment on every auto-repeat
