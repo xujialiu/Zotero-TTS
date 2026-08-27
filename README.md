@@ -223,34 +223,60 @@ password.
 
 ## TODO
 
-The voice browser as the place to pick the default voice and default
-speed: the selected row is what Read Aloud starts with. Split into steps,
-in this order, each implemented, tested in Zotero and committed on its
-own, and deleted from this list when done. The mechanism and the Zotero
-internals behind every step are in [notes/NOTES.md](notes/NOTES.md),
-"Default voice and speed: the plan".
+One voice everywhere, the way the speed already is (1.7.2): the voice
+you pick anywhere — the popup of any tab, or a row of the voice browser —
+is what every open tab reads with at once, what Read Aloud starts with in
+every document, and what the settings show. The remembered choice is the
+single source of truth; the browser is its UI. Split into steps, in this
+order, each implemented, tested in Zotero and committed on its own, and
+deleted from this list when done. The mechanism and the Zotero internals
+behind every step are in [notes/NOTES.md](notes/NOTES.md), "Global voice:
+the plan"; steps 3 and 4 are independent of each other, step 5 builds on
+step 3.
 
-3. **Click a row to make it the default.** Writes the plugin's memory and
-   Zotero's own entry for the voice's language the way Zotero's
-   `_setReadAloudVoice` does; a second click clears it. A multilingual
-   voice applies to every document, a single-language voice to documents
-   in its language; Zotero's Standard and Premium voices work the same.
-   Test: pick Xiaoxiao (zh-CN) → a Chinese PDF starts with it, an English
-   one keeps Zotero's choice; pick Ava Multilingual → every PDF starts
-   with it; clear → Zotero's own choice is back.
-4. **Live sync of the default voice while the settings are open.** Picking
-   another voice in the popup moves the highlight without reopening the
-   pane, the way the slider already follows the speed (the pane observes
-   the memory pref; NOTES, "Global speed, live"). Test: pick another voice
-   in the popup → the highlight moves.
-5. **Only a favorite can be the default while *Offer only favorite
+3. **A voice picked in one tab reaches every other tab at once.** While
+   *Use one voice everywhere* is on (*Use the same voice for every
+   document*, renamed — every document and every open tab; the pref
+   keeps its name), a voice picked in the popup of one tab — or a *Voice
+   Mode* or language switch there, which Zotero persists as a pick —
+   becomes the voice of every other open tab: a playing tab goes on with
+   it from its current sentence, a paused one stays paused with it, a tab
+   whose popup is closed gets it when the popup opens. A multilingual
+   voice reaches every tab; a single-language voice the tabs whose
+   document is in its language, and the other tabs go back to Zotero's
+   own choice for their language at their next popup open — today a tab
+   once moved to "Multiple languages" stays there for good, which this
+   fixes. A tab that does not list the voice (a provider enabled since
+   its popup last opened; Zotero's voices while signed out) is skipped
+   and logged. Test: two tabs reading with Ava Multilingual → pick Ada
+   Multilingual in one → the other goes on with Ada from its sentence;
+   two Chinese PDFs → pick Xiaoxiao (zh-CN) in one → the other follows,
+   and an English PDF beside them keeps its voice; switch off → nothing
+   follows.
+4. **The settings follow a pick in the popup.** The highlighted row moves
+   to the new default and the columns open on it, the way the slider
+   already follows the speed (the pane observes the memory pref; NOTES,
+   "Global speed, live"). Test: with the settings open, pick another
+   voice in the popup → the highlight moves there.
+5. **Click a row to make it the default.** Writes the remembered choice
+   and Zotero's own entry for the voice's language the way Zotero's
+   `_setReadAloudVoice` does, and reaches the open tabs the way step 3
+   does; a second click clears it. A multilingual voice applies to every
+   document, a single-language voice to documents in its language;
+   Zotero's Standard and Premium voices work the same. Test: pick
+   Xiaoxiao (zh-CN) → a Chinese PDF starts with it and one that is
+   playing switches to it, an English one keeps Zotero's choice; pick
+   Ava Multilingual → every PDF starts with it; clear → Zotero's own
+   choice is back.
+6. **Only a favorite can be the default while *Offer only favorite
    voices* is on.** Other rows cannot be picked (grayed, with a tooltip
    saying why); unmarking the default clears it and the status line says
    so; switching the option on with a non-favorite default warns in the
    status line. Test: with the option on, a non-favorite row does not
    react; unmark the default's ♥ → the status line reports it cleared.
 
-Release 1.8.0 after step 3 (the default voice), 1.8.1 after step 5.
+Release 1.7.4 after steps 3 and 4 (the global voice), 1.8.0 after step 5
+(the default from the browser), 1.8.1 after step 6.
 
 ## Development
 

@@ -2235,3 +2235,114 @@ listing the pane gets (the plugin's catalog through `listCatalog`,
 Zotero's through `zoteroVoiceService`, each failing on its own), the tier
 and locale the browser opens on, and the status line it would paint — so
 a wrong highlight can be told from a wrong memory.
+
+## Global voice: the plan (written 2026-08-27, after 1.7.3)
+
+The README TODO was rewritten around the user's next wish, the twin of
+the global speed: a voice picked anywhere — the popup of any tab, a row
+of the browser — reaches every other open tab and the settings at once.
+The remaining steps were reordered for it: 3 the live spread between
+tabs, 4 the pane's highlight following, 5 the row click (the earlier
+step 3, now reaching the open tabs through step 3's routine), 6
+favorites (the earlier step 5). The memory stays the single source of
+truth; "Default voice and speed: the plan" above still holds for the
+pref shapes and the row ↔ memory rule. Verified in the installed
+10.0.1-beta.3 bundle, so each step can be picked up cold:
+
+- `selectVoice(id)` (~82060) is `_voiceID = id`, `_applyVoice()`,
+  `_persistCurrentVoice()`. `_applyVoice` (~82220) wants the voice in
+  `voicesForLanguage` — the **tier-filtered** pool (`get voices` ~81995
+  filters by `_selectedTier`) for the manager's language and region —
+  and otherwise sets `_voice = null` and **destroys the controller**
+  (playback stops) while `_voiceID` keeps the id and is persisted.
+  `_persistCurrentVoice` (~82100) → `onSetVoice` → the internal reader's
+  `_setReadAloudVoice` (~83997) → the xpcom pref write, and on an
+  **inactive** manager `setLanguage` + `_syncPersistedVoicesToManager` +
+  `activate()` — audio with the popup closed, the speed-shortcut incident
+  of 2026-08-22. So `selectVoice` is never the tool for another tab: a
+  wrong tier or language kills its playback, and an idle one starts.
+- Zotero's own idiom for "make the manager reflect the pref" is
+  `setLanguage(lang)` then `_syncPersistedVoicesToManager()` (~83883):
+  what `_setReadAloudVoice` does for an inactive manager, and what every
+  popup open does (`toggleReadAloudPopup` ~83906 → `_prepareReadAloud`
+  ~83983, twice — at once and after the SDT language). Inside it,
+  `applyPersistedVoices` (~82077) clears `_voiceID` and `_selectedTier`,
+  `_resolveVoice` (~82119) takes the target tier from the entry's last
+  `tierVoices` key and that tier's voice, `_applyVoice` sets the tier
+  and — active, same granularity — `_createController` (~82366), which
+  starts from the **current segment** (`backwardStopIndex =
+  indexOf(_activeSegment)`) and copies `_speed` and `_paused`: a playing
+  tab goes on with the new voice from its sentence, a paused one stays
+  paused with it. A granularity change (word ↔ sentence voice) requests
+  the segments again instead. No `_pendingSetVoice`, so nothing is
+  persisted. Because `_voiceID` is cleared first, a resync **always**
+  recreates the controller, onto the same voice too — the sentence
+  restarts — so a manager already on the voice is skipped (the
+  originating tab). `_region` is cleared by `setLanguage(lang)` without
+  a region, as Zotero's own path does; with a region left over from the
+  popup's dropdown (zh-TW) the `regionChanged` guard in
+  `_findFallbackVoice` (~82173) would skip the entry's voice (zh-CN).
+- The spread, then: for every other open reader whose manager is
+  `active` (paused counts) and whose `allVoices` lists the voice, run
+  the wrapper's own sequence — `apply()`, which writes the mul entry and
+  moves the language for a global voice, then the original
+  `_syncPersistedVoicesToManager` — as memory-sync's `resync(reader)`.
+  An idle reader needs nothing: its next popup open runs the same. A
+  reader that does not list the voice (`_allVoices` is loaded per popup
+  open, and Zotero's own voices are in it only while signed in) is
+  skipped and logged — a resync there would resolve a fallback and move
+  the tab to some other voice.
+- **Stranded on mul.** `deactivate()` (~82441) resets everything but
+  `_lang`, and the manager lives as long as the reader (~82635). So a
+  manager memory-sync moved to `mul` stays on `mul` across popup opens
+  for the tab's lifetime: a Chinese PDF that read with Ava keeps `mul`
+  and Zotero's `mul` entry after the user picks Xiaoxiao, and only a
+  newly opened tab gets Xiaoxiao. Found while planning; fixed by step 3.
+  `apply()` records the language it moves a manager *from* (a WeakMap
+  per internal reader, overwritten on every move, deleted when the
+  manager is seen off `mul`), and when the memory's voice is not global
+  — a single-language voice, or cleared — moves a manager it stranded
+  back to that language before Zotero's restore, so the tab gets the
+  entry a fresh tab would. A manager the user put on "Multiple
+  languages" by hand has no record and is left there. `planSync` takes
+  that document language in place of the manager's; the switch is still
+  diffed against the manager's actual language.
+- Scope of the live spread: a global voice (mul, or multilingual by id)
+  reaches every active reader; a single-language voice the active
+  readers whose document language is its `lang` (stranded ones moved
+  back first); the others are left playing and go back to Zotero's
+  choice at their next popup open — changing an English tab's voice
+  mid-sentence because a Chinese voice was picked elsewhere would be
+  jarring. Cost: two controller recreations (a fallback, then the voice)
+  where the language, region or tier changes — the same two Zotero's own
+  popup makes for a language switch followed by a pick — one otherwise;
+  the fallback recreation may cost one segment's synthesis.
+- Learning: `noteVoicesChange` already reads a moved `voice` with an
+  unmoved `speed` as a pick. Zotero persists one on `selectVoice`, on
+  `selectTier` (~82066, `_pendingSetVoice`) and on the popup's language
+  switch (`handleLangChange` ~38590, `persist: true`) — each is spread,
+  as Zotero itself treats each as a choice. The observer fires
+  synchronously inside tab 1's `_persistCurrentVoice`; the spread's
+  resyncs re-enter it under `applying`, with the snapshot moved on
+  first, exactly as the speed spread does. Gated by `sameVoice()`, whose
+  checkbox is relabeled "Use one voice everywhere — every document and
+  every open tab (off: Zotero keeps one per language)"; the pref keeps
+  its name for the backups.
+- Step 4 (pane): `onMemoryChange` re-reads the memory's voice; when the
+  default rows change, the columns open on the first row as the first
+  listing does and the voices repaint; the pane's own write (step 5)
+  comes back with the same rows and is a no-op, like the slider's.
+- Step 5 (row click): the memory first, then Zotero's entry for the
+  voice's language as `_setReadAloudVoice` builds it (region, voice,
+  speed kept, tier pushed last) — under `mul` for a multilingual row,
+  else under `memoryLangForLocale(locale)` — then step 3's spread. A
+  second click clears the memory only. The pitfall from the earlier plan
+  stands: the entry's speed untouched, or the observer reads the write
+  as the slider.
+- Diagnostics: `readAloudMemory()` gains per reader the recorded
+  document language and whether `allVoices` lists the memory's voice;
+  the spread logs which readers it resynced and which it skipped, and
+  why.
+
+Releases: 1.7.4 after steps 3 and 4, 1.8.0 after step 5, 1.8.1 after
+step 6.
