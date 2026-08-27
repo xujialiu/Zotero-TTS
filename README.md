@@ -158,7 +158,8 @@ The voice you last picked in the popup — what Read Aloud starts with, see
 *Reading* below — is shown as the **default**: the browser opens on its
 row, highlighted, and the status line names it with the speed
 (`Default: Azure-晓晓 · Chinese (China) · 1.8×`; with *Use one speed
-everywhere* off, `speed per language`).
+everywhere* off, `speed per language`). Pick another voice in any tab's
+popup while the settings are open and the highlight moves there.
 
 ### Reading
 
@@ -235,14 +236,9 @@ single source of truth; the browser is its UI. Split into steps, in this
 order, each implemented, tested in Zotero and committed on its own, and
 deleted from this list when done. The mechanism and the Zotero internals
 behind every step are in [notes/NOTES.md](notes/NOTES.md), "Global voice:
-the plan"; step 3 (a voice picked in one tab reaches every other tab at
-once) is done, and steps 4 and 5 are independent of each other.
+the plan"; steps 3 (a voice picked in one tab reaches every other tab at
+once) and 4 (the settings follow a pick in the popup) are done.
 
-4. **The settings follow a pick in the popup.** The highlighted row moves
-   to the new default and the columns open on it, the way the slider
-   already follows the speed (the pane observes the memory pref; NOTES,
-   "Global speed, live"). Test: with the settings open, pick another
-   voice in the popup → the highlight moves there.
 5. **Click a row to make it the default.** Writes the remembered choice
    and Zotero's own entry for the voice's language the way Zotero's
    `_setReadAloudVoice` does, and reaches the open tabs the way step 3

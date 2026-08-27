@@ -5,7 +5,7 @@ import { PREF_PREFIX, type PrefsBackend } from '../core/settings';
 import type { CatalogEntry } from '../read-aloud/catalog';
 import { setDefaultSpeed, type SpeedManagerLike } from '../read-aloud/default-speed';
 import { parseFavoriteVoices, serializeFavoriteVoices, toggleFavoriteVoice } from '../read-aloud/favorites';
-import { isMultilingualVoiceId, memoryLangForLocale, readMemory, type VoiceChoice } from '../read-aloud/read-aloud-memory';
+import { isMultilingualVoiceId, memoryLangForLocale, readMemory, sameChoice, type VoiceChoice } from '../read-aloud/read-aloud-memory';
 import { compareVoiceLabels, encodeVoiceId, pluginVoiceLabel } from '../read-aloud/voice-catalog';
 import type { ZoteroVoice } from '../read-aloud/zotero-voices';
 
@@ -42,7 +42,9 @@ import type { ZoteroVoice } from '../read-aloud/zotero-voices';
  * (read-aloud/read-aloud-memory.ts), which is the popup's last pick — is
  * shown: the browser opens on its tier and language, its row is painted
  * like a selected column entry, and the status line names it with the
- * speed. The memory is the source of truth; the browser is its view.
+ * speed; a pick in any tab's popup while the pane is open moves the
+ * highlight there (the pane observes the memory pref). The memory is the
+ * source of truth; the browser is its view.
  */
 
 export const VOICE_BROWSER_IDS = {
@@ -488,18 +490,42 @@ export function initVoiceBrowserRows(
   }
 
   /**
-   * The memory moved elsewhere — the popup's slider, a shortcut: the slider
-   * and the status line follow, and so does a sample that is playing. Only
-   * the speed half: the highlight following a voice picked in the popup is
-   * README step 4.
+   * The memory moved elsewhere — the popup's slider or a shortcut for the
+   * speed, a voice picked in some tab's popup (memory-sync learns it) for
+   * the voice: the slider, the highlighted row and the status line follow,
+   * and so does a sample that is playing. The pane's own writes come back
+   * through here and find everything there already.
    */
   function onMemoryChange(): void {
-    const next = startingSpeed(deps.prefs);
-    if (next === speed) return;
-    speed = next;
-    paintSpeed();
+    const nextSpeed = startingSpeed(deps.prefs);
+    if (nextSpeed !== speed) {
+      speed = nextSpeed;
+      paintSpeed();
+      deps.player.setRate(speed);
+    }
+    followChoice();
     paintStatus();
-    deps.player.setRate(speed);
+  }
+
+  /**
+   * The remembered voice as it is now: when it changed, the highlight moves
+   * to it and the columns open on its row, the way the first listing does —
+   * the pane is the memory's view. Nothing listed is it (cleared, or not
+   * listed now): the highlight goes and the columns stay where they are.
+   */
+  function followChoice(): void {
+    const next = readMemory(deps.prefs).voice;
+    if (sameChoice(next, choice)) return;
+    choice = next;
+    defaults = defaultVoiceRows(listed ?? [], choice);
+    const home = defaults[0];
+    if (home) {
+      selectedTier = home.tier;
+      selectedLocale = home.locale;
+      render();
+    } else {
+      renderVoices();
+    }
   }
 
   function render(): void {

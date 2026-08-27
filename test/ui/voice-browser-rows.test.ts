@@ -816,6 +816,86 @@ describe('the default voice', () => {
   });
 });
 
+describe('the highlight follows the memory', () => {
+  const remembered = (id: string, lang: string, speed: number | null = null) => ({
+    [READ_ALOUD_MEMORY_PREF]: JSON.stringify({ speed, voice: { id, lang } }),
+  });
+  const xiaoxiao = encodeVoiceId('azure', 'zh-CN-XiaoxiaoNeural');
+  const alloy = encodeVoiceId('openai', 'alloy');
+  const picked = (t: ReturnType<typeof setup>, voice: { id: string; lang: string } | null, speed: number | null = null) =>
+    t.prefs.set(READ_ALOUD_MEMORY_PREF, JSON.stringify({ speed, voice }));
+
+  // The popup of some tab picked another voice and memory-sync learned it.
+  // The pane, open beside it, moves the highlight there and opens the
+  // columns on it, the way the first listing opens on the default.
+  it('moves the highlight and the columns to a voice picked elsewhere', async () => {
+    const t = setup({ prefs: remembered(xiaoxiao, 'zh', 1.8) });
+    await t.rows.load();
+    picked(t, { id: alloy, lang: 'mul' }, 1.8);
+    expect(t.selectedTier()).toBe('Local (5)');
+    expect(t.selectedLocale()).toBe('Multiple languages (2)');
+    expect(t.highlighted()).toEqual(['OpenAI-alloy']);
+    expect(t.status()).toBe('Default: OpenAI-alloy · Multiple languages · 1.8×');
+  });
+
+  it('follows to one of Zotero’s own voices, in its tier', async () => {
+    const t = setup({ prefs: remembered(xiaoxiao, 'zh') });
+    await t.rows.load();
+    picked(t, { id: 'zotero-standard-ben', lang: 'de' });
+    expect(t.selectedTier()).toBe('Standard (3)');
+    expect(t.selectedLocale()).toBe('German (Germany) (1)');
+    expect(t.highlighted()).toEqual(['Ben']);
+  });
+
+  it('drops the highlight and stays put when the default is cleared', async () => {
+    const t = setup({ prefs: remembered(xiaoxiao, 'zh') });
+    await t.rows.load();
+    picked(t, null);
+    expect(t.selectedLocale()).toBe('Chinese (China) (1)');
+    expect(t.highlighted()).toEqual([]);
+    expect(t.status()).toBe('Default: Zotero’s own choice · 1.0×');
+  });
+
+  it('stays put when the new default is not listed, and says so', async () => {
+    const t = setup({ prefs: remembered(xiaoxiao, 'zh') });
+    await t.rows.load();
+    picked(t, { id: 'azure::fr-FR-DeniseNeural', lang: 'fr' });
+    expect(t.selectedLocale()).toBe('Chinese (China) (1)');
+    expect(t.highlighted()).toEqual([]);
+    expect(t.status()).toBe('Default: azure::fr-FR-DeniseNeural (not listed now) · 1.0×');
+  });
+
+  it('leaves the columns where they are when only the speed moved', async () => {
+    const t = setup({ prefs: remembered(xiaoxiao, 'zh', 1.8) });
+    await t.rows.load();
+    await t.pickTier('Standard');
+    picked(t, { id: xiaoxiao, lang: 'zh' }, 2.1);
+    expect(t.selectedTier()).toBe('Standard (3)');
+    expect(t.speedLabel()).toBe('2.1×');
+    expect(t.status()).toBe('Default: Azure-晓晓 · Chinese (China) · 2.1×');
+  });
+
+  it('keeps a playing sample’s stop glyph across the move', async () => {
+    const t = setup({ prefs: remembered(xiaoxiao, 'zh') });
+    await t.rows.load();
+    await t.play(0).fire('click');
+    // Starting a sample stops whatever played before; the move must not stop this one
+    const stops = t.player.stop.mock.calls.length;
+    picked(t, { id: alloy, lang: 'mul' });
+    expect(t.player.stop.mock.calls.length).toBe(stops);
+    await t.pickLocale('Chinese');
+    expect(t.play(0).textContent).toBe(GLYPHS.stop);
+  });
+
+  it('takes a change made before the voices are listed into account once they are', async () => {
+    const t = setup({ prefs: remembered(xiaoxiao, 'zh') });
+    picked(t, { id: alloy, lang: 'mul' });
+    await t.rows.load();
+    expect(t.selectedLocale()).toBe('Multiple languages (2)');
+    expect(t.highlighted()).toEqual(['OpenAI-alloy']);
+  });
+});
+
 describe('blobToDataURL', () => {
   it('encodes the bytes and the type', async () => {
     const url = await blobToDataURL(new Blob(['hi'], { type: 'audio/wav' }));

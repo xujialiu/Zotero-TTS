@@ -2399,3 +2399,21 @@ Multilingual → tab 2 goes on with Ada from its current sentence, and
 both readers. Two Chinese PDFs → pick Xiaoxiao in one → the other
 follows (`lang` zh on both); an English PDF beside them keeps its voice
 and shows `docLang` en.
+
+## The settings follow a pick in the popup — step 4 (2026-08-27)
+
+The voice half of the pane's memory observer (step 1's `onMemoryChange`,
+which so far moved only the slider): `followChoice` re-reads the memory's
+voice, and when it changed, recomputes the default rows, opens the columns
+on the first one — the first listing's rule, since the pane is the
+memory's view and the user just made a choice elsewhere — and repaints;
+with no listed row (cleared, or not listed now) the highlight goes and
+the columns stay where the user browsed to. A memory change that moved
+only the speed leaves the columns alone. A memory that changed before the
+listing arrived is taken into account by `load()`, which reads the same
+`choice`. A playing sample survives the re-render: the glyph is painted
+from `playing` on every render. The pane's own write (step 5's row click)
+comes back through the same observer with the same rows and is a no-op.
+Verification is by eye: with the pane open, pick another voice in a
+tab's popup → the highlight and the columns move to it and the status
+line names it; `diagnostics.defaultVoice()` shows the same rows.
