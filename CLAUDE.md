@@ -184,7 +184,10 @@ assets/             README media (the word-highlight GIF, popup and settings scr
   registration order** — a reader opened after the plugin started hears a
   write *after* the plugin does, so inside our observer its
   `_state.readAloudVoices` is still the old value (memory-sync refreshes
-  it before resyncing a reader).
+  it before resyncing a reader). A `set` with an **unchanged value notifies
+  nobody**: a popup pick that re-persists what the entry already holds (the
+  only voice under a language) is invisible to a pref observer — memory-sync
+  hooks the manager's `selectVoice`/`selectTier`/`setLanguage` for those.
 - **`FilePicker`** (`chrome://zotero/content/modules/filePicker.mjs`): the
   chosen path is `fp.file` (a string); there is no `fp.path`.
 - **Read Aloud**: `reader._internalReader._readAloudManager` — `active` means

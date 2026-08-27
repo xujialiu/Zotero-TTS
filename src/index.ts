@@ -599,6 +599,7 @@ function startReadAloudMemory(): void {
     // throws there and takes the Read Aloud button with it); export it into
     // the iframe's compartment, as Zotero does with its own interface.
     exportFunction: (fn, target) => Components.utils.exportFunction(fn, target),
+    waiveXrays: (value) => ((value && typeof value === 'object') || typeof value === 'function' ? Components.utils.waiveXrays(value) : value),
     // Zotero's own per-reader observer (xpcom/reader.js
     // _handleReadAloudVoicesPrefChange) copies the pref into the reader's
     // state; observers run in registration order, so a reader opened after

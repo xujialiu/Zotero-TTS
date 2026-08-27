@@ -13,6 +13,7 @@ import {
   type ReadAloudMemory,
   type VoiceChoice,
 } from './read-aloud-memory';
+import { ownerOf } from './system-voices';
 
 /**
  * Wires read-aloud-memory.ts to Zotero. The memory lives in its pref
@@ -49,6 +50,14 @@ import {
  * and a voice that is not global (or none) sends the manager back before
  * Zotero's restore, which then finds the entry a fresh tab would.
  *
+ * The pref observer sees a pick only when Zotero's entry changed, and
+ * Zotero.Prefs.set notifies nobody of an unchanged value: the popup
+ * switching to a language with one voice re-persists the entry as it is.
+ * So the popup's three picks — the manager's selectVoice, selectTier and
+ * setLanguage with persist — are shadowed on the manager's prototype too
+ * (each reader tab's bundle has its own class), and the voice the manager
+ * settled on is learned there when the memory does not hold it yet.
+ *
  * The internal reader exists once the iframe has rendered, so readers are
  * attached from the renderToolbar event and, as the safety net, from the
  * plugin's getVoices — which Zotero calls synchronously right before the
@@ -74,6 +83,8 @@ export interface ReadAloudMemoryDeps {
    * run in one compartment.
    */
   exportFunction?(fn: SyncMethod, target: object): SyncMethod;
+  /** Components.utils.waiveXrays for what the reader passes into an exported hook (`this`, the options object). Optional for tests. */
+  waiveXrays?(value: unknown): unknown;
   /**
    * Copies Zotero's pref into the reader's own state
    * (`_state.readAloudVoices`), which Zotero's restore reads — what
@@ -248,6 +259,60 @@ export function createReadAloudMemorySync(deps: ReadAloudMemoryDeps): ReadAloudM
   }
 
   const originals = new WeakMap<object, SyncMethod>();
+  const waive = (value: unknown): any => (deps.waiveXrays ? deps.waiveXrays(value) : value);
+
+  /**
+   * The voice a manager settled on after one of the popup's picks, learned
+   * when the memory does not hold it yet, and spread. Whenever the pick
+   * changed Zotero's entry, the observer above learned it inside the
+   * persist and this finds the memory there already; this is for the pick
+   * that changed nothing there. Under `applying` — our own resyncs move
+   * managers through the same methods — nothing is a pick.
+   */
+  function notePick(manager: any): void {
+    if (applying) return;
+    const id = manager?.selectedVoiceID;
+    const lang = managerLangOf(manager);
+    if (typeof id !== 'string' || !id || !lang) return;
+    const current = memory();
+    const choice = { id, lang };
+    if (sameChoice(choice, current.voice)) return;
+    const learned = { ...current, voice: choice };
+    writeMemory(deps.prefs, learned);
+    deps.debug?.(`read-aloud memory (a pick the pref did not show): ${describeMemory(learned)}`);
+    spreadVoice(choice);
+  }
+
+  const PICKS = ['selectVoice', 'selectTier', 'setLanguage'] as const;
+  const pickPatches: Array<{ proto: any; name: string; original: SyncMethod }> = [];
+
+  /**
+   * The popup's three picks, shadowed where Zotero defined them — the
+   * manager's prototype, one per reader tab bundle (system-voices.ts does
+   * the same to `_resolveVoice`). `setLanguage` counts only with
+   * `persist`: Zotero's own calls and this sync's pass none. `this` and the
+   * options object arrive behind Xray wrappers and are waived.
+   */
+  function attachPicks(manager: any): void {
+    const proto = manager ? ownerOf(manager, 'selectVoice') : null;
+    if (!proto || pickPatches.some((p) => p.proto === proto)) return;
+    for (const name of PICKS) {
+      const original = proto[name] as SyncMethod;
+      if (typeof original !== 'function') continue;
+      const wrapper: SyncMethod = function (this: any, ...args: unknown[]) {
+        const result = Reflect.apply(original, this, args);
+        try {
+          const persist = name !== 'setLanguage' || !!waive(args[1])?.persist;
+          if (persist) notePick(waive(this));
+        } catch (e) {
+          deps.error(e);
+        }
+        return result;
+      };
+      proto[name] = deps.exportFunction ? deps.exportFunction(wrapper, proto) : wrapper;
+      pickPatches.push({ proto, name, original });
+    }
+  }
 
   /**
    * The wrapper's own sequence, run from our side: the reader's copy of the
@@ -318,6 +383,11 @@ export function createReadAloudMemorySync(deps: ReadAloudMemoryDeps): ReadAloudM
   function attach(reader: any): boolean {
     const internal = reader?._internalReader;
     if (!internal || typeof internal._syncPersistedVoicesToManager !== 'function') return false;
+    try {
+      attachPicks(internal._readAloudManager);
+    } catch (e) {
+      deps.error(e);
+    }
     if (originals.has(internal)) return true;
     const original = internal._syncPersistedVoicesToManager as SyncMethod;
     // `internal` rather than `this`: what the reader's compartment passes as
@@ -342,6 +412,14 @@ export function createReadAloudMemorySync(deps: ReadAloudMemoryDeps): ReadAloudM
 
   function dispose(): void {
     deps.unregisterObserver(token);
+    for (const { proto, name, original } of pickPatches.reverse()) {
+      try {
+        proto[name] = original;
+      } catch (e) {
+        deps.error(e);
+      }
+    }
+    pickPatches.length = 0;
     for (const reader of deps.readers()) {
       try {
         const internal = (reader as any)?._internalReader;

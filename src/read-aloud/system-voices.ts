@@ -55,7 +55,7 @@ export interface SystemVoiceHiding {
 }
 
 /** The prototype in `obj`'s chain that owns the method, so the patch lands where Zotero defined it. */
-function ownerOf(obj: unknown, name: string): any {
+export function ownerOf(obj: unknown, name: string): any {
   let proto = obj && typeof obj === 'object' ? Object.getPrototypeOf(obj) : null;
   for (let depth = 0; depth < 8 && proto && proto !== Object.prototype; depth++) {
     if (Object.prototype.hasOwnProperty.call(proto, name) && typeof proto[name] === 'function') return proto;

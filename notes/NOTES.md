@@ -2588,3 +2588,39 @@ document whose background we control, so no ring.
 The message lost its explanation on request ("the user does not need the
 implementation detail"): it names the tabs and says "Close those tabs,
 then try again." — the why stays in the README, in parentheses.
+
+### Incident: one voice under Multiple languages, and nothing followed (2026-08-27)
+
+Step-by-step verification of the branch, round 1: with "Offer only
+favorite voices" on and Ada the only favorite under Multiple languages,
+switching tab 1's language dropdown to "Multiple languages" left the
+memory where it was and tab 2 on its old voice; with two multilingual
+favorites everything followed. The user isolated the rule; the cause is
+in Zotero's pref layer: the dropdown switch runs `setLanguage('mul',
+{ persist: true })`, `_resolveVoice` finds the one voice, and
+`_persistCurrentVoice` writes the `mul` entry — which already held Ada
+from an earlier session, so `Zotero.Prefs.set` sees an unchanged value
+and **notifies no observer at all** (our debug log had not one line for
+the whole gesture). Picking Ada in the voice dropdown afterwards is the
+same write again. The pref observer, the only learner until now, is
+blind to a pick that changes nothing in the pref; it also explains the
+earlier round's stray Steffan — the memory stayed on the last pick that
+had changed the pref.
+
+Fix (memory-sync `attachPicks`, from `attach`): the popup's three picks
+are shadowed on the manager's prototype the way system-voices.ts shadows
+`_resolveVoice` (`ownerOf` is exported from there now; one prototype per
+reader tab bundle; `exportFunction`, `Reflect.apply`, `this` and the
+options object waived) — `selectVoice`, `selectTier`, and `setLanguage`
+only with `persist` (Zotero's own calls and this sync's `apply()` pass
+none). After the original ran, `notePick` reads the manager's
+`selectedVoiceID` and `lang` and, when the memory does not hold that
+choice, writes it and spreads — the debug line reads `read-aloud memory
+(a pick the pref did not show): …`. Whenever the pick did change the
+pref, the observer learned it inside the persist and the hook finds the
+memory there already: one spread, never two. Under `applying` nothing is
+a pick (our resyncs move managers through `setLanguage` without persist
+anyway). Disposed with the rest. The test fake's manager now carries its
+methods on a prototype, models Zotero's resolve + persist for the three
+picks, and its `zoteroWrites` skips an unchanged value like Gecko does —
+so the incident reproduces in a test.
