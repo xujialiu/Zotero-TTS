@@ -180,7 +180,11 @@ assets/             README media (the word-highlight GIF, popup and settings scr
   `typeof value`, and a fraction then throws. Undeclared prefs read as
   `undefined`.
   `Zotero.Prefs.registerObserver(name, fn)` takes names relative to
-  `extensions.zotero.`; observers fire synchronously inside `set`.
+  `extensions.zotero.`; observers fire synchronously inside `set`, **in
+  registration order** — a reader opened after the plugin started hears a
+  write *after* the plugin does, so inside our observer its
+  `_state.readAloudVoices` is still the old value (memory-sync refreshes
+  it before resyncing a reader).
 - **`FilePicker`** (`chrome://zotero/content/modules/filePicker.mjs`): the
   chosen path is `fp.file` (a string); there is no `fp.path`.
 - **Read Aloud**: `reader._internalReader._readAloudManager` — `active` means

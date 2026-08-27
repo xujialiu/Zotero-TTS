@@ -599,6 +599,22 @@ function startReadAloudMemory(): void {
     // throws there and takes the Read Aloud button with it); export it into
     // the iframe's compartment, as Zotero does with its own interface.
     exportFunction: (fn, target) => Components.utils.exportFunction(fn, target),
+    // Zotero's own per-reader observer (xpcom/reader.js
+    // _handleReadAloudVoicesPrefChange) copies the pref into the reader's
+    // state; observers run in registration order, so a reader opened after
+    // startup hears a write after this sync does. Run its handler first;
+    // failing that, do what it does.
+    refreshVoices: (reader: any) => {
+      if (typeof reader?._handleReadAloudVoicesPrefChange === 'function') {
+        reader._handleReadAloudVoicesPrefChange();
+        return;
+      }
+      const internal = reader?._internalReader;
+      const win = reader?._iframeWindow;
+      if (internal && typeof internal.setReadAloudVoices === 'function' && win) {
+        internal.setReadAloudVoices(Components.utils.cloneInto(readReadAloudVoices(prefs), win));
+      }
+    },
     error: (e) => Zotero.logError(e),
     debug: (message) => Zotero.debug('[zotero-tts] ' + message),
   });

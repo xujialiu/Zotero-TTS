@@ -42,7 +42,19 @@ function fakeZotero(initialVoices: VoicesMap | null = voices, memory?: ReadAloud
   });
   const error = vi.fn<(e: unknown) => void>();
   const debug = vi.fn<(message: string) => void>();
-  const deps = { prefs, sameVoice, globalSpeed, registerObserver, unregisterObserver, readers: () => readers, error, debug } satisfies ReadAloudMemoryDeps;
+  // What Zotero's per-reader pref observer does: copy the pref into the reader's state
+  const refreshVoices = vi.fn<(reader: unknown) => void>((reader: any) => reader?._handleReadAloudVoicesPrefChange?.());
+  const deps = {
+    prefs,
+    sameVoice,
+    globalSpeed,
+    registerObserver,
+    unregisterObserver,
+    readers: () => readers,
+    error,
+    debug,
+    refreshVoices,
+  } satisfies ReadAloudMemoryDeps;
   return {
     store,
     deps,
@@ -58,13 +70,20 @@ function fakeZotero(initialVoices: VoicesMap | null = voices, memory?: ReadAloud
   };
 }
 
-/** The internal reader and its manager, logging the order in which things happen. */
+/**
+ * The internal reader and its manager, logging the order in which things
+ * happen. Like Zotero's, the reader keeps its own copy of the pref
+ * (`_state.readAloudVoices`), refreshed by a pref observer of its own —
+ * registered when the reader opens, i.e. after the sync's, so inside one
+ * write it runs after memory-sync's — and Zotero's restore reads that copy.
+ */
 function fakeReader(
   lang: string | null,
-  store: Record<string, unknown>,
+  z: { store: Record<string, unknown>; deps: ReadAloudMemoryDeps },
   state: { speed?: number; active?: boolean; selectedVoiceID?: string | null; region?: string | null; voices?: string[] } = {},
 ) {
   const log: string[] = [];
+  const parse = () => (z.store[READ_ALOUD_VOICES_PREF] ? (JSON.parse(z.store[READ_ALOUD_VOICES_PREF] as string) as VoicesMap) : {});
   const manager = {
     lang,
     region: state.region ?? null,
@@ -85,7 +104,7 @@ function fakeReader(
     }),
   };
   const original = vi.fn(function (this: any) {
-    const current = store[READ_ALOUD_VOICES_PREF] ? (JSON.parse(store[READ_ALOUD_VOICES_PREF] as string) as VoicesMap) : {};
+    const current = this._state.readAloudVoices as VoicesMap;
     const l = this._readAloudManager.lang;
     log.push(`zotero-sync:${l}:${current[l]?.speed ?? 'none'}`);
     // Zotero's restore resolves the entry's voice (the last tier's, else `voice`); the fake takes `voice`
@@ -93,8 +112,19 @@ function fakeReader(
     if (typeof voice === 'string') this._readAloudManager.selectedVoiceID = voice;
     return 'original-result';
   });
-  const internal = { _readAloudManager: manager, _syncPersistedVoicesToManager: original as (...args: unknown[]) => unknown };
-  return { reader: { _internalReader: internal }, internal, manager, original, log };
+  const internal = {
+    _readAloudManager: manager,
+    _state: { readAloudVoices: parse() },
+    _syncPersistedVoicesToManager: original as (...args: unknown[]) => unknown,
+  };
+  const reader = {
+    _internalReader: internal,
+    _handleReadAloudVoicesPrefChange: () => {
+      internal._state.readAloudVoices = parse();
+    },
+  };
+  z.deps.registerObserver(READ_ALOUD_VOICES_OBSERVER, reader._handleReadAloudVoicesPrefChange);
+  return { reader, internal, manager, original, log };
 }
 
 const multilingual: ReadAloudMemory = { speed: 1.4, voice: { id: ISABELLA, lang: MULTILINGUAL } };
@@ -117,7 +147,7 @@ describe('createReadAloudMemorySync', () => {
   it('patches a reader once and leaves readers without the internals alone', () => {
     const z = fakeZotero();
     const sync = createReadAloudMemorySync(z.deps);
-    const r = fakeReader('en', z.store);
+    const r = fakeReader('en', z);
     expect(sync.attach(r.reader)).toBe(true);
     const patched = r.internal._syncPersistedVoicesToManager;
     expect(patched).not.toBe(r.original);
@@ -130,7 +160,7 @@ describe('createReadAloudMemorySync', () => {
 
   it('installs the wrapper through exportFunction, so the reader compartment may call it', () => {
     const z = fakeZotero();
-    const r = fakeReader('zh', z.store);
+    const r = fakeReader('zh', z);
     const exportFunction = vi.fn((fn: (...args: unknown[]) => unknown, target: object) => {
       expect(target).toBe(r.internal);
       return (...args: unknown[]) => fn(...args);
@@ -149,7 +179,7 @@ describe('createReadAloudMemorySync', () => {
   it('invokes the original without handing it sandbox objects', () => {
     const z = fakeZotero();
     const sync = createReadAloudMemorySync(z.deps);
-    const r = fakeReader('zh', z.store);
+    const r = fakeReader('zh', z);
     const denied = () => {
       throw new Error('Permission denied to access property "length"');
     };
@@ -165,7 +195,7 @@ describe('createReadAloudMemorySync', () => {
   it('moves the manager to Multiple languages before Zotero restores, so Zotero picks the remembered voice', () => {
     const z = fakeZotero();
     const sync = createReadAloudMemorySync(z.deps);
-    const r = fakeReader('zh', z.store);
+    const r = fakeReader('zh', z);
     sync.attach(r.reader);
     expect(r.internal._syncPersistedVoicesToManager.call(r.internal)).toBe('original-result');
     expect(r.log).toEqual(['setLanguage:mul', 'zotero-sync:mul:1.4']);
@@ -179,7 +209,7 @@ describe('createReadAloudMemorySync', () => {
   it('writes the remembered speed into the entry Zotero is about to read', () => {
     const z = fakeZotero({ ...voices, [MULTILINGUAL]: { ...voices[MULTILINGUAL], speed: 1 } }, multilingual);
     const sync = createReadAloudMemorySync(z.deps);
-    const r = fakeReader('en', z.store);
+    const r = fakeReader('en', z);
     sync.attach(r.reader);
     r.internal._syncPersistedVoicesToManager.call(r.internal);
     expect(r.log).toEqual(['setLanguage:mul', 'zotero-sync:mul:1.4']);
@@ -189,7 +219,7 @@ describe('createReadAloudMemorySync', () => {
   it('keeps a single-language voice to its language and starts a new language at the remembered speed', () => {
     const z = fakeZotero(voices, english);
     const sync = createReadAloudMemorySync(z.deps);
-    const r = fakeReader('fr', z.store);
+    const r = fakeReader('fr', z);
     sync.attach(r.reader);
     r.internal._syncPersistedVoicesToManager.call(r.internal);
     expect(r.log).toEqual(['zotero-sync:fr:1.4']);
@@ -200,7 +230,7 @@ describe('createReadAloudMemorySync', () => {
   it('waits while the manager has no language yet', () => {
     const z = fakeZotero();
     const sync = createReadAloudMemorySync(z.deps);
-    const r = fakeReader(null, z.store);
+    const r = fakeReader(null, z);
     sync.attach(r.reader);
     r.internal._syncPersistedVoicesToManager.call(r.internal);
     expect(r.log).toEqual(['zotero-sync:null:none']);
@@ -212,7 +242,7 @@ describe('createReadAloudMemorySync', () => {
     z.deps.sameVoice.mockReturnValue(false);
     z.deps.globalSpeed.mockReturnValue(false);
     const sync = createReadAloudMemorySync(z.deps);
-    const r = fakeReader('zh', z.store);
+    const r = fakeReader('zh', z);
     sync.attach(r.reader);
     r.internal._syncPersistedVoicesToManager.call(r.internal);
     expect(r.log).toEqual(['zotero-sync:zh:none']);
@@ -226,7 +256,7 @@ describe('createReadAloudMemorySync', () => {
     const z = fakeZotero({ ...voices, [MULTILINGUAL]: { ...voices[MULTILINGUAL], speed: 1 } }, multilingual);
     z.deps.globalSpeed.mockReturnValue(false);
     const sync = createReadAloudMemorySync(z.deps);
-    const r = fakeReader('en', z.store);
+    const r = fakeReader('en', z);
     sync.attach(r.reader);
     r.internal._syncPersistedVoicesToManager.call(r.internal);
     expect(r.log).toEqual(['setLanguage:mul', 'zotero-sync:mul:1']);
@@ -237,7 +267,7 @@ describe('createReadAloudMemorySync', () => {
     const z = fakeZotero(voices, multilingual);
     z.deps.sameVoice.mockReturnValue(false);
     const sync = createReadAloudMemorySync(z.deps);
-    const r = fakeReader('fr', z.store);
+    const r = fakeReader('fr', z);
     sync.attach(r.reader);
     r.internal._syncPersistedVoicesToManager.call(r.internal);
     expect(r.log).toEqual(['zotero-sync:fr:1.4']);
@@ -255,7 +285,7 @@ describe('createReadAloudMemorySync', () => {
     // A voice picked for English: from now on the choice is per language again
     z.zoteroWrites('en', { ...voices.en, voice: 'azure::en-US-AvaNeural', speed: 1.7 });
     expect(sync.memory()).toEqual({ speed: 1.7, voice: { id: 'azure::en-US-AvaNeural', lang: 'en' } });
-    const r = fakeReader('zh', z.store);
+    const r = fakeReader('zh', z);
     sync.attach(r.reader);
     r.internal._syncPersistedVoicesToManager.call(r.internal);
     expect(r.log).toEqual(['zotero-sync:zh:1.7']);
@@ -269,7 +299,7 @@ describe('createReadAloudMemorySync', () => {
     const sync = createReadAloudMemorySync(z.deps);
     writeMemory(z.deps.prefs, { speed: 1.8, voice: null });
     expect(sync.memory()).toEqual({ speed: 1.8, voice: null });
-    const r = fakeReader('en', z.store);
+    const r = fakeReader('en', z);
     sync.attach(r.reader);
     r.internal._syncPersistedVoicesToManager.call(r.internal);
     expect(r.log).toEqual(['zotero-sync:en:1.8']);
@@ -304,7 +334,7 @@ describe('createReadAloudMemorySync', () => {
     const drifted = { ...voices, [MULTILINGUAL]: { ...voices[MULTILINGUAL], voice: 'openai::alloy', speed: 1 } };
     const z = fakeZotero(drifted, multilingual);
     const sync = createReadAloudMemorySync(z.deps);
-    const r = fakeReader('en', z.store);
+    const r = fakeReader('en', z);
     sync.attach(r.reader);
     r.internal._syncPersistedVoicesToManager.call(r.internal);
     expect(z.voices()[MULTILINGUAL]).toMatchObject({ voice: ISABELLA, speed: 1.4 });
@@ -315,7 +345,7 @@ describe('createReadAloudMemorySync', () => {
   it('reports a reader that misbehaves and still lets Zotero run', () => {
     const z = fakeZotero();
     const sync = createReadAloudMemorySync(z.deps);
-    const r = fakeReader('zh', z.store);
+    const r = fakeReader('zh', z);
     r.manager.setLanguage.mockImplementation(() => {
       throw new Error('gone');
     });
@@ -327,7 +357,7 @@ describe('createReadAloudMemorySync', () => {
   it('dispose stops observing and restores the readers it patched', () => {
     const z = fakeZotero();
     const sync = createReadAloudMemorySync(z.deps);
-    const r = fakeReader('en', z.store);
+    const r = fakeReader('en', z);
     z.readers.push(r.reader);
     sync.attach(r.reader);
     sync.dispose();
@@ -347,9 +377,9 @@ describe('the speed is global while the setting is on', () => {
   it('spreads a speed Zotero just learned to every other open reader and to every language', () => {
     const z = fakeZotero();
     const sync = createReadAloudMemorySync(z.deps);
-    const tab1 = fakeReader('en', z.store, { speed: 2.2, active: true, selectedVoiceID: AOEDE });
-    const tab2 = fakeReader(MULTILINGUAL, z.store, { speed: 1.4, active: true, selectedVoiceID: ISABELLA });
-    const tab3 = fakeReader('zh', z.store, { speed: 1.4, active: false, selectedVoiceID: 'x' });
+    const tab1 = fakeReader('en', z, { speed: 2.2, active: true, selectedVoiceID: AOEDE });
+    const tab2 = fakeReader(MULTILINGUAL, z, { speed: 1.4, active: true, selectedVoiceID: ISABELLA });
+    const tab3 = fakeReader('zh', z, { speed: 1.4, active: false, selectedVoiceID: 'x' });
     z.readers.push(tab1.reader, tab2.reader, tab3.reader);
     z.zoteroWrites('en', { ...voices.en, speed: 2.2 });
     expect(sync.memory().speed).toBe(2.2);
@@ -364,7 +394,7 @@ describe('the speed is global while the setting is on', () => {
     const z = fakeZotero();
     z.deps.globalSpeed.mockReturnValue(false);
     const sync = createReadAloudMemorySync(z.deps);
-    const tab2 = fakeReader(MULTILINGUAL, z.store, { speed: 1.4, active: true, selectedVoiceID: ISABELLA });
+    const tab2 = fakeReader(MULTILINGUAL, z, { speed: 1.4, active: true, selectedVoiceID: ISABELLA });
     z.readers.push(tab2.reader);
     z.zoteroWrites('en', { ...voices.en, speed: 2.2 });
     expect(sync.memory().speed).toBe(2.2);
@@ -382,7 +412,7 @@ describe('the speed is global while the setting is on', () => {
     const yunxi = 'azure::zh-CN-YunxiNeural';
     const z = fakeZotero({ en: voices.en, zh: { speed: 1.4 }, [MULTILINGUAL]: voices[MULTILINGUAL] }, multilingual);
     const sync = createReadAloudMemorySync(z.deps);
-    const tab2 = fakeReader('zh', z.store, { speed: 1.4, active: true, selectedVoiceID: xiaoxiao });
+    const tab2 = fakeReader('zh', z, { speed: 1.4, active: true, selectedVoiceID: xiaoxiao });
     // What ReadAloudManager.setSpeed(speed, true) does: _persistCurrentVoice writes the entry with the current voice
     tab2.manager.setSpeed.mockImplementation((speed: number, persist?: boolean) => {
       tab2.manager.speed = speed;
@@ -401,11 +431,11 @@ describe('the speed is global while the setting is on', () => {
   it('reports a reader that throws and reaches the rest', () => {
     const z = fakeZotero();
     const sync = createReadAloudMemorySync(z.deps);
-    const broken = fakeReader(MULTILINGUAL, z.store, { speed: 1, active: true, selectedVoiceID: ISABELLA });
+    const broken = fakeReader(MULTILINGUAL, z, { speed: 1, active: true, selectedVoiceID: ISABELLA });
     broken.manager.setSpeed.mockImplementation(() => {
       throw new Error('gone');
     });
-    const fine = fakeReader('zh', z.store, { speed: 1, active: false, selectedVoiceID: null });
+    const fine = fakeReader('zh', z, { speed: 1, active: false, selectedVoiceID: null });
     z.readers.push(broken.reader, { _internalReader: null }, fine.reader);
     z.zoteroWrites('en', { ...voices.en, speed: 2.2 });
     expect(z.deps.error).toHaveBeenCalledWith(expect.any(Error));
@@ -416,7 +446,7 @@ describe('the speed is global while the setting is on', () => {
   it('is not triggered by the pane’s slider, which already reached every reader itself', () => {
     const z = fakeZotero();
     createReadAloudMemorySync(z.deps);
-    const tab2 = fakeReader(MULTILINGUAL, z.store, { speed: 1.4, active: true, selectedVoiceID: ISABELLA });
+    const tab2 = fakeReader(MULTILINGUAL, z, { speed: 1.4, active: true, selectedVoiceID: ISABELLA });
     z.readers.push(tab2.reader);
     setDefaultSpeed(z.deps.prefs, 2.2, [tab2.manager]);
     expect(tab2.manager.setSpeed).toHaveBeenCalledTimes(1);
@@ -425,7 +455,7 @@ describe('the speed is global while the setting is on', () => {
   it('spreads nothing once disposed', () => {
     const z = fakeZotero();
     const sync = createReadAloudMemorySync(z.deps);
-    const tab2 = fakeReader(MULTILINGUAL, z.store, { speed: 1.4, active: true, selectedVoiceID: ISABELLA });
+    const tab2 = fakeReader(MULTILINGUAL, z, { speed: 1.4, active: true, selectedVoiceID: ISABELLA });
     z.readers.push(tab2.reader);
     sync.dispose();
     z.zoteroWrites('en', { ...voices.en, speed: 2 });
@@ -457,9 +487,9 @@ describe('the voice is global while the setting is on', () => {
   it('puts a voice Zotero just learned in front of every other reader that is reading', () => {
     const z = fakeZotero();
     const sync = createReadAloudMemorySync(z.deps);
-    const tab1 = fakeReader(MULTILINGUAL, z.store, { active: true, selectedVoiceID: ADA, voices: listed });
-    const tab2 = fakeReader(MULTILINGUAL, z.store, { active: true, selectedVoiceID: ISABELLA, voices: listed });
-    const tab3 = fakeReader('zh', z.store, { active: false, voices: listed });
+    const tab1 = fakeReader(MULTILINGUAL, z, { active: true, selectedVoiceID: ADA, voices: listed });
+    const tab2 = fakeReader(MULTILINGUAL, z, { active: true, selectedVoiceID: ISABELLA, voices: listed });
+    const tab3 = fakeReader('zh', z, { active: false, voices: listed });
     attached(z, sync, tab1, tab2, tab3);
     z.zoteroWrites(MULTILINGUAL, ada);
     expect(sync.memory().voice).toEqual({ id: ADA, lang: MULTILINGUAL });
@@ -475,7 +505,7 @@ describe('the voice is global while the setting is on', () => {
   it('moves a reader on another language to Multiple languages for a global voice', () => {
     const z = fakeZotero();
     const sync = createReadAloudMemorySync(z.deps);
-    const tab2 = fakeReader('en', z.store, { active: true, selectedVoiceID: AOEDE, voices: listed });
+    const tab2 = fakeReader('en', z, { active: true, selectedVoiceID: AOEDE, voices: listed });
     attached(z, sync, tab2);
     z.zoteroWrites(MULTILINGUAL, ada);
     expect(tab2.log).toEqual(['setLanguage:mul', 'zotero-sync:mul:1.4']);
@@ -489,9 +519,9 @@ describe('the voice is global while the setting is on', () => {
   it('sends a single-language voice to the readers whose document is in its language', () => {
     const z = fakeZotero();
     const sync = createReadAloudMemorySync(z.deps);
-    const chinese = fakeReader('zh', z.store, { active: true, selectedVoiceID: YUNXI, voices: listed });
-    const english = fakeReader('en', z.store, { active: true, selectedVoiceID: AOEDE, voices: listed });
-    const byHand = fakeReader(MULTILINGUAL, z.store, { active: true, selectedVoiceID: ISABELLA, voices: listed });
+    const chinese = fakeReader('zh', z, { active: true, selectedVoiceID: YUNXI, voices: listed });
+    const english = fakeReader('en', z, { active: true, selectedVoiceID: AOEDE, voices: listed });
+    const byHand = fakeReader(MULTILINGUAL, z, { active: true, selectedVoiceID: ISABELLA, voices: listed });
     attached(z, sync, chinese, english, byHand);
     z.zoteroWrites('zh', xiaoxiao);
     expect(sync.memory().voice).toEqual({ id: XIAOXIAO, lang: 'zh' });
@@ -509,7 +539,7 @@ describe('the voice is global while the setting is on', () => {
   it('brings a reader it moved to Multiple languages back for a voice in its document’s language', () => {
     const z = fakeZotero();
     const sync = createReadAloudMemorySync(z.deps);
-    const chinese = fakeReader('zh', z.store, { active: true, voices: listed });
+    const chinese = fakeReader('zh', z, { active: true, voices: listed });
     attached(z, sync, chinese);
     chinese.internal._syncPersistedVoicesToManager.call(chinese.internal);
     expect(chinese.manager.lang).toBe(MULTILINGUAL);
@@ -525,8 +555,8 @@ describe('the voice is global while the setting is on', () => {
   it('clears a region the popup’s dropdown left, so Zotero’s restore lands on the voice', () => {
     const z = fakeZotero();
     const sync = createReadAloudMemorySync(z.deps);
-    const taiwan = fakeReader('zh', z.store, { active: true, selectedVoiceID: YUNXI, region: 'TW', voices: listed });
-    const china = fakeReader('zh', z.store, { active: true, selectedVoiceID: YUNXI, region: 'CN', voices: listed });
+    const taiwan = fakeReader('zh', z, { active: true, selectedVoiceID: YUNXI, region: 'TW', voices: listed });
+    const china = fakeReader('zh', z, { active: true, selectedVoiceID: YUNXI, region: 'CN', voices: listed });
     attached(z, sync, taiwan, china);
     z.zoteroWrites('zh', xiaoxiao);
     expect(taiwan.log).toEqual(['setLanguage:zh', 'zotero-sync:zh:1.4']);
@@ -541,7 +571,7 @@ describe('the voice is global while the setting is on', () => {
   it('skips a reader whose voice list lacks the voice, and says so', () => {
     const z = fakeZotero();
     const sync = createReadAloudMemorySync(z.deps);
-    const stale = fakeReader(MULTILINGUAL, z.store, { active: true, selectedVoiceID: ISABELLA, voices: [ISABELLA] });
+    const stale = fakeReader(MULTILINGUAL, z, { active: true, selectedVoiceID: ISABELLA, voices: [ISABELLA] });
     attached(z, sync, stale);
     z.zoteroWrites(MULTILINGUAL, ada);
     expect(stale.original).not.toHaveBeenCalled();
@@ -552,7 +582,7 @@ describe('the voice is global while the setting is on', () => {
     const z = fakeZotero();
     z.deps.sameVoice.mockReturnValue(false);
     const sync = createReadAloudMemorySync(z.deps);
-    const tab2 = fakeReader(MULTILINGUAL, z.store, { active: true, selectedVoiceID: ISABELLA, voices: listed });
+    const tab2 = fakeReader(MULTILINGUAL, z, { active: true, selectedVoiceID: ISABELLA, voices: listed });
     attached(z, sync, tab2);
     z.zoteroWrites(MULTILINGUAL, ada);
     expect(sync.memory().voice).toEqual({ id: ADA, lang: MULTILINGUAL });
@@ -565,7 +595,7 @@ describe('the voice is global while the setting is on', () => {
   it('is not confused by its own resyncs, and still learns the voice picked next', () => {
     const z = fakeZotero({ ...voices, [MULTILINGUAL]: { ...voices[MULTILINGUAL], voice: 'openai::alloy' } }, multilingual);
     const sync = createReadAloudMemorySync(z.deps);
-    const tab2 = fakeReader('en', z.store, { active: true, selectedVoiceID: AOEDE, voices: listed });
+    const tab2 = fakeReader('en', z, { active: true, selectedVoiceID: AOEDE, voices: listed });
     attached(z, sync, tab2);
     // Tab 1 picked Ada under English (a multilingual voice is global by its id wherever it is picked)
     z.zoteroWrites('en', { region: 'US', voice: ADA, speed: 1.4, tierVoices: { local: ADA } });
@@ -580,11 +610,11 @@ describe('the voice is global while the setting is on', () => {
   it('reports a reader that throws and reaches the rest', () => {
     const z = fakeZotero();
     const sync = createReadAloudMemorySync(z.deps);
-    const broken = fakeReader(MULTILINGUAL, z.store, { active: true, selectedVoiceID: ISABELLA, voices: listed });
+    const broken = fakeReader(MULTILINGUAL, z, { active: true, selectedVoiceID: ISABELLA, voices: listed });
     broken.original.mockImplementation(() => {
       throw new Error('gone');
     });
-    const fine = fakeReader(MULTILINGUAL, z.store, { active: true, selectedVoiceID: ISABELLA, voices: listed });
+    const fine = fakeReader(MULTILINGUAL, z, { active: true, selectedVoiceID: ISABELLA, voices: listed });
     attached(z, sync, broken, fine);
     z.readers.push({ _internalReader: null });
     z.zoteroWrites(MULTILINGUAL, ada);
@@ -598,7 +628,7 @@ describe('the voice is global while the setting is on', () => {
   it('spreads a choice made elsewhere on request, and nothing for none', () => {
     const z = fakeZotero();
     const sync = createReadAloudMemorySync(z.deps);
-    const tab2 = fakeReader(MULTILINGUAL, z.store, { active: true, selectedVoiceID: ISABELLA, voices: listed });
+    const tab2 = fakeReader(MULTILINGUAL, z, { active: true, selectedVoiceID: ISABELLA, voices: listed });
     attached(z, sync, tab2);
     writeMemory(z.deps.prefs, { speed: 1.4, voice: { id: ADA, lang: MULTILINGUAL } });
     sync.spreadVoice({ id: ADA, lang: MULTILINGUAL });
@@ -609,10 +639,35 @@ describe('the voice is global while the setting is on', () => {
     expect(tab2.original).toHaveBeenCalledTimes(1);
   });
 
+  // Zotero's own observer — one per reader, registered when the tab opened,
+  // after the plugin's — copies the pref into the reader's state, and
+  // Zotero's restore reads that copy. Inside one write memory-sync's
+  // observer runs first, so the copy is still the old entry then: the
+  // resync refreshes it as Zotero's handler does, before the restore.
+  // (Found live: the settings followed a pick, the other tab did not.)
+  it('refreshes the reader’s copy of the pref before Zotero’s restore, whose own observer has not run yet', () => {
+    const z = fakeZotero();
+    const sync = createReadAloudMemorySync(z.deps);
+    const tab2 = fakeReader(MULTILINGUAL, z, { active: true, selectedVoiceID: ISABELLA, voices: listed });
+    attached(z, sync, tab2);
+    z.zoteroWrites(MULTILINGUAL, ada);
+    expect(z.deps.refreshVoices).toHaveBeenCalledWith(tab2.reader);
+    expect(tab2.manager.selectedVoiceID).toBe(ADA);
+    // Without the refresh the restore reads the old entry and nothing changes
+    const stale = fakeZotero();
+    const staleSync = createReadAloudMemorySync({ ...stale.deps, refreshVoices: undefined });
+    const tab = fakeReader(MULTILINGUAL, stale, { active: true, selectedVoiceID: ISABELLA, voices: listed });
+    stale.readers.push(tab.reader);
+    staleSync.attach(tab.reader);
+    stale.zoteroWrites(MULTILINGUAL, ada);
+    expect(tab.original).toHaveBeenCalledOnce();
+    expect(tab.manager.selectedVoiceID).toBe(ISABELLA);
+  });
+
   it('spreads no voice once disposed', () => {
     const z = fakeZotero();
     const sync = createReadAloudMemorySync(z.deps);
-    const tab2 = fakeReader(MULTILINGUAL, z.store, { active: true, selectedVoiceID: ISABELLA, voices: listed });
+    const tab2 = fakeReader(MULTILINGUAL, z, { active: true, selectedVoiceID: ISABELLA, voices: listed });
     attached(z, sync, tab2);
     sync.dispose();
     z.zoteroWrites(MULTILINGUAL, ada);
@@ -633,7 +688,7 @@ describe('a reader moved to Multiple languages finds its way back', () => {
   it('at the next popup open, once the remembered voice is not global', () => {
     const z = fakeZotero();
     const sync = createReadAloudMemorySync(z.deps);
-    const r = fakeReader('zh', z.store);
+    const r = fakeReader('zh', z);
     sync.attach(r.reader);
     const open = () => r.internal._syncPersistedVoicesToManager.call(r.internal);
     open();
@@ -648,8 +703,8 @@ describe('a reader moved to Multiple languages finds its way back', () => {
   it('once the default is cleared, and once the voice switch is off', () => {
     const z = fakeZotero();
     const sync = createReadAloudMemorySync(z.deps);
-    const cleared = fakeReader('zh', z.store);
-    const switchedOff = fakeReader('en', z.store);
+    const cleared = fakeReader('zh', z);
+    const switchedOff = fakeReader('en', z);
     sync.attach(cleared.reader);
     sync.attach(switchedOff.reader);
     cleared.internal._syncPersistedVoicesToManager.call(cleared.internal);
@@ -666,7 +721,7 @@ describe('a reader moved to Multiple languages finds its way back', () => {
   it('leaves a manager the user put on Multiple languages by hand where it is', () => {
     const z = fakeZotero();
     const sync = createReadAloudMemorySync(z.deps);
-    const r = fakeReader(MULTILINGUAL, z.store);
+    const r = fakeReader(MULTILINGUAL, z);
     sync.attach(r.reader);
     writeMemory(z.deps.prefs, chinese);
     r.internal._syncPersistedVoicesToManager.call(r.internal);
@@ -678,7 +733,7 @@ describe('a reader moved to Multiple languages finds its way back', () => {
   it('forgets the language it moved from once the manager is seen elsewhere', () => {
     const z = fakeZotero();
     const sync = createReadAloudMemorySync(z.deps);
-    const r = fakeReader('en', z.store);
+    const r = fakeReader('en', z);
     sync.attach(r.reader);
     const open = () => r.internal._syncPersistedVoicesToManager.call(r.internal);
     open();

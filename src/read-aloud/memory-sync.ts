@@ -74,6 +74,16 @@ export interface ReadAloudMemoryDeps {
    * run in one compartment.
    */
   exportFunction?(fn: SyncMethod, target: object): SyncMethod;
+  /**
+   * Copies Zotero's pref into the reader's own state
+   * (`_state.readAloudVoices`), which Zotero's restore reads — what
+   * Zotero's per-reader pref observer does (`_handleReadAloudVoicesPrefChange`).
+   * Zotero.Prefs calls its observers in registration order, and a reader
+   * opened after the plugin started registers after this sync: inside one
+   * write of the pref this sync runs first, and the reader's copy is
+   * still the old entry. A resync refreshes it before the restore.
+   */
+  refreshVoices?(reader: unknown): void;
   error(e: unknown): void;
   debug?(message: string): void;
 }
@@ -239,8 +249,13 @@ export function createReadAloudMemorySync(deps: ReadAloudMemoryDeps): ReadAloudM
 
   const originals = new WeakMap<object, SyncMethod>();
 
-  /** The wrapper's own sequence, run from our side: the memory in place, then Zotero's restore. */
-  function resync(internal: any): void {
+  /**
+   * The wrapper's own sequence, run from our side: the reader's copy of the
+   * pref brought up to date (its own observer may not have run yet — see
+   * refreshVoices), the memory in place, then Zotero's restore.
+   */
+  function resync(reader: unknown, internal: any): void {
+    deps.refreshVoices?.(reader);
     apply(internal);
     const original = originals.get(internal) ?? internal?._syncPersistedVoicesToManager;
     if (typeof original === 'function') Reflect.apply(original, internal, []);
@@ -285,7 +300,7 @@ export function createReadAloudMemorySync(deps: ReadAloudMemoryDeps): ReadAloudM
             outcome.push(`${docLang}: does not list it until its popup reopens`);
             continue;
           }
-          resync(internal);
+          resync(reader, internal);
           outcome.push(`${docLang}: resynced`);
         } catch (e) {
           deps.error(e);

@@ -2482,3 +2482,32 @@ null.
 
 The README TODO is empty now and the section is gone; steps 3 to 6 are
 four commits on `feat/global-voice`.
+
+### Incident: the settings followed a pick, the other tab did not (2026-08-27)
+
+First live run of step 3 with two tabs: picking a voice in tab 1 moved
+the pane's highlight (the memory was learned) but tab 2 kept reading
+with its voice. Verified in `xpcom/prefs.js`: `Zotero.Prefs` keeps a
+single nsIPrefBranch observer and its own `_observers[name]` array,
+called **in registration order**; a ReaderInstance registers its
+`_handleReadAloudVoicesPrefChange` when the tab opens (xpcom/reader.js
+670), i.e. after the plugin's startup registration, and that handler is
+what copies the pref into the reader's `_state.readAloudVoices`
+(`setReadAloudVoices` → `_updateState`, synchronous), which
+`_syncPersistedVoicesToManager` restores from. So inside tab 1's
+`Zotero.Prefs.set`, memory-sync's observer ran first, the resync ran
+Zotero's restore on tab 2 against the *old* entry, and nothing changed.
+It only worked by accident where `apply()` had a nested write to make
+(a multilingual voice picked under a concrete language), which refreshed
+every reader's copy on the way. The pane path (a row click) was fine:
+its write completes, every observer included, before `spreadVoice` is
+called.
+
+Fix: memory-sync's `resync` first calls the new `refreshVoices(reader)`
+dep — index.ts runs the reader's own `_handleReadAloudVoicesPrefChange`,
+else does what it does (`setReadAloudVoices(cloneInto(pref,
+_iframeWindow))`) — then `apply()`, then the restore. The fake reader in
+memory-sync.test.ts now keeps its own copy of the pref, refreshed by an
+observer registered after the sync's, exactly as Zotero's; the bug
+reproduced in the existing spread tests before the fix, and one test
+pins that the copy is refreshed first (and what happens without it).
