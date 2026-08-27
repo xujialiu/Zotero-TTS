@@ -123,8 +123,10 @@
 
   <groupbox>
     <label><html:h2>Reading</html:h2></label>
+    <!-- The pref keeps its old name (settings backups carry it); off, Zotero
+         keeps a voice per document language (read-aloud/memory-sync.ts) -->
     <hbox align="center">
-      <checkbox label="Use the same voice for every document"
+      <checkbox label="Use one voice everywhere — every document and every open tab (off: Zotero keeps one per language)"
                 preference="extensions.zotero.zotero-tts.readAloud.sameForAllDocuments"/>
     </hbox>
     <!-- Off, Zotero keeps a speed per document language and the voice

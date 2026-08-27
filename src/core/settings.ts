@@ -35,7 +35,7 @@ export interface Settings {
    */
   shortcuts: Record<ShortcutAction, string>;
   readAloud: {
-    /** Keep one Read Aloud voice across documents (read-aloud/read-aloud-memory.ts); the pref name predates the speed's own switch below. */
+    /** One Read Aloud voice for every document and every open tab (read-aloud/memory-sync.ts); the pref name predates the speed's own switch below. */
     sameForAllDocuments: boolean;
     /** One speed for every document and every open tab (read-aloud/default-speed.ts); off, Zotero keeps a speed per document language. */
     globalSpeed: boolean;

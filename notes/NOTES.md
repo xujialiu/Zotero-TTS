@@ -2346,3 +2346,56 @@ pref shapes and the row ↔ memory rule. Verified in the installed
 
 Releases: 1.7.4 after steps 3 and 4, 1.8.0 after step 5, 1.8.1 after
 step 6.
+
+## Global voice, live — step 3 (2026-08-27)
+
+memory-sync's observer now spreads a learned voice the way it spreads a
+learned speed: `spreadVoice(choice)` runs Zotero's own restore again on
+every other reader that is reading, as planned above ("Global voice: the
+plan"). What the build settled:
+
+- `resync(internal)` is the wrapper's own sequence run from our side —
+  `apply()`, then the original `_syncPersistedVoicesToManager` through
+  `Reflect.apply` — so the mul entry is written and the language moved by
+  the same code every popup open runs. Skipped: idle managers (their next
+  popup open runs the wrapper), a manager already on the voice (the
+  originating tab — `applyPersistedVoices` clears `_voiceID` first, so a
+  resync always recreates the controller and would restart the sentence),
+  a reader whose document is in another language for a single-language
+  voice, and one whose `allVoices` lacks the id (walked by index; the
+  array lives in the reader's compartment). Every skip is in the debug
+  line: `spread read-aloud voice …: en: another language; mul: resynced`.
+- `applying` became a save/restore (`whileApplying`): a resync's `apply()`
+  nests inside the spread's own guard, and the old `finally { applying =
+  false }` would have dropped the outer guard before the next reader.
+- Document language: `movedFrom`, a WeakMap per internal reader, records
+  the language `apply()` moves a manager to `mul` from; overwritten on
+  every move, dropped once the manager is seen on any other language (the
+  popup's dropdown), never written for a manager the user put on `mul`.
+  `planSync(docLang, …)` takes the document language — the record while
+  the manager is on `mul`, else the manager's — and `switching` is still
+  diffed against the manager's actual language, so a non-global voice (or
+  none, or the voice switch off while the speed switch is on) sends a
+  stranded manager back with `setLanguage(docLang)` before Zotero's
+  restore, which then finds the entry a fresh tab would. A plugin reload
+  loses the records: a tab stranded by 1.7.3 stays on `mul` until it is
+  reopened.
+- Region: for a single-language voice on its own language, a manager
+  region that differs from the entry's — `_findFallbackVoice`'s
+  `regionChanged` would skip the entry's voice — is cleared with
+  `setLanguage(lang)`, Zotero's own inactive-manager idiom, which passes
+  no region. Applies at popup open too: the tab's earlier "Chinese
+  (Taiwan)" pick yields to the voice picked elsewhere.
+- The checkbox reads "Use one voice everywhere — every document and every
+  open tab (off: Zotero keeps one per language)"; the pref keeps its name
+  for the backups.
+- `diagnostics.readAloudMemory()` per reader: `docLang` (the sync's
+  record), `region`, and `listsDefault` (whether the manager's voice list
+  has the memory's voice).
+
+Verification: two tabs reading with Ava Multilingual; in tab 1 pick Ada
+Multilingual → tab 2 goes on with Ada from its current sentence, and
+`readAloudMemory()` shows `memory.voice` Ada and `selectedVoiceID` Ada on
+both readers. Two Chinese PDFs → pick Xiaoxiao in one → the other
+follows (`lang` zh on both); an English PDF beside them keeps its voice
+and shows `docLang` en.

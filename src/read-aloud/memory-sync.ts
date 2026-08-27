@@ -1,22 +1,34 @@
-import { READ_ALOUD_VOICES_PREF, readReadAloudVoices } from '../core/read-aloud-speed';
+import { MULTILINGUAL } from '../core/providers/types';
+import { READ_ALOUD_VOICES_PREF, readReadAloudVoices, resolveVoiceLang, type VoicesMap } from '../core/read-aloud-speed';
 import type { PrefsBackend } from '../core/settings';
 import { setDefaultSpeed, type SpeedManagerLike } from './default-speed';
-import { memoryFromVoices, noteVoicesChange, planSync, readMemory, writeMemory, type ReadAloudMemory } from './read-aloud-memory';
+import {
+  isGlobalVoice,
+  memoryFromVoices,
+  noteVoicesChange,
+  planSync,
+  readMemory,
+  sameChoice,
+  writeMemory,
+  type ReadAloudMemory,
+  type VoiceChoice,
+} from './read-aloud-memory';
 
 /**
  * Wires read-aloud-memory.ts to Zotero. The memory lives in its pref
  * (`readAloud.memory`), which is read on every use and never copied: the
- * voice browser writes it too (default-speed.ts), and on a fresh install
- * Zotero's pref has no entry whose change could carry the news here — a
- * copy would be stale exactly when the memory is the only thing that moved.
- * Two hooks:
+ * voice browser writes it too (default-speed.ts, default-voice.ts), and on
+ * a fresh install Zotero's pref has no entry whose change could carry the
+ * news here — a copy would be stale exactly when the memory is the only
+ * thing that moved. Two hooks:
  *
  * - A pref observer on `reader.readAloudVoices` learns the speed and voice
- *   from what Zotero persists on the user's actions. A speed learned there
- *   is global while `globalSpeed` is on: it is spread at once to every
- *   other open reader (the popup's slider in one tab moves the pace in the
- *   others) and to Zotero's entry for every language, through the routine
- *   the pane's slider uses (default-speed.ts).
+ *   from what Zotero persists on the user's actions. What is learned is
+ *   global while its switch is on, and reaches every other open reader at
+ *   once: a speed through the routine the pane's slider uses
+ *   (default-speed.ts), a voice by running Zotero's own restore again on
+ *   every reader that is reading (spreadVoice below) — the popup's pick in
+ *   one tab changes the voice in the others.
  * - Each reader's internal `_syncPersistedVoicesToManager` (the one place
  *   Zotero restores the per-language choice into its ReadAloudManager, run
  *   whenever the manager learns the document's language and on every popup
@@ -31,6 +43,12 @@ import { memoryFromVoices, noteVoicesChange, planSync, readMemory, writeMemory, 
  *   compartment first (Components.utils.exportFunction, the same mechanism
  *   Zotero uses when it hands its remote interface to the reader).
  *
+ * A manager moved to "Multiple languages" for a global voice stays there
+ * for the reader's lifetime — Zotero's `deactivate()` resets everything
+ * but the language — so the language it was moved from is kept per reader,
+ * and a voice that is not global (or none) sends the manager back before
+ * Zotero's restore, which then finds the entry a fresh tab would.
+ *
  * The internal reader exists once the iframe has rendered, so readers are
  * attached from the renderToolbar event and, as the safety net, from the
  * plugin's getVoices — which Zotero calls synchronously right before the
@@ -42,7 +60,7 @@ export const READ_ALOUD_VOICES_OBSERVER = 'reader.readAloudVoices';
 
 export interface ReadAloudMemoryDeps {
   prefs: PrefsBackend;
-  /** The "same voice for every document" setting (`readAloud.sameForAllDocuments`), read on every use so the pane's checkbox applies at once. */
+  /** The "one voice everywhere" setting (`readAloud.sameForAllDocuments`), read on every use so the pane's checkbox applies at once. */
   sameVoice(): boolean;
   /** The "one speed everywhere" setting (`readAloud.globalSpeed`), read the same way; off, Zotero keeps a speed per document language. */
   globalSpeed(): boolean;
@@ -65,6 +83,17 @@ export interface ReadAloudMemorySync {
   attach(reader: unknown): boolean;
   /** The memory as its pref holds it right now. */
   memory(): ReadAloudMemory;
+  /**
+   * Put `choice` in front of every other open reader that is reading right
+   * now — the memory and Zotero's entry must already say it. The observer
+   * calls this after learning a pick from a popup; the voice browser after
+   * a row click (default-voice.ts). Nothing happens for null: a cleared
+   * default leaves every reader as it is, and its next popup open restores
+   * Zotero's own choice.
+   */
+  spreadVoice(choice: VoiceChoice | null): void;
+  /** The language a reader's document is in, as far as the sync knows: the manager's, or the one the manager was moved to Multiple languages from. */
+  documentLanguage(reader: unknown): string | null;
   dispose(): void;
 }
 
@@ -72,6 +101,23 @@ export type SyncMethod = (...args: unknown[]) => unknown;
 
 const describeMemory = (m: ReadAloudMemory) =>
   `speed ${m.speed ?? '-'}, voice ${m.voice ? `${m.voice.id} (${m.voice.lang})` : '-'}`;
+
+const managerLangOf = (manager: any): string | null => (typeof manager?.lang === 'string' && manager.lang ? manager.lang : null);
+
+/** The region Zotero's entry for `lang` stores — the voice's own, as `_persistCurrentVoice` writes it. */
+function entryRegion(voices: VoicesMap, lang: string): string | null {
+  const key = resolveVoiceLang(lang, Object.keys(voices)) ?? lang;
+  const region = voices[key]?.region;
+  return typeof region === 'string' && region ? region : null;
+}
+
+/** Whether the manager's voice list (loaded at its popup's open) has the voice; the list lives in the reader's compartment, so it is walked by index. */
+function listsVoice(manager: any, id: string): boolean {
+  const all = manager?.allVoices;
+  const length = typeof all?.length === 'number' ? all.length : 0;
+  for (let i = 0; i < length; i++) if (all[i]?.id === id) return true;
+  return false;
+}
 
 export function createReadAloudMemorySync(deps: ReadAloudMemoryDeps): ReadAloudMemorySync {
   let snapshot = readReadAloudVoices(deps.prefs);
@@ -91,7 +137,7 @@ export function createReadAloudMemorySync(deps: ReadAloudMemoryDeps): ReadAloudM
       const before = snapshot;
       const next = readReadAloudVoices(deps.prefs);
       // Moved on before anything is written below: a reader persisting
-      // inside spread() re-enters this observer, and the write after that
+      // inside a spread re-enters this observer, and the write after that
       // must be diffed against the state it started from, not this one
       snapshot = next;
       if (applying) return;
@@ -101,10 +147,22 @@ export function createReadAloudMemorySync(deps: ReadAloudMemoryDeps): ReadAloudM
       writeMemory(deps.prefs, learned);
       deps.debug?.(`read-aloud memory: ${describeMemory(learned)}`);
       if (learned.speed !== null && learned.speed !== current.speed) spread(learned.speed);
+      if (learned.voice && !sameChoice(learned.voice, current.voice)) spreadVoice(learned.voice);
     } catch (e) {
       deps.error(e);
     }
   });
+
+  /** Runs `fn` with the observer above told that the pref writes inside are our own. Nests. */
+  function whileApplying<T>(fn: () => T): T {
+    const was = applying;
+    applying = true;
+    try {
+      return fn();
+    } finally {
+      applying = was;
+    }
+  }
 
   /**
    * A speed Zotero has just persisted — the popup's slider, a shortcut —
@@ -126,14 +184,21 @@ export function createReadAloudMemorySync(deps: ReadAloudMemoryDeps): ReadAloudM
         deps.error(e);
       }
     }
-    applying = true;
-    try {
-      setDefaultSpeed(deps.prefs, speed, managers, deps.error);
-    } finally {
-      applying = false;
-    }
+    whileApplying(() => setDefaultSpeed(deps.prefs, speed, managers, deps.error));
     deps.debug?.(`spread read-aloud speed ${speed} to ${managers.length} reader(s)`);
   }
+
+  /**
+   * Per internal reader, the language its manager was moved to Multiple
+   * languages from — the document's own, as Zotero detected it or the user
+   * chose it. Written on every move there, dropped once the manager is
+   * seen on any other language (the user's dropdown), never written for a
+   * manager the user put on Multiple languages by hand: that one has no
+   * language to go back to and is left where the user put it.
+   */
+  const movedFrom = new WeakMap<object, string>();
+  const documentLanguageOf = (internal: object, managerLang: string | null): string | null =>
+    managerLang === MULTILINGUAL ? (movedFrom.get(internal) ?? managerLang) : managerLang;
 
   function apply(internal: any): void {
     // Each switch is read here, on every sync, so the pane's checkboxes apply at once
@@ -141,27 +206,99 @@ export function createReadAloudMemorySync(deps: ReadAloudMemoryDeps): ReadAloudM
     if (!wanted.voice && !wanted.speed) return;
     const manager = internal?._readAloudManager;
     if (!manager || typeof manager.setLanguage !== 'function') return;
-    const managerLang = typeof manager.lang === 'string' && manager.lang ? manager.lang : null;
+    const managerLang = managerLangOf(manager);
+    const docLang = documentLanguageOf(internal, managerLang);
     // Only what is switched on is put in front of Zotero's restore; the rest is Zotero's per language
     const stored = memory();
     const current: ReadAloudMemory = { speed: wanted.speed ? stored.speed : null, voice: wanted.voice ? stored.voice : null };
-    const plan = planSync(managerLang, readReadAloudVoices(deps.prefs), current);
-    if (plan.voices) {
-      applying = true;
-      try {
-        deps.prefs.set(READ_ALOUD_VOICES_PREF, JSON.stringify(plan.voices));
-      } finally {
-        applying = false;
-      }
+    const before = readReadAloudVoices(deps.prefs);
+    const plan = planSync(docLang, before, current);
+    if (plan.voices) whileApplying(() => deps.prefs.set(READ_ALOUD_VOICES_PREF, JSON.stringify(plan.voices)));
+    if (plan.lang === null) return;
+    let switching = plan.lang !== managerLang;
+    // A region the popup's dropdown left on the manager ("Chinese
+    // (Taiwan)") makes Zotero's restore skip the entry's voice when the
+    // entry names another region (_findFallbackVoice's regionChanged) — so
+    // for a single-language voice on its own language the region is
+    // cleared, the way Zotero's own inactive-manager path calls
+    // setLanguage(lang) with none.
+    if (!switching && current.voice && !isGlobalVoice(current.voice) && current.voice.lang === plan.lang) {
+      const region = typeof manager.region === 'string' && manager.region ? manager.region : null;
+      if (region && region !== entryRegion(plan.voices ?? before, plan.lang)) switching = true;
     }
-    const switching = plan.lang !== null && plan.lang !== managerLang;
     if (switching) manager.setLanguage(plan.lang);
+    if (plan.lang === MULTILINGUAL) {
+      if (switching && managerLang && managerLang !== MULTILINGUAL) movedFrom.set(internal, managerLang);
+    } else {
+      movedFrom.delete(internal);
+    }
     if (plan.voices || switching) {
       deps.debug?.(`applied read-aloud memory: ${managerLang} -> ${plan.lang}, ${describeMemory(current)}`);
     }
   }
 
   const originals = new WeakMap<object, SyncMethod>();
+
+  /** The wrapper's own sequence, run from our side: the memory in place, then Zotero's restore. */
+  function resync(internal: any): void {
+    apply(internal);
+    const original = originals.get(internal) ?? internal?._syncPersistedVoicesToManager;
+    if (typeof original === 'function') Reflect.apply(original, internal, []);
+  }
+
+  /**
+   * Zotero's own restore, run again on every other reader that is reading
+   * (`active`; paused counts) once the memory and Zotero's entry say the
+   * voice. Zotero's `applyPersistedVoices` clears the manager's voice and
+   * tier and resolves from the entry, and `_applyVoice` recreates the
+   * controller from the current sentence with the pace and the pause kept
+   * — so a reader already on the voice (the one whose popup picked it) is
+   * skipped, or its sentence would restart. `selectVoice` is not the tool:
+   * it wants the voice in the tier-filtered pool of the manager's language
+   * and destroys the controller otherwise, and on an idle manager its
+   * persist activates the manager (audio with the popup closed). An idle
+   * reader needs nothing here — its next popup open runs the wrapper. A
+   * voice that is not global reaches the readers whose document is in its
+   * language; the others go on as they are and get Zotero's choice for
+   * their language at their next popup open. A reader whose voice list
+   * lacks the voice (loaded at its popup's open; Zotero's own voices are in
+   * it only while signed in) is skipped too: Zotero's restore would land on
+   * a fallback and move the reader to some other voice.
+   */
+  function spreadVoice(choice: VoiceChoice | null): void {
+    if (!choice || !deps.sameVoice()) return;
+    const global = isGlobalVoice(choice);
+    const outcome: string[] = [];
+    whileApplying(() => {
+      for (const reader of deps.readers()) {
+        try {
+          const internal = (reader as any)?._internalReader;
+          const manager = internal?._readAloudManager;
+          if (!manager || !manager.active) continue;
+          if (manager.selectedVoiceID === choice.id) continue;
+          const docLang = documentLanguageOf(internal, managerLangOf(manager));
+          if (!global && docLang !== choice.lang) {
+            outcome.push(`${docLang}: another language`);
+            continue;
+          }
+          if (!listsVoice(manager, choice.id)) {
+            outcome.push(`${docLang}: does not list it until its popup reopens`);
+            continue;
+          }
+          resync(internal);
+          outcome.push(`${docLang}: resynced`);
+        } catch (e) {
+          deps.error(e);
+        }
+      }
+    });
+    deps.debug?.(`spread read-aloud voice ${choice.id} (${choice.lang}): ${outcome.join('; ') || 'no other reader is reading'}`);
+  }
+
+  function documentLanguage(reader: unknown): string | null {
+    const internal = (reader as any)?._internalReader;
+    return internal ? documentLanguageOf(internal, managerLangOf(internal._readAloudManager)) : null;
+  }
 
   function attach(reader: any): boolean {
     const internal = reader?._internalReader;
@@ -204,5 +341,5 @@ export function createReadAloudMemorySync(deps: ReadAloudMemoryDeps): ReadAloudM
     }
   }
 
-  return { attach, memory, dispose };
+  return { attach, memory, spreadVoice, documentLanguage, dispose };
 }

@@ -999,21 +999,37 @@ const diagnostics = {
    * manager of every open reader. After
    * the pane's slider is released at 1.8×: `memory.speed` 1.8, every
    * `zotero.<lang>.speed` 1.8, and `speed` 1.8 on every reader — the one
-   * that was playing (`active`, not `paused`) changed pace at once.
+   * that was playing (`active`, not `paused`) changed pace at once. After
+   * a voice is picked in one tab's popup: `memory.voice` names it and so
+   * does `selectedVoiceID` on every reader that was reading and could take
+   * it. Per reader, `docLang` is the document's language as memory-sync
+   * knows it (the language the manager was moved to Multiple languages
+   * from), and `listsDefault` whether the manager's voice list — loaded at
+   * its popup's last open — has the memory's voice at all.
    */
   readAloudMemory: () => {
     const zotero: Record<string, unknown> = {};
     for (const [lang, entry] of Object.entries(readReadAloudVoices(prefs))) {
       zotero[lang] = { region: entry.region ?? null, voice: entry.voice ?? null, speed: entry.speed ?? null, tierVoices: entry.tierVoices ?? {} };
     }
+    const remembered = readMemory(prefs).voice?.id ?? null;
     const readers = (Zotero.Reader._readers ?? []).map((r: any) => {
       const manager = () => r?._internalReader?._readAloudManager;
+      const lists = (id: string) => {
+        const all = manager()?.allVoices;
+        const length = typeof all?.length === 'number' ? all.length : 0;
+        for (let i = 0; i < length; i++) if (all[i]?.id === id) return true;
+        return false;
+      };
       return {
         itemID: safe(() => r?.itemID),
         manager: safe(() => !!manager()),
         lang: safe(() => manager()?.lang ?? null),
+        docLang: safe(() => readAloudMemory?.documentLanguage(r) ?? null),
+        region: safe(() => manager()?.region ?? null),
         speed: safe(() => manager()?.speed ?? null),
         selectedVoiceID: safe(() => manager()?.selectedVoiceID ?? null),
+        listsDefault: safe(() => (remembered ? lists(remembered) : null)),
         active: safe(() => !!manager()?.active),
         paused: safe(() => !!manager()?.paused),
       };

@@ -162,10 +162,14 @@ everywhere* off, `speed per language`).
 
 ### Reading
 
-- *Use the same voice for every document* — Zotero remembers a voice per
-  document language; the plugin keeps your last choice instead.
-  Multilingual voices (Azure's, OpenAI's) sit under the popup's "Multiple
-  languages" entry, which the plugin pins to the top of the language list.
+- *Use one voice everywhere* — one voice for every document and every open
+  tab: pick it in the popup of any tab and every other tab that is reading
+  goes on with it from its current sentence; the rest get it when their
+  popup opens. A multilingual voice (Azure's, OpenAI's — under the popup's
+  "Multiple languages" entry, which the plugin pins to the top of the
+  language list) reaches every document; a single-language voice the
+  documents in its language, and the others get Zotero's own choice for
+  theirs. Off, Zotero remembers a voice per document language.
 - *Use one speed everywhere* — one speed for every document and every open
   tab: set it from the popup's slider, the shortcuts or the settings
   slider, and every tab follows at once. Off, Zotero keeps a speed per
@@ -231,28 +235,9 @@ single source of truth; the browser is its UI. Split into steps, in this
 order, each implemented, tested in Zotero and committed on its own, and
 deleted from this list when done. The mechanism and the Zotero internals
 behind every step are in [notes/NOTES.md](notes/NOTES.md), "Global voice:
-the plan"; steps 3 and 4 are independent of each other, step 5 builds on
-step 3.
+the plan"; step 3 (a voice picked in one tab reaches every other tab at
+once) is done, and steps 4 and 5 are independent of each other.
 
-3. **A voice picked in one tab reaches every other tab at once.** While
-   *Use one voice everywhere* is on (*Use the same voice for every
-   document*, renamed — every document and every open tab; the pref
-   keeps its name), a voice picked in the popup of one tab — or a *Voice
-   Mode* or language switch there, which Zotero persists as a pick —
-   becomes the voice of every other open tab: a playing tab goes on with
-   it from its current sentence, a paused one stays paused with it, a tab
-   whose popup is closed gets it when the popup opens. A multilingual
-   voice reaches every tab; a single-language voice the tabs whose
-   document is in its language, and the other tabs go back to Zotero's
-   own choice for their language at their next popup open — today a tab
-   once moved to "Multiple languages" stays there for good, which this
-   fixes. A tab that does not list the voice (a provider enabled since
-   its popup last opened; Zotero's voices while signed out) is skipped
-   and logged. Test: two tabs reading with Ava Multilingual → pick Ada
-   Multilingual in one → the other goes on with Ada from its sentence;
-   two Chinese PDFs → pick Xiaoxiao (zh-CN) in one → the other follows,
-   and an English PDF beside them keeps its voice; switch off → nothing
-   follows.
 4. **The settings follow a pick in the popup.** The highlighted row moves
    to the new default and the columns open on it, the way the slider
    already follows the speed (the pane observes the memory pref; NOTES,

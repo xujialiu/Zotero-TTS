@@ -147,19 +147,34 @@ export function isMultilingualVoiceId(id: string): boolean {
 }
 
 /**
+ * Whether a remembered voice is applied to every document: chosen under
+ * "Multiple languages", or multilingual by its id (above). Any other voice
+ * reads one language and applies to documents in that language only.
+ */
+export function isGlobalVoice(choice: VoiceChoice): boolean {
+  return choice.lang === MULTILINGUAL || isMultilingualVoiceId(choice.id);
+}
+
+export function sameChoice(a: VoiceChoice | null, b: VoiceChoice | null): boolean {
+  return a === b || (!!a && !!b && a.id === b.id && a.lang === b.lang);
+}
+
+/**
  * What to put in place before Zotero's `_syncPersistedVoicesToManager` runs
  * for a document whose language the manager has just learned. Everything
  * goes through Zotero's own pref and its own resolution, so its popup,
  * fallbacks and persistence keep working as they are. A remembered voice is
- * applied to every document when it is globally usable — chosen under
- * "Multiple languages", or multilingual by its id (see above). The manager
- * is moved to `mul` first, where the catalog publishes such voices: Zotero
- * drops voices whose language does not match the manager's.
+ * applied to every document when it is globally usable (isGlobalVoice). The
+ * manager is moved to `mul` first, where the catalog publishes such voices:
+ * Zotero drops voices whose language does not match the manager's.
+ * `docLang` is the document's language — what the manager is on, or was on
+ * before memory-sync moved it to `mul` — so a voice that is not global
+ * sends a manager back there and Zotero restores its own choice for it.
  */
-export function planSync(managerLang: string | null, voices: VoicesMap, memory: ReadAloudMemory): SyncPlan {
-  if (!managerLang) return { lang: null, voices: null };
-  const global = memory.voice && (memory.voice.lang === MULTILINGUAL || isMultilingualVoiceId(memory.voice.id)) ? memory.voice : null;
-  const lang = global ? MULTILINGUAL : managerLang;
+export function planSync(docLang: string | null, voices: VoicesMap, memory: ReadAloudMemory): SyncPlan {
+  if (!docLang) return { lang: null, voices: null };
+  const global = memory.voice && isGlobalVoice(memory.voice) ? memory.voice : null;
+  const lang = global ? MULTILINGUAL : docLang;
   const key = resolveVoiceLang(lang, Object.keys(voices)) ?? lang;
   const entry = voices[key] ?? {};
   let next = entry;

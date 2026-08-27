@@ -4,6 +4,7 @@ import type { VoicesMap } from '../../src/core/read-aloud-speed';
 import type { PrefsBackend } from '../../src/core/settings';
 import {
   EMPTY_MEMORY,
+  isGlobalVoice,
   isMultilingualVoiceId,
   memoryFromVoices,
   memoryLangForLocale,
@@ -12,6 +13,7 @@ import {
   READ_ALOUD_MEMORY_OBSERVER,
   READ_ALOUD_MEMORY_PREF,
   readMemory,
+  sameChoice,
   writeMemory,
   type ReadAloudMemory,
 } from '../../src/read-aloud/read-aloud-memory';
@@ -84,6 +86,27 @@ describe('isMultilingualVoiceId', () => {
     expect(isMultilingualVoiceId('azure::zh-CN-XiaoxiaoNeural')).toBe(false);
     expect(isMultilingualVoiceId('local::af_bella')).toBe(false);
     expect(isMultilingualVoiceId('bdd0dcc3-en-US')).toBe(false);
+  });
+});
+
+describe('isGlobalVoice', () => {
+  it('is a voice chosen under Multiple languages, or multilingual by its id wherever it was chosen', () => {
+    expect(isGlobalVoice({ id: 'local::af_bella', lang: MULTILINGUAL })).toBe(true);
+    expect(isGlobalVoice({ id: 'azure::en-US-AvaMultilingualNeural', lang: 'en' })).toBe(true);
+    expect(isGlobalVoice({ id: 'azure::zh-CN-XiaoxiaoNeural', lang: 'zh' })).toBe(false);
+    expect(isGlobalVoice({ id: 'bdd0dcc3-en-US', lang: 'en' })).toBe(false);
+  });
+});
+
+describe('sameChoice', () => {
+  it('compares id and language, and takes null on either side', () => {
+    const a = { id: 'local::af_bella', lang: 'en' };
+    expect(sameChoice(a, { ...a })).toBe(true);
+    expect(sameChoice(a, { ...a, lang: 'zh' })).toBe(false);
+    expect(sameChoice(a, { ...a, id: 'x' })).toBe(false);
+    expect(sameChoice(a, null)).toBe(false);
+    expect(sameChoice(null, a)).toBe(false);
+    expect(sameChoice(null, null)).toBe(true);
   });
 });
 
