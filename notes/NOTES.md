@@ -1960,3 +1960,93 @@ later load copies it again; the test's fake `<audio>` resets the rate on
 `src` the way the spec does, so the order cannot regress unnoticed. The
 `sampleSpeed()` diagnostic would have shown `playbackRate: 1` — the
 delivery rule exists for exactly this.
+
+## Default voice and speed: the plan (written 2026-08-27)
+
+README TODO, split into five steps (the README lists them with their
+tests). Decided with the user after 1.7.1; what follows is the mechanism
+and the internals verified in the installed 10.0.x bundle, so each step
+can be picked up cold. Rejected: writing only Zotero's pref and bypassing
+the memory — with "same for every document" on, memory-sync would put its
+own remembered choice back on the next popup open.
+
+**The memory is the single source of truth; the browser is its UI.**
+`readAloud.memory` = `{ speed, voice: { id, lang } }`
+(read-aloud/read-aloud-memory.ts), learned from Zotero's pref by
+memory-sync's observer and applied — when the switch is on — before
+Zotero's own restore. Every step writes *both* the memory and Zotero's
+own pref, so it works whether or not the switch is on.
+
+Step 1, speed:
+
+- Write on `change`, not on every `input` tick: the popup persists on
+  pointer-up (`handleSpeedPointerUp` → `onPersistSpeed`, bundle ~38800);
+  `input` keeps driving the samples live (1.7.1).
+- `persistSpeed(prefs, null, speed)` (core/read-aloud-speed.ts) sets every
+  language's `speed` — the shortcut does the same when no language is
+  known: the user asked for a speed, not a speed in one language. Write
+  the memory explicitly as well (`writeMemory`); the observer learns the
+  same value, but only fires on a change.
+- Open readers: `manager.setSpeed(speed, manager.active &&
+  !!manager.selectedVoiceID)` — never persist through an idle manager
+  (Speed shortcuts, 2026-08-22: Zotero's persistence path activates it and
+  audio starts with the popup closed). The pane reaches readers through
+  an injected dep from index.ts (`Zotero.Reader._readers` →
+  `_internalReader._readAloudManager`), like read-aloud-shortcuts.ts.
+- `diagnostics.readAloudMemory()`: the memory, Zotero's pref per language
+  (`speed`, `voice`, `tierVoices`), and per open reader the manager's
+  `lang`, `speed`, `selectedVoiceID`, `active`.
+
+Step 2, showing the default:
+
+- Row ↔ memory: a plugin voice's row id is `encodeVoiceId(provider, id)`,
+  a Zotero voice's is its own id; `lang` is `mul` for a row under the
+  multilingual locale, else the row locale's base language (`zh` for
+  zh-CN) — the key Zotero itself persists under (`getBaseLanguage`,
+  `_persistCurrentVoice` ~82100). Open the browser on that row's tier and
+  locale instead of TIER_PREFERENCE when the memory names a listed voice.
+
+Step 3, picking the default — Zotero's entry, verified:
+
+- xpcom `_setReadAloudVoice({ lang, region, voice, speed, tier })`
+  (xpcom/reader.js 1730) writes `{ region, voice, speed, tierVoices }` with
+  `delete tierVoices[tier]; tierVoices[tier] = voice` — the tier is pushed
+  to the **end**. `_findFallbackVoice` (bundle ~82173) runs with
+  `_selectedTier` null (`applyPersistedVoices` ~82077 resets it) and takes
+  `Object.keys(persistedTierVoices).pop()` as the target tier, then tries
+  `tierVoices[targetTier]`, then `voice`, then a region match. So build the
+  object as Zotero does; the existing `planSync` spread
+  (`{ ...tierVoices, [PLUGIN_TIER]: id }`) leaves an existing `local` key
+  where it was — harmless under `mul`, where only `local` lives, wrong
+  under a concrete language once Zotero's tiers are in the same entry.
+- `region`: `_persistCurrentVoice` stores `getVoiceRegion(voice)`; store
+  the voice's own region subtag (`CN` for zh-CN, none for `mul`) so the
+  `regionChanged` guard in `_findFallbackVoice` behaves as after a popup
+  pick. Keep the entry's `speed` as it is.
+- **Pitfall**: memory-sync's observer reads a pref write that moves both
+  `voice` and `speed` of one entry as "the slider persisted a fallback
+  voice" and learns only the speed (`noteVoicesChange`). Write the memory
+  first, then Zotero's entry with its speed untouched — or the pick is
+  forgotten.
+- Scope: a `mul` voice is applied to every document by `planSync` (it
+  moves the manager to `mul`); a single-language voice only through
+  Zotero's entry for its language — `planSync` leaves non-global voices
+  alone, the rule from "One voice and speed across documents" (forcing the
+  manager's language makes Kokoro G2P English as Chinese). Zotero's
+  Standard/Premium voices: same entry with their tier; `_applyVoice`
+  (~82232) sets `_selectedTier = voice.tier`; signed out they are not in
+  `_allVoices` and Zotero falls back on its own.
+- Clearing: memory `voice: null`; Zotero's entry is left alone — the
+  memory no longer overrides it, which is "Zotero's own choice".
+
+Step 4, live sync: `Zotero.Prefs.registerObserver('zotero-tts.readAloud.memory',
+fn)` — names relative to `extensions.zotero.`, observers fire
+synchronously inside `set`, and the pane's own writes come back through
+it (guard, as memory-sync's `applying` does). Inject it as a dep; unregister
+when the pane unloads.
+
+Step 5, favorites: `favoritesOnly` is a bound checkbox, read on every
+render (`loadSettings`); the never-empty guard in remote-interface stays.
+
+Releases: 1.7.2 after step 1, 1.8.0 after step 3, 1.8.1 after step 5 —
+each on the feature branch `feat/default-voice`, ff-merged when told.

@@ -211,10 +211,47 @@ password.
 
 ## TODO
 
-- The voice browser as the place to pick the default voice and default
-  speed: the selected row is what Read Aloud starts with. With *Offer only
-  favorite voices in the Read Aloud popup* on, only a favorite can be
-  selected.
+The voice browser as the place to pick the default voice and default
+speed: the selected row is what Read Aloud starts with. Split into steps,
+in this order, each implemented, tested in Zotero and committed on its
+own, and deleted from this list when done. The mechanism and the Zotero
+internals behind every step are in [notes/NOTES.md](notes/NOTES.md),
+"Default voice and speed: the plan".
+
+1. **The slider writes the default speed.** Releasing the slider (`change`
+   — the popup persists on pointer-up too) stores the speed the plugin
+   remembers across documents and Zotero's own per-language speeds; a
+   reader that is playing changes pace at once, an idle one is never
+   persisted through. Adds `diagnostics.readAloudMemory()`: the memory,
+   Zotero's pref, every open reader's manager. Test: drag to 1.8× → the
+   Read Aloud popup's slider says 1.8×; drag while playing → the pace
+   follows at once.
+2. **Show the default voice.** The remembered voice's row is highlighted
+   like a selected column entry, the status line reads
+   `Default: <voice> · 1.8×`, and the browser opens on that voice's tier
+   and language. Test: pick a voice in the popup, reopen the settings →
+   the browser opens on that row, highlighted.
+3. **Click a row to make it the default.** Writes the plugin's memory and
+   Zotero's own entry for the voice's language the way Zotero's
+   `_setReadAloudVoice` does; a second click clears it. A multilingual
+   voice applies to every document, a single-language voice to documents
+   in its language; Zotero's Standard and Premium voices work the same.
+   Test: pick Xiaoxiao (zh-CN) → a Chinese PDF starts with it, an English
+   one keeps Zotero's choice; pick Ava Multilingual → every PDF starts
+   with it; clear → Zotero's own choice is back.
+4. **Live sync while the settings are open.** A change from the popup or
+   the shortcuts moves the slider and the highlight without reopening the
+   pane. Test: Shift+C three times in a reader → the slider goes
+   1.8 → 2.1; pick another voice in the popup → the highlight moves.
+5. **Only a favorite can be the default while *Offer only favorite
+   voices* is on.** Other rows cannot be picked (grayed, with a tooltip
+   saying why); unmarking the default clears it and the status line says
+   so; switching the option on with a non-favorite default warns in the
+   status line. Test: with the option on, a non-favorite row does not
+   react; unmark the default's ♥ → the status line reports it cleared.
+
+Release 1.7.2 after step 1 (the default speed), 1.8.0 after step 3 (the
+default voice), 1.8.1 after step 5.
 
 ## Development
 
