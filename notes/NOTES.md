@@ -2050,3 +2050,127 @@ render (`loadSettings`); the never-empty guard in remote-interface stays.
 
 Releases: 1.7.2 after step 1, 1.8.0 after step 3, 1.8.1 after step 5 —
 each on the feature branch `feat/default-voice`, ff-merged when told.
+
+## The slider writes the default speed (step 1, done 2026-08-27)
+
+`read-aloud/default-speed.ts` `setDefaultSpeed(prefs, speed, managers,
+log)`, called from the voice browser's slider on `change` (`input` keeps
+driving the samples, as in 1.7.1). Three writes, in this order:
+
+1. The memory: `writeMemory(prefs, { ...readMemory(prefs), speed })`.
+   First, so memory-sync's observer — which fires synchronously inside
+   every write of Zotero's pref below — finds the speed already there and
+   has nothing to write.
+2. Every open reader's manager: `setSpeed(speed, active &&
+   !!selectedVoiceID)`, the shortcut's rule. A playing reader changes pace
+   at once (`setSpeed` writes `_controller.speed`, verified ~82086); an
+   idle one gets the value without persisting (the persistence path
+   `_setReadAloudVoice` ~83997 re-syncs and `activate()`s a manager that is
+   *not* active — and, verified now, does *not* re-sync an active one:
+   "don't re-sync (which would nuke and recreate the controller)"). Before
+   the pref write, deliberately: a fallback voice persisted here for the
+   first time moves together with its speed, which `noteVoicesChange`
+   reads as "the slider" and ignores; after the pref write it would move
+   alone and be learned as the user's voice choice. Pinned by a test in
+   memory-sync.test.ts.
+3. `persistSpeed(prefs, null, speed)`: Zotero's entry for every language it
+   has seen. With "same for every document" off this is all Zotero gets —
+   a language without an entry has nowhere to hold a speed, and only the
+   memory (applied while the switch is on) supplies one.
+
+**memory-sync no longer keeps a copy of the memory.** It used to read the
+pref once at startup and update its copy only from its observer on
+`reader.readAloudVoices`. The pane now writes the memory pref directly,
+and on a fresh install Zotero's pref has no entry whose change could
+carry the news — the copy would have stayed at `speed: null`, `planSync`
+would have written nothing, and the popup would have opened at 1.0× after
+a drag to 1.8× (the step's own test, failing exactly on a first install).
+`readMemory(prefs)` on every use instead; step 3's row click, which
+writes the same pref, is covered by the same change. Cost: one small
+JSON.parse per popup open and per pref observation.
+
+Verified in the bundle for this step:
+
+- `_syncPersistedVoicesToManager` (~83883) applies `persisted.speed` on
+  its own — no voice needed — so `{ en: { speed: 1.8 } }` written by
+  `planSync` for a fresh install is enough for the popup to say 1.8×.
+- The popup's slider (~38757): `handleSpeedChange` persists at once when
+  not dragging (a key press), `handleSpeedPointerUp` persists after a
+  drag; for the local tier it pauses during the drag and applies the
+  value on release (`isLocal`). Ours needs neither: one `setSpeed` on
+  release, as the shortcut does, and the plugin's voices are time-stretched
+  audio like any remote voice.
+
+`diagnostics.readAloudMemory()`: `memory` (the pref), `syncInstalled`,
+`sameForAllDocuments`, `startingSpeed` (what the slider opens at),
+`zotero.<lang>` = `{ region, voice, speed, tierVoices }`, and per open
+reader `manager`, `lang`, `speed`, `selectedVoiceID`, `active`, `paused`.
+After a release at 1.8×: `memory.speed` 1.8, every `zotero.<lang>.speed`
+1.8, `speed` 1.8 on every reader.
+
+Left to the next steps: the status line and the highlighted default row
+(step 2); the slider following the popup and the shortcuts while the pane
+is open came the same day (next section).
+
+## Global speed, live (2026-08-27, step 1 follow-up)
+
+Asked after the step-1 build: with two tabs open, the popup's slider (or a
+shortcut) in tab 1 should move the settings slider and tab 2 at once.
+Verified first that Zotero's own observer on `reader.readAloudVoices`
+(xpcom/reader.js 670 → `_handleReadAloudVoicesPrefChange` 1238 → bundle
+`setReadAloudVoices` 84045) only replaces `_state.readAloudVoices`; the
+manager is re-synced only from `_prepareReadAloud` (popup open), the
+language report (84482) and `_setReadAloudVoice` on an inactive manager.
+So writing the pref from inside our own observer costs Zotero one state
+update per reader and nothing else.
+
+- Readers: memory-sync's observer, on learning a *speed* (a voice learned
+  spreads nothing), calls `setDefaultSpeed` for every open reader — the
+  pane slider's routine — under `applying` and the `sameForAllDocuments`
+  switch. A manager already at the speed is skipped (the originating tab;
+  `setDefaultSpeed` skips those now), an active one persists as its own
+  slider would, an idle one is never persisted through, and every
+  language's entry is written. The snapshot is moved on *before* the
+  spread: a reader persisting inside it re-enters the observer, and the
+  next real write (a voice picked in the popup) must be diffed against
+  the state it started from — a stale snapshot shows a spurious speed
+  move and drops the voice as "moved with the speed". Pinned by a test.
+- The pane: `Zotero.Prefs.registerObserver('zotero-tts.readAloud.memory')`
+  (`READ_ALOUD_MEMORY_OBSERVER`; names are relative to `extensions.zotero.`)
+  through the browser's `watchMemory` dep; the slider and a playing
+  sample follow; unregistered from the preferences window's `unload`. The
+  pane's own write comes back through it and finds the slider there
+  already. This is the slider half of README step 4; the highlight half
+  waits for step 2.
+- The popup's slider persists on pointer-up (and per key press), so tab 2
+  follows on release, not during the drag.
+- Seen in the user's pref: a key `"English"` holding `{ speed }` only. PDF
+  metadata can name the language that way, `getBaseLanguage` (bundle
+  38002) only strips a region, and the idle-reader path of the speed
+  shortcut writes `{ speed }` under the manager's language — Zotero's own
+  entries always carry region/voice/tierVoices. Harmless.
+
+Verification: `diagnostics.readAloudMemory()` after Shift+C in one tab
+with another open → `memory.speed`, every `zotero.<lang>.speed` and every
+reader's `speed` agree; the settings slider, if open, shows the same.
+
+### The switch (2026-08-27, same day)
+
+Asked next: a switch for the global speed, default on, off = Zotero's own
+per-language speeds. Two independent switches now, since the wishes are
+independent — per-language voices at one speed everywhere is as
+reasonable as one voice at Zotero's per-language speeds:
+
+- `readAloud.sameForAllDocuments` keeps its name and now means the
+  *voice* only (label "Use the same voice for every document"); the name
+  stays because settings backups carry it.
+- `readAloud.globalSpeed` (default true, "Use one speed everywhere"):
+  memory-sync applies the memory's speed at sync and spreads a learned
+  speed only while it is on; the voice browser's slider sets the default
+  only while it is on and drives the samples only otherwise. memory-sync
+  takes the two as `sameVoice()` / `globalSpeed()`, read on every sync;
+  `apply()` blanks whichever half of the memory is switched off before
+  `planSync`. The memory keeps learning both regardless, so a switch
+  turned on later starts from the latest choice.
+- Existing users who had the old switch off get the global speed on: the
+  default the user asked for, and per-language speed is the rarer wish.

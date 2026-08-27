@@ -3,6 +3,7 @@ import { clampSpeed, readPersistedSpeed } from '../core/read-aloud-speed';
 import { sampleTextForLocale } from '../core/sample-text';
 import { PREF_PREFIX, type PrefsBackend } from '../core/settings';
 import type { CatalogEntry } from '../read-aloud/catalog';
+import { setDefaultSpeed, type SpeedManagerLike } from '../read-aloud/default-speed';
 import { parseFavoriteVoices, serializeFavoriteVoices, toggleFavoriteVoice } from '../read-aloud/favorites';
 import { readMemory } from '../read-aloud/read-aloud-memory';
 import { compareVoiceLabels, encodeVoiceId, pluginVoiceLabel } from '../read-aloud/voice-catalog';
@@ -26,10 +27,16 @@ import type { ZoteroVoice } from '../read-aloud/zotero-voices';
  * whose voices these are.
  *
  * A speed slider — the popup's own, 0.5×–3.0× by 0.1 — plays the samples at
- * the speed Read Aloud will read at. Audio is always synthesized at the
- * voice's natural pace (core/providers/types.ts): Read Aloud time-stretches
- * it on playback with the pitch kept, and so does the sample player, so the
- * cached sample serves every speed.
+ * the speed Read Aloud will read at, and releasing it makes its value that
+ * speed: the default Read Aloud starts with, in every document and at once
+ * in one that is playing (read-aloud/default-speed.ts) — while the "one
+ * speed everywhere" switch is on; off, Zotero keeps a speed per document
+ * language and the slider drives the samples only. Dragging (`input`)
+ * drives the samples only; the commit is the `change` on release, the way
+ * the popup's own slider persists on pointer-up. Audio is always
+ * synthesized at the voice's natural pace (core/providers/types.ts): Read
+ * Aloud time-stretches it on playback with the pitch kept, and so does the
+ * sample player, so the cached sample serves every speed.
  */
 
 export const VOICE_BROWSER_IDS = {
@@ -44,9 +51,10 @@ export const VOICE_BROWSER_IDS = {
 
 /**
  * The speed Read Aloud will start with: the one kept across documents
- * (read-aloud/read-aloud-memory.ts — learned from every slider move and
- * shortcut, whether or not the "same for every document" switch applies
- * it), else the one Zotero itself last persisted for any language, else 1.
+ * (read-aloud/read-aloud-memory.ts — set by this slider, and learned from
+ * every popup slider move and shortcut, whether or not the "same for every
+ * document" switch applies it), else the one Zotero itself last persisted
+ * for any language, else 1.
  */
 export function startingSpeed(prefs: PrefsBackend): number {
   return clampSpeed(readMemory(prefs).speed ?? readPersistedSpeed(prefs, null));
@@ -97,6 +105,19 @@ export interface VoiceBrowserDeps {
   player: SamplePlayer;
   /** Display name of a locale ("zh-CN" → "Chinese (China)"); injected so tests do not depend on the ICU data. */
   localeName?(code: string): string;
+  /** The ReadAloudManager of every open reader, looked up when the slider is released; omitted where there is no Zotero to ask. */
+  readAloudManagers?(): SpeedManagerLike[];
+  /** The "one speed everywhere" switch, read when the slider is released; off, the slider drives the samples only. Omitted means on. */
+  globalSpeed?(): boolean;
+  /** A reader that misbehaved while the speed was applied; the speed is stored regardless. */
+  log?(e: unknown): void;
+  /**
+   * Calls back whenever the memory pref changes — the popup's slider and
+   * the shortcuts move it through memory-sync — and returns the way to stop.
+   * The pane's own writes come back through it too; the slider is already
+   * there then.
+   */
+  watchMemory?(onChange: () => void): () => void;
 }
 
 type BrowserVoice = {
@@ -203,7 +224,7 @@ export function initVoiceBrowserRows(
     createElementNS(ns: string, tag: string): any;
   },
   deps: VoiceBrowserDeps,
-): { load(): Promise<void>; refresh(): void } {
+): { load(): Promise<void>; refresh(): void; dispose(): void } {
   const localeName = deps.localeName ?? defaultLocaleName;
   const status = (text: string) => doc.getElementById(VOICE_BROWSER_IDS.status)?.setAttribute('value', text);
 
@@ -389,6 +410,21 @@ export function initVoiceBrowserRows(
     deps.player.setRate(speed);
   }
 
+  /** The slider released (or stepped by a key): its value is the default speed now, everywhere at once — unless the speed is Zotero's per language. */
+  function onSpeedChange(): void {
+    onSpeedInput();
+    if (deps.globalSpeed?.() ?? true) setDefaultSpeed(deps.prefs, speed, deps.readAloudManagers?.() ?? [], deps.log);
+  }
+
+  /** The memory moved elsewhere — the popup's slider, a shortcut: the slider follows, and so does a sample that is playing. */
+  function onMemoryChange(): void {
+    const next = startingSpeed(deps.prefs);
+    if (next === speed) return;
+    speed = next;
+    paintSpeed();
+    deps.player.setRate(speed);
+  }
+
   function render(): void {
     renderTiers();
     renderLocales();
@@ -451,9 +487,17 @@ export function initVoiceBrowserRows(
 
   doc.getElementById(VOICE_BROWSER_IDS.reload)?.addEventListener('command', () => void load());
   doc.getElementById(VOICE_BROWSER_IDS.speed)?.addEventListener('input', onSpeedInput);
+  doc.getElementById(VOICE_BROWSER_IDS.speed)?.addEventListener('change', onSpeedChange);
   paintSpeed();
+  const unwatch = deps.watchMemory?.(onMemoryChange) ?? null;
 
-  return { load, refresh };
+  /** The pane is closing: stop following the memory, and stop the sample. */
+  function dispose(): void {
+    unwatch?.();
+    stopPlayback();
+  }
+
+  return { load, refresh, dispose };
 }
 
 /**

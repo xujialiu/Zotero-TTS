@@ -32,6 +32,7 @@ pref('extensions.zotero.zotero-tts.shortcuts.nextParagraph', 'Shift+ArrowRight')
 pref('extensions.zotero.zotero-tts.shortcuts.startFromSelection', 'Shift+Space');
 pref('extensions.zotero.zotero-tts.shortcuts.returnToSpoken', 'Shift+Enter');
 pref('extensions.zotero.zotero-tts.readAloud.sameForAllDocuments', true);
+pref('extensions.zotero.zotero-tts.readAloud.globalSpeed', true);
 pref('extensions.zotero.zotero-tts.readAloud.hideZoteroLocalVoices', false);
 pref('extensions.zotero.zotero-tts.readAloud.favoriteVoices', '');
 pref('extensions.zotero.zotero-tts.readAloud.favoritesOnly', false);

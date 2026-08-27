@@ -8,11 +8,18 @@ import {
   memoryFromVoices,
   noteVoicesChange,
   planSync,
+  READ_ALOUD_MEMORY_OBSERVER,
   READ_ALOUD_MEMORY_PREF,
   readMemory,
   writeMemory,
   type ReadAloudMemory,
 } from '../../src/read-aloud/read-aloud-memory';
+
+describe('READ_ALOUD_MEMORY_OBSERVER', () => {
+  it('names the memory pref the way Zotero.Prefs.registerObserver wants it: relative to extensions.zotero.', () => {
+    expect('extensions.zotero.' + READ_ALOUD_MEMORY_OBSERVER).toBe(READ_ALOUD_MEMORY_PREF);
+  });
+});
 
 function fakePrefs(initial: Record<string, unknown> = {}): PrefsBackend & { store: Record<string, unknown> } {
   const store = { ...initial };

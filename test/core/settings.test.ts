@@ -186,6 +186,19 @@ describe('readAloud.sameForAllDocuments', () => {
   });
 });
 
+describe('readAloud.globalSpeed', () => {
+  it('is on by default and reads the stored switch', () => {
+    expect(loadSettings(fakePrefs()).readAloud.globalSpeed).toBe(true);
+    expect(loadSettings(fakePrefs({ [PREF_PREFIX + 'readAloud.globalSpeed']: false })).readAloud.globalSpeed).toBe(false);
+  });
+
+  it('is written back by saveSettings', () => {
+    const prefs = fakePrefs();
+    saveSettings(prefs, { ...DEFAULTS, readAloud: { ...DEFAULTS.readAloud, globalSpeed: false } });
+    expect(prefs.store[PREF_PREFIX + 'readAloud.globalSpeed']).toBe(false);
+  });
+});
+
 describe('readAloud favorites', () => {
   it('has no favorites and offers everything by default', () => {
     expect(loadSettings(fakePrefs()).readAloud.favoriteVoices).toBe('');

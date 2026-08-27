@@ -35,8 +35,10 @@ export interface Settings {
    */
   shortcuts: Record<ShortcutAction, string>;
   readAloud: {
-    /** Keep one Read Aloud voice and speed across documents (read-aloud/read-aloud-memory.ts). */
+    /** Keep one Read Aloud voice across documents (read-aloud/read-aloud-memory.ts); the pref name predates the speed's own switch below. */
     sameForAllDocuments: boolean;
+    /** One speed for every document and every open tab (read-aloud/default-speed.ts); off, Zotero keeps a speed per document language. */
+    globalSpeed: boolean;
     /**
      * Hide Zotero's own Local voices — the operating system's — so the
      * Local tier offers only the plugin's entries, which then drop their
@@ -107,6 +109,7 @@ export const DEFAULTS: Settings = {
   },
   readAloud: {
     sameForAllDocuments: true,
+    globalSpeed: true,
     hideZoteroLocalVoices: false,
     favoriteVoices: '',
     favoritesOnly: false,
@@ -178,6 +181,7 @@ export function loadSettings(prefs: PrefsBackend): Settings {
     },
     readAloud: {
       sameForAllDocuments: bool(prefs, 'readAloud.sameForAllDocuments', DEFAULTS.readAloud.sameForAllDocuments),
+      globalSpeed: bool(prefs, 'readAloud.globalSpeed', DEFAULTS.readAloud.globalSpeed),
       hideZoteroLocalVoices: bool(prefs, 'readAloud.hideZoteroLocalVoices', DEFAULTS.readAloud.hideZoteroLocalVoices),
       favoriteVoices: str(prefs, 'readAloud.favoriteVoices', DEFAULTS.readAloud.favoriteVoices),
       favoritesOnly: bool(prefs, 'readAloud.favoritesOnly', DEFAULTS.readAloud.favoritesOnly),

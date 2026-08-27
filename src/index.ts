@@ -9,6 +9,8 @@ import { createSystemVoiceHiding, type SystemVoiceHiding } from './read-aloud/sy
 import { createMultilingualFirst, type MultilingualFirst } from './read-aloud/multilingual-first';
 import { createPositionSync, ACTIVE_TICK_MS, IDLE_TICK_MS, type PositionSync } from './read-aloud/position-sync';
 import { readPositions, resumeTarget } from './read-aloud/read-aloud-position';
+import { readMemory } from './read-aloud/read-aloud-memory';
+import { readReadAloudVoices } from './core/read-aloud-speed';
 import { listNamedCatalog, type CatalogEntry } from './read-aloud/catalog';
 import { parseFavoriteVoices } from './read-aloud/favorites';
 import { decodeVoiceId } from './read-aloud/voice-catalog';
@@ -586,7 +588,8 @@ function startReadAloudMemory(): void {
   stopReadAloudMemory();
   readAloudMemory = createReadAloudMemorySync({
     prefs,
-    enabled: () => loadSettings(prefs).readAloud.sameForAllDocuments,
+    sameVoice: () => loadSettings(prefs).readAloud.sameForAllDocuments,
+    globalSpeed: () => loadSettings(prefs).readAloud.globalSpeed,
     registerObserver: (name, handler) => Zotero.Prefs.registerObserver(name, handler),
     unregisterObserver: (token) => Zotero.Prefs.unregisterObserver(token),
     readers: () => Zotero.Reader._readers ?? [],
@@ -795,6 +798,19 @@ function onMainWindowUnload(win: any): void {
   }
 }
 
+/**
+ * A diagnostics field, read behind its own guard and copied before it
+ * leaves: a probe that throws on one dead object tells you nothing about
+ * the rest, which is how the 2026-08-26 bug hid.
+ */
+function safe(fn: () => unknown): unknown {
+  try {
+    return JSON.parse(JSON.stringify(fn() ?? null));
+  } catch (e) {
+    return String(e);
+  }
+}
+
 /** For Tools → Developer → Run JavaScript: `Zotero.ZoteroTTS.diagnostics.highlight()` etc. */
 const diagnostics = {
   highlight: () => JSON.stringify((Zotero.Reader._readers ?? []).map((r: any) => highlightStyling?.inspect(r) ?? null), null, 1),
@@ -806,13 +822,6 @@ const diagnostics = {
    * session open → togglePaused; idle → selection > stored > plain start.
    */
   smartKey: () => {
-    const safe = (fn: () => unknown): unknown => {
-      try {
-        return JSON.parse(JSON.stringify(fn() ?? null));
-      } catch (e) {
-        return String(e);
-      }
-    };
     safe(() => positionSync?.sample());
     const readers = (Zotero.Reader._readers ?? []).map((r: any) => {
       const canReadAloud = safe(() => typeof r?._internalReader?.startReadAloudAtPosition === 'function') === true;
@@ -841,16 +850,6 @@ const diagnostics = {
    * away, which is exactly what `stored` is here to survive.
    */
   position: () => {
-    // Every field is read behind its own guard and copied before it leaves:
-    // a probe that throws on one dead object tells you nothing about the
-    // rest, which is how the 2026-08-26 bug hid.
-    const safe = (fn: () => unknown): unknown => {
-      try {
-        return JSON.parse(JSON.stringify(fn() ?? null));
-      } catch (e) {
-        return String(e);
-      }
-    };
     safe(() => positionSync?.sample());
     const readers = (Zotero.Reader._readers ?? []).map((r: any) => ({
       itemID: safe(() => r?.itemID),
@@ -940,6 +939,47 @@ const diagnostics = {
     } catch (e) {
       return JSON.stringify({ error: String(e) }, null, 1);
     }
+  },
+  /**
+   * The default speed and voice, from every place that holds them: the
+   * plugin's memory (what the pane's slider writes; memory-sync reads it on
+   * every use and applies the voice while `sameForAllDocuments` is on, the
+   * speed while `globalSpeed` is), Zotero's own entry per language, and the
+   * manager of every open reader. After
+   * the pane's slider is released at 1.8×: `memory.speed` 1.8, every
+   * `zotero.<lang>.speed` 1.8, and `speed` 1.8 on every reader — the one
+   * that was playing (`active`, not `paused`) changed pace at once.
+   */
+  readAloudMemory: () => {
+    const zotero: Record<string, unknown> = {};
+    for (const [lang, entry] of Object.entries(readReadAloudVoices(prefs))) {
+      zotero[lang] = { region: entry.region ?? null, voice: entry.voice ?? null, speed: entry.speed ?? null, tierVoices: entry.tierVoices ?? {} };
+    }
+    const readers = (Zotero.Reader._readers ?? []).map((r: any) => {
+      const manager = () => r?._internalReader?._readAloudManager;
+      return {
+        itemID: safe(() => r?.itemID),
+        manager: safe(() => !!manager()),
+        lang: safe(() => manager()?.lang ?? null),
+        speed: safe(() => manager()?.speed ?? null),
+        selectedVoiceID: safe(() => manager()?.selectedVoiceID ?? null),
+        active: safe(() => !!manager()?.active),
+        paused: safe(() => !!manager()?.paused),
+      };
+    });
+    return JSON.stringify(
+      {
+        memory: safe(() => readMemory(prefs)),
+        syncInstalled: !!readAloudMemory,
+        sameForAllDocuments: loadSettings(prefs).readAloud.sameForAllDocuments,
+        globalSpeed: loadSettings(prefs).readAloud.globalSpeed,
+        startingSpeed: startingSpeed(prefs),
+        zotero,
+        readers,
+      },
+      null,
+      1,
+    );
   },
 };
 

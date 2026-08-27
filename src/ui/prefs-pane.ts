@@ -7,6 +7,7 @@ import { SynthesisError } from '../core/providers/errors';
 import { withTimeout } from '../core/timeout';
 import { createWebDAVClient } from '../core/webdav';
 import { listNamedCatalog } from '../read-aloud/catalog';
+import { READ_ALOUD_MEMORY_OBSERVER } from '../read-aloud/read-aloud-memory';
 import { createZoteroVoiceService, type ZoteroVoiceService } from '../read-aloud/zotero-voices';
 import { initShortcutRows } from './shortcut-rows';
 import { initBackupRows, type BackupFileIO } from './backup-rows';
@@ -296,7 +297,22 @@ export function onPaneLoad(doc: Document): void {
         return code;
       }
     },
+    // The manager of every open reader, the way the shortcuts reach it: a
+    // released slider changes the pace of a document that is playing at once
+    readAloudManagers: () => (Zotero.Reader._readers ?? []).map((r: any) => r?._internalReader?._readAloudManager).filter(Boolean),
+    // Read on release, so the checkbox above applies at once
+    globalSpeed: () => loadSettings(prefs).readAloud.globalSpeed,
+    log: (e) => Zotero.logError(e),
+    // The popup's slider and the shortcuts move the memory (memory-sync);
+    // the pane's slider follows while it is open. Observers fire
+    // synchronously inside Zotero.Prefs.set; names are relative to extensions.zotero.
+    watchMemory: (onChange) => {
+      const token = Zotero.Prefs.registerObserver(READ_ALOUD_MEMORY_OBSERVER, onChange);
+      return () => Zotero.Prefs.unregisterObserver(token);
+    },
   });
+  // The observer must not outlive the pane: the window closing is its end
+  win?.addEventListener('unload', () => voiceBrowserRows.dispose(), { once: true });
   // The popup lists the catalog on every open; the pane doing the same on
   // load costs one request per enabled provider and spends nothing.
   void voiceBrowserRows.load();

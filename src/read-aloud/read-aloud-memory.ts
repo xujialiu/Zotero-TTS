@@ -19,6 +19,8 @@ import { decodeVoiceId, PLUGIN_TIER } from './voice-catalog';
  */
 
 export const READ_ALOUD_MEMORY_PREF = PREF_PREFIX + 'readAloud.memory';
+/** The same pref as Zotero.Prefs.registerObserver wants it: relative to `extensions.zotero.` (pinned by a test). */
+export const READ_ALOUD_MEMORY_OBSERVER = 'zotero-tts.readAloud.memory';
 
 export interface VoiceChoice {
   /** Zotero's voice id (`provider::id` for plugin voices). */

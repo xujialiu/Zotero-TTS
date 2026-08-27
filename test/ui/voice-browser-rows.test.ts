@@ -4,8 +4,9 @@ import { PREF_PREFIX, type PrefsBackend } from '../../src/core/settings';
 import { READ_ALOUD_VOICES_PREF } from '../../src/core/read-aloud-speed';
 import { sampleTextForLocale } from '../../src/core/sample-text';
 import type { CatalogEntry } from '../../src/read-aloud/catalog';
+import type { SpeedManagerLike } from '../../src/read-aloud/default-speed';
 import { parseFavoriteVoices } from '../../src/read-aloud/favorites';
-import { READ_ALOUD_MEMORY_PREF } from '../../src/read-aloud/read-aloud-memory';
+import { READ_ALOUD_MEMORY_PREF, readMemory } from '../../src/read-aloud/read-aloud-memory';
 import { encodeVoiceId } from '../../src/read-aloud/voice-catalog';
 import type { ZoteroVoice } from '../../src/read-aloud/zotero-voices';
 import {
@@ -83,7 +84,15 @@ const LOCALE_NAMES: Record<string, string> = {
 };
 
 function setup(
-  options: { prefs?: Record<string, unknown>; catalog?: CatalogEntry[] | Error; zotero?: ZoteroVoice[] | Error } = {},
+  options: {
+    prefs?: Record<string, unknown>;
+    catalog?: CatalogEntry[] | Error;
+    zotero?: ZoteroVoice[] | Error;
+    /** The ReadAloudManager of every open reader. */
+    managers?: SpeedManagerLike[];
+    /** The "one speed everywhere" switch; on unless said otherwise. */
+    globalSpeed?: boolean;
+  } = {},
 ) {
   const els = new Map((Object.values(VOICE_BROWSER_IDS) as string[]).map((id) => [id, new FakeElement()]));
   const doc = {
@@ -91,6 +100,13 @@ function setup(
     createElementNS: (_ns: string, tag: string) => new FakeElement(tag),
   };
   const prefs = fakePrefs(options.prefs);
+  // Zotero.Prefs in miniature: an observer of the memory pref fires synchronously inside set()
+  const watchers: Array<() => void> = [];
+  const rawSet = prefs.set;
+  prefs.set = (k, v) => {
+    rawSet(k, v);
+    if (k === READ_ALOUD_MEMORY_PREF) for (const fn of [...watchers]) fn();
+  };
   const player = { play: vi.fn(async (_audio: Blob, _rate: number, _onDone: () => void) => {}), stop: vi.fn(), setRate: vi.fn() };
   const deps = {
     prefs,
@@ -106,6 +122,13 @@ function setup(
     sampleZoteroVoice: vi.fn(async (voiceId: string) => new Blob([`zotero:${voiceId}`])),
     player,
     localeName: (code: string) => LOCALE_NAMES[code] ?? code,
+    readAloudManagers: vi.fn(() => options.managers ?? []),
+    globalSpeed: vi.fn(() => options.globalSpeed ?? true),
+    log: vi.fn(),
+    watchMemory: vi.fn((onChange: () => void) => {
+      watchers.push(onChange);
+      return () => void watchers.splice(watchers.indexOf(onChange), 1);
+    }),
   } satisfies VoiceBrowserDeps;
   const rows = initVoiceBrowserRows(doc, deps);
   const el = (id: string) => els.get(id)!;
@@ -116,6 +139,7 @@ function setup(
     player,
     rows,
     el,
+    watchers,
     status: () => el(VOICE_BROWSER_IDS.status).attrs.get('value'),
     tierButtons: () => el(VOICE_BROWSER_IDS.tiers).children,
     tiers: () => texts(el(VOICE_BROWSER_IDS.tiers).children),
@@ -137,6 +161,14 @@ function setup(
       el(VOICE_BROWSER_IDS.speed).value = value;
       await el(VOICE_BROWSER_IDS.speed).fire('input');
     },
+    /** Drag and release: the `input` ticks, then the one `change` a range input fires on release (or per key press). */
+    releaseSpeed: async (value: string) => {
+      el(VOICE_BROWSER_IDS.speed).value = value;
+      await el(VOICE_BROWSER_IDS.speed).fire('input');
+      await el(VOICE_BROWSER_IDS.speed).fire('change');
+    },
+    memory: () => readMemory(prefs),
+    zoteroVoices: () => (prefs.store[READ_ALOUD_VOICES_PREF] ? JSON.parse(prefs.store[READ_ALOUD_VOICES_PREF] as string) : undefined),
   };
 }
 
@@ -260,11 +292,13 @@ describe('loading the catalog', () => {
     const t = setup();
     const rows = initVoiceBrowserRows(
       { getElementById: (id: string) => t.el(id) ?? null, createElementNS: (_ns: string, tag: string) => new FakeElement(tag) },
-      { ...t.deps, listZoteroVoices: undefined, sampleZoteroVoice: undefined },
+      { ...t.deps, listZoteroVoices: undefined, sampleZoteroVoice: undefined, readAloudManagers: undefined, log: undefined },
     );
     await rows.load();
     expect(t.status()).toContain('5 voices');
     expect(t.tiers()).toEqual(['Standard (0)', 'Premium (0)', 'Local (5)']);
+    await t.releaseSpeed('1.8');
+    expect(t.memory().speed).toBe(1.8);
   });
 
   it('tolerates a pane that lacks the rows', () => {
@@ -506,6 +540,124 @@ describe('the speed slider', () => {
     await rows.load();
     await els.get(VOICE_BROWSER_IDS.voices)!.children[0].children[0].fire('click');
     expect(t.player.play.mock.calls[0][1]).toBe(1);
+  });
+});
+
+describe('the slider as the default speed', () => {
+  // Releasing the slider — `change`; the popup persists on pointer-up too —
+  // makes its value the speed Read Aloud starts with, everywhere at once
+  // (read-aloud/default-speed.ts): the memory kept across documents, and
+  // Zotero's own entry for every language it has seen.
+  it('makes the released value the default: the memory and Zotero’s every language', async () => {
+    const t = setup({
+      prefs: {
+        [READ_ALOUD_VOICES_PREF]: JSON.stringify({ en: { voice: 'x', speed: 1 }, zh: { speed: 1 } }),
+        [READ_ALOUD_MEMORY_PREF]: JSON.stringify({ speed: 1, voice: { id: 'openai::alloy', lang: 'mul' } }),
+      },
+    });
+    await t.releaseSpeed('1.8');
+    expect(t.speedLabel()).toBe('1.8×');
+    expect(t.memory()).toEqual({ speed: 1.8, voice: { id: 'openai::alloy', lang: 'mul' } });
+    expect(t.zoteroVoices()).toEqual({ en: { voice: 'x', speed: 1.8 }, zh: { speed: 1.8 } });
+  });
+
+  it('writes nothing while the slider is still being dragged', async () => {
+    const t = setup();
+    await t.dragSpeed('1.8');
+    expect(t.prefs.store[READ_ALOUD_MEMORY_PREF]).toBeUndefined();
+    expect(t.zoteroVoices()).toBeUndefined();
+  });
+
+  it('changes the pace of a reader that is playing at once, and never persists through an idle one', async () => {
+    const playing = { active: true, selectedVoiceID: 'v', setSpeed: vi.fn() };
+    const idle = { active: false, selectedVoiceID: 'v', setSpeed: vi.fn() };
+    const t = setup({ managers: [playing, idle] });
+    await t.releaseSpeed('1.8');
+    expect(playing.setSpeed).toHaveBeenCalledWith(1.8, true);
+    expect(idle.setSpeed).toHaveBeenCalledWith(1.8, false);
+    // The readers are looked up on release, not when the pane opened
+    expect(t.deps.readAloudManagers).toHaveBeenCalledTimes(1);
+  });
+
+  it('reports a reader that throws and still stores the speed', async () => {
+    const broken = {
+      active: true,
+      selectedVoiceID: 'v',
+      setSpeed: vi.fn(() => {
+        throw new Error('gone');
+      }),
+    };
+    const t = setup({ managers: [broken] });
+    await t.releaseSpeed('1.8');
+    expect(t.deps.log).toHaveBeenCalledWith(expect.any(Error));
+    expect(t.memory().speed).toBe(1.8);
+  });
+
+  it('commits a value the slider clamped, so a key press past the end stores the end', async () => {
+    const t = setup();
+    await t.releaseSpeed('9');
+    expect(t.memory().speed).toBe(3);
+    expect(t.speedLabel()).toBe('3.0×');
+  });
+
+  // Off, Zotero keeps a speed per document language, and the slider is
+  // what it was in 1.7.1: the samples' pace
+  it('drives the samples only while global speed is off', async () => {
+    const playing = { active: true, selectedVoiceID: 'v', setSpeed: vi.fn() };
+    const t = setup({ globalSpeed: false, managers: [playing] });
+    await t.rows.load();
+    await t.releaseSpeed('1.8');
+    expect(t.speedLabel()).toBe('1.8×');
+    await t.play(0).fire('click');
+    expect(t.player.play.mock.calls[0][1]).toBe(1.8);
+    expect(t.prefs.store[READ_ALOUD_MEMORY_PREF]).toBeUndefined();
+    expect(t.zoteroVoices()).toBeUndefined();
+    expect(playing.setSpeed).not.toHaveBeenCalled();
+    // The switch is read on release, so flipping it applies at once
+    expect(t.deps.globalSpeed).toHaveBeenCalled();
+  });
+});
+
+describe('the slider follows the memory', () => {
+  // The popup's slider and the shortcuts move the memory (memory-sync
+  // learns them); the pane observes the pref and follows without a
+  // reopen — and so does a sample that is playing.
+  it('moves the slider and the playing sample when the memory changes elsewhere', async () => {
+    const t = setup({ prefs: { [READ_ALOUD_MEMORY_PREF]: JSON.stringify({ speed: 1.8, voice: null }) } });
+    await t.rows.load();
+    await t.play(0).fire('click');
+    t.prefs.set(READ_ALOUD_MEMORY_PREF, JSON.stringify({ speed: 2.1, voice: null }));
+    expect(t.speedSlider()).toBe('2.1');
+    expect(t.speedLabel()).toBe('2.1×');
+    expect(t.player.setRate).toHaveBeenCalledWith(2.1);
+  });
+
+  it('takes its own write in stride', async () => {
+    const t = setup();
+    await t.releaseSpeed('1.8');
+    expect(t.speedLabel()).toBe('1.8×');
+    // The `input` tick and the `change` re-reading the slider set the rate;
+    // the write coming back through the observer found the slider there already
+    expect(t.player.setRate.mock.calls).toEqual([[1.8], [1.8]]);
+  });
+
+  it('stops following, and playing, when the pane is disposed', async () => {
+    const t = setup();
+    expect(t.watchers).toHaveLength(1);
+    t.rows.dispose();
+    expect(t.watchers).toHaveLength(0);
+    expect(t.player.stop).toHaveBeenCalled();
+    t.prefs.set(READ_ALOUD_MEMORY_PREF, JSON.stringify({ speed: 2.1, voice: null }));
+    expect(t.speedLabel()).toBe('1.0×');
+  });
+
+  it('works without an observer to register', async () => {
+    const t = setup();
+    const rows = initVoiceBrowserRows(
+      { getElementById: (id: string) => t.el(id) ?? null, createElementNS: (_ns: string, tag: string) => new FakeElement(tag) },
+      { ...t.deps, watchMemory: undefined },
+    );
+    expect(() => rows.dispose()).not.toThrow();
   });
 });
 

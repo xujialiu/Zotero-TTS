@@ -1,12 +1,22 @@
 import { READ_ALOUD_VOICES_PREF, readReadAloudVoices } from '../core/read-aloud-speed';
 import type { PrefsBackend } from '../core/settings';
+import { setDefaultSpeed, type SpeedManagerLike } from './default-speed';
 import { memoryFromVoices, noteVoicesChange, planSync, readMemory, writeMemory, type ReadAloudMemory } from './read-aloud-memory';
 
 /**
- * Wires read-aloud-memory.ts to Zotero. Two hooks:
+ * Wires read-aloud-memory.ts to Zotero. The memory lives in its pref
+ * (`readAloud.memory`), which is read on every use and never copied: the
+ * voice browser writes it too (default-speed.ts), and on a fresh install
+ * Zotero's pref has no entry whose change could carry the news here — a
+ * copy would be stale exactly when the memory is the only thing that moved.
+ * Two hooks:
  *
  * - A pref observer on `reader.readAloudVoices` learns the speed and voice
- *   from what Zotero persists on the user's actions.
+ *   from what Zotero persists on the user's actions. A speed learned there
+ *   is global while `globalSpeed` is on: it is spread at once to every
+ *   other open reader (the popup's slider in one tab moves the pace in the
+ *   others) and to Zotero's entry for every language, through the routine
+ *   the pane's slider uses (default-speed.ts).
  * - Each reader's internal `_syncPersistedVoicesToManager` (the one place
  *   Zotero restores the per-language choice into its ReadAloudManager, run
  *   whenever the manager learns the document's language and on every popup
@@ -32,8 +42,10 @@ export const READ_ALOUD_VOICES_OBSERVER = 'reader.readAloudVoices';
 
 export interface ReadAloudMemoryDeps {
   prefs: PrefsBackend;
-  /** The "same voice and speed for every document" setting, read on every use so the pane's checkbox applies at once. */
-  enabled(): boolean;
+  /** The "same voice for every document" setting (`readAloud.sameForAllDocuments`), read on every use so the pane's checkbox applies at once. */
+  sameVoice(): boolean;
+  /** The "one speed everywhere" setting (`readAloud.globalSpeed`), read the same way; off, Zotero keeps a speed per document language. */
+  globalSpeed(): boolean;
   registerObserver(name: string, handler: () => void): unknown;
   unregisterObserver(token: unknown): void;
   /** The readers currently open, so dispose() can restore what attach() patched. */
@@ -51,6 +63,7 @@ export interface ReadAloudMemoryDeps {
 export interface ReadAloudMemorySync {
   /** Patch a reader so the remembered choice is applied before Zotero restores its per-language one. Repeat calls are no-ops. */
   attach(reader: unknown): boolean;
+  /** The memory as its pref holds it right now. */
   memory(): ReadAloudMemory;
   dispose(): void;
 }
@@ -62,39 +75,77 @@ const describeMemory = (m: ReadAloudMemory) =>
 
 export function createReadAloudMemorySync(deps: ReadAloudMemoryDeps): ReadAloudMemorySync {
   let snapshot = readReadAloudVoices(deps.prefs);
-  let memory = readMemory(deps.prefs);
-  if (memory.speed === null && memory.voice === null) {
-    memory = memoryFromVoices(snapshot);
-    if (memory.speed !== null || memory.voice !== null) writeMemory(deps.prefs, memory);
+  const memory = () => readMemory(deps.prefs);
+  const initial = memory();
+  if (initial.speed === null && initial.voice === null) {
+    const guessed = memoryFromVoices(snapshot);
+    if (guessed.speed !== null || guessed.voice !== null) writeMemory(deps.prefs, guessed);
   }
-  deps.debug?.(`read-aloud memory: ${describeMemory(memory)}`);
+  deps.debug?.(`read-aloud memory: ${describeMemory(memory())}`);
 
   // Our own pref writes come back through the observer too; they carry
   // nothing to learn.
   let applying = false;
   const token = deps.registerObserver(READ_ALOUD_VOICES_OBSERVER, () => {
     try {
+      const before = snapshot;
       const next = readReadAloudVoices(deps.prefs);
-      if (!applying) {
-        const learned = noteVoicesChange(snapshot, next, memory);
-        if (learned !== memory) {
-          memory = learned;
-          writeMemory(deps.prefs, memory);
-          deps.debug?.(`read-aloud memory: ${describeMemory(memory)}`);
-        }
-      }
+      // Moved on before anything is written below: a reader persisting
+      // inside spread() re-enters this observer, and the write after that
+      // must be diffed against the state it started from, not this one
       snapshot = next;
+      if (applying) return;
+      const current = memory();
+      const learned = noteVoicesChange(before, next, current);
+      if (learned === current) return;
+      writeMemory(deps.prefs, learned);
+      deps.debug?.(`read-aloud memory: ${describeMemory(learned)}`);
+      if (learned.speed !== null && learned.speed !== current.speed) spread(learned.speed);
     } catch (e) {
       deps.error(e);
     }
   });
 
+  /**
+   * A speed Zotero has just persisted — the popup's slider, a shortcut —
+   * reaches every other open reader at once and Zotero's entry for every
+   * language: a reader already at the speed is left alone, an active one
+   * persists as its own slider would, an idle one is never persisted
+   * through (default-speed.ts). Under `applying`: a reader persisting here
+   * comes back through the observer above with nothing to learn — the
+   * fallback voice it persists then is not a choice.
+   */
+  function spread(speed: number): void {
+    if (!deps.globalSpeed()) return;
+    const managers: SpeedManagerLike[] = [];
+    for (const reader of deps.readers()) {
+      try {
+        const manager = (reader as any)?._internalReader?._readAloudManager;
+        if (manager && typeof manager.setSpeed === 'function') managers.push(manager);
+      } catch (e) {
+        deps.error(e);
+      }
+    }
+    applying = true;
+    try {
+      setDefaultSpeed(deps.prefs, speed, managers, deps.error);
+    } finally {
+      applying = false;
+    }
+    deps.debug?.(`spread read-aloud speed ${speed} to ${managers.length} reader(s)`);
+  }
+
   function apply(internal: any): void {
-    if (!deps.enabled()) return;
+    // Each switch is read here, on every sync, so the pane's checkboxes apply at once
+    const wanted = { voice: deps.sameVoice(), speed: deps.globalSpeed() };
+    if (!wanted.voice && !wanted.speed) return;
     const manager = internal?._readAloudManager;
     if (!manager || typeof manager.setLanguage !== 'function') return;
     const managerLang = typeof manager.lang === 'string' && manager.lang ? manager.lang : null;
-    const plan = planSync(managerLang, readReadAloudVoices(deps.prefs), memory);
+    // Only what is switched on is put in front of Zotero's restore; the rest is Zotero's per language
+    const stored = memory();
+    const current: ReadAloudMemory = { speed: wanted.speed ? stored.speed : null, voice: wanted.voice ? stored.voice : null };
+    const plan = planSync(managerLang, readReadAloudVoices(deps.prefs), current);
     if (plan.voices) {
       applying = true;
       try {
@@ -106,7 +157,7 @@ export function createReadAloudMemorySync(deps: ReadAloudMemoryDeps): ReadAloudM
     const switching = plan.lang !== null && plan.lang !== managerLang;
     if (switching) manager.setLanguage(plan.lang);
     if (plan.voices || switching) {
-      deps.debug?.(`applied read-aloud memory: ${managerLang} -> ${plan.lang}, ${describeMemory(memory)}`);
+      deps.debug?.(`applied read-aloud memory: ${managerLang} -> ${plan.lang}, ${describeMemory(current)}`);
     }
   }
 
@@ -153,5 +204,5 @@ export function createReadAloudMemorySync(deps: ReadAloudMemoryDeps): ReadAloudM
     }
   }
 
-  return { attach, memory: () => memory, dispose };
+  return { attach, memory, dispose };
 }

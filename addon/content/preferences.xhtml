@@ -98,11 +98,12 @@
       <checkbox label="Offer only favorite voices in the Read Aloud popup"
                 preference="extensions.zotero.zotero-tts.readAloud.favoritesOnly"/>
     </hbox>
-    <!-- The Read Aloud popup's own speed slider (0.5–3.0 by 0.1); the samples
-         play at this speed, starting from the one Read Aloud will use -->
+    <!-- The Read Aloud popup's own speed slider (0.5–3.0 by 0.1): the samples
+         play at this speed, and releasing it makes it the speed Read Aloud
+         starts with (read-aloud/default-speed.ts) -->
     <hbox align="center">
       <label value="Speed" control="ztts-voices-speed"
-             tooltiptext="Samples play at this speed — the one Read Aloud will read at"/>
+             tooltiptext="Samples play at this speed; with “Use one speed everywhere” on, releasing the slider makes it the speed Read Aloud starts with"/>
       <html:input type="range" id="ztts-voices-speed" min="0.5" max="3" step="0.1" style="width: 14em; margin: 0 6px;"/>
       <html:span id="ztts-voices-speed-value" style="min-width: 3em;">1.0×</html:span>
     </hbox>
@@ -123,8 +124,14 @@
   <groupbox>
     <label><html:h2>Reading</html:h2></label>
     <hbox align="center">
-      <checkbox label="Use the same voice and speed for every document"
+      <checkbox label="Use the same voice for every document"
                 preference="extensions.zotero.zotero-tts.readAloud.sameForAllDocuments"/>
+    </hbox>
+    <!-- Off, Zotero keeps a speed per document language and the voice
+         browser's slider drives the samples only (read-aloud/default-speed.ts) -->
+    <hbox align="center">
+      <checkbox label="Use one speed everywhere — every document and every open tab (off: Zotero keeps one per language)"
+                preference="extensions.zotero.zotero-tts.readAloud.globalSpeed"/>
     </hbox>
     <hbox align="center">
       <checkbox label="Hide Zotero’s own Local voices (the plugin’s voices then drop their TTS- prefix)"

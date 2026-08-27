@@ -147,17 +147,23 @@ nothing marked at all, or when none of the marked voices is listed any more
 Favorites travel with the settings backup.
 
 The **Speed** slider is the popup's own (0.5×–3×): samples play at that
-speed, starting from the one Read Aloud will read at. Zotero stretches its
+speed, and releasing it makes that the speed Read Aloud starts with — in
+every document, and at once in one that is playing (while *Use one speed
+everywhere* is on). Zotero stretches its
 audio the same way — pitch kept — so what you hear is what you get, and
 the slider costs no new request: every voice is synthesized at its natural
 pace and stretched on playback.
 
 ### Reading
 
-- *Use the same voice and speed for every document* — Zotero remembers them
-  per document language; the plugin keeps your last choice instead.
+- *Use the same voice for every document* — Zotero remembers a voice per
+  document language; the plugin keeps your last choice instead.
   Multilingual voices (Azure's, OpenAI's) sit under the popup's "Multiple
   languages" entry, which the plugin pins to the top of the language list.
+- *Use one speed everywhere* — one speed for every document and every open
+  tab: set it from the popup's slider, the shortcuts or the settings
+  slider, and every tab follows at once. Off, Zotero keeps a speed per
+  document language, and the settings slider only sets the samples' pace.
 - *Hide Zotero's own Local voices* — the Local tier then offers only the
   plugin's entries, which drop their `TTS-` prefix. Takes effect the next
   time the Read Aloud popup opens.
@@ -218,14 +224,6 @@ own, and deleted from this list when done. The mechanism and the Zotero
 internals behind every step are in [notes/NOTES.md](notes/NOTES.md),
 "Default voice and speed: the plan".
 
-1. **The slider writes the default speed.** Releasing the slider (`change`
-   — the popup persists on pointer-up too) stores the speed the plugin
-   remembers across documents and Zotero's own per-language speeds; a
-   reader that is playing changes pace at once, an idle one is never
-   persisted through. Adds `diagnostics.readAloudMemory()`: the memory,
-   Zotero's pref, every open reader's manager. Test: drag to 1.8× → the
-   Read Aloud popup's slider says 1.8×; drag while playing → the pace
-   follows at once.
 2. **Show the default voice.** The remembered voice's row is highlighted
    like a selected column entry, the status line reads
    `Default: <voice> · 1.8×`, and the browser opens on that voice's tier
@@ -239,10 +237,11 @@ internals behind every step are in [notes/NOTES.md](notes/NOTES.md),
    Test: pick Xiaoxiao (zh-CN) → a Chinese PDF starts with it, an English
    one keeps Zotero's choice; pick Ava Multilingual → every PDF starts
    with it; clear → Zotero's own choice is back.
-4. **Live sync while the settings are open.** A change from the popup or
-   the shortcuts moves the slider and the highlight without reopening the
-   pane. Test: Shift+C three times in a reader → the slider goes
-   1.8 → 2.1; pick another voice in the popup → the highlight moves.
+4. **Live sync of the default voice while the settings are open.** Picking
+   another voice in the popup moves the highlight without reopening the
+   pane, the way the slider already follows the speed (the pane observes
+   the memory pref; NOTES, "Global speed, live"). Test: pick another voice
+   in the popup → the highlight moves.
 5. **Only a favorite can be the default while *Offer only favorite
    voices* is on.** Other rows cannot be picked (grayed, with a tooltip
    saying why); unmarking the default clears it and the status line says
