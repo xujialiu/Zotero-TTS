@@ -98,6 +98,14 @@
       <checkbox label="Offer only favorite voices in the Read Aloud popup"
                 preference="extensions.zotero.zotero-tts.readAloud.favoritesOnly"/>
     </hbox>
+    <!-- The Read Aloud popup's own speed slider (0.5–3.0 by 0.1); the samples
+         play at this speed, starting from the one Read Aloud will use -->
+    <hbox align="center">
+      <label value="Speed" control="ztts-voices-speed"
+             tooltiptext="Samples play at this speed — the one Read Aloud will read at"/>
+      <html:input type="range" id="ztts-voices-speed" min="0.5" max="3" step="0.1" style="width: 14em; margin: 0 6px;"/>
+      <html:span id="ztts-voices-speed-value" style="min-width: 3em;">1.0×</html:span>
+    </hbox>
     <html:div id="ztts-voices-browser" style="display: flex; gap: 8px; margin-top: 4px; max-width: 54em;">
       <html:div id="ztts-voices-tiers"
                 style="width: 9em; flex-shrink: 0; height: 16em; overflow-y: auto; border: 1px solid rgba(128, 128, 128, 0.4); border-radius: 4px; padding: 2px;"/>

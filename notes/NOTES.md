@@ -1913,3 +1913,50 @@ first line, so the mapping cannot land anywhere else. EPUB/snapshot
 FragmentSelectors pass through unchanged (no off-by-one observed there).
 The close-path trace (`diagnostics.position().trace`) stays — it earned
 its keep.
+
+## Speed in the voice browser (added 2026-08-27)
+
+README TODO: a speed in the voice browser, so a sample plays at the speed
+it will be read at. Verified in the installed 10.0.x bundle first:
+
+- The popup's slider is `<input type="range" min="0.5" max="3.0"
+  step="0.1">` with a `toFixed(1) + '×'` label (bundle ~38808); the
+  plugin's `SPEED_MIN/MAX/STEP` already mirror it. The pane's slider is the
+  same element, labelled the same way.
+- Read Aloud never plays a buffer at a rate: `_playAudioBuffer` (~40010)
+  runs `stretchAudioBuffer` (~39746, WSOLA, pitch preserved) and plays the
+  result at 1× — "AudioBufferSourceNode.playbackRate shifts pitch like a
+  turntable". The sample player therefore sets `preservesPitch = true` and
+  `playbackRate = rate` on its `<audio>` element: the same operation
+  (Gecko's own stretcher rather than Zotero's WSOLA — the pace and pitch
+  match, the artifacts may differ slightly). Synthesis stays at the voice's
+  natural pace, so the per-pane sample cache serves every speed and a drag
+  of the slider costs no request; `setRate` follows the slider while a
+  sample plays.
+- The slider starts at the speed Read Aloud will start with
+  (`startingSpeed`): the cross-document memory's speed
+  (`readAloud.memory`, learned from every slider move and shortcut whether
+  or not the "same for every document" switch applies it), else any speed
+  Zotero persisted in `reader.readAloudVoices`, else 1. In this build the
+  slider drives the samples only; making it the default speed is the next
+  TODO. `refresh()` (settings restore) re-reads it.
+- `diagnostics.sampleSpeed()` plays a tenth of a second of silence through
+  a main-window `<audio>` from inside the sandbox and reports the starting
+  speed, the element's `playbackRate`/`preservesPitch` while playing, and
+  the rate after `setRate(2)` — proof the element takes the rate from the
+  sandbox and that this Gecko has `preservesPitch`.
+
+### Follow-up: the sample played at 1× until the slider moved (2026-08-27, same day)
+
+First live use: the label said 2.0×, the sample played at 1×, and only a
+drag of the slider *during* playback sped it up. The player set
+`playbackRate` before `src`. Setting `src` runs the media element load
+algorithm, whose step 7 is "set the playbackRate attribute to the value
+of the defaultPlaybackRate attribute" — the rate set a line earlier was
+put back to 1 before the audio had even loaded. `setRate` touches the
+element that is already playing, which is why the drag worked. Now the
+rate goes on after `src`, and onto `defaultPlaybackRate` as well, so any
+later load copies it again; the test's fake `<audio>` resets the rate on
+`src` the way the spec does, so the order cannot regress unnoticed. The
+`sampleSpeed()` diagnostic would have shown `playbackRate: 1` — the
+delivery rule exists for exactly this.

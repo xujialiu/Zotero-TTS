@@ -1,9 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { ProviderId } from '../../src/core/providers/types';
 import { PREF_PREFIX, type PrefsBackend } from '../../src/core/settings';
+import { READ_ALOUD_VOICES_PREF } from '../../src/core/read-aloud-speed';
 import { sampleTextForLocale } from '../../src/core/sample-text';
 import type { CatalogEntry } from '../../src/read-aloud/catalog';
 import { parseFavoriteVoices } from '../../src/read-aloud/favorites';
+import { READ_ALOUD_MEMORY_PREF } from '../../src/read-aloud/read-aloud-memory';
 import { encodeVoiceId } from '../../src/read-aloud/voice-catalog';
 import type { ZoteroVoice } from '../../src/read-aloud/zotero-voices';
 import {
@@ -27,6 +29,8 @@ class FakeElement {
   listeners = new Map<string, Array<() => unknown>>();
   children: FakeElement[] = [];
   textContent = '';
+  /** An <input>'s value; the slider is one. */
+  value = '';
   constructor(public tag = '') {}
   setAttribute(k: string, v: string) {
     this.attrs.set(k, String(v));
@@ -87,7 +91,7 @@ function setup(
     createElementNS: (_ns: string, tag: string) => new FakeElement(tag),
   };
   const prefs = fakePrefs(options.prefs);
-  const player = { play: vi.fn(async (_audio: Blob, _onDone: () => void) => {}), stop: vi.fn() };
+  const player = { play: vi.fn(async (_audio: Blob, _rate: number, _onDone: () => void) => {}), stop: vi.fn(), setRate: vi.fn() };
   const deps = {
     prefs,
     listCatalog: vi.fn(async () => {
@@ -126,6 +130,13 @@ function setup(
     /** Click a column entry by its label, whatever its position. */
     pickTier: (label: string) => el(VOICE_BROWSER_IDS.tiers).children.find((b) => b.textContent.startsWith(label))!.fire('click'),
     pickLocale: (name: string) => el(VOICE_BROWSER_IDS.locales).children.find((b) => b.textContent.startsWith(name))!.fire('click'),
+    speedSlider: () => el(VOICE_BROWSER_IDS.speed).value,
+    speedLabel: () => el(VOICE_BROWSER_IDS.speedValue).textContent,
+    /** Drag the slider: the input's value changes and it fires `input`, as a range input does. */
+    dragSpeed: async (value: string) => {
+      el(VOICE_BROWSER_IDS.speed).value = value;
+      await el(VOICE_BROWSER_IDS.speed).fire('input');
+    },
   };
 }
 
@@ -344,7 +355,7 @@ describe('playing a sample', () => {
     await t.rows.load();
     await t.pickTier('Premium');
     await t.play(0).fire('click');
-    t.player.play.mock.calls[0][1]();
+    t.player.play.mock.calls[0][2]();
     await t.play(0).fire('click');
     expect(t.deps.sampleZoteroVoice).toHaveBeenCalledTimes(1);
     expect(t.player.play).toHaveBeenCalledTimes(2);
@@ -354,7 +365,7 @@ describe('playing a sample', () => {
     const t = setup();
     await t.rows.load();
     await t.play(0).fire('click');
-    const onDone = t.player.play.mock.calls[0][1];
+    const onDone = t.player.play.mock.calls[0][2];
     onDone();
     expect(t.play(0).textContent).toBe(GLYPHS.play);
   });
@@ -372,7 +383,7 @@ describe('playing a sample', () => {
     const t = setup();
     await t.rows.load();
     await t.play(0).fire('click');
-    t.player.play.mock.calls[0][1]();
+    t.player.play.mock.calls[0][2]();
     await t.play(0).fire('click');
     expect(t.deps.synthesizeSample).toHaveBeenCalledTimes(1);
     expect(t.player.play).toHaveBeenCalledTimes(2);
@@ -421,6 +432,83 @@ describe('playing a sample', () => {
   });
 });
 
+describe('the speed slider', () => {
+  // The slider is Zotero's own popup slider (0.5–3.0 by 0.1, "1.0×"), set
+  // to the speed Read Aloud will start with: the one remembered across
+  // documents, else the one Zotero itself last persisted, else 1.
+  it('starts at the speed remembered across documents', async () => {
+    const t = setup({ prefs: { [READ_ALOUD_MEMORY_PREF]: JSON.stringify({ speed: 1.5, voice: null }) } });
+    expect(t.speedSlider()).toBe('1.5');
+    expect(t.speedLabel()).toBe('1.5×');
+  });
+
+  it("falls back to Zotero's own persisted speed, then to 1", async () => {
+    const t = setup({ prefs: { [READ_ALOUD_VOICES_PREF]: JSON.stringify({ en: { voice: 'x', speed: 2 } }) } });
+    expect(t.speedSlider()).toBe('2');
+    expect(t.speedLabel()).toBe('2.0×');
+    expect(setup().speedLabel()).toBe('1.0×');
+  });
+
+  it('plays the sample at the speed on the slider', async () => {
+    const t = setup();
+    await t.rows.load();
+    await t.dragSpeed('1.8');
+    expect(t.speedLabel()).toBe('1.8×');
+    await t.play(0).fire('click');
+    expect(t.player.play.mock.calls[0][1]).toBe(1.8);
+  });
+
+  it('changes the speed of the sample being played', async () => {
+    const t = setup();
+    await t.rows.load();
+    await t.play(0).fire('click');
+    await t.dragSpeed('1.3');
+    expect(t.player.setRate).toHaveBeenCalledWith(1.3);
+  });
+
+  it("keeps a stray value on Zotero's range", async () => {
+    const t = setup();
+    await t.dragSpeed('9');
+    expect(t.speedSlider()).toBe('3');
+    expect(t.speedLabel()).toBe('3.0×');
+    await t.dragSpeed('nonsense');
+    expect(t.speedLabel()).toBe('1.0×');
+  });
+
+  it('is synthesized at the natural pace whatever the speed: the cache is keyed without it', async () => {
+    const t = setup();
+    await t.rows.load();
+    await t.dragSpeed('2');
+    await t.play(0).fire('click');
+    t.player.play.mock.calls[0][2]();
+    await t.dragSpeed('0.5');
+    await t.play(0).fire('click');
+    expect(t.deps.synthesizeSample).toHaveBeenCalledTimes(1);
+    expect(t.player.play.mock.calls[1][1]).toBe(0.5);
+  });
+
+  it('re-reads the remembered speed on refresh', async () => {
+    const t = setup();
+    await t.dragSpeed('2.5');
+    t.prefs.set(READ_ALOUD_MEMORY_PREF, JSON.stringify({ speed: 1.2, voice: null }));
+    t.rows.refresh();
+    expect(t.speedSlider()).toBe('1.2');
+    expect(t.speedLabel()).toBe('1.2×');
+  });
+
+  it('tolerates a pane without the slider', async () => {
+    const els = new Map(
+      (Object.values(VOICE_BROWSER_IDS) as string[]).filter((id) => id !== VOICE_BROWSER_IDS.speed && id !== VOICE_BROWSER_IDS.speedValue).map((id) => [id, new FakeElement()]),
+    );
+    const doc = { getElementById: (id: string) => els.get(id) ?? null, createElementNS: (_ns: string, tag: string) => new FakeElement(tag) };
+    const t = setup();
+    const rows = initVoiceBrowserRows(doc, t.deps);
+    await rows.load();
+    await els.get(VOICE_BROWSER_IDS.voices)!.children[0].children[0].fire('click');
+    expect(t.player.play.mock.calls[0][1]).toBe(1);
+  });
+});
+
 describe('blobToDataURL', () => {
   it('encodes the bytes and the type', async () => {
     const url = await blobToDataURL(new Blob(['hi'], { type: 'audio/wav' }));
@@ -434,22 +522,48 @@ describe('blobToDataURL', () => {
 
 describe('createSamplePlayer', () => {
   function fakeAudio() {
-    const el = new FakeElement('audio') as FakeElement & { src?: string; play: () => Promise<void>; pause: () => void; removeAttribute: (k: string) => void };
+    const el = new FakeElement('audio') as FakeElement & {
+      src?: string;
+      playbackRate: number;
+      defaultPlaybackRate: number;
+      preservesPitch?: boolean;
+      play: () => Promise<void>;
+      pause: () => void;
+      removeAttribute: (k: string) => void;
+    };
     el.play = vi.fn(async () => {});
     el.pause = vi.fn();
     el.removeAttribute = vi.fn();
+    el.playbackRate = 1;
+    el.defaultPlaybackRate = 1;
+    // What a real element does: setting src runs the media element load
+    // algorithm, whose step 7 sets playbackRate back to defaultPlaybackRate.
+    // The first build set the rate before the source and played at 1×.
+    let src: string | undefined;
+    Object.defineProperty(el, 'src', {
+      get: () => src,
+      set: (value: string) => {
+        src = value;
+        el.playbackRate = el.defaultPlaybackRate;
+      },
+    });
     return el;
   }
 
-  it('plays the blob through a fresh element and reports the end once', async () => {
+  function playerWithElements() {
     const created: ReturnType<typeof fakeAudio>[] = [];
     const player = createSamplePlayer(() => {
       const el = fakeAudio();
       created.push(el);
       return el as unknown as HTMLAudioElement;
     });
+    return { created, player };
+  }
+
+  it('plays the blob through a fresh element and reports the end once', async () => {
+    const { created, player } = playerWithElements();
     const onDone = vi.fn();
-    await player.play(new Blob(['x'], { type: 'audio/wav' }), onDone);
+    await player.play(new Blob(['x'], { type: 'audio/wav' }), 1, onDone);
     expect(created[0].src).toMatch(/^data:audio\/wav/);
     expect(created[0].play).toHaveBeenCalledOnce();
     await created[0].fire('ended');
@@ -457,15 +571,32 @@ describe('createSamplePlayer', () => {
     expect(onDone).toHaveBeenCalledOnce();
   });
 
+  // Read Aloud time-stretches its audio with the pitch kept (the reader's
+  // stretchAudioBuffer); the element's playbackRate with preservesPitch is
+  // the same operation, so a sample sounds as reading at that speed will.
+  it('plays at the given rate with the pitch preserved, the rate surviving the load of the source', async () => {
+    const { created, player } = playerWithElements();
+    await player.play(new Blob(['x']), 1.5, vi.fn());
+    expect(created[0].playbackRate).toBe(1.5);
+    // The default too, so a reload of the element would come back at the same rate
+    expect(created[0].defaultPlaybackRate).toBe(1.5);
+    expect(created[0].preservesPitch).toBe(true);
+  });
+
+  it('setRate changes the element that is playing, and nothing once stopped', async () => {
+    const { created, player } = playerWithElements();
+    await player.play(new Blob(['x']), 1, vi.fn());
+    player.setRate(2);
+    expect(created[0].playbackRate).toBe(2);
+    player.stop();
+    player.setRate(3);
+    expect(created[0].playbackRate).toBe(2);
+  });
+
   it('stop() silences the element and reports the end', async () => {
-    const created: ReturnType<typeof fakeAudio>[] = [];
-    const player = createSamplePlayer(() => {
-      const el = fakeAudio();
-      created.push(el);
-      return el as unknown as HTMLAudioElement;
-    });
+    const { created, player } = playerWithElements();
     const onDone = vi.fn();
-    await player.play(new Blob(['x']), onDone);
+    await player.play(new Blob(['x']), 1, onDone);
     player.stop();
     expect(created[0].pause).toHaveBeenCalled();
     expect(onDone).toHaveBeenCalledOnce();
@@ -474,16 +605,11 @@ describe('createSamplePlayer', () => {
   });
 
   it('a second play stops the first', async () => {
-    const created: ReturnType<typeof fakeAudio>[] = [];
-    const player = createSamplePlayer(() => {
-      const el = fakeAudio();
-      created.push(el);
-      return el as unknown as HTMLAudioElement;
-    });
+    const { created, player } = playerWithElements();
     const first = vi.fn();
     const second = vi.fn();
-    await player.play(new Blob(['x']), first);
-    await player.play(new Blob(['y']), second);
+    await player.play(new Blob(['x']), 1, first);
+    await player.play(new Blob(['y']), 1, second);
     expect(created[0].pause).toHaveBeenCalled();
     expect(first).toHaveBeenCalledOnce();
     expect(second).not.toHaveBeenCalled();

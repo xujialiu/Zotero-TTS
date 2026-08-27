@@ -27,6 +27,8 @@ import {
   type ReadAloudShortcuts,
 } from './ui/read-aloud-shortcuts';
 import { removeSpeedToast, showSpeedToast } from './ui/speed-toast';
+import { createSamplePlayer, startingSpeed } from './ui/voice-browser-rows';
+import { silentWav } from './core/silence';
 
 export interface StartupParams {
   id: string;
@@ -912,6 +914,29 @@ const diagnostics = {
         null,
         1,
       );
+    } catch (e) {
+      return JSON.stringify({ error: String(e) }, null, 1);
+    }
+  },
+  /**
+   * The voice browser's speed slider, from inside the sandbox: the speed it
+   * starts at (what Read Aloud will read at), and proof that an <audio>
+   * element of a Zotero window takes the rate the way the pane's player
+   * sets it — playbackRate with the pitch preserved, Read Aloud's own kind
+   * of stretch — and follows the slider while playing (setRate). A tenth
+   * of a second of silence is played to do it.
+   */
+  sampleSpeed: async () => {
+    try {
+      const win = mainWindows()[0];
+      const el = win.document.createElementNS('http://www.w3.org/1999/xhtml', 'audio') as HTMLAudioElement;
+      const player = createSamplePlayer(() => el);
+      await player.play(silentWav(100), 1.5, () => {});
+      const playing = { playbackRate: el.playbackRate, defaultPlaybackRate: el.defaultPlaybackRate, preservesPitch: el.preservesPitch };
+      player.setRate(2);
+      const afterSetRate = el.playbackRate;
+      player.stop();
+      return JSON.stringify({ startingSpeed: startingSpeed(prefs), playing, afterSetRate }, null, 1);
     } catch (e) {
       return JSON.stringify({ error: String(e) }, null, 1);
     }

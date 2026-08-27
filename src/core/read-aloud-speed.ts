@@ -22,15 +22,16 @@ export const SPEED_ACTIONS: readonly SpeedAction[] = ['speedReset', 'speedDown',
  */
 export const READ_ALOUD_VOICES_PREF = 'extensions.zotero.reader.readAloudVoices';
 
+/** A value the slider can show: one decimal (1.1 + 0.1 is 1.2000000000000002 in floating point), within its range; anything that is not a number reads as 1. */
+export function clampSpeed(value: number): number {
+  if (!Number.isFinite(value)) return SPEED_DEFAULT;
+  return Math.min(SPEED_MAX, Math.max(SPEED_MIN, Math.round(value * 10) / 10));
+}
+
 export function nextSpeed(current: number, action: SpeedAction): number {
   const base = Number.isFinite(current) && current > 0 ? current : SPEED_DEFAULT;
-  let next: number;
-  if (action === 'speedReset') next = SPEED_DEFAULT;
-  else if (action === 'speedUp') next = base + SPEED_STEP;
-  else next = base - SPEED_STEP;
-  // One decimal: 1.1 + 0.1 is 1.2000000000000002 in floating point
-  next = Math.round(next * 10) / 10;
-  return Math.min(SPEED_MAX, Math.max(SPEED_MIN, next));
+  if (action === 'speedReset') return SPEED_DEFAULT;
+  return clampSpeed(action === 'speedUp' ? base + SPEED_STEP : base - SPEED_STEP);
 }
 
 /** One language's entry in the pref: `{ region, voice, speed, tierVoices }`, any of which may be missing. */

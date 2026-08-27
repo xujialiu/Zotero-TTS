@@ -1,8 +1,10 @@
 import { MULTILINGUAL, type ProviderId } from '../core/providers/types';
+import { clampSpeed, readPersistedSpeed } from '../core/read-aloud-speed';
 import { sampleTextForLocale } from '../core/sample-text';
 import { PREF_PREFIX, type PrefsBackend } from '../core/settings';
 import type { CatalogEntry } from '../read-aloud/catalog';
 import { parseFavoriteVoices, serializeFavoriteVoices, toggleFavoriteVoice } from '../read-aloud/favorites';
+import { readMemory } from '../read-aloud/read-aloud-memory';
 import { compareVoiceLabels, encodeVoiceId, pluginVoiceLabel } from '../read-aloud/voice-catalog';
 import type { ZoteroVoice } from '../read-aloud/zotero-voices';
 
@@ -22,6 +24,12 @@ import type { ZoteroVoice } from '../read-aloud/zotero-voices';
  * credits. Samples are kept for the pane's lifetime, so replaying is free.
  * The plugin's labels drop the TTS- prefix — the tier column already says
  * whose voices these are.
+ *
+ * A speed slider — the popup's own, 0.5×–3.0× by 0.1 — plays the samples at
+ * the speed Read Aloud will read at. Audio is always synthesized at the
+ * voice's natural pace (core/providers/types.ts): Read Aloud time-stretches
+ * it on playback with the pitch kept, and so does the sample player, so the
+ * cached sample serves every speed.
  */
 
 export const VOICE_BROWSER_IDS = {
@@ -30,7 +38,22 @@ export const VOICE_BROWSER_IDS = {
   tiers: 'ztts-voices-tiers',
   locales: 'ztts-voices-locales',
   voices: 'ztts-voices-list',
+  speed: 'ztts-voices-speed',
+  speedValue: 'ztts-voices-speed-value',
 } as const;
+
+/**
+ * The speed Read Aloud will start with: the one kept across documents
+ * (read-aloud/read-aloud-memory.ts — learned from every slider move and
+ * shortcut, whether or not the "same for every document" switch applies
+ * it), else the one Zotero itself last persisted for any language, else 1.
+ */
+export function startingSpeed(prefs: PrefsBackend): number {
+  return clampSpeed(readMemory(prefs).speed ?? readPersistedSpeed(prefs, null));
+}
+
+/** Zotero's popup shows the speed as "1.0×"; so does the slider's label here. */
+export const formatSpeed = (speed: number) => `${speed.toFixed(1)}×`;
 
 export const GLYPHS = { play: '▶', stop: '■', loading: '…', favorite: '♥', notFavorite: '♡' } as const;
 
@@ -54,8 +77,10 @@ const FAVORITES_PREF = PREF_PREFIX + 'readAloud.favoriteVoices';
 const XHTML = 'http://www.w3.org/1999/xhtml';
 
 export interface SamplePlayer {
-  /** Starts the audio; onDone fires once, when playback ends or fails. */
-  play(audio: Blob, onDone: () => void): Promise<void>;
+  /** Starts the audio at `rate` times its natural pace, pitch kept; onDone fires once, when playback ends or fails. */
+  play(audio: Blob, rate: number, onDone: () => void): Promise<void>;
+  /** Changes the pace of whatever is playing right now; nothing to do otherwise. */
+  setRate(rate: number): void;
   stop(): void;
 }
 
@@ -189,6 +214,7 @@ export function initVoiceBrowserRows(
   /** The encoded id being fetched / being played; at most one of each, ever. */
   let busy: string | null = null;
   let playing: string | null = null;
+  let speed = startingSpeed(deps.prefs);
   const samples = new Map<string, Blob>();
   const playButtons = new Map<string, any>();
 
@@ -241,7 +267,7 @@ export function initVoiceBrowserRows(
       stopPlayback();
       playing = voice.encoded;
       setPlayGlyph(voice.encoded, GLYPHS.stop);
-      await deps.player.play(audio, () => {
+      await deps.player.play(audio, speed, () => {
         if (playing === voice.encoded) {
           playing = null;
           setPlayGlyph(voice.encoded, GLYPHS.play);
@@ -347,10 +373,33 @@ export function initVoiceBrowserRows(
     );
   }
 
+  /** The slider and its label show `speed`; a pane without the slider (an older markup) just has no speed control. */
+  function paintSpeed(): void {
+    const slider = doc.getElementById(VOICE_BROWSER_IDS.speed);
+    if (slider) slider.value = String(speed);
+    const label = doc.getElementById(VOICE_BROWSER_IDS.speedValue);
+    if (label) label.textContent = formatSpeed(speed);
+  }
+
+  /** A drag of the slider: the value it reports, kept on Zotero's range, applied to the sample playing right now. */
+  function onSpeedInput(): void {
+    const slider = doc.getElementById(VOICE_BROWSER_IDS.speed);
+    speed = clampSpeed(Number(slider?.value));
+    paintSpeed();
+    deps.player.setRate(speed);
+  }
+
   function render(): void {
     renderTiers();
     renderLocales();
     renderVoices();
+  }
+
+  /** After a settings restore: hearts from the pref, and the speed from what is remembered now. */
+  function refresh(): void {
+    speed = startingSpeed(deps.prefs);
+    paintSpeed();
+    render();
   }
 
   /** Keep the selection where it was when the new listing still has it; otherwise open on the first tier that holds voices. */
@@ -401,8 +450,10 @@ export function initVoiceBrowserRows(
   }
 
   doc.getElementById(VOICE_BROWSER_IDS.reload)?.addEventListener('command', () => void load());
+  doc.getElementById(VOICE_BROWSER_IDS.speed)?.addEventListener('input', onSpeedInput);
+  paintSpeed();
 
-  return { load, refresh: render };
+  return { load, refresh };
 }
 
 /**
@@ -418,7 +469,13 @@ export async function blobToDataURL(blob: Blob): Promise<string> {
   return `data:${blob.type || 'audio/mpeg'};base64,${btoa(binary)}`;
 }
 
-/** Plays one sample at a time through a fresh <audio> element of the pane's own document. */
+/**
+ * Plays one sample at a time through a fresh <audio> element of the pane's
+ * own document. The speed is the element's playbackRate with preservesPitch
+ * on — a time-stretch with the pitch kept, which is what Read Aloud does to
+ * its own audio (the reader's stretchAudioBuffer; a plain rate change would
+ * shift the pitch like a turntable, and that is not how reading sounds).
+ */
 export function createSamplePlayer(createAudio: () => HTMLAudioElement): SamplePlayer {
   let current: HTMLAudioElement | null = null;
   let done: (() => void) | null = null;
@@ -440,8 +497,19 @@ export function createSamplePlayer(createAudio: () => HTMLAudioElement): SampleP
     }
     finish();
   };
+  /**
+   * Both rates: setting `src` runs the element's load algorithm, whose step 7
+   * puts playbackRate back to defaultPlaybackRate — a rate set before the
+   * source is lost, and the sample plays at 1× (the first build did exactly
+   * that). So the rate goes on after the source, and onto the default too,
+   * which any later load would copy again.
+   */
+  const applyRate = (el: HTMLAudioElement, rate: number) => {
+    el.defaultPlaybackRate = rate;
+    el.playbackRate = rate;
+  };
   return {
-    async play(audio, onDone) {
+    async play(audio, rate, onDone) {
       stop();
       const el = createAudio();
       current = el;
@@ -449,7 +517,12 @@ export function createSamplePlayer(createAudio: () => HTMLAudioElement): SampleP
       el.addEventListener('ended', finish);
       el.addEventListener('error', finish);
       el.src = await blobToDataURL(audio);
+      el.preservesPitch = true;
+      applyRate(el, rate);
       await el.play();
+    },
+    setRate(rate) {
+      if (current) applyRate(current, rate);
     },
     stop,
   };

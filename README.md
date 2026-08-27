@@ -146,6 +146,12 @@ nothing marked at all, or when none of the marked voices is listed any more
 (a provider switched off, a server gone), everything is offered again.
 Favorites travel with the settings backup.
 
+The **Speed** slider is the popup's own (0.5×–3×): samples play at that
+speed, starting from the one Read Aloud will read at. Zotero stretches its
+audio the same way — pitch kept — so what you hear is what you get, and
+the slider costs no new request: every voice is synthesized at its natural
+pace and stretched on playback.
+
 ### Reading
 
 - *Use the same voice and speed for every document* — Zotero remembers them
@@ -205,8 +211,6 @@ password.
 
 ## TODO
 
-- A speed in the voice browser, so a sample plays at the speed it will be
-  read at.
 - The voice browser as the place to pick the default voice and default
   speed: the selected row is what Read Aloud starts with. With *Offer only
   favorite voices in the Read Aloud popup* on, only a favorite can be

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  clampSpeed,
   nextSpeed,
   persistSpeed,
   READ_ALOUD_VOICES_PREF,
@@ -47,6 +48,20 @@ describe('nextSpeed', () => {
     expect(nextSpeed(NaN, 'speedUp')).toBe(1.1);
     expect(nextSpeed(0, 'speedDown')).toBe(0.9);
     expect(nextSpeed(-5, 'speedUp')).toBe(1.1);
+  });
+});
+
+describe('clampSpeed', () => {
+  it("keeps a value on Zotero's slider: one decimal, within its range", () => {
+    expect(clampSpeed(1.25)).toBe(1.3);
+    expect(clampSpeed(1.2000000000000002)).toBe(1.2);
+    expect(clampSpeed(9)).toBe(SPEED_MAX);
+    expect(clampSpeed(0)).toBe(SPEED_MIN);
+  });
+
+  it('treats a value that is not a number as 1', () => {
+    expect(clampSpeed(NaN)).toBe(1);
+    expect(clampSpeed(Infinity)).toBe(1);
   });
 });
 
