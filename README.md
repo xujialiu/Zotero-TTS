@@ -249,8 +249,7 @@ internals behind every step are in [notes/NOTES.md](notes/NOTES.md),
    status line. Test: with the option on, a non-favorite row does not
    react; unmark the default's ♥ → the status line reports it cleared.
 
-Release 1.7.2 after step 1 (the default speed), 1.8.0 after step 3 (the
-default voice), 1.8.1 after step 5.
+Release 1.8.0 after step 3 (the default voice), 1.8.1 after step 5.
 
 ## Development
 
