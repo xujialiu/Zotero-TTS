@@ -1,4 +1,3 @@
-import { MULTILINGUAL } from '../core/providers/types';
 import { READ_ALOUD_VOICES_PREF, readReadAloudVoices, resolveVoiceLang, type VoicesMap } from '../core/read-aloud-speed';
 import type { PrefsBackend } from '../core/settings';
 import { setDefaultSpeed, type SpeedManagerLike } from './default-speed';
