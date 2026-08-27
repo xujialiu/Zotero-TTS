@@ -5,7 +5,7 @@ import { PREF_PREFIX, type PrefsBackend } from '../core/settings';
 import type { CatalogEntry } from '../read-aloud/catalog';
 import { setDefaultSpeed, type SpeedManagerLike } from '../read-aloud/default-speed';
 import { parseFavoriteVoices, serializeFavoriteVoices, toggleFavoriteVoice } from '../read-aloud/favorites';
-import { readMemory } from '../read-aloud/read-aloud-memory';
+import { isMultilingualVoiceId, memoryLangForLocale, readMemory, type VoiceChoice } from '../read-aloud/read-aloud-memory';
 import { compareVoiceLabels, encodeVoiceId, pluginVoiceLabel } from '../read-aloud/voice-catalog';
 import type { ZoteroVoice } from '../read-aloud/zotero-voices';
 
@@ -37,6 +37,12 @@ import type { ZoteroVoice } from '../read-aloud/zotero-voices';
  * synthesized at the voice's natural pace (core/providers/types.ts): Read
  * Aloud time-stretches it on playback with the pitch kept, and so does the
  * sample player, so the cached sample serves every speed.
+ *
+ * The voice Read Aloud starts with — the one remembered across documents
+ * (read-aloud/read-aloud-memory.ts), which is the popup's last pick — is
+ * shown: the browser opens on its tier and language, its row is painted
+ * like a selected column entry, and the status line names it with the
+ * speed. The memory is the source of truth; the browser is its view.
  */
 
 export const VOICE_BROWSER_IDS = {
@@ -120,10 +126,11 @@ export interface VoiceBrowserDeps {
   watchMemory?(onChange: () => void): () => void;
 }
 
-type BrowserVoice = {
+export type BrowserVoice = {
   /** null for Zotero's own voices: Zotero synthesizes those, and their ids are its own. */
   provider: ProviderId | null;
   id: string;
+  /** The id Read Aloud knows the voice by: `provider::id` for the plugin's, Zotero's own for Zotero's. */
   encoded: string;
   label: string;
   tier: VoiceTier;
@@ -195,6 +202,37 @@ export function groupVoicesByTier(voices: BrowserVoice[], localeName: (code: str
   });
 }
 
+/**
+ * The rows the remembered voice names: those with its id under the language
+ * key it was chosen under (memoryLangForLocale — Zotero's own key, so a
+ * Zotero voice listed under several locales is the default only where it
+ * was picked). A voice that is global by its id (isMultilingualVoiceId —
+ * a choice from before the catalog filed such voices under "Multiple
+ * languages") is applied to every document whatever key it was remembered
+ * under, so any row of it is the default then.
+ */
+export function defaultVoiceRows(voices: readonly BrowserVoice[], choice: VoiceChoice | null): BrowserVoice[] {
+  if (!choice) return [];
+  const byId = voices.filter((voice) => voice.encoded === choice.id);
+  const exact = byId.filter((voice) => memoryLangForLocale(voice.locale) === choice.lang);
+  if (exact.length) return exact;
+  return isMultilingualVoiceId(choice.id) ? byId : [];
+}
+
+/**
+ * The status line's account of what Read Aloud starts with: the default
+ * voice by its row's label and language — by its id when no listed row is
+ * it, so a provider switched off does not read as "no default" — or
+ * Zotero's own per-language choice when none is remembered, and the
+ * default speed; `speed` null while "one speed everywhere" is off, when
+ * Zotero keeps a speed per document language and the slider only paces
+ * the samples.
+ */
+export function defaultVoiceLine(choice: VoiceChoice | null, home: BrowserVoice | null, localeName: (code: string) => string, speed: number | null): string {
+  const voice = !choice ? 'Zotero’s own choice' : home ? `${home.label} · ${localeName(home.locale)}` : `${choice.id} (not listed now)`;
+  return `Default: ${voice} · ${speed === null ? 'speed per language' : formatSpeed(speed)}`;
+}
+
 const describeError = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
 /**
@@ -217,6 +255,10 @@ const COLUMN_ENTRY_STYLE =
   ` line-height: ${LINE_HEIGHT}; min-height: 0; margin: 0; padding: 3px 8px; border-radius: 3px; cursor: pointer; white-space: nowrap;`;
 const COLUMN_SELECTED_STYLE = COLUMN_ENTRY_STYLE + ' background: SelectedItem; color: SelectedItemText;';
 const COLUMN_EMPTY_STYLE = COLUMN_ENTRY_STYLE + ' opacity: 0.5;';
+const ROW_STYLE = 'display: flex; align-items: center; gap: 6px; padding: 3px 4px; border-radius: 3px;';
+/** The default voice's row: painted like a selected column entry. */
+const ROW_DEFAULT_STYLE = ROW_STYLE + ' background: SelectedItem; color: SelectedItemText;';
+const DEFAULT_ROW_TITLE = 'The default voice: Read Aloud starts with it';
 
 export function initVoiceBrowserRows(
   doc: {
@@ -229,6 +271,10 @@ export function initVoiceBrowserRows(
   const status = (text: string) => doc.getElementById(VOICE_BROWSER_IDS.status)?.setAttribute('value', text);
 
   let tiers: TierGroup[] = [];
+  /** Every voice of the last listing, flat; null until one has arrived. */
+  let listed: BrowserVoice[] | null = null;
+  /** What failed to list last time, shown beside what did until the next listing. */
+  let problems: string[] = [];
   let selectedTier: VoiceTier | null = null;
   let selectedLocale: string | null = null;
   let loading = false;
@@ -236,6 +282,9 @@ export function initVoiceBrowserRows(
   let busy: string | null = null;
   let playing: string | null = null;
   let speed = startingSpeed(deps.prefs);
+  /** The remembered voice and the listed rows that are it (defaultVoiceRows); the first row is where the browser opens. */
+  let choice = readMemory(deps.prefs).voice;
+  let defaults: BrowserVoice[] = [];
   const samples = new Map<string, Blob>();
   const playButtons = new Map<string, any>();
 
@@ -367,8 +416,9 @@ export function initVoiceBrowserRows(
     const favorites = readFavorites();
     column.replaceChildren(
       ...(localeGroup()?.voices ?? []).map((voice) => {
+        const isDefault = defaults.includes(voice);
         const row = doc.createElementNS(XHTML, 'div');
-        row.setAttribute('style', 'display: flex; align-items: center; gap: 6px; padding: 3px 4px;');
+        row.setAttribute('style', isDefault ? ROW_DEFAULT_STYLE : ROW_STYLE);
 
         const play = doc.createElementNS(XHTML, 'button');
         play.textContent = busy === voice.encoded ? GLYPHS.loading : playing === voice.encoded ? GLYPHS.stop : GLYPHS.play;
@@ -387,6 +437,7 @@ export function initVoiceBrowserRows(
         const label = doc.createElementNS(XHTML, 'span');
         label.textContent = voice.label;
         label.setAttribute('style', `flex: 1; line-height: ${LINE_HEIGHT}; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;`);
+        if (isDefault) label.setAttribute('title', DEFAULT_ROW_TITLE);
         row.appendChild(label);
 
         return row;
@@ -402,11 +453,31 @@ export function initVoiceBrowserRows(
     if (label) label.textContent = formatSpeed(speed);
   }
 
+  /**
+   * The status line once voices are listed: the default voice and the speed
+   * (defaultVoiceLine) — the slider's value, which is the default while
+   * "one speed everywhere" is on, read here so the checkbox applies at
+   * the next repaint — with what failed to list beside it, never instead
+   * of it. Nothing listed says why. Until the first listing the line is
+   * load()'s own message, so this leaves it alone.
+   */
+  function paintStatus(): void {
+    if (!listed) return;
+    if (!listed.length) {
+      status(problems.length ? `Listing voices failed: ${problems.join('; ')}` : 'No voices. Enable a provider above, then press Reload.');
+      return;
+    }
+    const trouble = problems.length ? ` — ${problems.join('; ')}` : '';
+    const defaultSpeed = (deps.globalSpeed?.() ?? true) ? speed : null;
+    status(defaultVoiceLine(choice, defaults[0] ?? null, localeName, defaultSpeed) + trouble);
+  }
+
   /** A drag of the slider: the value it reports, kept on Zotero's range, applied to the sample playing right now. */
   function onSpeedInput(): void {
     const slider = doc.getElementById(VOICE_BROWSER_IDS.speed);
     speed = clampSpeed(Number(slider?.value));
     paintSpeed();
+    paintStatus();
     deps.player.setRate(speed);
   }
 
@@ -416,12 +487,18 @@ export function initVoiceBrowserRows(
     if (deps.globalSpeed?.() ?? true) setDefaultSpeed(deps.prefs, speed, deps.readAloudManagers?.() ?? [], deps.log);
   }
 
-  /** The memory moved elsewhere — the popup's slider, a shortcut: the slider follows, and so does a sample that is playing. */
+  /**
+   * The memory moved elsewhere — the popup's slider, a shortcut: the slider
+   * and the status line follow, and so does a sample that is playing. Only
+   * the speed half: the highlight following a voice picked in the popup is
+   * README step 4.
+   */
   function onMemoryChange(): void {
     const next = startingSpeed(deps.prefs);
     if (next === speed) return;
     speed = next;
     paintSpeed();
+    paintStatus();
     deps.player.setRate(speed);
   }
 
@@ -431,17 +508,31 @@ export function initVoiceBrowserRows(
     renderVoices();
   }
 
-  /** After a settings restore: hearts from the pref, and the speed from what is remembered now. */
+  /**
+   * After a settings restore: hearts from the pref, the speed and the
+   * default voice from what is remembered now. The tier and language being
+   * browsed stay — only the first listing opens on the default.
+   */
   function refresh(): void {
     speed = startingSpeed(deps.prefs);
+    choice = readMemory(deps.prefs).voice;
+    defaults = defaultVoiceRows(listed ?? [], choice);
     paintSpeed();
+    paintStatus();
     render();
   }
 
-  /** Keep the selection where it was when the new listing still has it; otherwise open on the first tier that holds voices. */
+  /**
+   * Keep the selection where it was when the new listing still has it. The
+   * first listing — and one that lost the tier being browsed — opens on the
+   * default voice's tier and language, where its row is; without a listed
+   * default, on the plugin's own tier, else the first that holds voices.
+   */
   function reselect(): void {
     if (!selectedTier || !tiers.some((g) => g.tier === selectedTier && g.count)) {
-      selectedTier = TIER_PREFERENCE.find((tier) => tiers.some((g) => g.tier === tier && g.count)) ?? 'local';
+      const home = defaults[0];
+      selectedTier = home?.tier ?? TIER_PREFERENCE.find((tier) => tiers.some((g) => g.tier === tier && g.count)) ?? 'local';
+      selectedLocale = home?.locale ?? selectedLocale;
     }
     const group = tierGroup();
     if (!group?.locales.some((l) => l.locale === selectedLocale)) selectedLocale = group?.locales[0]?.locale ?? null;
@@ -457,9 +548,9 @@ export function initVoiceBrowserRows(
     if (loading) return;
     loading = true;
     status('Listing voices…');
-    const problems: string[] = [];
+    const failures: string[] = [];
     const failed = (what: string) => (e: unknown) => {
-      problems.push(what ? `${what}: ${describeError(e)}` : describeError(e));
+      failures.push(what ? `${what}: ${describeError(e)}` : describeError(e));
       return [];
     };
     try {
@@ -468,18 +559,13 @@ export function initVoiceBrowserRows(
         // Zotero's own failures already name Zotero (read-aloud/zotero-voices.ts)
         deps.listZoteroVoices?.().catch(failed('')) ?? Promise.resolve([]),
       ]);
-      tiers = groupVoicesByTier(browserVoices(catalog, zoteroVoices), localeName);
-      const total = tiers.reduce((n, g) => n + g.count, 0);
+      listed = browserVoices(catalog, zoteroVoices);
+      problems = failures;
+      tiers = groupVoicesByTier(listed, localeName);
+      defaults = defaultVoiceRows(listed, choice);
       reselect();
       render();
-      const trouble = problems.length ? ` — ${problems.join('; ')}` : '';
-      status(
-        total
-          ? `${total} voices. Play a sample; the heart marks a favorite.${trouble}`
-          : problems.length
-            ? `Listing voices failed: ${problems.join('; ')}`
-            : 'No voices. Enable a provider above, then press Reload.',
-      );
+      paintStatus();
     } finally {
       loading = false;
     }

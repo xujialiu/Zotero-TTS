@@ -60,6 +60,17 @@ export function writeMemory(prefs: PrefsBackend, memory: ReadAloudMemory): void 
 }
 
 /**
+ * The key Zotero persists a choice made under `locale` under — the reader's
+ * `getBaseLanguage` (`_persistCurrentVoice`, bundle ~82100): everything
+ * before the first hyphen, so `zh` for zh-CN, and `mul` itself for the
+ * multilingual group, which has no region. A row of the settings' voice
+ * browser and a pick in the popup meet on this key.
+ */
+export function memoryLangForLocale(locale: string): string {
+  return locale.replace(/-.+$/, '');
+}
+
+/**
  * A starting point when nothing has been remembered yet: a speed from
  * Zotero's pref (one entry is as good as another — all came from the same
  * slider), and a globally-usable voice — the `mul` entry's, since a voice

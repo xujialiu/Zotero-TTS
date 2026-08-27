@@ -6,6 +6,7 @@ import {
   EMPTY_MEMORY,
   isMultilingualVoiceId,
   memoryFromVoices,
+  memoryLangForLocale,
   noteVoicesChange,
   planSync,
   READ_ALOUD_MEMORY_OBSERVER,
@@ -83,6 +84,18 @@ describe('isMultilingualVoiceId', () => {
     expect(isMultilingualVoiceId('azure::zh-CN-XiaoxiaoNeural')).toBe(false);
     expect(isMultilingualVoiceId('local::af_bella')).toBe(false);
     expect(isMultilingualVoiceId('bdd0dcc3-en-US')).toBe(false);
+  });
+});
+
+describe('memoryLangForLocale', () => {
+  // The key Zotero persists a choice under: the reader's getBaseLanguage,
+  // everything before the first hyphen — so a choice made in the popup and a
+  // row of the voice browser meet on the same key
+  it('is the base language of a locale, and mul for the multilingual group', () => {
+    expect(memoryLangForLocale('zh-CN')).toBe('zh');
+    expect(memoryLangForLocale('zh-Hans-CN')).toBe('zh');
+    expect(memoryLangForLocale('en')).toBe('en');
+    expect(memoryLangForLocale(MULTILINGUAL)).toBe(MULTILINGUAL);
   });
 });
 

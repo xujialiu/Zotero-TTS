@@ -2174,3 +2174,64 @@ reasonable as one voice at Zotero's per-language speeds:
   turned on later starts from the latest choice.
 - Existing users who had the old switch off get the global speed on: the
   default the user asked for, and per-language speed is the rarer wish.
+
+## Default voice shown in the browser — step 2 (2026-08-27)
+
+Done in its own worktree (`xujialiu/todo_step2`) beside step 1, both off
+`d54ef2d`, then rebased onto 1.7.2. Nothing of step 1's was assumed; the
+rebase conflicted only where both appended — the README TODO, the tail of
+this file, the browser's doc comment and the test file's new `describe`
+blocks — plus a duplicate `readMemory` import in index.ts. Two seams were
+then stitched by hand (below): step 1's `onMemoryChange` repaints the
+status line too, and the line respects the `globalSpeed` switch. Verified
+in the installed 10.0.x bundle first:
+
+- `getBaseLanguage(lang)` is `lang.replace(/-.+$/g, '')` (bundle 38002):
+  everything before the first hyphen, no lowercasing, no underscore —
+  `zh-CN` → `zh`, `mul` → `mul`. `_persistCurrentVoice` (~82100) writes
+  the entry under exactly that, so a memory `{ id, lang }` and a browser
+  row meet on `memoryLangForLocale(row.locale)` (read-aloud-memory.ts).
+  `core/read-aloud-speed.ts`'s `resolveVoiceLang` splits on `[-_]` and
+  lowercases — a looser mirror of the reader's `resolveLanguage`, right
+  for finding an entry, not for saying which row a key names.
+- The reader has no `'mul'` literal at all: "Multiple languages" is just
+  `Intl.DisplayNames` of the `mul` code the catalog publishes under.
+
+The row ↔ memory rule (`defaultVoiceRows`, ui/voice-browser-rows.ts):
+the rows with the remembered id under the remembered key — a Zotero voice
+listed under several locales is the default only where it was picked; a
+voice global by its id (`isMultilingualVoiceId`, the trace of the removed
+multilingualEverywhere switch) is applied everywhere by `planSync`, so
+any row of it is the default whatever key it sits under; a
+single-language voice remembered under another language matches no row
+and reads as "not listed now" — nobody's default, which is what
+`planSync` makes of it too. The first row is where the browser opens
+(tier and locale) on the **first** listing, and when a reload lost the
+tier being browsed; a plain reload and `refresh()` (settings restore)
+keep the selection — a restore only repaints the highlight and the line.
+
+The status line changed hands: it used to say "N voices. Play a sample;
+the heart marks a favorite." and now reads `Default: <label> · <language>
+· <speed>` (`defaultVoiceLine`), `Default: <id> (not listed now) · …`
+when no listed row is the voice (its provider off, Zotero signed out), and
+`Default: Zotero’s own choice · …` when nothing is remembered. Listing
+failures are appended with " — " and kept until the next listing; the
+nothing-listed messages are unchanged; a sample failure still replaces the
+line until the next repaint. The speed in it is the slider's value, which
+step 1 made the default speed — it follows a drag at once (`input`), and
+the popup's slider and the shortcuts through step 1's memory observer
+(`onMemoryChange` now calls `paintStatus` as well). While "Use one speed
+everywhere" is off the slider only paces the samples, so the line ends in
+`speed per language` instead of a number; the switch is read at every
+repaint, not observed — flipping the checkbox shows at the next slider
+move or memory change, which is the same lag the slider's own behavior
+has. The highlight following a voice picked in the popup while the pane
+is open is README step 4, and `onMemoryChange` deliberately leaves the
+rows alone. The row itself gets the column entries'
+`SelectedItem`/`SelectedItemText` colors and a tooltip on its label.
+
+`diagnostics.defaultVoice()`: the memory, the rows it names in the very
+listing the pane gets (the plugin's catalog through `listCatalog`,
+Zotero's through `zoteroVoiceService`, each failing on its own), the tier
+and locale the browser opens on, and the status line it would paint — so
+a wrong highlight can be told from a wrong memory.

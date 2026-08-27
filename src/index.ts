@@ -14,12 +14,13 @@ import { readReadAloudVoices } from './core/read-aloud-speed';
 import { listNamedCatalog, type CatalogEntry } from './read-aloud/catalog';
 import { parseFavoriteVoices } from './read-aloud/favorites';
 import { decodeVoiceId } from './read-aloud/voice-catalog';
+import type { ZoteroVoice } from './read-aloud/zotero-voices';
 import {
   createRemoteInterface,
   type NativeRemoteInterface,
   type RemoteInterface,
 } from './read-aloud/remote-interface';
-import { onPaneLoad, registerPrefsPane, zoteroVoiceService } from './ui/prefs-pane';
+import { onPaneLoad, registerPrefsPane, TEST_CONNECTION_TIMEOUT_MS, zoteroVoiceService } from './ui/prefs-pane';
 import {
   createReadAloudShortcuts,
   deepActiveElement,
@@ -29,8 +30,9 @@ import {
   type ReadAloudShortcuts,
 } from './ui/read-aloud-shortcuts';
 import { removeSpeedToast, showSpeedToast } from './ui/speed-toast';
-import { createSamplePlayer, startingSpeed } from './ui/voice-browser-rows';
+import { browserVoices, createSamplePlayer, defaultVoiceLine, defaultVoiceRows, startingSpeed } from './ui/voice-browser-rows';
 import { silentWav } from './core/silence';
+import { withTimeout } from './core/timeout';
 
 export interface StartupParams {
   id: string;
@@ -909,6 +911,55 @@ const diagnostics = {
           favorites: { plugin: marked.filter((id) => decodeVoiceId(id)).length, zotero: marked.filter((id) => !decodeVoiceId(id)).length },
           first,
           sample: sample ? { voice: first!.id, bytes: sample.size, type: sample.type } : 'no voice to sample',
+        },
+        null,
+        1,
+      );
+    } catch (e) {
+      return JSON.stringify({ error: String(e) }, null, 1);
+    }
+  },
+  /**
+   * The default voice as the voice browser shows it, from inside the
+   * sandbox: the memory, the rows it names in the very listing the pane
+   * gets (the plugin's catalog and Zotero's own voices, each failing on
+   * its own), the tier and language the browser opens on, and the status
+   * line it paints — so a pane that marks the wrong row can be told apart
+   * from a memory that names the wrong voice.
+   */
+  defaultVoice: async () => {
+    try {
+      const memory = readMemory(prefs);
+      let zotero: ZoteroVoice[] = [];
+      let zoteroError: string | null = null;
+      try {
+        zotero = await zoteroVoiceService().listVoices();
+      } catch (e) {
+        zoteroError = String(e);
+      }
+      // Bounded as the pane bounds its listing: a server that never answers must end in an error, not a hang
+      const catalog = await withTimeout(listCatalog(), TEST_CONNECTION_TIMEOUT_MS, () => new Error('No voice list within 15 s'));
+      const voices = browserVoices(catalog, zotero);
+      const rows = defaultVoiceRows(voices, memory.voice);
+      const home = rows[0] ?? null;
+      const localeName = (code: string) => {
+        try {
+          return new Intl.DisplayNames([Zotero.locale ?? 'en'], { type: 'language' }).of(code) ?? code;
+        } catch {
+          return code;
+        }
+      };
+      const globalSpeed = loadSettings(prefs).readAloud.globalSpeed;
+      return JSON.stringify(
+        {
+          memory,
+          globalSpeed,
+          listed: voices.length,
+          zoteroError,
+          rows: rows.map((r) => ({ tier: r.tier, locale: r.locale, label: r.label, id: r.encoded })),
+          opensOn: home ? { tier: home.tier, locale: home.locale } : 'the usual tier (no listed row is the default)',
+          // The pane's line as it opens: the slider starts at startingSpeed, and names no default speed while the switch is off
+          status: defaultVoiceLine(memory.voice, home, localeName, globalSpeed ? startingSpeed(prefs) : null),
         },
         null,
         1,

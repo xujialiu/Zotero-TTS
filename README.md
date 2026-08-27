@@ -154,6 +154,12 @@ audio the same way — pitch kept — so what you hear is what you get, and
 the slider costs no new request: every voice is synthesized at its natural
 pace and stretched on playback.
 
+The voice you last picked in the popup — what Read Aloud starts with, see
+*Reading* below — is shown as the **default**: the browser opens on its
+row, highlighted, and the status line names it with the speed
+(`Default: Azure-晓晓 · Chinese (China) · 1.8×`; with *Use one speed
+everywhere* off, `speed per language`).
+
 ### Reading
 
 - *Use the same voice for every document* — Zotero remembers a voice per
@@ -224,11 +230,6 @@ own, and deleted from this list when done. The mechanism and the Zotero
 internals behind every step are in [notes/NOTES.md](notes/NOTES.md),
 "Default voice and speed: the plan".
 
-2. **Show the default voice.** The remembered voice's row is highlighted
-   like a selected column entry, the status line reads
-   `Default: <voice> · 1.8×`, and the browser opens on that voice's tier
-   and language. Test: pick a voice in the popup, reopen the settings →
-   the browser opens on that row, highlighted.
 3. **Click a row to make it the default.** Writes the plugin's memory and
    Zotero's own entry for the voice's language the way Zotero's
    `_setReadAloudVoice` does; a second click clears it. A multilingual
