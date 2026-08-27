@@ -16,7 +16,7 @@ import { initServerPresetRows } from './server-preset-rows';
 import { initWebDAVRows } from './webdav-rows';
 import { initHighlightRows } from './highlight-rows';
 import { createSamplePlayer, initVoiceBrowserRows } from './voice-browser-rows';
-import { guardProviderSwitches } from './reading-guard';
+import { guardProviderSwitches, showPaneNotice } from './reading-guard';
 import { resolveReaderTheme, type ResolvedReaderTheme } from '../core/reader-theme';
 
 const XHTML = 'http://www.w3.org/1999/xhtml';
@@ -302,7 +302,12 @@ export function onPaneLoad(doc: Document, hooks: PaneHooks = {}): void {
   // Adding a voice — a favorite while only favorites are offered, a provider
   // switched on — is refused while a tab is reading: its popup would not
   // list the voice until Read Aloud reopens there (ui/reading-guard.ts)
-  const readingGuard = { readingTabs: readingTabTitles, warn: (message: string) => Services.prompt.alert(win, 'Zotero TTS', message) };
+  // The message is a dialog of the pane's own document: the OS prompt draws a
+  // white ring around a dark dialog on Windows (reading-guard.ts showPaneNotice)
+  const readingGuard = {
+    readingTabs: readingTabTitles,
+    warn: (message: string) => showPaneNotice(doc, message, (text) => Services.prompt.alert(win, 'Zotero TTS', text)),
+  };
   guardProviderSwitches(doc, { prefs, ...readingGuard });
   const voiceBrowserRows = initVoiceBrowserRows(doc, {
     prefs,

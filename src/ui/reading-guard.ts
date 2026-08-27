@@ -32,6 +32,64 @@ export interface ReadingGuardDeps {
   warn(message: string): void;
 }
 
+const XHTML = 'http://www.w3.org/1999/xhtml';
+
+/**
+ * The message as a dialog of the pane's own document: an html:dialog shown
+ * modal over the pane, painted in the pane's own light or dark colors. The
+ * OS prompt (Services.prompt.alert, toolkit's commonDialog) draws a white
+ * ring around its dark body on Windows in dark mode (Zotero 10.0.1-beta.3,
+ * seen 2026-08-27), and nothing in the plugin can restyle another window's
+ * document; the pane's follows Zotero's theme, so a dialog inside it does
+ * too. `fallback` — the OS prompt — is used where showModal is unavailable
+ * or refuses. Returns at once; the dialog closes on OK or Escape.
+ */
+export function showPaneNotice(
+  doc: { createElementNS(ns: string, tag: string): any; documentElement?: any; body?: any; defaultView?: any },
+  message: string,
+  fallback: (message: string) => void,
+): void {
+  const root = doc.body ?? doc.documentElement;
+  const dialog = doc.createElementNS(XHTML, 'dialog');
+  if (!root || typeof dialog?.showModal !== 'function') {
+    fallback(message);
+    return;
+  }
+  let dark = false;
+  try {
+    dark = !!doc.defaultView?.matchMedia?.('(prefers-color-scheme: dark)')?.matches;
+  } catch {
+    // No matchMedia: the light colors
+  }
+  dialog.setAttribute(
+    'style',
+    `color-scheme: ${dark ? 'dark' : 'light'}; background: ${dark ? '#2b2b2b' : '#ffffff'}; color: ${dark ? '#f0f0f0' : '#000000'};` +
+      ' border: 1px solid rgba(128, 128, 128, 0.5); border-radius: 6px; padding: 16px 20px; max-width: 44em; font: inherit;' +
+      ' box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);',
+  );
+  const text = doc.createElementNS(XHTML, 'div');
+  text.textContent = message;
+  text.setAttribute('style', 'white-space: pre-wrap; line-height: 1.5; margin: 0 0 14px;');
+  dialog.appendChild(text);
+  const row = doc.createElementNS(XHTML, 'div');
+  row.setAttribute('style', 'display: flex; justify-content: flex-end;');
+  const ok = doc.createElementNS(XHTML, 'button');
+  ok.textContent = 'OK';
+  ok.setAttribute('style', 'min-width: 6em; padding: 4px 12px; font: inherit;');
+  ok.addEventListener('click', () => dialog.close());
+  row.appendChild(ok);
+  dialog.appendChild(row);
+  dialog.addEventListener('close', () => dialog.remove());
+  root.appendChild(dialog);
+  try {
+    dialog.showModal();
+    ok.focus?.();
+  } catch {
+    dialog.remove();
+    fallback(message);
+  }
+}
+
 /** Whether adding a voice must wait: Read Aloud is open somewhere, and the user has just been told where. */
 export function refuseWhileReading(deps: ReadingGuardDeps): boolean {
   const titles = deps.readingTabs();

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { PREF_PREFIX, type PrefsBackend } from '../../src/core/settings';
-import { guardProviderSwitches, readingTabsMessage, refuseWhileReading } from '../../src/ui/reading-guard';
+import { guardProviderSwitches, readingTabsMessage, refuseWhileReading, showPaneNotice } from '../../src/ui/reading-guard';
 
 function fakePrefs(initial: Record<string, unknown> = {}): PrefsBackend & { store: Record<string, unknown> } {
   const store = { ...initial };
@@ -111,5 +111,109 @@ describe('guardProviderSwitches', () => {
 
   it('tolerates a pane without the checkboxes', () => {
     expect(() => guardProviderSwitches({ querySelector: () => null }, { prefs: fakePrefs(), readingTabs: () => [], warn: vi.fn() })).not.toThrow();
+  });
+});
+
+describe('showPaneNotice', () => {
+  /** The pane document in miniature: elements that can hold children, and a dialog that can be shown modal. */
+  class FakeElement {
+    attrs = new Map<string, string>();
+    listeners = new Map<string, Array<() => void>>();
+    children: FakeElement[] = [];
+    textContent = '';
+    parent: FakeElement | null = null;
+    modal = false;
+    focused = false;
+    constructor(public tag: string) {}
+    setAttribute(k: string, v: string) {
+      this.attrs.set(k, v);
+    }
+    addEventListener(type: string, fn: () => void) {
+      this.listeners.set(type, [...(this.listeners.get(type) ?? []), fn]);
+    }
+    appendChild(child: FakeElement) {
+      child.parent = this;
+      this.children.push(child);
+    }
+    remove() {
+      if (this.parent) this.parent.children = this.parent.children.filter((c) => c !== this);
+      this.parent = null;
+    }
+    fire(type: string) {
+      for (const fn of this.listeners.get(type) ?? []) fn();
+    }
+    focus() {
+      this.focused = true;
+    }
+    showModal() {
+      this.modal = true;
+    }
+    close() {
+      this.modal = false;
+      this.fire('close');
+    }
+  }
+  function fakeDoc(dark = false, dialogTag = 'dialog') {
+    const body = new FakeElement('body');
+    return {
+      body,
+      createElementNS: (_ns: string, tag: string) => {
+        const el = new FakeElement(tag);
+        // A document whose dialog cannot be shown modal (an older toolkit) lacks the method
+        if (tag === 'dialog' && dialogTag !== 'dialog') (el as any).showModal = undefined;
+        return el;
+      },
+      defaultView: { matchMedia: (q: string) => ({ matches: dark && q.includes('dark') }) },
+    };
+  }
+
+  it('shows the message in a modal dialog of the pane, painted for its theme, and removes it on close', () => {
+    const doc = fakeDoc(true);
+    const fallback = vi.fn();
+    showPaneNotice(doc, 'Read Aloud is open in a tab', fallback);
+    const dialog = doc.body.children[0];
+    expect(dialog.tag).toBe('dialog');
+    expect(dialog.modal).toBe(true);
+    expect(dialog.attrs.get('style')).toContain('color-scheme: dark');
+    expect(dialog.children[0].textContent).toBe('Read Aloud is open in a tab');
+    const ok = dialog.children[1].children[0];
+    expect(ok.textContent).toBe('OK');
+    expect(ok.focused).toBe(true);
+    expect(fallback).not.toHaveBeenCalled();
+    ok.fire('click');
+    expect(dialog.modal).toBe(false);
+    expect(doc.body.children).toEqual([]);
+  });
+
+  it('paints light colors under a light theme', () => {
+    const doc = fakeDoc(false);
+    showPaneNotice(doc, 'x', vi.fn());
+    expect(doc.body.children[0].attrs.get('style')).toContain('color-scheme: light');
+  });
+
+  it('falls back to the OS prompt where the dialog cannot be shown modal', () => {
+    const doc = fakeDoc(false, 'no-modal');
+    const fallback = vi.fn();
+    showPaneNotice(doc, 'x', fallback);
+    expect(fallback).toHaveBeenCalledWith('x');
+    expect(doc.body.children).toEqual([]);
+  });
+
+  it('falls back, and leaves nothing behind, when showModal refuses', () => {
+    const doc = fakeDoc(false);
+    const create = doc.createElementNS;
+    doc.createElementNS = (ns: string, tag: string) => {
+      const el = create(ns, tag);
+      if (tag === 'dialog') {
+        el.showModal = () => {
+          throw new Error('not connected');
+        };
+      }
+      return el;
+    };
+    const fallback = vi.fn();
+    showPaneNotice(doc, 'x', fallback);
+    expect(fallback).toHaveBeenCalledWith('x');
+    expect(doc.body.children).toEqual([]);
   });
 });

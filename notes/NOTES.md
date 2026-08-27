@@ -2556,3 +2556,19 @@ is `_readAloudManager.active`, paused included. Verification is by eye:
 with a popup open in some tab, click a ♥ (favorites-only on) or an Enable
 checkbox → the dialog names the tab and nothing changes; close the popup
 → the same click goes through.
+
+### The white ring around the dialog (2026-08-27, same day)
+
+First live look at the guard: `Services.prompt.alert` on Windows in dark
+mode draws its dark body inside a white ring — toolkit's commonDialog
+window keeps a light background around the dialog box in this Zotero
+(10.0.1-beta.3), and a plugin cannot restyle another window's document.
+The message is now an `html:dialog` of the pane's own document
+(`showPaneNotice`): appended to the pane's body, shown with
+`showModal()` (centered, backdrop, Escape closes), painted with explicit
+light or dark colors chosen by the pane window's
+`prefers-color-scheme` — the same test `currentReaderTheme` uses — plus
+`color-scheme` on the element so the OK button renders for the theme;
+removed on close. Where `showModal` is missing or throws, the OS prompt
+is the fallback. `Services.prompt.confirm` in the Restore flow still
+uses the OS prompt — a question with two answers, left alone for now.
