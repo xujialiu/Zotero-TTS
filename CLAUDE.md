@@ -10,7 +10,10 @@ across documents, settings backup/restore (file or WebDAV), highlight colors.
 - `README.md` — user-facing docs, kept short and scannable (header with
   badges, a GIF, emoji feature list, install, providers table, settings;
   long detail goes into `<details>` blocks or `tutorials/`, never into the
-  body). `PHILOSOPHY.md` — the plugin is an enhancer for Read Aloud, not a
+  body). **After editing any `.md` under the repo, run `npm run docs`** — it
+  renders every doc to `docs/` (gitignored), the source tree mirrored; tell
+  the user which `docs/….html` to open.
+  `PHILOSOPHY.md` — the plugin is an enhancer for Read Aloud, not a
   replacement; the yardstick for new features.
   `tutorials/` — Azure's free tier, Kokoro-FastAPI and Chatterbox-TTS-Server
   in Docker, remote access through Cloudflare. Provider and server how-tos
@@ -54,6 +57,7 @@ across documents, settings backup/restore (file or WebDAV), highlight colors.
 npm test              # vitest, ~340 tests, includes test/build.test.ts which runs the build
 npm run typecheck     # tsc --noEmit
 npm run build         # esbuild → addon/content/zotero-tts.js, zip → build/zotero-tts.xpi
+npm run docs          # pandoc → docs/*.html, the Markdown rendered for the browser
 ```
 
 After any change: tests, typecheck, build — then the user installs the xpi
