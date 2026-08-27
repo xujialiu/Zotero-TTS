@@ -74,6 +74,34 @@ sandbox — plain Run JavaScript is chrome scope and cannot reproduce the
 sandbox's view. A purely visual change states that instead, and names
 exactly what to check by eye.
 
+## Verifying a branch live, step by step
+
+Before a feature branch is merged, the user verifies its new behavior in
+Zotero, in rounds; the plugin cannot be driven from here. The form was
+settled on 2026-08-27, after a round that said "run the diagnostic code"
+was rejected as unclear:
+
+- **Plan first.** List every new behavior on the branch and the round and
+  step that covers it; name what only unit tests can cover (not
+  reproducible by hand) and why. Work the list until it is empty, then
+  a last round for whatever was fixed along the way.
+- **At most 3 steps per round.** Send one round, wait for the user's
+  pasted output, confirm it field by field or diagnose, then the next
+  round. A failure stops the round: fix, rebuild, hand over the xpi, and
+  re-issue the round from its first step.
+- **Every step is self-contained.** (1) What to do in Zotero, naming the
+  UI by what it says on screen — "tab 1" / "tab 2" for the documents,
+  "the player" for the Read Aloud popup, "the language dropdown", "the ♥
+  next to Azure-Brandon" — never a letter or a variable name for a thing
+  on screen. (2) The **complete** Run JavaScript code, pasted in full in
+  that step even when the previous step used the same code — never "the
+  diagnostic code", "as above" or a name for a snippet; say whether "Run
+  as async function" must be checked (`Zotero.Debug.get` needs it). (3)
+  The expected output, field by field, and what a deviation would mean.
+- Snippets pick out the fields that matter (wrap
+  `Zotero.ZoteroTTS.diagnostics.*` and `JSON.parse` its result) and name
+  readers by the item's title, never by itemID.
+
 ## Releasing
 
 Installed copies auto-update through the manifest's `update_url`, which
