@@ -155,12 +155,13 @@ src/core/           pure logic, no Zotero globals: settings (DEFAULTS ↔ addon/
 src/read-aloud/     the Read Aloud integration: index (intercepts Zotero.Reader._readers and
                     overrides _getReadAloudRemoteInterface per reader), remote-interface
                     (composite of Zotero's native interface + our voices), voice-catalog,
-                    catalog, read-aloud-memory (+ memory-sync: one voice/speed across documents),
+                    catalog, read-aloud-memory (+ memory-sync: one voice/speed across documents
+                    and open tabs; default-speed / default-voice: what the voice browser sets),
                     highlight-style (Zotero's highlight colors, sentence under word),
                     system-voices (hide Zotero's own Local voices)
 src/ui/             prefs pane (prefs-pane, shortcut-rows, backup-rows, webdav-rows,
-                    server-preset-rows, highlight-rows, shortcut-recorder),
-                    read-aloud-shortcuts, speed-toast
+                    server-preset-rows, highlight-rows, shortcut-recorder, voice-browser-rows,
+                    reading-guard: no new voice while a tab reads), read-aloud-shortcuts, speed-toast
 src/index.ts        bootstrap wiring; with core/settings.createZoteroPrefs and ui/prefs-pane the
                     only code that touches Zotero globals (declared in src/globals.d.ts)
 addon/              manifest.json, bootstrap.js, prefs.js (defaults), content/preferences.xhtml

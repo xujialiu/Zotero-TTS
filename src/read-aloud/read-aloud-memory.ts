@@ -10,12 +10,12 @@ import { decodeVoiceId, PLUGIN_TIER } from './voice-catalog';
  * 1.0× with a fallback voice, and a voice chosen under "Multiple languages"
  * lives under the key `mul`, which no document ever resolves to. This module
  * keeps one choice across documents instead: the speed the user last set
- * anywhere, and the voice the user last picked. A multilingual voice is
- * applied to every document — it is the only kind that can read every
- * language. A single-language voice is left to Zotero's per-language memory,
- * which already restores it for documents in its own language; forcing it on
- * other languages would only produce an English voice stumbling over
- * Chinese. The pure decisions live here; memory-sync.ts wires them to Zotero.
+ * anywhere, and the voice the user last picked — applied to every document
+ * whatever its language (the user's rule, 2026-08-27: one voice everywhere,
+ * an English voice on a Chinese PDF included). Zotero offers a voice only
+ * under its own language, so a document is moved to the voice's — `mul`
+ * for a multilingual voice, else the language it was picked under (planSync).
+ * The pure decisions live here; memory-sync.ts wires them to Zotero.
  */
 
 export const READ_ALOUD_MEMORY_PREF = PREF_PREFIX + 'readAloud.memory';
