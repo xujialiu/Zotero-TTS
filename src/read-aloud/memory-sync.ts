@@ -3,7 +3,6 @@ import { READ_ALOUD_VOICES_PREF, readReadAloudVoices, resolveVoiceLang, type Voi
 import type { PrefsBackend } from '../core/settings';
 import { setDefaultSpeed, type SpeedManagerLike } from './default-speed';
 import {
-  isGlobalVoice,
   memoryFromVoices,
   noteVoicesChange,
   planSync,
@@ -44,11 +43,14 @@ import { ownerOf } from './system-voices';
  *   compartment first (Components.utils.exportFunction, the same mechanism
  *   Zotero uses when it hands its remote interface to the reader).
  *
- * A manager moved to "Multiple languages" for a global voice stays there
- * for the reader's lifetime — Zotero's `deactivate()` resets everything
- * but the language — so the language it was moved from is kept per reader,
- * and a voice that is not global (or none) sends the manager back before
- * Zotero's restore, which then finds the entry a fresh tab would.
+ * The remembered voice goes to every document whatever its language (the
+ * user's rule: one voice everywhere), so a manager is moved to the voice's
+ * lane — `mul` for a multilingual voice, else the language it was picked
+ * under. It stays there for the reader's lifetime — Zotero's `deactivate()`
+ * resets everything but the language — so where it was moved from is kept
+ * per reader, and a cleared memory (or the switch going off) sends the
+ * manager back before Zotero's restore, which then finds the entry a fresh
+ * tab would.
  *
  * The pref observer sees a pick only when Zotero's entry changed, and
  * Zotero.Prefs.set notifies nobody of an unchanged value: the popup
@@ -132,12 +134,20 @@ function entryRegion(voices: VoicesMap, lang: string): string | null {
   return typeof region === 'string' && region ? region : null;
 }
 
-/** Whether the manager's voice list (loaded at its popup's open) has the voice; the list lives in the reader's compartment, so it is walked by index. */
-function listsVoice(manager: any, id: string): boolean {
+/** The voice as the manager's list (loaded at its popup's open) has it, else null; the list lives in the reader's compartment, so it is walked by index. */
+function listedVoice(manager: any, id: string): any {
   const all = manager?.allVoices;
   const length = typeof all?.length === 'number' ? all.length : 0;
-  for (let i = 0; i < length; i++) if (all[i]?.id === id) return true;
-  return false;
+  for (let i = 0; i < length; i++) if (all[i]?.id === id) return all[i];
+  return null;
+}
+
+const listsVoice = (manager: any, id: string): boolean => listedVoice(manager, id) !== null;
+
+/** The tier the manager lists the voice under (its `tier` field), else null. */
+function tierOf(manager: any, id: string): string | null {
+  const tier = listedVoice(manager, id)?.tier;
+  return typeof tier === 'string' && tier ? tier : null;
 }
 
 export function createReadAloudMemorySync(deps: ReadAloudMemoryDeps): ReadAloudMemorySync {
@@ -210,16 +220,19 @@ export function createReadAloudMemorySync(deps: ReadAloudMemoryDeps): ReadAloudM
   }
 
   /**
-   * Per internal reader, the language its manager was moved to Multiple
-   * languages from — the document's own, as Zotero detected it or the user
-   * chose it. Written on every move there, dropped once the manager is
-   * seen on any other language (the user's dropdown), never written for a
-   * manager the user put on Multiple languages by hand: that one has no
-   * language to go back to and is left where the user put it.
+   * Per internal reader, where this sync moved its manager: from the
+   * document's own language (as Zotero detected it, or as the user chose
+   * it) to the remembered voice's lane. The `from` is kept across moves,
+   * so a manager moved twice still knows its document's language; the
+   * record is dropped once the manager is seen on any language other than
+   * the one it was moved to (the user's dropdown), and never written for a
+   * move the user made by hand.
    */
-  const movedFrom = new WeakMap<object, string>();
-  const documentLanguageOf = (internal: object, managerLang: string | null): string | null =>
-    managerLang === MULTILINGUAL ? (movedFrom.get(internal) ?? managerLang) : managerLang;
+  const moved = new WeakMap<object, { from: string; to: string }>();
+  const documentLanguageOf = (internal: object, managerLang: string | null): string | null => {
+    const record = moved.get(internal);
+    return record && record.to === managerLang ? record.from : managerLang;
+  };
 
   function apply(internal: any): void {
     // Each switch is read here, on every sync, so the pane's checkboxes apply at once
@@ -233,25 +246,29 @@ export function createReadAloudMemorySync(deps: ReadAloudMemoryDeps): ReadAloudM
     const stored = memory();
     const current: ReadAloudMemory = { speed: wanted.speed ? stored.speed : null, voice: wanted.voice ? stored.voice : null };
     const before = readReadAloudVoices(deps.prefs);
-    const plan = planSync(docLang, before, current);
+    // The voice's tier as this manager lists it (a Zotero voice's is not in
+    // its id); the list may still be loading at a popup's first sync
+    const plan = planSync(docLang, before, current, current.voice ? tierOf(manager, current.voice.id) : null);
     if (plan.voices) whileApplying(() => deps.prefs.set(READ_ALOUD_VOICES_PREF, JSON.stringify(plan.voices)));
     if (plan.lang === null) return;
     let switching = plan.lang !== managerLang;
     // A region the popup's dropdown left on the manager ("Chinese
     // (Taiwan)") makes Zotero's restore skip the entry's voice when the
     // entry names another region (_findFallbackVoice's regionChanged) — so
-    // for a single-language voice on its own language the region is
-    // cleared, the way Zotero's own inactive-manager path calls
-    // setLanguage(lang) with none.
-    if (!switching && current.voice && !isGlobalVoice(current.voice) && current.voice.lang === plan.lang) {
+    // for a voice on its own language the region is cleared, the way
+    // Zotero's own inactive-manager path calls setLanguage(lang) with none.
+    if (!switching && current.voice && current.voice.lang === plan.lang) {
       const region = typeof manager.region === 'string' && manager.region ? manager.region : null;
       if (region && region !== entryRegion(plan.voices ?? before, plan.lang)) switching = true;
     }
     if (switching) manager.setLanguage(plan.lang);
-    if (plan.lang === MULTILINGUAL) {
-      if (switching && managerLang && managerLang !== MULTILINGUAL) movedFrom.set(internal, managerLang);
-    } else {
-      movedFrom.delete(internal);
+    if (!switching) {
+      const record = moved.get(internal);
+      if (record && record.to !== managerLang) moved.delete(internal);
+    } else if (plan.lang === docLang) {
+      moved.delete(internal);
+    } else if (docLang) {
+      moved.set(internal, { from: docLang, to: plan.lang });
     }
     if (plan.voices || switching) {
       deps.debug?.(`applied read-aloud memory: ${managerLang} -> ${plan.lang}, ${describeMemory(current)}`);
@@ -337,17 +354,15 @@ export function createReadAloudMemorySync(deps: ReadAloudMemoryDeps): ReadAloudM
    * it wants the voice in the tier-filtered pool of the manager's language
    * and destroys the controller otherwise, and on an idle manager its
    * persist activates the manager (audio with the popup closed). An idle
-   * reader needs nothing here — its next popup open runs the wrapper. A
-   * voice that is not global reaches the readers whose document is in its
-   * language; the others go on as they are and get Zotero's choice for
-   * their language at their next popup open. A reader whose voice list
+   * reader needs nothing here — its next popup open runs the wrapper. The
+   * voice reaches every reader whatever its document's language — each is
+   * moved to the voice's lane by `apply()`. A reader whose voice list
    * lacks the voice (loaded at its popup's open; Zotero's own voices are in
-   * it only while signed in) is skipped too: Zotero's restore would land on
-   * a fallback and move the reader to some other voice.
+   * it only while signed in) is skipped: Zotero's restore would land on a
+   * fallback and move the reader to some other voice.
    */
   function spreadVoice(choice: VoiceChoice | null): void {
     if (!choice || !deps.sameVoice()) return;
-    const global = isGlobalVoice(choice);
     const outcome: string[] = [];
     whileApplying(() => {
       for (const reader of deps.readers()) {
@@ -357,10 +372,6 @@ export function createReadAloudMemorySync(deps: ReadAloudMemoryDeps): ReadAloudM
           if (!manager || !manager.active) continue;
           if (manager.selectedVoiceID === choice.id) continue;
           const docLang = documentLanguageOf(internal, managerLangOf(manager));
-          if (!global && docLang !== choice.lang) {
-            outcome.push(`${docLang}: another language`);
-            continue;
-          }
           if (!listsVoice(manager, choice.id)) {
             outcome.push(`${docLang}: does not list it until its popup reopens`);
             continue;

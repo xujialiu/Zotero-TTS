@@ -170,18 +170,42 @@ describe('planSync', () => {
     expect(planSync('zh', voices, multilingual)).toEqual({ lang: MULTILINGUAL, voices: null });
   });
 
-  it('keeps the detected language for a single-language voice, so Zotero restores its own per-language choice', () => {
-    expect(planSync('zh', voices, english)).toEqual({ lang: 'zh', voices: { ...voices, zh: { ...voices.zh, speed: 1.4 } } });
+  // One voice everywhere, whatever the document's language (the user's
+  // rule): a document in another language is moved to the voice's own,
+  // whose entry Zotero then restores from
+  it('moves every document to a single-language voice’s own language', () => {
+    expect(planSync('zh', voices, english)).toEqual({ lang: 'en', voices: null });
     expect(planSync('en', voices, english)).toEqual({ lang: 'en', voices: null });
+    expect(planSync('fr', voices, english)).toEqual({ lang: 'en', voices: null });
   });
 
-  it('creates the entry for a language Zotero has not seen, so it starts at the remembered speed', () => {
-    expect(planSync('fr', voices, english)).toEqual({ lang: 'fr', voices: { ...voices, fr: { speed: 1.4 } } });
+  it('creates the entry for the voice’s language when Zotero has none, naming the voice and its tier', () => {
+    const denise = 'azure::fr-FR-DeniseNeural';
+    expect(planSync('zh', voices, { speed: 1.4, voice: { id: denise, lang: 'fr' } })).toEqual({
+      lang: 'fr',
+      voices: { ...voices, fr: { speed: 1.4, voice: denise, tierVoices: { local: denise } } },
+    });
   });
 
   it('resolves a regional key the way Zotero does', () => {
     const regional: VoicesMap = { 'en-GB': { voice: AOEDE, speed: 1.1 } };
-    expect(planSync('en', regional, english)).toEqual({ lang: 'en', voices: { 'en-GB': { voice: AOEDE, speed: 1.4 } } });
+    expect(planSync('en', regional, english)).toEqual({ lang: 'en', voices: { 'en-GB': { voice: AOEDE, speed: 1.4, tierVoices: { local: AOEDE } } } });
+  });
+
+  // Zotero's _findFallbackVoice takes its target tier from the LAST key of
+  // tierVoices: the voice's tier is pushed there, as _setReadAloudVoice does
+  it('pushes the voice’s tier to the end of tierVoices, and takes a Zotero voice’s tier as told', () => {
+    const standard = 'bdd0dcc3-en-US';
+    const remembered: ReadAloudMemory = { speed: 1.4, voice: { id: standard, lang: 'en' } };
+    const told = planSync('zh', voices, remembered, 'standard');
+    expect(told.lang).toBe('en');
+    expect(told.voices?.en).toEqual({ ...voices.en, voice: standard, tierVoices: { local: AOEDE, standard } });
+    expect(Object.keys((told.voices?.en.tierVoices ?? {}) as object)).toEqual(['local', 'standard']);
+    // The tier unknown (the list still loading): the voice alone, the tiers as they are
+    expect(planSync('zh', voices, remembered).voices?.en).toEqual({ ...voices.en, voice: standard });
+    // Already the entry's voice with its tier last: nothing to write
+    const settled = { ...voices, en: { ...voices.en, voice: standard, tierVoices: { local: AOEDE, standard } } };
+    expect(planSync('zh', settled, remembered, 'standard')).toEqual({ lang: 'en', voices: null });
   });
 
   it('puts the remembered multilingual voice back if the Multiple languages entry drifted', () => {

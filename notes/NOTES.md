@@ -2624,3 +2624,49 @@ anyway). Disposed with the rest. The test fake's manager now carries its
 methods on a prototype, models Zotero's resolve + persist for the three
 picks, and its `zoteroWrites` skips an unchanged value like Gecko does —
 so the incident reproduces in a test.
+
+## One voice everywhere means every language (2026-08-27)
+
+Round 2 of the live verification opened a Chinese PDF beside two English
+ones reading with Blue (en-US): its popup came up on Premium / Chinese /
+Zotero's own choice, by the rule from 2026-08-22 that a single-language
+voice applies only to documents in its language. The user's verdict:
+wrong — with "Use one voice everywhere" on, the voice goes to every
+document, English voice on a Chinese PDF and Chinese voice on an English
+one alike, "for one uniform and simple rule". Costs, stated and accepted:
+Zotero offers a voice only under its own language, so the manager is
+moved there (the popup of a Chinese PDF shows English, and sentencex
+splits its sentences by English rules); an English-only engine's voice
+(Kokoro) reads Chinese text as noise, Azure's English voices read it
+badly but read it.
+
+What changed:
+
+- `planSync(docLang, voices, memory, tier)`: the lane is the voice's —
+  `mul` for a multilingual voice (`isGlobalVoice`, where the catalog
+  publishes it), else the language it was picked under — for every
+  document; with no voice remembered, `docLang`. The lane's entry is
+  made to name the voice with its tier pushed to the **end** of
+  `tierVoices` (where `_findFallbackVoice` takes its target tier from —
+  the earlier plan's note about the spread leaving an existing key in
+  place is settled this way). The tier of a Zotero voice is not in its id:
+  `apply()` reads it off the manager's `allVoices` (`tierOf`); while the
+  list is still loading at a popup's first sync the entry's `voice` alone
+  is set, and Zotero's own persist from the user's pick has the tier
+  right anyway.
+- memory-sync's record became `moved: { from, to }` per internal reader:
+  `from` is the document's language (kept across moves), `to` the lane
+  the manager was moved to; `documentLanguage` is `from` while the
+  manager is on `to`, else the manager's language, and the record is
+  dropped once the manager is seen elsewhere (the user's dropdown) or
+  moved back. A manager the user put on "Multiple languages" by hand is
+  moved to the voice's language like any other and back to `mul` when the
+  voice is cleared.
+- `spreadVoice` reaches every active reader; the "another language" skip
+  is gone. The region clearing applies to any voice on its own language.
+
+Verification: two English tabs on Blue and a Chinese tab, all reading —
+the Chinese tab's popup shows English (United States) / Azure-Blue and
+`readAloudMemory()` lists it with `lang: "en"`, `docLang: "zh"`; picking
+Xiaoxiao in the Chinese tab moves the English tabs to `lang: "zh"` with
+`docLang: "en"`.

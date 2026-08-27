@@ -243,15 +243,19 @@ describe('createReadAloudMemorySync', () => {
     expect(z.voices()[MULTILINGUAL].speed).toBe(1.4);
   });
 
-  it('keeps a single-language voice to its language and starts a new language at the remembered speed', () => {
+  // One voice everywhere, whatever the document's language (the user's
+  // rule): a French document is moved to the English voice's language, and
+  // its own language's entry is left alone
+  it('moves a document in another language to a single-language voice’s own', () => {
     const z = fakeZotero(voices, english);
     const sync = createReadAloudMemorySync(z.deps);
     const r = fakeReader('fr', z);
     sync.attach(r.reader);
     r.internal._syncPersistedVoicesToManager.call(r.internal);
-    expect(r.log).toEqual(['zotero-sync:fr:1.4']);
-    expect(z.voices().fr).toEqual({ speed: 1.4 });
+    expect(r.log).toEqual(['setLanguage:en', 'zotero-sync:en:1.4']);
+    expect(z.voices().fr).toBeUndefined();
     expect(z.voices().en).toEqual(voices.en);
+    expect(sync.documentLanguage(r.reader)).toBe('fr');
   });
 
   it('waits while the manager has no language yet', () => {
@@ -315,7 +319,7 @@ describe('createReadAloudMemorySync', () => {
     const r = fakeReader('zh', z);
     sync.attach(r.reader);
     r.internal._syncPersistedVoicesToManager.call(r.internal);
-    expect(r.log).toEqual(['zotero-sync:zh:1.7']);
+    expect(r.log).toEqual(['setLanguage:en', 'zotero-sync:en:1.7']);
   });
 
   // The voice browser writes the memory pref directly (default-speed.ts), and
@@ -540,10 +544,11 @@ describe('the voice is global while the setting is on', () => {
     expect(sync.documentLanguage(tab2.reader)).toBe('en');
   });
 
-  // Xiaoxiao reads Chinese only: the Chinese document follows; the English
-  // one goes on with its voice (Zotero's choice for English is restored at
-  // its next popup open), and so does one the user put on Multiple languages
-  it('sends a single-language voice to the readers whose document is in its language', () => {
+  // Xiaoxiao reads Chinese only, and reaches every reader all the same (one
+  // voice everywhere, the user's rule): the Chinese document as it is, the
+  // English one and the one the user put on Multiple languages moved to
+  // Chinese first, where Zotero offers her
+  it('sends a single-language voice to every reader, each moved to its language', () => {
     const z = fakeZotero();
     const sync = createReadAloudMemorySync(z.deps);
     const chinese = fakeReader('zh', z, { active: true, selectedVoiceID: YUNXI, voices: listed });
@@ -553,9 +558,11 @@ describe('the voice is global while the setting is on', () => {
     z.zoteroWrites('zh', xiaoxiao);
     expect(sync.memory().voice).toEqual({ id: XIAOXIAO, lang: 'zh' });
     expect(chinese.log).toEqual(['zotero-sync:zh:1.4']);
-    expect(chinese.manager.selectedVoiceID).toBe(XIAOXIAO);
-    expect(english.original).not.toHaveBeenCalled();
-    expect(byHand.original).not.toHaveBeenCalled();
+    expect(english.log).toEqual(['setLanguage:zh', 'zotero-sync:zh:1.4']);
+    expect(byHand.log).toEqual(['setLanguage:zh', 'zotero-sync:zh:1.4']);
+    for (const tab of [chinese, english, byHand]) expect(tab.manager.selectedVoiceID).toBe(XIAOXIAO);
+    expect(sync.documentLanguage(english.reader)).toBe('en');
+    expect(sync.documentLanguage(byHand.reader)).toBe(MULTILINGUAL);
   });
 
   // A Chinese document that read with Isabella sits on Multiple languages,
@@ -859,14 +866,21 @@ describe('a reader moved to Multiple languages finds its way back', () => {
     expect(switchedOff.log).toEqual(['setLanguage:mul', 'zotero-sync:mul:1.4', 'setLanguage:en', 'zotero-sync:en:1.4']);
   });
 
-  it('leaves a manager the user put on Multiple languages by hand where it is', () => {
+  // Where the user put a manager by hand is its "document language" from
+  // then on: the voice's language for as long as the voice is remembered,
+  // and back there once it is cleared
+  it('moves a manager the user put on Multiple languages to the voice’s language, and back when the voice goes', () => {
     const z = fakeZotero();
     const sync = createReadAloudMemorySync(z.deps);
     const r = fakeReader(MULTILINGUAL, z);
     sync.attach(r.reader);
     writeMemory(z.deps.prefs, chinese);
     r.internal._syncPersistedVoicesToManager.call(r.internal);
-    expect(r.log).toEqual(['zotero-sync:mul:1.4']);
+    expect(r.log).toEqual(['setLanguage:zh', 'zotero-sync:zh:1.4']);
+    expect(sync.documentLanguage(r.reader)).toBe(MULTILINGUAL);
+    writeMemory(z.deps.prefs, { speed: 1.4, voice: null });
+    r.internal._syncPersistedVoicesToManager.call(r.internal);
+    expect(r.log).toEqual(['setLanguage:zh', 'zotero-sync:zh:1.4', 'setLanguage:mul', 'zotero-sync:mul:1.4']);
     expect(sync.documentLanguage(r.reader)).toBe(MULTILINGUAL);
   });
 
@@ -889,11 +903,12 @@ describe('a reader moved to Multiple languages finds its way back', () => {
     expect(r.log).toEqual([
       'setLanguage:mul',
       'zotero-sync:mul:1.4',
-      'zotero-sync:fr:1.4',
+      'setLanguage:zh',
+      'zotero-sync:zh:1.4',
       'setLanguage:mul',
       'zotero-sync:mul:1.4',
-      'setLanguage:fr',
-      'zotero-sync:fr:1.4',
+      'setLanguage:zh',
+      'zotero-sync:zh:1.4',
     ]);
   });
 

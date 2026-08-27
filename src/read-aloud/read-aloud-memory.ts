@@ -163,25 +163,41 @@ export function sameChoice(a: VoiceChoice | null, b: VoiceChoice | null): boolea
  * What to put in place before Zotero's `_syncPersistedVoicesToManager` runs
  * for a document whose language the manager has just learned. Everything
  * goes through Zotero's own pref and its own resolution, so its popup,
- * fallbacks and persistence keep working as they are. A remembered voice is
- * applied to every document when it is globally usable (isGlobalVoice). The
- * manager is moved to `mul` first, where the catalog publishes such voices:
- * Zotero drops voices whose language does not match the manager's.
- * `docLang` is the document's language — what the manager is on, or was on
- * before memory-sync moved it to `mul` — so a voice that is not global
- * sends a manager back there and Zotero restores its own choice for it.
+ * fallbacks and persistence keep working as they are. The remembered voice
+ * goes to every document, whatever its language (the user's rule: one
+ * voice everywhere, 2026-08-27): the manager is moved to the voice's own
+ * lane — `mul` for a multilingual voice (isGlobalVoice), where the catalog
+ * publishes it, else the language it was picked under — because Zotero
+ * drops voices whose language does not match the manager's; and that
+ * lane's entry is made to name the voice, with its tier pushed to the end
+ * of `tierVoices`, where `_findFallbackVoice` looks first. `tier` is the
+ * voice's tier as the manager lists it (`local` for the plugin's own is
+ * known from the id); unknown, the entry's `voice` alone is set. `docLang`
+ * is the document's language — what the manager is on, or was on before
+ * memory-sync moved it — so with no voice remembered the manager goes back
+ * there and Zotero restores its own choice for it.
  */
-export function planSync(docLang: string | null, voices: VoicesMap, memory: ReadAloudMemory): SyncPlan {
+export function planSync(docLang: string | null, voices: VoicesMap, memory: ReadAloudMemory, tier: string | null = null): SyncPlan {
   if (!docLang) return { lang: null, voices: null };
-  const global = memory.voice && isGlobalVoice(memory.voice) ? memory.voice : null;
-  const lang = global ? MULTILINGUAL : docLang;
+  const voice = memory.voice;
+  const lang = voice ? (isGlobalVoice(voice) ? MULTILINGUAL : voice.lang) : docLang;
   const key = resolveVoiceLang(lang, Object.keys(voices)) ?? lang;
   const entry = voices[key] ?? {};
   let next = entry;
   if (memory.speed !== null && speedOf(entry) !== memory.speed) next = { ...next, speed: memory.speed };
-  if (global && voiceOf(entry) !== global.id) {
+  if (voice) {
     const tierVoices = entry.tierVoices && typeof entry.tierVoices === 'object' ? (entry.tierVoices as Record<string, unknown>) : {};
-    next = { ...next, voice: global.id, tierVoices: { ...tierVoices, [PLUGIN_TIER]: global.id } };
+    const voiceTier = tier ?? (decodeVoiceId(voice.id) ? PLUGIN_TIER : null);
+    const keys = Object.keys(tierVoices);
+    const tierLast = !voiceTier || (keys[keys.length - 1] === voiceTier && tierVoices[voiceTier] === voice.id);
+    if (voiceOf(entry) !== voice.id || !tierLast) {
+      const rest: Record<string, unknown> = { ...tierVoices };
+      if (voiceTier) {
+        delete rest[voiceTier];
+        rest[voiceTier] = voice.id;
+      }
+      next = { ...next, voice: voice.id, tierVoices: rest };
+    }
   }
   return { lang, voices: next === entry ? null : { ...voices, [key]: next } };
 }

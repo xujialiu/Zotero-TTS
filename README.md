@@ -176,13 +176,14 @@ settings are open and the highlight moves there.
 ### Reading
 
 - *Use one voice everywhere* — one voice for every document and every open
-  tab: pick it in the popup of any tab and every other tab that is reading
-  goes on with it from its current sentence; the rest get it when their
-  popup opens. A multilingual voice (Azure's, OpenAI's — under the popup's
-  "Multiple languages" entry, which the plugin pins to the top of the
-  language list) reaches every document; a single-language voice the
-  documents in its language, and the others get Zotero's own choice for
-  theirs. Off, Zotero remembers a voice per document language.
+  tab, whatever the document's language: pick it in the popup of any tab
+  and every other tab that is reading goes on with it from its current
+  sentence; the rest get it when their popup opens. The popup of a
+  document in another language is switched to the voice's language (a
+  Chinese PDF reads with your English voice, its sentences split by
+  English rules); multilingual voices (Azure's, OpenAI's) sit under the
+  popup's "Multiple languages" entry, which the plugin pins to the top of
+  the language list. Off, Zotero remembers a voice per document language.
 - *Use one speed everywhere* — one speed for every document and every open
   tab: set it from the popup's slider, the shortcuts or the settings
   slider, and every tab follows at once. Off, Zotero keeps a speed per
