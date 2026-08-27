@@ -2572,3 +2572,15 @@ light or dark colors chosen by the pane window's
 removed on close. Where `showModal` is missing or throws, the OS prompt
 is the fallback. `Services.prompt.confirm` in the Restore flow still
 uses the OS prompt — a question with two answers, left alone for now.
+
+The first in-pane version was a bare box ("ugly, and not like an alert
+popup"): it is drawn like an alert window now — a title strip reading
+"Zotero TTS", the warning sign (the emoji presentation, U+26A0 U+FE0F, the
+OS alert's yellow triangle) beside the text with its first line in bold,
+OK bottom right, Windows 11's dialog colors (`#202020` dark, `#f3f3f3`
+light), a dimmed backdrop through a `<style>` inside the dialog
+(`::backdrop` cannot be set inline; the element goes away with the
+dialog). If this is still not enough of a window, the next step is a real
+one: `aomStartup.registerChrome` for a `chrome://zotero-tts/` path and
+`openDialog` on an XHTML of our own — a title bar from the OS and a
+document whose background we control, so no ring.

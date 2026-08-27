@@ -167,16 +167,26 @@ describe('showPaneNotice', () => {
     };
   }
 
-  it('shows the message in a modal dialog of the pane, painted for its theme, and removes it on close', () => {
+  // Drawn like an alert window: a title strip, the warning sign beside the
+  // text with its first line in bold, OK bottom right, a dimmed backdrop
+  it('shows the message as a modal alert of the pane, painted for its theme, and removes it on close', () => {
     const doc = fakeDoc(true);
     const fallback = vi.fn();
-    showPaneNotice(doc, 'Read Aloud is open in a tab', fallback);
+    showPaneNotice(doc, 'Read Aloud is open in a tab:\n  • Paper\n\nClose it.', fallback);
     const dialog = doc.body.children[0];
     expect(dialog.tag).toBe('dialog');
     expect(dialog.modal).toBe(true);
     expect(dialog.attrs.get('style')).toContain('color-scheme: dark');
-    expect(dialog.children[0].textContent).toBe('Read Aloud is open in a tab');
-    const ok = dialog.children[1].children[0];
+    expect(dialog.attrs.get('style')).toContain('background: #202020');
+    const [style, title, body, buttons] = dialog.children;
+    expect(style.tag).toBe('style');
+    expect(style.textContent).toContain('#ztts-notice::backdrop');
+    expect(title.textContent).toBe('Zotero TTS');
+    expect(body.children[0].textContent).toBe('⚠️');
+    expect(body.children[1].children[0].textContent).toBe('Read Aloud is open in a tab:');
+    expect(body.children[1].children[0].attrs.get('style')).toContain('font-weight: 600');
+    expect(body.children[1].children[1].textContent).toBe('  • Paper\n\nClose it.');
+    const ok = buttons.children[0];
     expect(ok.textContent).toBe('OK');
     expect(ok.focused).toBe(true);
     expect(fallback).not.toHaveBeenCalled();
@@ -185,10 +195,14 @@ describe('showPaneNotice', () => {
     expect(doc.body.children).toEqual([]);
   });
 
-  it('paints light colors under a light theme', () => {
+  it('paints light colors under a light theme, and takes another title', () => {
     const doc = fakeDoc(false);
-    showPaneNotice(doc, 'x', vi.fn());
-    expect(doc.body.children[0].attrs.get('style')).toContain('color-scheme: light');
+    showPaneNotice(doc, 'x', vi.fn(), 'Elsewhere');
+    const dialog = doc.body.children[0];
+    expect(dialog.attrs.get('style')).toContain('color-scheme: light');
+    expect(dialog.attrs.get('style')).toContain('background: #f3f3f3');
+    expect(dialog.children[1].textContent).toBe('Elsewhere');
+    expect(dialog.children[2].children[1].children).toHaveLength(1);
   });
 
   it('falls back to the OS prompt where the dialog cannot be shown modal', () => {

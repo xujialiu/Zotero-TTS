@@ -34,12 +34,20 @@ export interface ReadingGuardDeps {
 
 const XHTML = 'http://www.w3.org/1999/xhtml';
 
+/** The alert's two palettes: Windows 11's dialog colors, which is what the OS prompt looks like there. */
+const NOTICE_COLORS = {
+  light: { background: '#f3f3f3', text: '#1a1a1a', border: '#c8c8c8', rule: 'rgba(0, 0, 0, 0.12)' },
+  dark: { background: '#202020', text: '#f0f0f0', border: '#4a4a4a', rule: 'rgba(255, 255, 255, 0.12)' },
+} as const;
+
 /**
- * The message as a dialog of the pane's own document: an html:dialog shown
- * modal over the pane, painted in the pane's own light or dark colors. The
- * OS prompt (Services.prompt.alert, toolkit's commonDialog) draws a white
- * ring around its dark body on Windows in dark mode (Zotero 10.0.1-beta.3,
- * seen 2026-08-27), and nothing in the plugin can restyle another window's
+ * The message as an alert of the pane's own document: an html:dialog shown
+ * modal over the pane and drawn like an alert window — a title strip, the
+ * warning sign, the first line in bold, OK bottom right, a dimmed backdrop
+ * — in the pane's own light or dark colors. The OS prompt
+ * (Services.prompt.alert, toolkit's commonDialog) draws a white ring
+ * around its dark body on Windows in dark mode (Zotero 10.0.1-beta.3, seen
+ * 2026-08-27), and nothing in the plugin can restyle another window's
  * document; the pane's follows Zotero's theme, so a dialog inside it does
  * too. `fallback` — the OS prompt — is used where showModal is unavailable
  * or refuses. Returns at once; the dialog closes on OK or Escape.
@@ -48,6 +56,7 @@ export function showPaneNotice(
   doc: { createElementNS(ns: string, tag: string): any; documentElement?: any; body?: any; defaultView?: any },
   message: string,
   fallback: (message: string) => void,
+  title = 'Zotero TTS',
 ): void {
   const root = doc.body ?? doc.documentElement;
   const dialog = doc.createElementNS(XHTML, 'dialog');
@@ -61,24 +70,44 @@ export function showPaneNotice(
   } catch {
     // No matchMedia: the light colors
   }
+  const colors = dark ? NOTICE_COLORS.dark : NOTICE_COLORS.light;
+  const el = (tag: string, style: string, text?: string) => {
+    const node = doc.createElementNS(XHTML, tag);
+    node.setAttribute('style', style);
+    if (text !== undefined) node.textContent = text;
+    return node;
+  };
+
+  dialog.setAttribute('id', 'ztts-notice');
   dialog.setAttribute(
     'style',
-    `color-scheme: ${dark ? 'dark' : 'light'}; background: ${dark ? '#2b2b2b' : '#ffffff'}; color: ${dark ? '#f0f0f0' : '#000000'};` +
-      ' border: 1px solid rgba(128, 128, 128, 0.5); border-radius: 6px; padding: 16px 20px; max-width: 44em; font: inherit;' +
-      ' box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);',
+    `color-scheme: ${dark ? 'dark' : 'light'}; background: ${colors.background}; color: ${colors.text}; border: 1px solid ${colors.border};` +
+      ' border-radius: 8px; padding: 0; min-width: 28em; max-width: 46em; font: inherit; box-shadow: 0 12px 40px rgba(0, 0, 0, 0.55);',
   );
-  const text = doc.createElementNS(XHTML, 'div');
-  text.textContent = message;
-  text.setAttribute('style', 'white-space: pre-wrap; line-height: 1.5; margin: 0 0 14px;');
-  dialog.appendChild(text);
-  const row = doc.createElementNS(XHTML, 'div');
-  row.setAttribute('style', 'display: flex; justify-content: flex-end;');
-  const ok = doc.createElementNS(XHTML, 'button');
-  ok.textContent = 'OK';
-  ok.setAttribute('style', 'min-width: 6em; padding: 4px 12px; font: inherit;');
+  // The backdrop cannot be set inline; a style element inside the dialog
+  // applies to the document and goes away with the dialog
+  const style = doc.createElementNS(XHTML, 'style');
+  style.textContent = '#ztts-notice::backdrop { background: rgba(0, 0, 0, 0.45); }';
+  dialog.appendChild(style);
+
+  dialog.appendChild(el('div', `padding: 8px 14px; font-weight: 600; border-bottom: 1px solid ${colors.rule};`, title));
+
+  const body = el('div', 'display: flex; align-items: flex-start; gap: 14px; padding: 16px 18px 8px;');
+  // The warning sign in its emoji presentation: the yellow triangle of the OS alert
+  body.appendChild(el('div', 'flex: none; font-size: 28px; line-height: 1;', '⚠️'));
+  const text = el('div', 'flex: 1; min-width: 0; line-height: 1.5;');
+  const [lead, ...rest] = message.split('\n');
+  text.appendChild(el('div', 'font-weight: 600; margin-bottom: 4px;', lead));
+  if (rest.length) text.appendChild(el('div', 'white-space: pre-wrap;', rest.join('\n')));
+  body.appendChild(text);
+  dialog.appendChild(body);
+
+  const buttons = el('div', 'display: flex; justify-content: flex-end; padding: 10px 14px 14px;');
+  const ok = el('button', 'min-width: 6.5em; padding: 5px 14px; font: inherit;', 'OK');
   ok.addEventListener('click', () => dialog.close());
-  row.appendChild(ok);
-  dialog.appendChild(row);
+  buttons.appendChild(ok);
+  dialog.appendChild(buttons);
+
   dialog.addEventListener('close', () => dialog.remove());
   root.appendChild(dialog);
   try {
