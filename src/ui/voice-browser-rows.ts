@@ -4,6 +4,7 @@ import { sampleTextForLocale } from '../core/sample-text';
 import { PREF_PREFIX, type PrefsBackend } from '../core/settings';
 import type { CatalogEntry } from '../read-aloud/catalog';
 import { setDefaultSpeed, type SpeedManagerLike } from '../read-aloud/default-speed';
+import { regionOfLocale, setDefaultVoice } from '../read-aloud/default-voice';
 import { parseFavoriteVoices, serializeFavoriteVoices, toggleFavoriteVoice } from '../read-aloud/favorites';
 import { isMultilingualVoiceId, memoryLangForLocale, readMemory, sameChoice, type VoiceChoice } from '../read-aloud/read-aloud-memory';
 import { compareVoiceLabels, encodeVoiceId, pluginVoiceLabel } from '../read-aloud/voice-catalog';
@@ -126,6 +127,12 @@ export interface VoiceBrowserDeps {
    * there then.
    */
   watchMemory?(onChange: () => void): () => void;
+  /**
+   * Puts a default just picked here in front of every tab that is reading
+   * (read-aloud/memory-sync.ts spreadVoice); the memory and Zotero's entry
+   * say it by then. Omitted where there is no Zotero to reach.
+   */
+  spreadVoice?(choice: VoiceChoice | null): void;
 }
 
 export type BrowserVoice = {
@@ -260,7 +267,12 @@ const COLUMN_EMPTY_STYLE = COLUMN_ENTRY_STYLE + ' opacity: 0.5;';
 const ROW_STYLE = 'display: flex; align-items: center; gap: 6px; padding: 3px 4px; border-radius: 3px;';
 /** The default voice's row: painted like a selected column entry. */
 const ROW_DEFAULT_STYLE = ROW_STYLE + ' background: SelectedItem; color: SelectedItemText;';
-const DEFAULT_ROW_TITLE = 'The default voice: Read Aloud starts with it';
+/** The voice's name, a button like the column entries: a click makes the voice the default. */
+const ROW_LABEL_STYLE =
+  'flex: 1; min-width: 0; text-align: start; appearance: none; border: none; background: transparent; color: inherit; font: inherit;' +
+  ` line-height: ${LINE_HEIGHT}; min-height: 0; margin: 0; padding: 0 2px; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;`;
+const DEFAULT_ROW_TITLE = 'The default voice: Read Aloud starts with it. Click to clear it';
+const PICK_ROW_TITLE = 'Click to make it the default voice';
 
 export function initVoiceBrowserRows(
   doc: {
@@ -360,6 +372,23 @@ export function initVoiceBrowserRows(
     paintHeart(button, next.includes(voice.encoded));
   }
 
+  /**
+   * A row clicked: its voice is the default now — the memory and Zotero's
+   * entry for its language (read-aloud/default-voice.ts), then every tab
+   * that is reading (the spreadVoice dep); the default clicked again is
+   * cleared. The memory observer, where there is one, has followed the
+   * write already; followChoice is idempotent for the rest.
+   */
+  function onPick(voice: BrowserVoice): void {
+    const next = defaults.includes(voice)
+      ? null
+      : { id: voice.encoded, lang: memoryLangForLocale(voice.locale), region: regionOfLocale(voice.locale), tier: voice.tier };
+    setDefaultVoice(deps.prefs, next);
+    deps.spreadVoice?.(next ? { id: next.id, lang: next.lang } : null);
+    followChoice();
+    paintStatus();
+  }
+
   function paintHeart(button: any, favorite: boolean): void {
     button.textContent = favorite ? GLYPHS.favorite : GLYPHS.notFavorite;
     button.setAttribute('style', ROW_BUTTON_STYLE + (favorite ? ' color: #e0245e;' : ''));
@@ -436,10 +465,11 @@ export function initVoiceBrowserRows(
         heart.addEventListener('click', () => onHeart(voice, heart));
         row.appendChild(heart);
 
-        const label = doc.createElementNS(XHTML, 'span');
+        const label = doc.createElementNS(XHTML, 'button');
         label.textContent = voice.label;
-        label.setAttribute('style', `flex: 1; line-height: ${LINE_HEIGHT}; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;`);
-        if (isDefault) label.setAttribute('title', DEFAULT_ROW_TITLE);
+        label.setAttribute('style', ROW_LABEL_STYLE);
+        label.setAttribute('title', isDefault ? DEFAULT_ROW_TITLE : PICK_ROW_TITLE);
+        label.addEventListener('click', () => onPick(voice));
         row.appendChild(label);
 
         return row;
@@ -518,7 +548,9 @@ export function initVoiceBrowserRows(
     if (sameChoice(next, choice)) return;
     choice = next;
     defaults = defaultVoiceRows(listed ?? [], choice);
-    const home = defaults[0];
+    // A default row in view (the row just clicked, say) keeps the columns
+    // where they are; only a default elsewhere moves them
+    const home = defaults.find((v) => v.tier === selectedTier && v.locale === selectedLocale) ?? defaults[0];
     if (home) {
       selectedTier = home.tier;
       selectedLocale = home.locale;

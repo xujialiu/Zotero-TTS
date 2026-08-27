@@ -129,6 +129,7 @@ function setup(
       watchers.push(onChange);
       return () => void watchers.splice(watchers.indexOf(onChange), 1);
     }),
+    spreadVoice: vi.fn((_choice: { id: string; lang: string } | null) => {}),
   } satisfies VoiceBrowserDeps;
   const rows = initVoiceBrowserRows(doc, deps);
   const el = (id: string) => els.get(id)!;
@@ -701,7 +702,8 @@ describe('the default voice', () => {
     await t.rows.load();
     expect(t.selectedLocale()).toBe('Multiple languages (2)');
     expect(t.highlighted()).toEqual(['OpenAI-alloy']);
-    expect(t.label(0).attrs.has('title')).toBe(false);
+    expect(t.label(1).attrs.get('title')).toMatch(/click to clear/i);
+    expect(t.label(0).attrs.get('title')).toMatch(/make it the default/i);
   });
 
   // The removed multilingualEverywhere switch had multilingual voices chosen
@@ -893,6 +895,115 @@ describe('the highlight follows the memory', () => {
     await t.rows.load();
     expect(t.selectedLocale()).toBe('Multiple languages (2)');
     expect(t.highlighted()).toEqual(['OpenAI-alloy']);
+  });
+});
+
+describe('a row click sets the default', () => {
+  const remembered = (id: string, lang: string, speed: number | null = null) => ({
+    [READ_ALOUD_MEMORY_PREF]: JSON.stringify({ speed, voice: { id, lang } }),
+  });
+  const xiaoxiao = encodeVoiceId('azure', 'zh-CN-XiaoxiaoNeural');
+  const alloy = encodeVoiceId('openai', 'alloy');
+  const bella = encodeVoiceId('local', 'af_bella');
+
+  // The memory, Zotero's entry for the voice's language as its own pick
+  // would write it (read-aloud/default-voice.ts), and the tabs that are
+  // reading through memory-sync; the row is the default now, and says so
+  it('makes the clicked voice the default: the memory, Zotero’s entry for its language, and the open tabs', async () => {
+    const t = setup();
+    await t.rows.load();
+    await t.pickLocale('Chinese');
+    await t.label(0).fire('click');
+    expect(t.memory().voice).toEqual({ id: xiaoxiao, lang: 'zh' });
+    expect(t.zoteroVoices().zh).toEqual({ region: 'CN', voice: xiaoxiao, tierVoices: { local: xiaoxiao } });
+    expect(t.deps.spreadVoice).toHaveBeenCalledWith({ id: xiaoxiao, lang: 'zh' });
+    expect(t.highlighted()).toEqual(['Azure-晓晓']);
+    expect(t.label(0).attrs.get('title')).toMatch(/click to clear/i);
+    expect(t.status()).toBe('Default: Azure-晓晓 · Chinese (China) · 1.0×');
+  });
+
+  it('files a multilingual voice under Multiple languages, with no region', async () => {
+    const t = setup();
+    await t.rows.load();
+    expect(t.labels()).toEqual(['Azure-Ava Multilingual', 'OpenAI-alloy']);
+    await t.label(1).fire('click');
+    expect(t.memory().voice).toEqual({ id: alloy, lang: 'mul' });
+    expect(t.zoteroVoices().mul).toEqual({ region: null, voice: alloy, tierVoices: { local: alloy } });
+    expect(t.deps.spreadVoice).toHaveBeenCalledWith({ id: alloy, lang: 'mul' });
+  });
+
+  it('files one of Zotero’s own voices under its tier', async () => {
+    const t = setup();
+    await t.rows.load();
+    await t.pickTier('Premium');
+    await t.label(0).fire('click');
+    expect(t.memory().voice).toEqual({ id: 'zotero-premium-aria', lang: 'en' });
+    expect(t.zoteroVoices().en).toEqual({ region: 'US', voice: 'zotero-premium-aria', tierVoices: { premium: 'zotero-premium-aria' } });
+    expect(t.highlighted()).toEqual(['Aria']);
+  });
+
+  // Zotero's own entry survives: its speed, and the other tiers' voices; the
+  // picked tier goes to the end, where Zotero's fallback looks first
+  it('keeps the entry’s speed and other tiers, and pushes the picked tier to the end', async () => {
+    const t = setup({
+      prefs: { [READ_ALOUD_VOICES_PREF]: JSON.stringify({ en: { region: 'GB', voice: 'x', speed: 1.7, tierVoices: { local: 'k', standard: 's' } } }) },
+    });
+    await t.rows.load();
+    await t.pickLocale('English');
+    expect(t.labels()).toEqual(['Azure-Jenny', 'Kokoro-af_bella']);
+    await t.label(1).fire('click');
+    expect(t.zoteroVoices().en).toEqual({ region: 'US', voice: bella, speed: 1.7, tierVoices: { standard: 's', local: bella } });
+    expect(Object.keys(t.zoteroVoices().en.tierVoices)).toEqual(['standard', 'local']);
+  });
+
+  it('starts an entry Zotero has not written at the remembered speed', async () => {
+    const t = setup({ prefs: { [READ_ALOUD_MEMORY_PREF]: JSON.stringify({ speed: 1.8, voice: null }) } });
+    await t.rows.load();
+    await t.pickLocale('Chinese');
+    await t.label(0).fire('click');
+    expect(t.zoteroVoices().zh.speed).toBe(1.8);
+  });
+
+  it('clears the default when its row is clicked again, leaving Zotero’s entry and the tabs alone', async () => {
+    const t = setup({ prefs: remembered(xiaoxiao, 'zh') });
+    await t.rows.load();
+    expect(t.highlighted()).toEqual(['Azure-晓晓']);
+    await t.label(0).fire('click');
+    expect(t.memory().voice).toBeNull();
+    expect(t.zoteroVoices()).toBeUndefined();
+    expect(t.deps.spreadVoice).toHaveBeenCalledWith(null);
+    expect(t.highlighted()).toEqual([]);
+    expect(t.label(0).attrs.get('title')).toMatch(/make it the default/i);
+    expect(t.status()).toBe('Default: Zotero’s own choice · 1.0×');
+    expect(t.selectedLocale()).toBe('Chinese (China) (1)');
+  });
+
+  it('keeps the columns on the clicked row, and moves the highlight from the old default', async () => {
+    const t = setup({ prefs: remembered(xiaoxiao, 'zh') });
+    await t.rows.load();
+    await t.pickTier('Standard');
+    expect(t.labels()).toEqual(['Andrew', 'Ava']);
+    await t.label(0).fire('click');
+    expect(t.selectedTier()).toBe('Standard (3)');
+    expect(t.selectedLocale()).toBe('English (United States) (2)');
+    expect(t.highlighted()).toEqual(['Andrew']);
+    await t.pickTier('Local');
+    await t.pickLocale('Chinese');
+    expect(t.highlighted()).toEqual([]);
+  });
+
+  it('works without a memory observer, and without a way to reach the tabs', async () => {
+    const t = setup();
+    const rows = initVoiceBrowserRows(
+      { getElementById: (id: string) => t.el(id) ?? null, createElementNS: (_ns: string, tag: string) => new FakeElement(tag) },
+      { ...t.deps, watchMemory: undefined, spreadVoice: undefined },
+    );
+    await rows.load();
+    await t.pickLocale('Chinese');
+    await t.label(0).fire('click');
+    expect(t.memory().voice).toEqual({ id: xiaoxiao, lang: 'zh' });
+    expect(t.highlighted()).toEqual(['Azure-晓晓']);
+    expect(t.status()).toBe('Default: Azure-晓晓 · Chinese (China) · 1.0×');
   });
 });
 

@@ -1050,4 +1050,13 @@ const diagnostics = {
   },
 };
 
-Zotero.ZoteroTTS = { startup, shutdown, onMainWindowLoad, onMainWindowUnload, prefsPane: { onPaneLoad }, diagnostics };
+Zotero.ZoteroTTS = {
+  startup,
+  shutdown,
+  onMainWindowLoad,
+  onMainWindowUnload,
+  // The pane runs in this sandbox too, but its module has no reach to the
+  // running memory-sync; a default picked there goes to the tabs through this
+  prefsPane: { onPaneLoad: (doc: Document) => onPaneLoad(doc, { spreadVoice: (choice) => readAloudMemory?.spreadVoice(choice) }) },
+  diagnostics,
+};

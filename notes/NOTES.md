@@ -2417,3 +2417,35 @@ comes back through the same observer with the same rows and is a no-op.
 Verification is by eye: with the pane open, pick another voice in a
 tab's popup → the highlight and the columns move to it and the status
 line names it; `diagnostics.defaultVoice()` shows the same rows.
+
+## A row click makes the default — step 5 (2026-08-27)
+
+`read-aloud/default-voice.ts` `setDefaultVoice(prefs, pick | null)`, the
+twin of default-speed.ts, called from the browser's row label — now a
+button styled like the column entries (`ROW_LABEL_STYLE`), with the title
+saying what a click does. Two writes in this order: the memory (so
+memory-sync's observer, firing inside the next write, finds the voice
+there and learns nothing), then Zotero's entry for `pick.lang` exactly as
+`_setReadAloudVoice` builds it — `{ region, voice, speed, tierVoices }`
+with the tier deleted and re-added so it is the last key, which is where
+`_findFallbackVoice` takes its target tier from. The entry's speed is
+kept; an entry Zotero has not written takes the memory's speed, or none:
+a voice moving together with a speed reads as the slider persisting a
+fallback (noteVoicesChange) and the pick would be dropped. `region` is
+`regionOfLocale(locale)`, everything after the first hyphen, as Zotero's
+`getVoiceRegion` reads it; `lang` is `memoryLangForLocale(locale)` (`mul`
+for a multilingual row); `tier` the row's. Then the pane calls the
+`spreadVoice` dep — memory-sync's routine from step 3, handed to the pane
+by index.ts through `onPaneLoad(doc, { spreadVoice })`, since the pane's
+module has no reach to the running sync — and every tab that is reading
+switches. A second click on the default clears the memory only and
+spreads nothing (Zotero's entry stays; the memory no longer overrides it).
+`followChoice` prefers a default row in view, so the columns stay on the
+row just clicked (a Zotero voice under two locales has two default rows).
+
+Verification: `diagnostics.readAloudMemory()` after clicking Xiaoxiao's
+row → `memory.voice` `{ id: "azure::zh-CN-XiaoxiaoNeural", lang: "zh" }`,
+`zotero.zh` `{ region: "CN", voice: …Xiaoxiao…, tierVoices: { …, local:
+…Xiaoxiao… } }` with `local` the last key, and `selectedVoiceID` Xiaoxiao
+on every reader that was reading a Chinese document; after clicking it
+again, `memory.voice` null and `zotero.zh` unchanged.

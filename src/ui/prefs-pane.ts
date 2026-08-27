@@ -7,7 +7,7 @@ import { SynthesisError } from '../core/providers/errors';
 import { withTimeout } from '../core/timeout';
 import { createWebDAVClient } from '../core/webdav';
 import { listNamedCatalog } from '../read-aloud/catalog';
-import { READ_ALOUD_MEMORY_OBSERVER } from '../read-aloud/read-aloud-memory';
+import { READ_ALOUD_MEMORY_OBSERVER, type VoiceChoice } from '../read-aloud/read-aloud-memory';
 import { createZoteroVoiceService, type ZoteroVoiceService } from '../read-aloud/zotero-voices';
 import { initShortcutRows } from './shortcut-rows';
 import { initBackupRows, type BackupFileIO } from './backup-rows';
@@ -263,7 +263,13 @@ function currentReaderTheme(win: any): ResolvedReaderTheme {
   });
 }
 
-export function onPaneLoad(doc: Document): void {
+/** What the pane needs from the plugin's running state (src/index.ts hands it over). */
+export interface PaneHooks {
+  /** memory-sync's spreadVoice (read-aloud/memory-sync.ts): a default picked in the browser reaches every tab that is reading. */
+  spreadVoice?(choice: VoiceChoice | null): void;
+}
+
+export function onPaneLoad(doc: Document, hooks: PaneHooks = {}): void {
   const prefs = createZoteroPrefs();
   const shortcutRows = initShortcutRows(doc, prefs, Zotero.isMac ? 'Cmd' : Zotero.isWin ? 'Win' : 'Super');
   const presetRows = initServerPresetRows(doc, prefs);
@@ -310,6 +316,8 @@ export function onPaneLoad(doc: Document): void {
       const token = Zotero.Prefs.registerObserver(READ_ALOUD_MEMORY_OBSERVER, onChange);
       return () => Zotero.Prefs.unregisterObserver(token);
     },
+    // A row clicked: the tabs that are reading switch at once (memory-sync)
+    spreadVoice: hooks.spreadVoice,
   });
   // The observer must not outlive the pane: the window closing is its end
   win?.addEventListener('unload', () => voiceBrowserRows.dispose(), { once: true });
