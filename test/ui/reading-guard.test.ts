@@ -50,13 +50,12 @@ describe('readingTabsMessage', () => {
     expect(message).toContain('Read Aloud is open in 2 tabs');
     expect(message).toContain('  • Deep learning');
     expect(message).toContain('  • Another paper');
-    expect(message).toContain('Close those tabs (or stop Read Aloud in them), then add the voice again.');
+    expect(message.split('\n').pop()).toBe('Close those tabs, then try again.');
   });
 
   it('speaks of one tab in the singular', () => {
     const message = readingTabsMessage(['Deep learning']);
-    expect(message).toContain('Read Aloud is open in a tab');
-    expect(message).toContain('Close that tab (or stop Read Aloud in it), then add the voice again.');
+    expect(message).toBe('Read Aloud is open in a tab:\n  • Deep learning\n\nClose that tab, then try again.');
   });
 });
 

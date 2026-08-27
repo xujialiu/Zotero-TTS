@@ -2584,3 +2584,7 @@ dialog). If this is still not enough of a window, the next step is a real
 one: `aomStartup.registerChrome` for a `chrome://zotero-tts/` path and
 `openDialog` on an XHTML of our own — a title bar from the OS and a
 document whose background we control, so no ring.
+
+The message lost its explanation on request ("the user does not need the
+implementation detail"): it names the tabs and says "Close those tabs,
+then try again." — the why stays in the README, in parentheses.

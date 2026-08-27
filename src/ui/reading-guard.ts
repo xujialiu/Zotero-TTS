@@ -15,14 +15,11 @@ import { PREF_PREFIX, PROVIDER_IDS, type PrefsBackend } from '../core/settings';
  * Read Aloud there) and adds the voice again.
  */
 
+/** Which tabs, and what to do — nothing about why (the user's call: no implementation detail in the dialog). */
 export function readingTabsMessage(titles: readonly string[]): string {
   const one = titles.length === 1;
   const list = titles.map((title) => `  • ${title}`).join('\n');
-  return (
-    `Read Aloud is open in ${one ? 'a tab' : `${titles.length} tabs`}:\n${list}\n\n` +
-    `A tab lists its voices when Read Aloud opens there, so a voice added now would not reach ${one ? 'it' : 'them'}. ` +
-    `Close ${one ? 'that tab' : 'those tabs'} (or stop Read Aloud ${one ? 'in it' : 'in them'}), then add the voice again.`
-  );
+  return `Read Aloud is open in ${one ? 'a tab' : `${titles.length} tabs`}:\n${list}\n\nClose ${one ? 'that tab' : 'those tabs'}, then try again.`;
 }
 
 export interface ReadingGuardDeps {
