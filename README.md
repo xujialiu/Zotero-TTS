@@ -7,8 +7,6 @@
   <a href="https://github.com/xujialiu/Zotero-TTS/releases/latest"><img src="https://img.shields.io/github/v/release/xujialiu/Zotero-TTS?style=flat-square" alt="Latest release"></a>
   <a href="https://github.com/xujialiu/Zotero-TTS/releases"><img src="https://img.shields.io/github/downloads/xujialiu/Zotero-TTS/total?style=flat-square" alt="Downloads"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-blue?style=flat-square" alt="License"></a>
-  <a href="https://github.com/sponsors/xujialiu"><img src="https://img.shields.io/badge/sponsor-%E2%9D%A4-db61a2?style=flat-square&logo=githubsponsors&logoColor=db61a2" alt="Sponsor"></a>
-  <a href="https://buymeacoffee.com/xujialiu"><img src="https://img.shields.io/badge/buy_me_a_coffee-%E2%98%95-FFDD00?style=flat-square&logo=buymeacoffee&logoColor=black" alt="Buy me a coffee"></a>
 </p>
 
 <p align="center"><img src="assets/word-highlight.gif" width="720" alt="Read Aloud with an Azure voice: the word being read in green, its sentence in yellow"></p>
@@ -33,15 +31,12 @@ things around the edges. Why it is built this way: [PHILOSOPHY.md](PHILOSOPHY.md
 
 ## Install
 
-1. Download `zotero-tts.xpi` from the [latest release](https://github.com/xujialiu/Zotero-TTS/releases/latest) (Firefox: right-click → *Save Link As…*).
-2. In Zotero: **Tools → Plugins → ⚙ → Install Plugin From File…**, then restart. Later updates install themselves.
-3. **Edit → Settings → TTS** (macOS: **Zotero → Settings**): enable a provider, enter its key or address, press **Test connection**.
-4. Open a document, press the headphones button, and pick a `TTS-…` voice under the **Local** tier.
+Download `zotero-tts.xpi` from the [latest release](https://github.com/xujialiu/Zotero-TTS/releases/latest)
+(Firefox: right-click → *Save Link As…*), install it with **Tools → Plugins → ⚙ →
+Install Plugin From File…** and restart Zotero; then enable a provider in
+**Edit → Settings → TTS** and pick a `TTS-…` voice under the **Local** tier.
 
 <p align="center"><img src="assets/popup.png" width="600" alt="The Read Aloud popup with a TTS-Azure voice chosen under the Local tier"></p>
-
-Word-by-word highlighting also needs Zotero's own switch: **Settings →
-General → Read Aloud → Highlight current → Word**.
 
 ## Providers
 
@@ -96,6 +91,8 @@ keep the sentence highlighted under the word. The preview is painted in
 your reader's theme. The default is a green word on a yellow sentence;
 *Restore default colors* brings it back (Zotero's own blue is `#4072e5` at
 45 % and 30 %). The colors apply to Zotero's voices as well.
+Word-by-word highlighting also needs Zotero's own switch: **Settings →
+General → Read Aloud → Highlight current → Word**.
 
 ### Keyboard shortcuts
 
@@ -230,3 +227,7 @@ every incident so far.
 ## License
 
 [AGPL-3.0](LICENSE), the same license as Zotero itself. Not affiliated with Zotero.
+
+## Buy me a coffee
+
+<a href="https://buymeacoffee.com/xujialiu"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" height="60" alt="Buy me a coffee"></a>
