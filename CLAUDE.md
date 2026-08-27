@@ -63,6 +63,13 @@ npm run docs          # pandoc → docs/*.html, the Markdown rendered for the br
 After any change: tests, typecheck, build — then the user installs the xpi
 (Tools → Plugins → Install from file) and restarts Zotero.
 
+**Test builds carry a beta version.** Every xpi built for testing sets
+`addon/manifest.json`'s `version` to the next version plus `-beta`
+(`1.7.4-beta`), and a second test build of the same version counts up
+(`-beta2`, `-beta3`, …), so Tools → Plugins shows at a glance which build is
+actually installed. `package.json` stays at the released version — it is not
+what Zotero displays, and leaving it alone keeps the lock file out of it.
+
 **Every xpi handed over comes with a Run JavaScript verification snippet
 and its expected output** — proof that the *mechanism* works, not only the
 visible effect. A fix that merely looks right may be working by accident
@@ -109,6 +116,7 @@ points at `update.json` on `main`. A release is these three steps, and
 skipping the third strands every installed copy on the old version:
 
 1. Bump the version in **both** `package.json` and `addon/manifest.json`
+   to the clean `X.Y.Z`, dropping any `-beta` suffix left by a test build
    (run `npm install --package-lock-only`); tests, typecheck, build.
 2. Commit (`chore: release X.Y.Z`), tag `vX.Y.Z`, push with the tag, then
    `gh release create vX.Y.Z build/zotero-tts.xpi` — the asset must be
