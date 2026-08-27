@@ -26,7 +26,7 @@ things around the edges. Why it is built this way: [PHILOSOPHY.md](PHILOSOPHY.md
 - 🎧 **A voice browser** in the settings: every voice by tier and language — yours and Zotero's own — a play button for a short sample, hearts for favorites, and a switch to offer only the favorites. [→ Voice browser](#voice-browser)
 - ✨ **Word *and* sentence highlighting at once**, in your own colors and opacities — for Zotero's voices too. [→ Highlight](#highlight)
 - ⌨️ **Keyboard shortcuts**: speed up, down, reset; jump by sentence or paragraph; read from the selection; bring the view back to what's being read. All rebindable. [→ Shortcuts](#keyboard-shortcuts)
-- 📌 **One voice and speed for every document**, instead of Zotero's choice per language. [→ Reading](#reading)
+- 📌 **One voice and speed everywhere** — every document and every open tab, picked in any popup or in the voice browser — instead of Zotero's choice per language. [→ Reading](#reading)
 - 💾 **Settings backup** to a file or a WebDAV folder. [→ Backup](#backup)
 
 ## Install
@@ -144,7 +144,10 @@ Read Aloud popup to the marked ones **in every tier** — a tier you marked
 nothing in comes up empty, and Zotero grays it out in *Voice Mode*. With
 nothing marked at all, or when none of the marked voices is listed any more
 (a provider switched off, a server gone), everything is offered again.
-Favorites travel with the settings backup.
+While the switch is on, only a favorite can be the default (below): the
+other rows are grayed, unmarking the default clears it, and the status
+line warns if the default is not a favorite. Favorites travel with the
+settings backup.
 
 The **Speed** slider is the popup's own (0.5×–3×): samples play at that
 speed, and releasing it makes that the speed Read Aloud starts with — in
@@ -228,30 +231,6 @@ password.
   until the plugin is updated; Zotero's own voices keep working.
 - Word highlighting needs a voice with word timings (Azure, Kokoro). The
   plugin never guesses them.
-
-## TODO
-
-One voice everywhere, the way the speed already is (1.7.2): the voice
-you pick anywhere — the popup of any tab, or a row of the voice browser —
-is what every open tab reads with at once, what Read Aloud starts with in
-every document, and what the settings show. The remembered choice is the
-single source of truth; the browser is its UI. Split into steps, in this
-order, each implemented, tested in Zotero and committed on its own, and
-deleted from this list when done. The mechanism and the Zotero internals
-behind every step are in [notes/NOTES.md](notes/NOTES.md), "Global voice:
-the plan"; steps 3 (a voice picked in one tab reaches every other tab at
-once), 4 (the settings follow a pick in the popup) and 5 (a click on a
-row makes it the default) are done.
-
-6. **Only a favorite can be the default while *Offer only favorite
-   voices* is on.** Other rows cannot be picked (grayed, with a tooltip
-   saying why); unmarking the default clears it and the status line says
-   so; switching the option on with a non-favorite default warns in the
-   status line. Test: with the option on, a non-favorite row does not
-   react; unmark the default's ♥ → the status line reports it cleared.
-
-Release 1.7.4 after steps 3 and 4 (the global voice), 1.8.0 after step 5
-(the default from the browser), 1.8.1 after step 6.
 
 ## Development
 

@@ -10,6 +10,9 @@ import { encodeVoiceId } from './voice-catalog';
  * comma-separated pref out.
  */
 
+/** The "offer only favorite voices" pref as Zotero.Prefs.registerObserver wants it: relative to `extensions.zotero.` (pinned by a test). */
+export const FAVORITES_ONLY_OBSERVER = 'zotero-tts.readAloud.favoritesOnly';
+
 export function parseFavoriteVoices(raw: unknown): string[] {
   if (typeof raw !== 'string' || !raw) return [];
   try {

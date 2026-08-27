@@ -19,6 +19,7 @@ import {
 } from '../../src/ui/voice-browser-rows';
 
 const FAVORITES_PREF = PREF_PREFIX + 'readAloud.favoriteVoices';
+const FAVORITES_ONLY_PREF = PREF_PREFIX + 'readAloud.favoritesOnly';
 
 function fakePrefs(initial: Record<string, unknown> = {}): PrefsBackend & { store: Record<string, unknown> } {
   const store = { ...initial };
@@ -92,6 +93,8 @@ function setup(
     managers?: SpeedManagerLike[];
     /** The "one speed everywhere" switch; on unless said otherwise. */
     globalSpeed?: boolean;
+    /** The "offer only favorite voices" switch (a pref, so a test can flip it); off unless said otherwise. */
+    favoritesOnly?: boolean;
   } = {},
 ) {
   const els = new Map((Object.values(VOICE_BROWSER_IDS) as string[]).map((id) => [id, new FakeElement()]));
@@ -99,13 +102,15 @@ function setup(
     getElementById: (id: string) => els.get(id) ?? null,
     createElementNS: (_ns: string, tag: string) => new FakeElement(tag),
   };
-  const prefs = fakePrefs(options.prefs);
-  // Zotero.Prefs in miniature: an observer of the memory pref fires synchronously inside set()
+  const prefs = fakePrefs({ ...(options.favoritesOnly ? { [FAVORITES_ONLY_PREF]: true } : {}), ...options.prefs });
+  // Zotero.Prefs in miniature: an observer of a pref fires synchronously inside set()
   const watchers: Array<() => void> = [];
+  const favoritesOnlyWatchers: Array<() => void> = [];
   const rawSet = prefs.set;
   prefs.set = (k, v) => {
     rawSet(k, v);
     if (k === READ_ALOUD_MEMORY_PREF) for (const fn of [...watchers]) fn();
+    if (k === FAVORITES_ONLY_PREF) for (const fn of [...favoritesOnlyWatchers]) fn();
   };
   const player = { play: vi.fn(async (_audio: Blob, _rate: number, _onDone: () => void) => {}), stop: vi.fn(), setRate: vi.fn() };
   const deps = {
@@ -130,6 +135,11 @@ function setup(
       return () => void watchers.splice(watchers.indexOf(onChange), 1);
     }),
     spreadVoice: vi.fn((_choice: { id: string; lang: string } | null) => {}),
+    favoritesOnly: vi.fn(() => prefs.store[FAVORITES_ONLY_PREF] === true),
+    watchFavoritesOnly: vi.fn((onChange: () => void) => {
+      favoritesOnlyWatchers.push(onChange);
+      return () => void favoritesOnlyWatchers.splice(favoritesOnlyWatchers.indexOf(onChange), 1);
+    }),
   } satisfies VoiceBrowserDeps;
   const rows = initVoiceBrowserRows(doc, deps);
   const el = (id: string) => els.get(id)!;
@@ -141,6 +151,7 @@ function setup(
     rows,
     el,
     watchers,
+    favoritesOnlyWatchers,
     status: () => el(VOICE_BROWSER_IDS.status).attrs.get('value'),
     tierButtons: () => el(VOICE_BROWSER_IDS.tiers).children,
     tiers: () => texts(el(VOICE_BROWSER_IDS.tiers).children),
@@ -1004,6 +1015,106 @@ describe('a row click sets the default', () => {
     expect(t.memory().voice).toEqual({ id: xiaoxiao, lang: 'zh' });
     expect(t.highlighted()).toEqual(['Azure-晓晓']);
     expect(t.status()).toBe('Default: Azure-晓晓 · Chinese (China) · 1.0×');
+  });
+});
+
+describe('only a favorite can be the default while the switch is on', () => {
+  const remembered = (id: string, lang: string) => ({ [READ_ALOUD_MEMORY_PREF]: JSON.stringify({ speed: null, voice: { id, lang } }) });
+  const favorites = (...ids: string[]) => ({ [FAVORITES_PREF]: JSON.stringify(ids) });
+  const xiaoxiao = encodeVoiceId('azure', 'zh-CN-XiaoxiaoNeural');
+  const alloy = encodeVoiceId('openai', 'alloy');
+  const WARNING = ' — not a favorite, while only favorites are offered: Read Aloud cannot start with it';
+
+  // The popup offers only the favorites then; another default would never be offered
+  it('grays a row that is not a favorite, which does not react, and says why', async () => {
+    const t = setup({ favoritesOnly: true, prefs: favorites(alloy) });
+    await t.rows.load();
+    await t.pickLocale('Chinese');
+    expect(t.label(0).attrs.get('style')).toContain('opacity: 0.5');
+    expect(t.label(0).attrs.get('title')).toMatch(/only a favorite/i);
+    await t.label(0).fire('click');
+    expect(t.memory().voice).toBeNull();
+    expect(t.deps.spreadVoice).not.toHaveBeenCalled();
+  });
+
+  it('lets a favorite be picked', async () => {
+    const t = setup({ favoritesOnly: true, prefs: favorites(xiaoxiao) });
+    await t.rows.load();
+    await t.pickLocale('Chinese');
+    expect(t.label(0).attrs.get('style')).not.toContain('opacity');
+    expect(t.label(0).attrs.get('title')).toMatch(/make it the default/i);
+    await t.label(0).fire('click');
+    expect(t.memory().voice).toEqual({ id: xiaoxiao, lang: 'zh' });
+  });
+
+  it('lets a default that is no favorite be cleared, and warns about it meanwhile', async () => {
+    const t = setup({ favoritesOnly: true, prefs: remembered(xiaoxiao, 'zh') });
+    await t.rows.load();
+    expect(t.status()).toBe('Default: Azure-晓晓 · Chinese (China) · 1.0×' + WARNING);
+    expect(t.label(0).attrs.get('title')).toMatch(/click to clear/i);
+    await t.label(0).fire('click');
+    expect(t.memory().voice).toBeNull();
+    expect(t.status()).toBe('Default: Zotero’s own choice · 1.0×');
+  });
+
+  it('clears the default when its heart is unmarked, and the status line says so', async () => {
+    const t = setup({ favoritesOnly: true, prefs: { ...remembered(xiaoxiao, 'zh'), ...favorites(xiaoxiao, alloy) } });
+    await t.rows.load();
+    await t.heart(0).fire('click');
+    expect(parseFavoriteVoices(t.prefs.store[FAVORITES_PREF])).toEqual([alloy]);
+    expect(t.memory().voice).toBeNull();
+    expect(t.deps.spreadVoice).toHaveBeenCalledWith(null);
+    expect(t.highlighted()).toEqual([]);
+    expect(t.status()).toBe('Default cleared: Azure-晓晓 is no longer a favorite, and only favorites are offered');
+    // The row is grayed now like any other non-favorite
+    expect(t.label(0).attrs.get('title')).toMatch(/only a favorite/i);
+  });
+
+  it('keeps the default when its heart is unmarked while the switch is off', async () => {
+    const t = setup({ prefs: { ...remembered(xiaoxiao, 'zh'), ...favorites(xiaoxiao) } });
+    await t.rows.load();
+    await t.heart(0).fire('click');
+    expect(t.memory().voice).toEqual({ id: xiaoxiao, lang: 'zh' });
+    expect(t.highlighted()).toEqual(['Azure-晓晓']);
+    expect(t.status()).toBe('Default: Azure-晓晓 · Chinese (China) · 1.0×');
+  });
+
+  it('warns when the switch goes on with a default that is no favorite, grays the rows, and stops once it is marked', async () => {
+    const t = setup({ prefs: { ...remembered(xiaoxiao, 'zh'), ...favorites(alloy) } });
+    await t.rows.load();
+    await t.pickLocale('Multiple');
+    expect(t.status()).toBe('Default: Azure-晓晓 · Chinese (China) · 1.0×');
+    expect(t.label(0).attrs.get('title')).toMatch(/make it the default/i);
+    t.prefs.set(FAVORITES_ONLY_PREF, true);
+    expect(t.status()).toBe('Default: Azure-晓晓 · Chinese (China) · 1.0×' + WARNING);
+    expect(t.label(0).attrs.get('title')).toMatch(/only a favorite/i);
+    expect(t.label(1).attrs.get('title')).toMatch(/make it the default/i);
+    await t.pickLocale('Chinese');
+    await t.heart(0).fire('click');
+    expect(t.status()).toBe('Default: Azure-晓晓 · Chinese (China) · 1.0×');
+    t.prefs.set(FAVORITES_ONLY_PREF, false);
+    await t.pickLocale('Multiple');
+    expect(t.label(0).attrs.get('title')).toMatch(/make it the default/i);
+  });
+
+  it('stops watching the switch when disposed', () => {
+    const t = setup();
+    expect(t.favoritesOnlyWatchers).toHaveLength(1);
+    t.rows.dispose();
+    expect(t.favoritesOnlyWatchers).toHaveLength(0);
+  });
+
+  it('works without the switch deps at all', async () => {
+    const t = setup({ prefs: favorites(alloy) });
+    const rows = initVoiceBrowserRows(
+      { getElementById: (id: string) => t.el(id) ?? null, createElementNS: (_ns: string, tag: string) => new FakeElement(tag) },
+      { ...t.deps, favoritesOnly: undefined, watchFavoritesOnly: undefined },
+    );
+    await rows.load();
+    await t.pickLocale('Chinese');
+    await t.label(0).fire('click');
+    expect(t.memory().voice).toEqual({ id: xiaoxiao, lang: 'zh' });
+    expect(() => rows.dispose()).not.toThrow();
   });
 });
 

@@ -133,6 +133,14 @@ export interface VoiceBrowserDeps {
    * say it by then. Omitted where there is no Zotero to reach.
    */
   spreadVoice?(choice: VoiceChoice | null): void;
+  /**
+   * The "offer only favorite voices" switch (`readAloud.favoritesOnly`),
+   * read on every render: while it is on, only a favorite can be the
+   * default — the popup would not offer another. Omitted means off.
+   */
+  favoritesOnly?(): boolean;
+  /** Calls back whenever that switch flips (a pref observer), and returns the way to stop. */
+  watchFavoritesOnly?(onChange: () => void): () => void;
 }
 
 export type BrowserVoice = {
@@ -271,8 +279,13 @@ const ROW_DEFAULT_STYLE = ROW_STYLE + ' background: SelectedItem; color: Selecte
 const ROW_LABEL_STYLE =
   'flex: 1; min-width: 0; text-align: start; appearance: none; border: none; background: transparent; color: inherit; font: inherit;' +
   ` line-height: ${LINE_HEIGHT}; min-height: 0; margin: 0; padding: 0 2px; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;`;
+/** A row that cannot be the default while only favorites are offered. */
+const ROW_LABEL_BLOCKED_STYLE = ROW_LABEL_STYLE + ' opacity: 0.5; cursor: default;';
 const DEFAULT_ROW_TITLE = 'The default voice: Read Aloud starts with it. Click to clear it';
 const PICK_ROW_TITLE = 'Click to make it the default voice';
+const BLOCKED_ROW_TITLE = 'Only a favorite can be the default while “Offer only favorite voices” is on';
+/** Appended to the status line while the default is not a favorite and only favorites are offered. */
+const NOT_A_FAVORITE = ' — not a favorite, while only favorites are offered: Read Aloud cannot start with it';
 
 export function initVoiceBrowserRows(
   doc: {
@@ -303,6 +316,7 @@ export function initVoiceBrowserRows(
   const playButtons = new Map<string, any>();
 
   const readFavorites = () => parseFavoriteVoices(deps.prefs.get(FAVORITES_PREF));
+  const favoritesOnly = () => deps.favoritesOnly?.() ?? false;
   const tierGroup = () => tiers.find((g) => g.tier === selectedTier) ?? null;
   const localeGroup = () => tierGroup()?.locales.find((l) => l.locale === selectedLocale) ?? null;
 
@@ -366,23 +380,43 @@ export function initVoiceBrowserRows(
     }
   }
 
+  /**
+   * A heart toggled. While only favorites are offered, the default must be
+   * one: unmarking it clears the default (the popup would not offer it),
+   * and the status line says so until the next repaint; the other rows'
+   * labels are repainted, since which of them can be picked just changed.
+   */
   function onHeart(voice: BrowserVoice, button: any): void {
     const next = toggleFavoriteVoice(readFavorites(), voice.encoded);
     deps.prefs.set(FAVORITES_PREF, serializeFavoriteVoices(next));
     paintHeart(button, next.includes(voice.encoded));
+    if (!favoritesOnly()) return;
+    const unmarkedDefault = defaults.includes(voice) && !next.includes(voice.encoded);
+    if (unmarkedDefault) setDefault(null);
+    renderVoices();
+    if (unmarkedDefault) status(`Default cleared: ${voice.label} is no longer a favorite, and only favorites are offered`);
+    else paintStatus();
   }
 
   /**
    * A row clicked: its voice is the default now — the memory and Zotero's
    * entry for its language (read-aloud/default-voice.ts), then every tab
    * that is reading (the spreadVoice dep); the default clicked again is
-   * cleared. The memory observer, where there is one, has followed the
-   * write already; followChoice is idempotent for the rest.
+   * cleared. While only favorites are offered, a row that is not one does
+   * not react (its label is grayed and its tooltip says why); the default
+   * itself can always be cleared.
    */
   function onPick(voice: BrowserVoice): void {
-    const next = defaults.includes(voice)
-      ? null
-      : { id: voice.encoded, lang: memoryLangForLocale(voice.locale), region: regionOfLocale(voice.locale), tier: voice.tier };
+    if (defaults.includes(voice)) {
+      setDefault(null);
+      return;
+    }
+    if (favoritesOnly() && !readFavorites().includes(voice.encoded)) return;
+    setDefault({ id: voice.encoded, lang: memoryLangForLocale(voice.locale), region: regionOfLocale(voice.locale), tier: voice.tier });
+  }
+
+  /** The memory observer, where there is one, has followed the write already; followChoice is idempotent for the rest. */
+  function setDefault(next: Parameters<typeof setDefaultVoice>[1]): void {
     setDefaultVoice(deps.prefs, next);
     deps.spreadVoice?.(next ? { id: next.id, lang: next.lang } : null);
     followChoice();
@@ -445,6 +479,7 @@ export function initVoiceBrowserRows(
     if (!column) return;
     playButtons.clear();
     const favorites = readFavorites();
+    const onlyFavorites = favoritesOnly();
     column.replaceChildren(
       ...(localeGroup()?.voices ?? []).map((voice) => {
         const isDefault = defaults.includes(voice);
@@ -467,8 +502,9 @@ export function initVoiceBrowserRows(
 
         const label = doc.createElementNS(XHTML, 'button');
         label.textContent = voice.label;
-        label.setAttribute('style', ROW_LABEL_STYLE);
-        label.setAttribute('title', isDefault ? DEFAULT_ROW_TITLE : PICK_ROW_TITLE);
+        const blocked = !isDefault && onlyFavorites && !favorites.includes(voice.encoded);
+        label.setAttribute('style', blocked ? ROW_LABEL_BLOCKED_STYLE : ROW_LABEL_STYLE);
+        label.setAttribute('title', isDefault ? DEFAULT_ROW_TITLE : blocked ? BLOCKED_ROW_TITLE : PICK_ROW_TITLE);
         label.addEventListener('click', () => onPick(voice));
         row.appendChild(label);
 
@@ -501,7 +537,15 @@ export function initVoiceBrowserRows(
     }
     const trouble = problems.length ? ` — ${problems.join('; ')}` : '';
     const defaultSpeed = (deps.globalSpeed?.() ?? true) ? speed : null;
-    status(defaultVoiceLine(choice, defaults[0] ?? null, localeName, defaultSpeed) + trouble);
+    // A default that is not a favorite is not offered while the switch is on: the line warns at every repaint
+    const warning = choice && favoritesOnly() && !readFavorites().includes(choice.id) ? NOT_A_FAVORITE : '';
+    status(defaultVoiceLine(choice, defaults[0] ?? null, localeName, defaultSpeed) + warning + trouble);
+  }
+
+  /** The "offer only favorite voices" switch flipped: which rows can be picked changed, and so may the warning. */
+  function onFavoritesOnlyChange(): void {
+    renderVoices();
+    paintStatus();
   }
 
   /** A drag of the slider: the value it reports, kept on Zotero's range, applied to the sample playing right now. */
@@ -634,10 +678,12 @@ export function initVoiceBrowserRows(
   doc.getElementById(VOICE_BROWSER_IDS.speed)?.addEventListener('change', onSpeedChange);
   paintSpeed();
   const unwatch = deps.watchMemory?.(onMemoryChange) ?? null;
+  const unwatchFavoritesOnly = deps.watchFavoritesOnly?.(onFavoritesOnlyChange) ?? null;
 
-  /** The pane is closing: stop following the memory, and stop the sample. */
+  /** The pane is closing: stop following the prefs, and stop the sample. */
   function dispose(): void {
     unwatch?.();
+    unwatchFavoritesOnly?.();
     stopPlayback();
   }
 

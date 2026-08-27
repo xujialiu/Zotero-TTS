@@ -7,6 +7,7 @@ import { SynthesisError } from '../core/providers/errors';
 import { withTimeout } from '../core/timeout';
 import { createWebDAVClient } from '../core/webdav';
 import { listNamedCatalog } from '../read-aloud/catalog';
+import { FAVORITES_ONLY_OBSERVER } from '../read-aloud/favorites';
 import { READ_ALOUD_MEMORY_OBSERVER, type VoiceChoice } from '../read-aloud/read-aloud-memory';
 import { createZoteroVoiceService, type ZoteroVoiceService } from '../read-aloud/zotero-voices';
 import { initShortcutRows } from './shortcut-rows';
@@ -318,6 +319,12 @@ export function onPaneLoad(doc: Document, hooks: PaneHooks = {}): void {
     },
     // A row clicked: the tabs that are reading switch at once (memory-sync)
     spreadVoice: hooks.spreadVoice,
+    // Only a favorite can be the default while the popup offers only favorites
+    favoritesOnly: () => loadSettings(prefs).readAloud.favoritesOnly,
+    watchFavoritesOnly: (onChange) => {
+      const token = Zotero.Prefs.registerObserver(FAVORITES_ONLY_OBSERVER, onChange);
+      return () => Zotero.Prefs.unregisterObserver(token);
+    },
   });
   // The observer must not outlive the pane: the window closing is its end
   win?.addEventListener('unload', () => voiceBrowserRows.dispose(), { once: true });

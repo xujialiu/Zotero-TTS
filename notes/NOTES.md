@@ -2449,3 +2449,36 @@ row → `memory.voice` `{ id: "azure::zh-CN-XiaoxiaoNeural", lang: "zh" }`,
 …Xiaoxiao… } }` with `local` the last key, and `selectedVoiceID` Xiaoxiao
 on every reader that was reading a Chinese document; after clicking it
 again, `memory.voice` null and `zotero.zh` unchanged.
+
+## Only a favorite can be the default — step 6 (2026-08-27)
+
+While `readAloud.favoritesOnly` is on the popup offers only the marked
+voices (remote-interface), so a default that is not one would never be
+offered and Zotero would fall back silently. The browser keeps the two
+consistent now:
+
+- A row that is neither a favorite nor the default gets a grayed label
+  (`ROW_LABEL_BLOCKED_STYLE`) and the tooltip "Only a favorite can be the
+  default while “Offer only favorite voices” is on"; its click does
+  nothing (`onPick` checks again). The default can always be cleared.
+- Unmarking the default's heart while the switch is on clears the default
+  (`setDefault(null)` — memory only, nothing spread) and the status line
+  reads "Default cleared: <label> is no longer a favorite, and only
+  favorites are offered" until the next repaint; any other heart toggle
+  repaints the rows (which of them can be picked changed) and the line.
+- The switch is observed (`FAVORITES_ONLY_OBSERVER`,
+  `zotero-tts.readAloud.favoritesOnly`, a pref observer like the memory's,
+  unregistered from the pane's unload): flipping it repaints the rows and
+  the line. The line gains " — not a favorite, while only favorites are
+  offered: Read Aloud cannot start with it" whenever the remembered voice
+  is not marked, at every repaint, so marking it ends the warning at
+  once. `favoritesOnly` is read through the dep on every render, never
+  cached.
+
+Verification is by eye: switch on with a non-favorite default → the line
+warns and the other rows gray out; unmark the default's ♥ → the line
+reports it cleared, and `diagnostics.readAloudMemory().memory.voice` is
+null.
+
+The README TODO is empty now and the section is gone; steps 3 to 6 are
+four commits on `feat/global-voice`.

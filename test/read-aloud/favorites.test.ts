@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
+import { PREF_PREFIX } from '../../src/core/settings';
 import {
   countVoicesResponse,
+  FAVORITES_ONLY_OBSERVER,
   filterCatalogToFavorites,
   filterVoicesResponseToFavorites,
   parseFavoriteVoices,
@@ -11,6 +13,12 @@ import { encodeVoiceId } from '../../src/read-aloud/voice-catalog';
 
 const ava = encodeVoiceId('azure', 'en-US-AvaMultilingualNeural');
 const alloy = encodeVoiceId('openai', 'alloy');
+
+describe('FAVORITES_ONLY_OBSERVER', () => {
+  it('names the switch the way Zotero.Prefs.registerObserver wants it: relative to extensions.zotero.', () => {
+    expect('extensions.zotero.' + FAVORITES_ONLY_OBSERVER).toBe(PREF_PREFIX + 'readAloud.favoritesOnly');
+  });
+});
 
 describe('parseFavoriteVoices', () => {
   it('reads the JSON array the pref holds', () => {
