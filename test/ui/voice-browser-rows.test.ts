@@ -95,6 +95,8 @@ function setup(
     globalSpeed?: boolean;
     /** The "offer only favorite voices" switch (a pref, so a test can flip it); off unless said otherwise. */
     favoritesOnly?: boolean;
+    /** The tabs Read Aloud is open in; none unless said otherwise. */
+    readingTabs?: string[];
   } = {},
 ) {
   const els = new Map((Object.values(VOICE_BROWSER_IDS) as string[]).map((id) => [id, new FakeElement()]));
@@ -140,6 +142,8 @@ function setup(
       favoritesOnlyWatchers.push(onChange);
       return () => void favoritesOnlyWatchers.splice(favoritesOnlyWatchers.indexOf(onChange), 1);
     }),
+    readingTabs: vi.fn(() => options.readingTabs ?? []),
+    warn: vi.fn((_message: string) => {}),
   } satisfies VoiceBrowserDeps;
   const rows = initVoiceBrowserRows(doc, deps);
   const el = (id: string) => els.get(id)!;
@@ -1115,6 +1119,62 @@ describe('only a favorite can be the default while the switch is on', () => {
     await t.label(0).fire('click');
     expect(t.memory().voice).toEqual({ id: xiaoxiao, lang: 'zh' });
     expect(() => rows.dispose()).not.toThrow();
+  });
+});
+
+describe('marking a favorite while a tab is reading', () => {
+  const favorites = (...ids: string[]) => ({ [FAVORITES_PREF]: JSON.stringify(ids) });
+  const xiaoxiao = encodeVoiceId('azure', 'zh-CN-XiaoxiaoNeural');
+
+  // Only favorites are offered, so the mark would add the voice to the
+  // popup — which the reading tab lists only when Read Aloud reopens there
+  it('is refused, and the user is told which tabs, while only favorites are offered', async () => {
+    const t = setup({ favoritesOnly: true, readingTabs: ['Deep learning'] });
+    await t.rows.load();
+    await t.pickLocale('Chinese');
+    await t.heart(0).fire('click');
+    expect(t.prefs.store[FAVORITES_PREF]).toBeUndefined();
+    expect(t.heart(0).textContent).toBe(GLYPHS.notFavorite);
+    expect(t.deps.warn).toHaveBeenCalledWith(expect.stringContaining('Deep learning'));
+  });
+
+  it('is never refused for unmarking', async () => {
+    const t = setup({ favoritesOnly: true, readingTabs: ['Deep learning'], prefs: favorites(xiaoxiao) });
+    await t.rows.load();
+    await t.pickLocale('Chinese');
+    await t.heart(0).fire('click');
+    expect(parseFavoriteVoices(t.prefs.store[FAVORITES_PREF])).toEqual([]);
+    expect(t.deps.warn).not.toHaveBeenCalled();
+  });
+
+  it('goes through while the switch is off — the popup offers every voice regardless', async () => {
+    const t = setup({ readingTabs: ['Deep learning'] });
+    await t.rows.load();
+    await t.pickLocale('Chinese');
+    await t.heart(0).fire('click');
+    expect(parseFavoriteVoices(t.prefs.store[FAVORITES_PREF])).toEqual([xiaoxiao]);
+    expect(t.deps.warn).not.toHaveBeenCalled();
+  });
+
+  it('goes through while nothing is reading', async () => {
+    const t = setup({ favoritesOnly: true });
+    await t.rows.load();
+    await t.pickLocale('Chinese');
+    await t.heart(0).fire('click');
+    expect(parseFavoriteVoices(t.prefs.store[FAVORITES_PREF])).toEqual([xiaoxiao]);
+    expect(t.deps.warn).not.toHaveBeenCalled();
+  });
+
+  it('works without the guard deps at all', async () => {
+    const t = setup({ favoritesOnly: true, readingTabs: ['Deep learning'] });
+    const rows = initVoiceBrowserRows(
+      { getElementById: (id: string) => t.el(id) ?? null, createElementNS: (_ns: string, tag: string) => new FakeElement(tag) },
+      { ...t.deps, readingTabs: undefined, warn: undefined },
+    );
+    await rows.load();
+    await t.pickLocale('Chinese');
+    await t.heart(0).fire('click');
+    expect(parseFavoriteVoices(t.prefs.store[FAVORITES_PREF])).toEqual([xiaoxiao]);
   });
 });
 

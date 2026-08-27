@@ -9,6 +9,7 @@ import { parseFavoriteVoices, serializeFavoriteVoices, toggleFavoriteVoice } fro
 import { isMultilingualVoiceId, memoryLangForLocale, readMemory, sameChoice, type VoiceChoice } from '../read-aloud/read-aloud-memory';
 import { compareVoiceLabels, encodeVoiceId, pluginVoiceLabel } from '../read-aloud/voice-catalog';
 import type { ZoteroVoice } from '../read-aloud/zotero-voices';
+import { refuseWhileReading } from './reading-guard';
 
 /**
  * The voice browser of the settings pane: every voice Read Aloud can use, in
@@ -141,6 +142,14 @@ export interface VoiceBrowserDeps {
   favoritesOnly?(): boolean;
   /** Calls back whenever that switch flips (a pref observer), and returns the way to stop. */
   watchFavoritesOnly?(onChange: () => void): () => void;
+  /**
+   * The titles of the tabs Read Aloud is open in (ui/reading-guard.ts): a
+   * favorite marked while only favorites are offered would not reach them,
+   * so marking is refused while there are any. Omitted means never refused.
+   */
+  readingTabs?(): string[];
+  /** Tells the user why the marking was refused — a dialog. */
+  warn?(message: string): void;
 }
 
 export type BrowserVoice = {
@@ -387,7 +396,13 @@ export function initVoiceBrowserRows(
    * labels are repainted, since which of them can be picked just changed.
    */
   function onHeart(voice: BrowserVoice, button: any): void {
-    const next = toggleFavoriteVoice(readFavorites(), voice.encoded);
+    const favorites = readFavorites();
+    // Only favorites are offered: marking one adds it to the popup, which a
+    // tab that is reading would not see until Read Aloud reopens there —
+    // refused while any tab is (ui/reading-guard.ts); unmarking never is
+    const marking = !favorites.includes(voice.encoded);
+    if (marking && favoritesOnly() && deps.readingTabs && refuseWhileReading({ readingTabs: deps.readingTabs, warn: deps.warn ?? (() => {}) })) return;
+    const next = toggleFavoriteVoice(favorites, voice.encoded);
     deps.prefs.set(FAVORITES_PREF, serializeFavoriteVoices(next));
     paintHeart(button, next.includes(voice.encoded));
     if (!favoritesOnly()) return;

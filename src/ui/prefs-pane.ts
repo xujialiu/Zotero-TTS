@@ -16,6 +16,7 @@ import { initServerPresetRows } from './server-preset-rows';
 import { initWebDAVRows } from './webdav-rows';
 import { initHighlightRows } from './highlight-rows';
 import { createSamplePlayer, initVoiceBrowserRows } from './voice-browser-rows';
+import { guardProviderSwitches } from './reading-guard';
 import { resolveReaderTheme, type ResolvedReaderTheme } from '../core/reader-theme';
 
 const XHTML = 'http://www.w3.org/1999/xhtml';
@@ -264,6 +265,27 @@ function currentReaderTheme(win: any): ResolvedReaderTheme {
   });
 }
 
+/**
+ * The tabs Read Aloud is open in (paused counts), by the title of the item
+ * being read — the attachment's parent where there is one — for the
+ * reading guard's message (ui/reading-guard.ts).
+ */
+function readingTabTitles(): string[] {
+  const titles: string[] = [];
+  for (const reader of (Zotero.Reader._readers ?? []) as any[]) {
+    try {
+      if (!reader?._internalReader?._readAloudManager?.active) continue;
+      const item = Zotero.Items.get(reader.itemID);
+      const named = item?.parentItem ?? item;
+      const title = typeof named?.getDisplayTitle === 'function' ? named.getDisplayTitle() : '';
+      titles.push(title || `item ${reader.itemID}`);
+    } catch (e) {
+      Zotero.logError(e);
+    }
+  }
+  return titles;
+}
+
 /** What the pane needs from the plugin's running state (src/index.ts hands it over). */
 export interface PaneHooks {
   /** memory-sync's spreadVoice (read-aloud/memory-sync.ts): a default picked in the browser reaches every tab that is reading. */
@@ -277,8 +299,14 @@ export function onPaneLoad(doc: Document, hooks: PaneHooks = {}): void {
   const highlightRows = initHighlightRows(doc, prefs, { theme: () => currentReaderTheme(doc.defaultView) });
 
   const win = doc.defaultView;
+  // Adding a voice — a favorite while only favorites are offered, a provider
+  // switched on — is refused while a tab is reading: its popup would not
+  // list the voice until Read Aloud reopens there (ui/reading-guard.ts)
+  const readingGuard = { readingTabs: readingTabTitles, warn: (message: string) => Services.prompt.alert(win, 'Zotero TTS', message) };
+  guardProviderSwitches(doc, { prefs, ...readingGuard });
   const voiceBrowserRows = initVoiceBrowserRows(doc, {
     prefs,
+    ...readingGuard,
     // The very catalog the Read Aloud interface publishes, so the browser
     // and the popup agree on voices and names. Bounded like every network
     // call: a hanging server must become a status line, not a spinner.

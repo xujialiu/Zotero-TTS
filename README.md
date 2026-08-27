@@ -149,6 +149,12 @@ other rows are grayed, unmarking the default clears it, and the status
 line warns if the default is not a favorite. Favorites travel with the
 settings backup.
 
+A tab lists its voices when Read Aloud opens there, and Zotero has no way
+to refresh an open popup's list. So while Read Aloud is open in some tab,
+adding a voice — marking a favorite with *Offer only favorite voices* on,
+or enabling a provider — is refused with a message naming the tabs: close
+them (or stop Read Aloud in them), then add the voice.
+
 The **Speed** slider is the popup's own (0.5×–3×): samples play at that
 speed, and releasing it makes that the speed Read Aloud starts with — in
 every document, and at once in one that is playing (while *Use one speed

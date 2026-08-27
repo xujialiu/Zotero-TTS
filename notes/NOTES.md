@@ -2511,3 +2511,48 @@ memory-sync.test.ts now keeps its own copy of the pref, refreshed by an
 observer registered after the sync's, exactly as Zotero's; the bug
 reproduced in the existing spread tests before the fix, and one test
 pins that the copy is refreshed first (and what happens without it).
+
+## Adding a voice while a tab is reading: refused (2026-08-27)
+
+Asked after the global voice: a tab whose popup is open does not see a
+voice added in the settings (a favorite marked while only favorites are
+offered, a provider switched on) — could every tab's list follow the
+browser live? Researched in the 10.0.1-beta.3 bundle:
+
+- The list is `manager._allVoices`, rebuilt only by
+  `ReadAloudManager.loadVoices(loggedIn)` (~82023), which Zotero calls
+  from `_prepareReadAloud` (every popup open, ~83984) and from nowhere
+  else. Zotero's own "Manage voices" pushes `setReadAloudEnabledVoices`
+  to open readers from the chrome side (xpcom/reader.js 1247), but this
+  bundle has no such method at all — Zotero itself never refreshes an
+  open popup's list.
+- `loadVoices` would do it: it re-runs our composite `getVoices` (the
+  favorites and hide filters included), `_resolveVoice` keeps the current
+  voice if still listed, `_stateChanged` repaints the dropdowns. Two
+  costs decided against it: `_resolveVoice` → `_applyVoice` recreates the
+  controller on an active manager unconditionally, even onto the same
+  voice, so every refresh restarts the sentence being read; and a listing
+  that fails mid-playback (`RemoteReadAloudProvider.getVoices` throws,
+  `handleError` yields `[]`) leaves only the OS voices, so Zotero's
+  fallback moves the tab to one of them (or, with them hidden, nothing
+  resolves and the session stalls). Plus one full catalog request per
+  reader per change, and the address/key fields writing the pref on every
+  keystroke, which would make a half-typed key empty the list.
+
+The user's decision: refuse instead. `ui/reading-guard.ts`:
+`readingTabsMessage(titles)` names the tabs (the attachment's parent item
+title through `Zotero.Items.get(itemID).parentItem`, else the item's) and
+says to close them or stop Read Aloud there, then add the voice again;
+`refuseWhileReading` shows it through `Services.prompt.alert` and returns
+true. Guarded: marking a ♥ while `favoritesOnly` is on (unmarking never;
+with the switch off the popup offers everything anyway), and the three
+"Enable … voices" checkboxes (`guardProviderSwitches`: on `command`, when
+the box just went on and a tab is reading, both the checkbox and the pref
+are put back to off — Zotero's binding writes the pref on `command` as
+well and its order against ours is not relied on; switching off is never
+refused). Not guarded: Reload voices (it re-lists the pane, adds nothing
+to a popup by itself) and editing an address or key. "A tab is reading"
+is `_readAloudManager.active`, paused included. Verification is by eye:
+with a popup open in some tab, click a ♥ (favorites-only on) or an Enable
+checkbox → the dialog names the tab and nothing changes; close the popup
+→ the same click goes through.
