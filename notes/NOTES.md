@@ -3070,3 +3070,36 @@ user's focus. What it takes:
   1308x360 into a 240 KB GIF. The same palette trick shrinks a PNG
   screenshot by half (`max_colors=200`, `dither=none`) — while *scaling* one
   down makes it bigger, because lanczos invents colors.
+
+Re-cut on 2026-08-28 (the first cut's crop sat flush against the yellow
+band at the top and sliced the next paragraph's first line at the bottom,
+and 20 s was too long), which added:
+
+- **`startReadAloudAtPosition` does not honor the position on an idle
+  manager.** Handed segment 21's own rectangle it began at segment 5, the
+  author block: the position goes through
+  `_sdt.mapper.sourceToSDTPosition` in `_findReadAloudStartIndex`, and
+  before `_prepareReadAloud` has built the segments there is nothing to
+  map onto. What is exact: let it start anywhere, then
+  `manager.jumpTo(segment.sourcePosition)` — every entry of
+  `manager._segments` carries its own `sourcePosition` (one rect per line)
+  and `paragraphSourcePosition` (the whole paragraph), so the segment is
+  found by its text and jumped to by its own coordinates, no arithmetic.
+- **`drawWindow` lives only on a canvas *element*'s 2D context**, taken
+  from the main window's document; an `OffscreenCanvas` 2D context has no
+  such method and the call dies silently inside the sandbox's promise.
+- **Equal padding is measured off the yellow band, not the ink.** Draw the
+  region once at scale 1 and scan `getImageData` row by row for luminance
+  < 200: the bands come back as exact page-coordinate ink extents (the four
+  lines 1120–1208, the next paragraph from 1224). But the sentence
+  highlight is the text-layer span rect, a few px taller than the ink
+  (1115.8 over the first line's 1120), and it is what the eye reads as the
+  edge of the block — pad from it, and check the ink of whatever comes
+  next stays out: 11.8 px above the first band and below the last, 4 px of
+  clearance to the next paragraph.
+- **Length and framing.** The Introduction's opening paragraph — four
+  lines, three sentences, ~64 words at the user's 1.7x — is 135 frames,
+  13.5 s, 170 KB at 1000x134. Capture wider than the intended crop (the
+  frames here were 1305x246, the section heading included) and settle the
+  framing in ffmpeg with `crop=`: the user cut the heading afterwards, and
+  a second pass over the same PNGs cost nothing.
