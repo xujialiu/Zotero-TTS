@@ -3098,8 +3098,42 @@ and 20 s was too long), which added:
   next stays out: 11.8 px above the first band and below the last, 4 px of
   clearance to the next paragraph.
 - **Length and framing.** The Introduction's opening paragraph — four
-  lines, three sentences, ~64 words at the user's 1.7x — is 135 frames,
-  13.5 s, 170 KB at 1000x134. Capture wider than the intended crop (the
-  frames here were 1305x246, the section heading included) and settle the
-  framing in ffmpeg with `crop=`: the user cut the heading afterwards, and
-  a second pass over the same PNGs cost nothing.
+  lines, three sentences, ~64 words at the user's 1.7x — is ~135 frames,
+  ~13.5 s at 10 fps. Capture wider than the intended crop (the first pass
+  took 1305x246, the section heading included) and settle the framing in
+  ffmpeg with `crop=`: the user cut the heading afterwards, and a second
+  pass over the same PNGs cost nothing.
+- **`ctx.scale` before `drawWindow` buys pixels, not resolution.** The PDF
+  page is a `<canvas>` whose bitmap is exactly its CSS box at dpr 1
+  (measured: 1305x1689 for a 1305x1689 page), and the text layer over it is
+  transparent — so every visible glyph comes from that bitmap and a scaled
+  `drawWindow` only interpolates it. Proof: the 1x capture bicubic-upscaled
+  to 1440 against the 1.655x capture of the same crop is 30.1 dB, the same
+  picture twice. A GIF built that way carries 870 px of detail in 1440 px
+  and looks soft at any size above 870.
+- **Real resolution comes from the reader's zoom, and the viewport is the
+  ceiling.** `ir.zoomIn()` makes PDF.js re-render the page bigger, but
+  `drawWindow` cannot paint past the pdf window's own viewport, pinned at
+  1680 CSS px by an `!important` rule on the viewer iframe. Inline
+  important wins where an injected `<style>` in `reader.html`'s head does
+  not: `ifr.style.setProperty('width', '2560px', 'important')` —
+  `pdfWin.innerWidth` becomes 2560 and `drawWindow` paints all of it, even
+  though `.primary-view` clips it on screen, because it renders the pdf
+  window's own layout and not the screen. And above ~2x zoom PDF.js keeps
+  *two* canvases per page: a low-resolution whole-page one (1132 px wide
+  for a 3508 px page — the blurry one) and a 1:1 detail canvas over the
+  visible region (3286x1646). Only what the detail canvas covers is sharp.
+  Nine `zoomIn()` steps took the page 1305 → 3508 (Z = 2.688), the crop
+  2339x312 of real pixels; the same count of `zoomOut()` put it back to
+  1305 exactly. 10 fps held at that size (mean interval 100 ms).
+- **The palette settings above are wrong for text.**
+  `palettegen=stats_mode=full:max_colors=255` +
+  `paletteuse=dither=none`. Measured against the source PNGs, frame 60:
+  36.8 dB at 255 colors, 34.4 at 128, 32.1 at 64 — and `dither=bayer`
+  lays a visible grid over the yellow highlight that reads as blur at any
+  size. `stats_mode=diff` builds the palette from what *changes* between
+  frames, which is the highlight, not the text. The delivered GIF is
+  2160x288, 136 frames, 13.6 s, 557 KB. (Zotero's glyphs come out
+  subpixel-antialiased, with orange/blue fringes visible at 1:1; the
+  higher the render resolution the finer they are, and downscaling to the
+  output size averages them back to gray.)
