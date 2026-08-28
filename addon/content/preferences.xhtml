@@ -155,14 +155,18 @@
                 preference="extensions.zotero.zotero-tts.readAloud.hideZoteroLocalVoices"/>
       <label class="ztts-help" value="?" help="Zotero’s own Local voices leave the Read Aloud popup, and the plugin’s voices drop their TTS- prefix."/>
     </hbox>
+    <!-- The switch locks the cache below on: without it the warmer has
+         nowhere to put what it synthesizes (ui/prefetch-rows.ts) -->
     <hbox align="center">
       <checkbox label="Prefetch upcoming sentences" preference="extensions.zotero.zotero-tts.prefetchEnabled"/>
       <html:input type="number" min="1" max="10" step="1"
                   preference="extensions.zotero.zotero-tts.prefetch"/>
       <label value="ahead"/>
+      <label class="ztts-help" value="?" help="Synthesizes the sentences ahead while the current one plays, so playback never waits for the server. Zotero already fetches 3 ahead on its own, so what is ready runs from your number to your number plus 3. The audio waits in the cache below, which stays on while this is on. On a paid provider, sentences you skip past are synthesized and billed anyway."/>
     </hbox>
     <hbox align="center">
-      <checkbox label="Cache synthesized audio" preference="extensions.zotero.zotero-tts.cacheAudio"/>
+      <checkbox id="ztts-cache-audio" label="Cache synthesized audio" preference="extensions.zotero.zotero-tts.cacheAudio"/>
+      <label class="ztts-help" value="?" help="Keeps synthesized sentences in memory — 64 MB, emptied when Zotero restarts — so reading a passage again is instant and, on a paid provider, free. Prefetch stores its audio here, so it cannot be turned off while prefetch is on."/>
     </hbox>
   </groupbox>
 

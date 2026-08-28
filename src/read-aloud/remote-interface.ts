@@ -67,7 +67,14 @@ export type RemoteInterfaceDeps = {
   getFavoriteVoices?(): readonly string[] | null;
   getProvider(provider: ProviderId): TTSProvider;
   cacheVersion(): string;
-  cache?: AudioCache;
+  /**
+   * The audio cache, or undefined while caching is off — asked per call,
+   * the way every other setting here is, so a change in the pane reaches a
+   * reader that is already open (the interface itself is built once per
+   * reader). Prefetch warms into this very cache and does nothing without
+   * it; core/settings.ts audioCacheOn keeps the two settings together.
+   */
+  cache?(): AudioCache | undefined;
   /**
    * The prefetch setting, read per call so the pane applies at once.
    * Zotero's own player prefetches a hard-coded 3 segments ahead
@@ -274,7 +281,7 @@ export function createRemoteInterface(deps: RemoteInterfaceDeps): RemoteInterfac
     // handed back; the provider's sandbox-owned Blob must not leak past
     // this line (see RemoteInterfaceDeps.adoptAudio).
     const result = deps.adoptAudio ? { ...synthesized, audio: deps.adoptAudio(synthesized.audio) } : synthesized;
-    await deps.cache?.put(cacheKey, result);
+    await deps.cache?.()?.put(cacheKey, result);
     return result;
   }
 
@@ -294,7 +301,7 @@ export function createRemoteInterface(deps: RemoteInterfaceDeps): RemoteInterfac
     const existing = pending.get(key);
     if (existing) return existing;
     const job = (async () => {
-      const hit = await deps.cache?.match(key);
+      const hit = await deps.cache?.()?.match(key);
       if (hit) return { result: hit, cached: true };
       return { result: await synthesize(providerId, voiceId, text, key), cached: false };
     })();
@@ -319,7 +326,8 @@ export function createRemoteInterface(deps: RemoteInterfaceDeps): RemoteInterfac
   let warming = false;
   function prefetchAfter(providerId: ProviderId, voiceId: string, text: string): void {
     const cfg = deps.getPrefetch?.();
-    if (!cfg?.enabled || cfg.count < 1 || !deps.cache || warming) return;
+    const cache = deps.cache?.();
+    if (!cfg?.enabled || cfg.count < 1 || !cache || warming) return;
     const texts = (deps.getUpcomingTexts?.(text, cfg.count) ?? []).filter(
       (t) => typeof t === 'string' && t.trim().length > TINY_SEGMENT_CHARS,
     );
@@ -330,7 +338,7 @@ export function createRemoteInterface(deps: RemoteInterfaceDeps): RemoteInterfac
         for (const t of texts) {
           const key = cacheKeyFor(providerId, voiceId, t);
           if (pending.has(key)) continue;
-          if (await deps.cache?.match(key)) continue;
+          if (await cache.match(key)) continue;
           const { cached } = await ensureAudio(providerId, voiceId, t);
           if (!cached) deps.debug?.(`prefetch: ${providerId}: ${t.length} chars ready ahead of playback`);
         }

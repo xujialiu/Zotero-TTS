@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
+  audioCacheOn,
   DEFAULTS,
   enabledProviders,
   loadSettings,
@@ -235,5 +236,18 @@ describe('local.headers', () => {
   it('is empty by default and reads the stored value', () => {
     expect(loadSettings(fakePrefs()).local.headers).toBe('');
     expect(loadSettings(fakePrefs({ [PREF_PREFIX + 'local.headers']: 'X: y' })).local.headers).toBe('X: y');
+  });
+});
+
+// Prefetch has nowhere to put its audio without the cache: the pane locks the
+// two together (ui/prefetch-rows.ts), and this covers a profile whose pane was
+// never opened.
+describe('audioCacheOn', () => {
+  it('is on whenever either the cache or prefetch is', () => {
+    const of = (cacheAudio: boolean, prefetchEnabled: boolean) => audioCacheOn({ ...DEFAULTS, cacheAudio, prefetchEnabled });
+    expect(of(true, true)).toBe(true);
+    expect(of(true, false)).toBe(true);
+    expect(of(false, true)).toBe(true);
+    expect(of(false, false)).toBe(false);
   });
 });

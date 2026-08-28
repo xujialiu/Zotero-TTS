@@ -109,7 +109,7 @@ describe('getAudio', () => {
     const iface = createRemoteInterface({
       ...deps(fakeProvider({ synthesize: async () => ({ audio: original }) })),
       adoptAudio,
-      cache: { match: async () => null, put },
+      cache: () => ({ match: async () => null, put }),
     });
 
     const result = await iface.getAudio({ text: 'Hello' }, voice);
@@ -117,6 +117,25 @@ describe('getAudio', () => {
     expect(adoptAudio).toHaveBeenCalledWith(original);
     expect(result.audio).toBe(adopted);
     expect((put as any).mock.calls[0][1].audio).toBe(adopted);
+  });
+
+  // The interface is built once per reader (src/index.ts startHijack), so a
+  // cache handed over as a value would freeze the setting for every tab that
+  // is already open — and with it a prefetch switched on afterwards, which
+  // warms into this cache and does nothing without one.
+  it('asks for the cache on every call, so the setting reaches an open reader', async () => {
+    const put = vi.fn(async () => {});
+    const cache = vi.fn(() => ({ match: async () => null, put }));
+    const iface = createRemoteInterface({ ...deps(), cache });
+
+    await iface.getAudio({ text: 'Hello' }, voice);
+    expect(cache).toHaveBeenCalled();
+    expect(put).toHaveBeenCalledTimes(1);
+
+    // Switched off between the two calls: nothing is stored any more
+    cache.mockReturnValue(undefined as any);
+    await iface.getAudio({ text: 'A different sentence' }, voice);
+    expect(put).toHaveBeenCalledTimes(1);
   });
 
   it('passes the signal from the injected factory to the provider', async () => {
@@ -177,7 +196,7 @@ describe('getAudio', () => {
       const cached = { audio: new Blob(['cached']) };
       const iface = createRemoteInterface({
         ...deps(),
-        cache: { match: async () => cached, put: async () => {} },
+        cache: () => ({ match: async () => cached, put: async () => {} }),
       });
       const result = await iface.getAudio({ text: 'Hello' }, voice);
       expect(result.timestamps).toEqual(whole('Hello'));
@@ -257,7 +276,7 @@ describe('getAudio', () => {
       listCatalog: async () => [{ provider, voices: [] }],
       getProvider: () => fakeProvider(),
       cacheVersion: () => cacheVersion,
-      cache: { match: async () => null, put },
+      cache: () => ({ match: async () => null, put }),
     });
     await iface1.getAudio({ text: 'i' }, { id: encodeVoiceId(provider, 'alloy h') });
     const keyA = (put as any).mock.calls[0][0] as string;
@@ -269,7 +288,7 @@ describe('getAudio', () => {
       listCatalog: async () => [{ provider, voices: [] }],
       getProvider: () => fakeProvider(),
       cacheVersion: () => cacheVersion,
-      cache: { match: async () => null, put },
+      cache: () => ({ match: async () => null, put }),
     });
     await iface2.getAudio({ text: 'h i' }, { id: encodeVoiceId(provider, 'alloy') });
     const keyB = (put as any).mock.calls[0][0] as string;
@@ -312,7 +331,7 @@ describe('getAudio', () => {
     const synthesize = vi.fn();
     const iface = createRemoteInterface({
       ...deps(fakeProvider({ synthesize: synthesize as never })),
-      cache: { match: async () => cached, put: async () => {} },
+      cache: () => ({ match: async () => cached, put: async () => {} }),
     });
 
     const result = await iface.getAudio({ text: 'Hello' }, voice);
@@ -325,7 +344,7 @@ describe('getAudio', () => {
     const put = vi.fn(async () => {});
     const iface = createRemoteInterface({
       ...deps(),
-      cache: { match: async () => null, put },
+      cache: () => ({ match: async () => null, put }),
     });
 
     await iface.getAudio({ text: 'Hello' }, voice);
@@ -658,7 +677,7 @@ describe('tiny segments the server refuses', () => {
   it('plays a short pause instead of stopping playback, and does not cache it', async () => {
     const debug = vi.fn();
     const put = vi.fn();
-    const iface = createRemoteInterface({ ...deps(refusing()), debug, cache: { match: async () => null, put } });
+    const iface = createRemoteInterface({ ...deps(refusing()), debug, cache: () => ({ match: async () => null, put }) });
     const result = await iface.getAudio({ text: '1.' }, voice);
     expect(result.error).toBeUndefined();
     expect(result.audio).toBeInstanceOf(Blob);
@@ -724,7 +743,7 @@ describe('prefetch', () => {
     const debug = vi.fn();
     const d = {
       ...deps(fakeProvider({ synthesize })),
-      cache,
+      cache: () => cache,
       debug,
       getPrefetch: () => ({ enabled, count }),
       getUpcomingTexts: vi.fn(() => upcoming),
@@ -807,7 +826,7 @@ describe('prefetch skips in-flight segments instead of joining them', () => {
     const cache = fakeCache();
     const d = {
       ...deps(fakeProvider({ synthesize })),
-      cache,
+      cache: () => cache,
       getPrefetch: () => ({ enabled: true, count: 2 }),
       getUpcomingTexts: () => [NEXT, AFTER],
     };

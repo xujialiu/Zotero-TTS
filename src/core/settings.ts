@@ -197,6 +197,19 @@ export function loadSettings(prefs: PrefsBackend): Settings {
   };
 }
 
+/**
+ * Whether the Read Aloud interface gets the audio cache. Prefetch has
+ * nowhere to put what it synthesizes without it — `prefetchAfter` returns on
+ * its first line when the cache is undefined (read-aloud/remote-interface.ts)
+ * — and the pane locks the two settings together, but only once it has been
+ * opened (ui/prefetch-rows.ts). A profile carrying prefetch on and the cache
+ * off is given the cache here rather than a prefetch that silently does
+ * nothing.
+ */
+export function audioCacheOn(settings: Settings): boolean {
+  return settings.cacheAudio || settings.prefetchEnabled;
+}
+
 /** The providers whose voices are published, in catalog order. */
 export function enabledProviders(s: Settings): ProviderId[] {
   return PROVIDER_IDS.filter((id) => s[id].enabled);

@@ -1,7 +1,7 @@
 import { getChromeWebSocket, newRequestId } from './core/providers/azure';
 import { createProvider } from './core/providers/factory';
 import { createMemoryCache } from './core/memory-cache';
-import { createZoteroPrefs, loadSettings, migrateLegacyProviderPref } from './core/settings';
+import { audioCacheOn, createZoteroPrefs, loadSettings, migrateLegacyProviderPref } from './core/settings';
 import { installHijack } from './read-aloud';
 import { createReadAloudMemorySync, type ReadAloudMemorySync } from './read-aloud/memory-sync';
 import { createHighlightStyling, type HighlightStyling } from './read-aloud/highlight-style';
@@ -163,7 +163,9 @@ function startHijack(): void {
         // must still play.
         getProvider: (id) => createProvider(id, loadSettings(prefs), providerDeps()),
         cacheVersion,
-        cache: loadSettings(prefs).cacheAudio ? audioCache : undefined,
+        // Read per call, so the pane applies to a reader that is already open;
+        // prefetch keeps it on where the pane never locked it (core/settings.ts audioCacheOn)
+        cache: () => (audioCacheOn(loadSettings(prefs)) ? audioCache : undefined),
         log: (e) => Zotero.logError(e),
         debug: (message) => Zotero.debug('[zotero-tts] ' + message),
         // Every provider builds its audio Blob inside the plugin sandbox, and

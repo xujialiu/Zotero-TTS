@@ -17,6 +17,7 @@ import { initServerPresetRows } from './server-preset-rows';
 import { initHelpTips } from './help-tips';
 import { initWebDAVRows } from './webdav-rows';
 import { initHighlightRows } from './highlight-rows';
+import { initPrefetchRows, PREFETCH_ENABLED_OBSERVER } from './prefetch-rows';
 import { initProviderRows } from './provider-rows';
 import { createSamplePlayer, initVoiceBrowserRows } from './voice-browser-rows';
 import { GLOBAL_SPEED_OBSERVER } from '../read-aloud/default-speed';
@@ -343,6 +344,15 @@ export function onPaneLoad(doc: Document, hooks: PaneHooks = {}): void {
   // The ? icons: their text opens at once, not after Zotero's tooltip delay (ui/help-tips.ts)
   initHelpTips(doc);
   const highlightRows = initHighlightRows(doc, prefs, { theme: () => currentReaderTheme(doc.defaultView) });
+  // Prefetch keeps the audio cache on and its checkbox locked: without the
+  // cache the warmer has nowhere to put what it synthesizes (ui/prefetch-rows.ts)
+  const prefetchRows = initPrefetchRows(doc, {
+    prefs,
+    watch: (onChange) => {
+      const token = Zotero.Prefs.registerObserver(PREFETCH_ENABLED_OBSERVER, onChange);
+      return () => Zotero.Prefs.unregisterObserver(token);
+    },
+  });
 
   const win = doc.defaultView;
   // Adding a voice — a favorite while only favorites are offered, a provider
@@ -405,8 +415,15 @@ export function onPaneLoad(doc: Document, hooks: PaneHooks = {}): void {
       return () => Zotero.Prefs.unregisterObserver(token);
     },
   });
-  // The observer must not outlive the pane: the window closing is its end
-  win?.addEventListener('unload', () => voiceBrowserRows.dispose(), { once: true });
+  // The observers must not outlive the pane: the window closing is their end
+  win?.addEventListener(
+    'unload',
+    () => {
+      voiceBrowserRows.dispose();
+      prefetchRows.dispose();
+    },
+    { once: true },
+  );
   // The popup lists the catalog on every open; the pane doing the same on
   // load costs one request per enabled provider and spends nothing.
   void voiceBrowserRows.load();
@@ -436,6 +453,7 @@ export function onPaneLoad(doc: Document, hooks: PaneHooks = {}): void {
       shortcutRows.refresh();
       presetRows.refresh();
       highlightRows.refresh();
+      prefetchRows.refresh();
       voiceBrowserRows.refresh();
       // The restored prefs may switch providers on or off: the switches and
       // locks follow (after the preset rows, which gray their fields

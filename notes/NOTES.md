@@ -3187,3 +3187,48 @@ loop lands maybe half of them, and while paused the cursor to steer by is
 played). `startReadAloudAtPosition(pos)` ignored the position handed to it
 from the bridge and started at segment 0, so putting a reading position
 back means skipping back to it and letting the close save it.
+
+## Prefetch locks the cache on, and the cache became a per-call dep (2026-08-29)
+
+The pane offered two checkboxes that are one feature: with *Cache
+synthesized audio* off, `prefetchAfter` returns on its first line
+(`!cache`), so *Prefetch upcoming sentences* was checked and doing nothing,
+invisibly. Now the switch keeps the cache on and locks its checkbox
+(`ui/prefetch-rows.ts`, a pref observer on `zotero-tts.prefetchEnabled`),
+`core/settings.ts` `audioCacheOn` gives the interface a cache whenever
+either setting is on — for a profile whose pane was never opened — and both
+rows carry a `?`. Turned on, not borrowed: switching prefetch off again
+leaves the cache on and merely returns the choice.
+
+- **`cache` was the only dep handed over as a value.** Every other setting
+  in the interface is a function called per request (`getPrefetch`,
+  `getFavoriteVoices`, `getProvider`, `cacheVersion`), but `cache` was
+  `audioCache` or `undefined`, decided when the interface was built — which
+  is **once per reader**. So flipping the cache switch did nothing for any
+  tab that was already open, and the new lock would have promised a prefetch
+  that stays dead there. It is now `cache?(): AudioCache | undefined`.
+  Proven live on a reader opened while the cache was off: switching it on
+  reached that same tab's next session (9 cache hits where the previous
+  round had 0).
+- **An in-place plugin upgrade leaves an open reader on the OLD plugin's
+  interface.** After `zotero_plugin_install`,
+  `hasOwnProperty(reader, '_getReadAloudRemoteInterface')` is false — the
+  old instance's uninstall deleted it — but the Read Aloud manager still
+  holds the interface object it was built with
+  (`_readAloudManager._options.remoteInterface`), from the sandbox that is
+  gone. That tab keeps running the old code *and its module state*: a
+  cacheAudio=false run served 16 cache hits out of the previous build's
+  `audioCache`. **Anything below the pane must be verified in a reader tab
+  opened after the install** (`Zotero_Tabs.close(tabID)` then
+  `Zotero.Reader.open(itemID)`); the pane itself is fine, since it is built
+  from `Zotero.ZoteroTTS` on every open.
+- Playback driven in that freshly opened tab fills the error console with
+  Zotero's `An AudioContext was prevented from starting automatically` /
+  `NotAllowedError: The play method is not allowed` — the known
+  no-user-gesture class (README media note above). `getAudio` still runs, so
+  cache and prefetch evidence is unaffected.
+- The three-round A/B that settles it, all in one already-open tab, reading
+  the same sentences twice: cache off + prefetch off → 0 cache hits, 0
+  prefetch lines; cache on + prefetch off → 9 hits; cache off + prefetch on
+  → 8 hits and the warmer running. The middle round is the one that was
+  impossible before this change.

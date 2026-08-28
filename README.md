@@ -183,8 +183,12 @@ with, in every document. The **Speed** slider is the popup's own (0.5×–3×).
   Off, Zotero keeps a speed per document language.
 - *Hide Zotero's own Local voices* — the Local tier then offers only the
   plugin's entries, which drop their `TTS-` prefix.
+- *Prefetch upcoming sentences* — the ones ahead are synthesized while the
+  current one plays, so playback never waits for the server. Zotero fetches
+  3 ahead by itself and your number adds to those. It keeps the cache below
+  switched on, which is where the audio waits.
 - *Cache synthesized audio* — skipping back or reopening a document costs no
-  new request.
+  new request. In memory (64 MB); a Zotero restart empties it.
 
 <details>
 <summary><b>Details</b></summary>
