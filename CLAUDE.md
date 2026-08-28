@@ -110,9 +110,12 @@ The running Zotero is driven from here through the **zotero-dev MCP
 bridge** — `introfini/mcp-server-zotero-dev` (MCP server `zotero-dev`,
 tools `mcp__zotero-dev__*`) plus the *MCP Bridge for Zotero* plugin, which
 opens RDP on 127.0.0.1:6100 when Zotero starts. Settled 2026-08-28, after
-the provider-toggle feature was verified end to end this way. Before a
-feature branch is merged, its new behavior is verified in Zotero like
-this:
+the provider-toggle feature was verified end to end this way. **"Test with
+zotero dev" / "用 zotero dev 测试" means exactly this bridge** — install the
+build into the running Zotero and drive it with `mcp__zotero-dev__*`; never
+some other route, and never hand the checks back to the user except in the
+two cases below. Before a feature branch is merged, its new behavior is
+verified in Zotero like this:
 
 - **The driving rules are `.claude/agents/zotero-tester.md`** (the
   bridge's tools, how to drive them, what to report). A Fable session
