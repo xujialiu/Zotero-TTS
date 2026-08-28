@@ -3137,3 +3137,53 @@ and 20 s was too long), which added:
   subpixel-antialiased, with orange/blue fringes visible at 1:1; the
   higher the render resolution the finer they are, and downscaling to the
   output size averages them back to gray.)
+
+## Prefetch, measured live: the reach is the setting plus Zotero's three (2026-08-29)
+
+Asked whether the Prefetch setting actually does anything, verified through
+the bridge on the running Zotero (plugin 1.8.2-beta), Kokoro
+`local::am_puck`, one PDF of 453 controller segments, debug storing turned
+on for each run (`Zotero.Debug.setStore(true)` + `.clear()`, restored
+after). What makes the trace quantitative is mapping the char counts in the
+debug lines back to segment indices through `manager._controller._segments`:
+`prefetch: local: 173 chars ready ahead of playback` is segment #147 and
+nothing else.
+
+- **Both halves of the setting work.** `prefetchEnabled` off: not one
+  `prefetch:` line and not one `(cached)` play, only Zotero's own window
+  fetching (playing #188). Count 10: one chain warmed exactly ten
+  consecutive segments, #147 through #156. Count 2: each chain stopped two
+  past its anchor. Count 5 (the user's value): every segment played from
+  #89 to #97 was logged `(cached)` — the player never waited once.
+- **The reach is `count + 3`, not `count`.** A chain is anchored at the
+  segment of the `getAudio` that started it, and Zotero's own
+  three-segment window calls `getAudio` too, so a chain anchored at the far
+  edge of that window reaches playback + 3 + count. Measured at count 2:
+  playing #169, frontier #174. Which edge a chain gets is timing — only one
+  chain runs at a time (`warming`), so the anchor can just as well be the
+  playing segment: with the popup closed Zotero stops asking and the anchor
+  stays put, which is the count-10 run above (+10, not +13). Depth in
+  steady state floats between `count` and `count + 3`.
+- **A long segment stalls the chain.** It is serial by design; #100 of that
+  PDF (4,980 chars, a table's text) held it for the rest of the run and the
+  frontier sat at #99. Nothing to fix — the next chain picks up — but it is
+  why a frontier measurement can read low.
+- **How to measure the count directly**: start a session in a region
+  nothing has cached, then close the popup with
+  `toggleReadAloudPopup(false)`. Zotero's fetching stops at once while the
+  warm chain, being detached, runs to completion — so the `prefetch:` lines
+  after the close *are* the chain, and their number is the setting (minus
+  what it skipped as pending or already cached).
+- `cacheAudio` off means no prefetch at all: `deps.cache` is undefined and
+  `prefetchAfter` returns on its first line. The two settings are one
+  feature, and the pane does not say so.
+
+Driving notes from the same pass: `zotero_execute_js` returned `undefined`
+for evals past ~30 s and the result then arrived on the *next* call, so a
+run is split — start in one call, `Start-Sleep` in the shell, read in
+another. Skips are debounced (`_speakInternalWithSkipDebounce`): a tight
+loop lands maybe half of them, and while paused the cursor to steer by is
+`_position`, not `_currentIndex` (which stays on the last segment actually
+played). `startReadAloudAtPosition(pos)` ignored the position handed to it
+from the bridge and started at segment 0, so putting a reading position
+back means skipping back to it and letting the close save it.
