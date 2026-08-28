@@ -10,7 +10,7 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-AGPL--3.0-blue?style=flat-square" alt="License"></a>
 </p>
 
-<p align="center"><img src="assets/word-highlight.gif" width="720" alt="Read Aloud with an Azure voice: the word being read in green, its sentence in yellow"></p>
+<p align="center"><img src="assets/word-highlight.gif" width="720" alt="Read Aloud reading a paragraph: the word being read in blue, its sentence in yellow"></p>
 
 ## What is this?
 
@@ -37,7 +37,7 @@ Download `zotero-tts.xpi` from the [latest release](https://github.com/xujialiu/
 Install Plugin From File…** and restart Zotero; then enable a provider in
 **Edit → Settings → TTS** and pick a `TTS-…` voice under the **Local** tier.
 
-<p align="center"><img src="assets/popup.png" width="600" alt="The Read Aloud popup with a TTS-Azure voice chosen under the Local tier"></p>
+<p align="center"><img src="assets/popup.png" width="640" alt="The Read Aloud popup with a TTS- voice chosen under the Local tier"></p>
 
 ## Providers
 
@@ -85,32 +85,33 @@ They go out with every request. [Tutorial](tutorials/remote-access-cloudflare.md
 
 Everything is under **Edit → Settings → TTS**.
 
-<p align="center">
-  <img src="assets/settings-highlight.png" width="400" alt="The Highlight group">
-  <img src="assets/settings-shortcuts.png" width="400" alt="The Keyboard shortcuts group">
-</p>
-
 ### Highlight
 
-A word color and a sentence color, an opacity for each, and a switch to
-keep the sentence highlighted under the word. The preview is painted in
-your reader's theme. The default is a blue word on a yellow sentence,
-both at 70 %; *Restore default colors* brings it back (Zotero's own blue
-is `#4072e5` at 45 % and 30 %). The colors apply to Zotero's voices as well.
+<p align="center"><img src="assets/settings-highlight.png" width="520" alt="The Highlight group"></p>
+
+A color and an opacity for the word and for its sentence, and a switch to
+keep the sentence highlighted under the word — for Zotero's own voices too.
 Word-by-word highlighting also needs Zotero's own switch: **Settings →
 General → Read Aloud → Highlight current → Word**.
 
+<details>
+<summary><b>Details</b></summary>
+
+The preview is painted in your reader's theme. The default is a blue word
+on a yellow sentence, both at 70 %; *Restore default colors* brings it back
+(Zotero's own blue is `#4072e5` at 45 % and 30 %).
+
+</details>
+
 ### Keyboard shortcuts
 
-`Shift+Z` back to 1.0×, `Shift+X` −0.1, `Shift+C` +0.1; `←` / `→` previous
-/ next sentence, `Shift+←` / `Shift+→` previous / next paragraph;
-`Shift+Enter` makes the view follow the reading again after you scrolled
-away. `Shift+Space` is the one play key and always does the right thing:
-it pauses and resumes an open session, and otherwise starts reading — from
-the selected text (the context menu's *Read Aloud from Here*), from where
-you last stopped (below), or from the visible page. The arrow keys and
-`Shift+Enter` act only while Read Aloud is open and page or scroll as
-usual otherwise. Click a field to record another key.
+<p align="center"><img src="assets/settings-shortcuts.png" width="440" alt="The Keyboard shortcuts group"></p>
+
+`Shift+Space` is the one play key and always does the right thing: it
+pauses and resumes an open session, and otherwise starts reading — from the
+selected text, from where you last stopped (below), or from the visible
+page. The arrow keys and `Shift+Enter` act only while Read Aloud is open
+and page or scroll as usual otherwise. Click a field to record another key.
 
 ### Resume where you stopped
 
@@ -120,91 +121,84 @@ document has never been read aloud, it simply starts from the page you are
 looking at.
 
 <details>
-<summary>Details</summary>
+<summary><b>Details</b></summary>
 
 - Zotero remembers a reading position of its own, but drops it as soon as
   you scroll a few pages away from it. This one is kept.
 - Reading resumes at the **start** of the sentence you were in the middle of.
-- The last 50 documents are remembered.
-- Positions are kept **on this computer only** — not synced between
+- The last 50 documents, **on this computer only** — not synced between
   machines, and not part of the [settings backup](#backup).
 - Nothing is drawn in the document and nothing is added to your annotations.
-- `Shift+Space` is rebindable like every other shortcut.
 
 </details>
 
 ### Voice browser
 
-Every voice Read Aloud can use, in three columns — tier, language, voice —
-the same three steps the reader's popup takes (*Voice Mode* → language →
-voice). **Local** holds the voices your enabled providers publish,
-**Standard** and **Premium** are Zotero's own; multilingual voices sit
-under "Multiple languages", first in the language column. The language
-column is the popup's own dropdown for the tier — the same entries, named
-the same way: a region only where the tier speaks the language in several
-("English (United States)" beside "English (United Kingdom)"), and one
-"Chinese" for every Chinese voice.
+<p align="center"><img src="assets/settings-voices.png" width="700" alt="The voice browser: tier, language and voice columns"></p>
 
-**▶** plays a short sample: your voices speak a sentence in the voice's own
-language (English plus Chinese for multilingual voices), synthesized by
-your provider like any sentence; Zotero's voices speak Zotero's own sample,
-which needs no account and spends no credits — reading with them still
-does. **♥** marks a favorite. *Offer only favorite voices* then trims the
-Read Aloud popup to the marked ones **in every tier** — a tier you marked
-nothing in comes up empty, and Zotero grays it out in *Voice Mode*. With
-nothing marked at all, or when none of the marked voices is listed any more
-(a provider switched off, a server gone), everything is offered again.
-While the switch is on, only a favorite can be the default (below): the
-other rows are grayed, unmarking the default clears it, and the status
-line warns if the default is not a favorite. Favorites travel with the
-settings backup.
+Every voice Read Aloud can use, in the popup's own three steps — tier,
+language, voice. **▶** plays a short sample, **♥** marks a favorite, and a
+click on a row makes that voice the **default**: what Read Aloud starts
+with, in every document. The **Speed** slider is the popup's own (0.5×–3×).
 
-While Read Aloud is open in some tab, adding a voice — marking a favorite
-with *Offer only favorite voices* on, or enabling a provider — is refused
-with a message naming the tabs: close them, then try again. (A tab lists
-its voices when Read Aloud opens there, and Zotero has no way to refresh
-an open popup's list.)
+<details>
+<summary><b>Favorites, samples, the default voice</b></summary>
 
-The **Speed** slider is the popup's own (0.5×–3×): samples play at that
-speed, and releasing it makes that the speed Read Aloud starts with — in
-every document, and at once in one that is playing (while *Use one speed
-everywhere* is on). Zotero stretches its
-audio the same way — pitch kept — so what you hear is what you get, and
-the slider costs no new request: every voice is synthesized at its natural
-pace and stretched on playback.
+- **Local** holds the voices your enabled providers publish, **Standard**
+  and **Premium** are Zotero's own; multilingual voices sit under "Multiple
+  languages", first in the language column. The language column is the
+  popup's own dropdown for the tier — the same entries, named the same way.
+- **▶** — your voices speak a sentence in the voice's own language,
+  synthesized by your provider like any sentence; Zotero's voices speak
+  Zotero's own sample, which spends no credits.
+- *Offer only favorite voices* trims the Read Aloud popup to the marked
+  ones **in every tier** — a tier you marked nothing in comes up empty, and
+  Zotero grays it out. With nothing marked at all, or when none of the
+  marked voices is listed any more, everything is offered again. While the
+  switch is on, only a favorite can be the default. Favorites travel with
+  the settings backup.
+- The status line names the default by tier, language and voice with the
+  speed (`Default voice: Local | Chinese | Azure-晓晓 | 1.8×`); a click on
+  the default row clears it, back to Zotero's own per-language choice. Pick
+  another voice in any tab's popup while the settings are open and the
+  highlight moves there.
+- The **Speed** slider plays the samples at that speed, and releasing it
+  makes that the speed Read Aloud starts with — at once in a document that
+  is playing. Zotero stretches its audio, pitch kept, so the slider costs
+  no new request.
+- While Read Aloud is open in some tab, adding a voice — marking a favorite
+  with *Offer only favorite voices* on, or enabling a provider — is refused
+  with a message naming the tabs: close them, then try again. Zotero has no
+  way to refresh an open popup's list.
 
-The voice you last picked — in the popup, or by **clicking a row** here —
-is the **default**, what Read Aloud starts with (see *Reading* below): the
-browser opens on its row, highlighted, and the status line names it by
-tier, language and voice with the speed (`Default voice: Local | Chinese |
-Azure-晓晓 | 1.8×`). The line follows the two *everywhere* switches under
-*Reading*: with *Use one voice everywhere* off it names the speed alone,
-with *Use one speed everywhere* off the voice alone. A click on a row
-makes that voice the default everywhere — every document, and at once in
-every tab that is reading — and a click on the default clears it, back
-to Zotero's own per-language choice. Pick another voice in any tab's
-popup while the settings are open and the highlight moves there.
+</details>
 
 ### Reading
 
 - *Use one voice everywhere* — one voice for every document and every open
-  tab, whatever the document's language: pick it in the popup of any tab
-  and every other tab that is reading goes on with it from its current
-  sentence; the rest get it when their popup opens. The popup of a
-  document in another language is switched to the voice's language (a
-  Chinese PDF reads with your English voice, its sentences split by
-  English rules); multilingual voices (Azure's, OpenAI's) sit under the
-  popup's "Multiple languages" entry, which the plugin pins to the top of
-  the language list. Off, Zotero remembers a voice per document language.
+  tab, whatever the document's language. Off, Zotero remembers a voice per
+  document language.
 - *Use one speed everywhere* — one speed for every document and every open
-  tab: set it from the popup's slider, the shortcuts or the settings
-  slider, and every tab follows at once. Off, Zotero keeps a speed per
-  document language, and the settings slider only sets the samples' pace.
+  tab, set from the popup's slider, the shortcuts or the settings slider.
+  Off, Zotero keeps a speed per document language.
 - *Hide Zotero's own Local voices* — the Local tier then offers only the
-  plugin's entries, which drop their `TTS-` prefix. Takes effect the next
-  time the Read Aloud popup opens.
+  plugin's entries, which drop their `TTS-` prefix.
 - *Cache synthesized audio* — skipping back or reopening a document costs no
   new request.
+
+<details>
+<summary><b>Details</b></summary>
+
+Pick the one voice in the popup of any tab and every other tab that is
+reading goes on with it from its current sentence; the rest get it when
+their popup opens. The popup of a document in another language is switched
+to the voice's language (a Chinese PDF reads with your English voice, its
+sentences split by English rules); multilingual voices (Azure's, OpenAI's)
+sit under the popup's "Multiple languages" entry, which the plugin pins to
+the top of the language list. *Hide Zotero's own Local voices* takes effect
+the next time the Read Aloud popup opens.
+
+</details>
 
 ### Backup
 
@@ -234,8 +228,10 @@ password.
   that reports word timings (Azure, Kokoro).
 - **"An unknown error occurred" part-way through a document** with an
   OpenAI-compatible server: the server failed on one segment; check its log.
-- **The `TTS-…` voices are missing after a Zotero update.** See
-  [Compatibility](#compatibility) and open an
+- **The `TTS-…` voices are missing after a Zotero update.** Read Aloud has
+  no plugin API, so the plugin hooks Zotero's internal interface per reader
+  tab and an update can drop its voices until the plugin catches up
+  (Zotero's own keep working). Open an
   [issue](https://github.com/xujialiu/Zotero-TTS/issues) with the Zotero
   version.
 
@@ -245,11 +241,6 @@ password.
 
 - Zotero 10 on the desktop, pinned to `10.*`. In use on Windows and macOS;
   Linux should be the same, but is untested.
-- Read Aloud has no plugin API, so the plugin hooks Zotero's internal
-  interface per reader tab. A Zotero update can drop the plugin's voices
-  until the plugin is updated; Zotero's own voices keep working.
-- Word highlighting needs a voice with word timings (Azure, Kokoro). The
-  plugin never guesses them.
 
 ## Development
 
