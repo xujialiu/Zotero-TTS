@@ -46,10 +46,14 @@ import { refuseWhileReading } from './reading-guard';
  * The voice Read Aloud starts with — the one remembered across documents
  * (read-aloud/read-aloud-memory.ts), which is the popup's last pick — is
  * shown: the browser opens on its tier and language, its row is painted
- * like a selected column entry, and the status line names it with the
- * speed; a pick in any tab's popup while the pane is open moves the
- * highlight there (the pane observes the memory pref). The memory is the
- * source of truth; the browser is its view.
+ * like a selected column entry, and the status line names it by tier,
+ * language and label with the speed (`Default voice: Local | English
+ * (United States) | Azure-Brandon | 1.7×`); a pick in any tab's popup while
+ * the pane is open moves the highlight there (the pane observes the memory
+ * pref). The memory is the source of truth; the browser is its view. The
+ * line follows the Reading group's two "everywhere" switches: with the
+ * voice's off it names the speed alone, with the speed's off the voice
+ * alone, with both off neither (defaultVoiceLine).
  */
 
 export const VOICE_BROWSER_IDS = {
@@ -124,8 +128,17 @@ export interface VoiceBrowserDeps {
   localeName?(code: string): string;
   /** The ReadAloudManager of every open reader, looked up when the slider is released; omitted where there is no Zotero to ask. */
   readAloudManagers?(): SpeedManagerLike[];
-  /** The "one speed everywhere" switch, read when the slider is released; off, the slider drives the samples only. Omitted means on. */
+  /** The "one speed everywhere" switch, read when the slider is released and at every repaint of the status line; off, the slider drives the samples only. Omitted means on. */
   globalSpeed?(): boolean;
+  /**
+   * The "one voice everywhere" switch (`readAloud.sameForAllDocuments`),
+   * read at every repaint of the status line; off, the remembered voice is
+   * applied nowhere (read-aloud/memory-sync.ts), so the line names the
+   * speed alone. Omitted means on.
+   */
+  sameVoice?(): boolean;
+  /** Calls back whenever either "everywhere" switch flips (a pref observer each), and returns the way to stop; the status line repaints. */
+  watchSwitches?(onChange: () => void): () => void;
   /** A reader that misbehaved while the speed was applied; the speed is stored regardless. */
   log?(e: unknown): void;
   /**
@@ -258,48 +271,73 @@ export function defaultVoiceRows(voices: readonly BrowserVoice[], choice: VoiceC
 }
 
 /**
- * The status line's account of what Read Aloud starts with: the default
- * voice by its row's label and language — by its id when no listed row is
- * it, so a provider switched off does not read as "no default" — or
- * Zotero's own per-language choice when none is remembered, and the
- * default speed; `speed` null while "one speed everywhere" is off, when
- * Zotero keeps a speed per document language and the slider only paces
- * the samples.
+ * The status line's account of what Read Aloud starts with, in the order
+ * the columns stand: `Default voice: <tier> | <language> | <label> |
+ * <speed>` — the voice by its row when one is listed, by its id when none
+ * is (`<id> (not listed now)`: a provider switched off does not read as
+ * "no default"), or `Zotero’s own choice per language` when none is
+ * remembered. Each half answers to its "everywhere" switch: `speed` is
+ * null while "one speed everywhere" is off, when Zotero keeps a speed per
+ * document language and the slider only paces the samples, and the line
+ * ends at the voice; `sameVoice` false is "one voice everywhere" off, when
+ * the remembered voice is applied nowhere and the line is `Default speed:
+ * <speed>`; both off, it says so.
  */
-export function defaultVoiceLine(choice: VoiceChoice | null, home: BrowserVoice | null, tiers: readonly TierGroup[], speed: number | null): string {
-  const voice = !choice ? 'Zotero’s own choice' : home ? `${home.label} · ${languageNameOf(tiers, home)}` : `${choice.id} (not listed now)`;
-  return `Default: ${voice} · ${speed === null ? 'speed per language' : formatSpeed(speed)}`;
+export function defaultVoiceLine(choice: VoiceChoice | null, home: BrowserVoice | null, tiers: readonly TierGroup[], speed: number | null, sameVoice = true): string {
+  const voice = !sameVoice
+    ? null
+    : !choice
+      ? 'Zotero’s own choice per language'
+      : home
+        ? [TIER_LABELS[home.tier], languageNameOf(tiers, home), home.label].join(' | ')
+        : `${choice.id} (not listed now)`;
+  const pace = speed === null ? null : formatSpeed(speed);
+  if (voice) return `Default voice: ${voice}` + (pace ? ` | ${pace}` : '');
+  if (pace) return `Default speed: ${pace}`;
+  return 'No default voice or speed: Zotero keeps both per language';
 }
 
 const describeError = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
 /**
- * One line of every column: the tier and language entries, and a voice row's
- * glyph buttons and label alike, are this many ems high with 3px above and
- * below, so the three columns share one rhythm.
+ * One line of every column: a tier or language entry, and a voice row with
+ * its glyph buttons and label, are this many ems of text with LINE_PADDING
+ * above and below, so the three columns share one rhythm.
  *
- * All of them are native buttons, which bring a minimum height of their own —
- * and the glyphs (▶ ♡) fall back to a symbol font whose line box is taller
- * still. Left alone, the voice rows stood noticeably further apart than the
- * columns beside them, so every entry caps its own line box here.
+ * All of them are native <button>s, and Zotero's own stylesheets size
+ * those by bare type selectors that know no namespace, so an html:button
+ * of ours is hit like a XUL one: Zotero's Windows `zotero-platform/win/
+ * preferences.css` gives every button `height: 28px`. A button that
+ * leaves its height to its line box measures 28px instead (2026-08-28,
+ * Zotero 10.0.2-beta.1, pane font 13px: the column entries did, and the
+ * voice labels too once they became buttons — their rows 34px apart
+ * against the columns' 28px), and the glyphs (▶ ♡) fall back to a symbol
+ * font whose line box is taller still. So every button states its whole
+ * box inline — inline beats the sheets: height, the min/max that would
+ * override it, box-sizing, margin — and every line of the three columns
+ * measures LINE_BOX (25.5px at 13px).
  */
 const LINE_HEIGHT = '1.5';
+const LINE_PADDING = '3px';
+/** A full line of a column, padding included: what every entry and every voice row measures. */
+const LINE_BOX = `calc(${LINE_HEIGHT}em + 2 * ${LINE_PADDING})`;
 
+/** Everything a button of the browser must say to look like plain text of a known height, whatever Zotero's sheets say. */
+const BUTTON_RESET =
+  'appearance: none; border: none; background: transparent; color: inherit; font: inherit; cursor: pointer;' +
+  ` box-sizing: border-box; min-height: 0; max-height: none; line-height: ${LINE_HEIGHT}; margin: 0;`;
 const ROW_BUTTON_STYLE =
-  'appearance: none; border: none; background: transparent; cursor: pointer; color: inherit; font: inherit;' +
-  ` display: inline-flex; align-items: center; justify-content: center; height: ${LINE_HEIGHT}em; min-height: 0; line-height: 1; margin: 0; padding: 0 2px;`;
+  BUTTON_RESET + ` display: inline-flex; align-items: center; justify-content: center; height: ${LINE_HEIGHT}em; line-height: 1; padding: 0 2px;`;
 const COLUMN_ENTRY_STYLE =
-  'display: block; width: 100%; text-align: start; appearance: none; border: none; background: transparent; color: inherit; font: inherit;' +
-  ` line-height: ${LINE_HEIGHT}; min-height: 0; margin: 0; padding: 3px 8px; border-radius: 3px; cursor: pointer; white-space: nowrap;`;
+  BUTTON_RESET + ` display: block; width: 100%; height: ${LINE_BOX}; text-align: start; padding: ${LINE_PADDING} 8px; border-radius: 3px; white-space: nowrap;`;
 const COLUMN_SELECTED_STYLE = COLUMN_ENTRY_STYLE + ' background: SelectedItem; color: SelectedItemText;';
 const COLUMN_EMPTY_STYLE = COLUMN_ENTRY_STYLE + ' opacity: 0.5;';
-const ROW_STYLE = 'display: flex; align-items: center; gap: 6px; padding: 3px 4px; border-radius: 3px;';
+const ROW_STYLE = `display: flex; align-items: center; gap: 6px; box-sizing: border-box; height: ${LINE_BOX}; padding: ${LINE_PADDING} 4px; border-radius: 3px;`;
 /** The default voice's row: painted like a selected column entry. */
 const ROW_DEFAULT_STYLE = ROW_STYLE + ' background: SelectedItem; color: SelectedItemText;';
 /** The voice's name, a button like the column entries: a click makes the voice the default. */
 const ROW_LABEL_STYLE =
-  'flex: 1; min-width: 0; text-align: start; appearance: none; border: none; background: transparent; color: inherit; font: inherit;' +
-  ` line-height: ${LINE_HEIGHT}; min-height: 0; margin: 0; padding: 0 2px; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;`;
+  BUTTON_RESET + ` flex: 1; min-width: 0; height: ${LINE_HEIGHT}em; text-align: start; padding: 0 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;`;
 /** A row that cannot be the default while only favorites are offered. */
 const ROW_LABEL_BLOCKED_STYLE = ROW_LABEL_STYLE + ' opacity: 0.5; cursor: default;';
 const DEFAULT_ROW_TITLE = 'The default voice: Read Aloud starts with it. Click to clear it';
@@ -552,10 +590,11 @@ export function initVoiceBrowserRows(
   /**
    * The status line once voices are listed: the default voice and the speed
    * (defaultVoiceLine) — the slider's value, which is the default while
-   * "one speed everywhere" is on, read here so the checkbox applies at
-   * the next repaint — with what failed to list beside it, never instead
-   * of it. Nothing listed says why. Until the first listing the line is
-   * load()'s own message, so this leaves it alone.
+   * "one speed everywhere" is on; both switches are read here and observed
+   * (watchSwitches), so a checkbox flipped repaints at once — with what
+   * failed to list beside it, never instead of it. Nothing listed says
+   * why. Until the first listing the line is load()'s own message, so this
+   * leaves it alone.
    */
   function paintStatus(): void {
     if (!listed) return;
@@ -565,9 +604,12 @@ export function initVoiceBrowserRows(
     }
     const trouble = problems.length ? ` — ${problems.join('; ')}` : '';
     const defaultSpeed = (deps.globalSpeed?.() ?? true) ? speed : null;
-    // A default that is not a favorite is not offered while the switch is on: the line warns at every repaint
-    const warning = choice && favoritesOnly() && !readFavorites().includes(choice.id) ? NOT_A_FAVORITE : '';
-    status(defaultVoiceLine(choice, defaults[0] ?? null, tiers, defaultSpeed) + warning + trouble);
+    const sameVoice = deps.sameVoice?.() ?? true;
+    // A default that is not a favorite is not offered while the switch is
+    // on: the line warns at every repaint — about the voice it names, so
+    // not while the voice switch is off and it names none
+    const warning = sameVoice && choice && favoritesOnly() && !readFavorites().includes(choice.id) ? NOT_A_FAVORITE : '';
+    status(defaultVoiceLine(choice, defaults[0] ?? null, tiers, defaultSpeed, sameVoice) + warning + trouble);
   }
 
   /** The "offer only favorite voices" switch flipped: which rows can be picked changed, and so may the warning. */
@@ -718,11 +760,14 @@ export function initVoiceBrowserRows(
   paintSpeed();
   const unwatch = deps.watchMemory?.(onMemoryChange) ?? null;
   const unwatchFavoritesOnly = deps.watchFavoritesOnly?.(onFavoritesOnlyChange) ?? null;
+  // An "everywhere" switch flipped: the line names the voice, the speed, both or neither
+  const unwatchSwitches = deps.watchSwitches?.(paintStatus) ?? null;
 
   /** The pane is closing: stop following the prefs, and stop the sample. */
   function dispose(): void {
     unwatch?.();
     unwatchFavoritesOnly?.();
+    unwatchSwitches?.();
     stopPlayback();
   }
 

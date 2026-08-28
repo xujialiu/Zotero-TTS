@@ -2778,3 +2778,69 @@ chrome use `reader._internalReader.toggleReadAloudPopup(false)` — a bare
 `manager.deactivate()` with the popup still open is undone at once by the
 popup's state sync, which re-activates the manager and, in one tab,
 started playback.
+
+## Voice browser: the status line by column, and Zotero's 28px buttons (2026-08-28)
+
+Two pane fixes on `xujialiu/minor`, shipped as 1.8.0-beta5.
+
+**The status line** now reads in the order the columns stand — `Default
+voice: Local | English (United States) | Kokoro-am_puck | 1.7×`
+(`defaultVoiceLine`; `Zotero’s own choice per language` with nothing
+remembered, `<id> (not listed now)` with no listed row) — and each half
+answers to its switch in the Reading group: "Use one voice everywhere"
+off → `Default speed: 1.7×`; "Use one speed everywhere" off → the voice
+alone, no speed; both off → `No default voice or speed: Zotero keeps both
+per language`. Listing failures and the not-a-favorite warning are still
+appended (the warning only while the line names a voice). Both switches
+are now *observed* (`watchSwitches`: `SAME_VOICE_OBSERVER` in
+default-voice.ts, `GLOBAL_SPEED_OBSERVER` in default-speed.ts), so a
+checkbox flipped repaints the line inside `Zotero.Prefs.set` — verified:
+the line read back immediately after each `set` already held the new
+text, the same as 200 ms later, and the `preference=`-bound checkboxes
+had followed. `diagnostics.defaultVoice()` reports `sameVoice` beside
+`globalSpeed`, and its `status` equaled the pane's line exactly.
+
+**The third column's rows** stood further apart than the tier and language
+entries again — the 48ca0b3 rhythm, broken when c49d912 turned the voice
+label from a `<span>` into a `<button>` for the row click. Measured live
+before the fix (beta4, Windows, pane font 13px): tier and language entries
+28px tall and 28px apart, `line-height` 19.5px; a voice row 34px apart, its
+label button computing `height: 28px`; the glyph buttons 19.5px (their
+inline `height: 1.5em`). The cause is Zotero's own sheet, verified in the
+installed omni.ja: `chrome/content/zotero-platform/win/preferences.css`
+holds `:is(button:where(:not(.btn,[type=checkbox],[type=radio])),
+input:where([type=button],[type=submit])){height:28px;appearance:none;
+padding:0;border:1px solid transparent;…}` — a type selector with no
+`@namespace` in the sheet, so it matches our `html:button`s like Zotero's
+XUL ones; the pane's stylesheets are `global.css`, `zotero-platform/
+content/preferences.css`, `zotero/skin/preferences.css`, `zotero.css`. The
+column entries had been 28px all along (their `line-height: 1.5` never
+decided their height; the two columns agreed on the sheet's number, so
+nothing showed), and the label became 28px the moment it was a button:
+row = 28 + 3 + 3 = 34. The skin's `button{max-height:25px;margin:0 -2px
+-1px}` was *not* in effect on them (computed `max-height: none` before the
+fix; a parent scope the minified sheet's grep flattened, presumably).
+
+Fix (`BUTTON_RESET`, ui/voice-browser-rows.ts): every button of the
+browser states its whole box inline — `height`, `min-height: 0`,
+`max-height: none`, `box-sizing: border-box`, `margin: 0` — and so does
+the row; inline beats the sheets. After (beta5, same measurement): every
+entry and every row 25.5px (= 1.5 × 13 + 6), pitch 25.5 in all three
+columns, label and glyph buttons 19.5px, label `height` 19.5px. Side
+effect: the tier and language columns tightened from 28 to 25.5px a line.
+Rule: **an `html:button` in the pane is sized like a XUL button by
+Zotero's sheets; never leave one of its dimensions to the line box.** The
+measurement is the check for any future change to these styles: the three
+columns' `pitch` equal, the label's computed `height` = 1.5 × font-size.
+
+Seen alongside, not caused by the build: 19 `can't access dead object`
+errors at the second of the in-place upgrade (`zotero_plugin_install`
+beta4 → beta5) with a Read Aloud session active (paused) in one tab, from
+the *old* bundle (`zotero-tts.js:0:NNNN` offsets, which locate nothing —
+the installed bundle is unminified). Not reproduced by flipping the prefs
+or closing the pane afterwards, and the earlier close of the beta4 pane
+had logged nothing. Consistent with the old sandbox's callbacks (the
+position sampler's tick, the manager hooks) running once more after their
+compartment was nuked — the same class as the position sampler's dead
+entry above. Not investigated; noted so the next in-place upgrade with a
+session open is read for it, not for the change under test.

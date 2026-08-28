@@ -175,13 +175,15 @@ pace and stretched on playback.
 
 The voice you last picked — in the popup, or by **clicking a row** here —
 is the **default**, what Read Aloud starts with (see *Reading* below): the
-browser opens on its row, highlighted, and the status line names it with
-the speed (`Default: Azure-晓晓 · Chinese (China) · 1.8×`; with *Use one
-speed everywhere* off, `speed per language`). A click on a row makes that
-voice the default everywhere — every document, and at once in every tab
-that is reading — and a click on the default clears it, back to Zotero's
-own per-language choice. Pick another voice in any tab's popup while the
-settings are open and the highlight moves there.
+browser opens on its row, highlighted, and the status line names it by
+tier, language and voice with the speed (`Default voice: Local | Chinese |
+Azure-晓晓 | 1.8×`). The line follows the two *everywhere* switches under
+*Reading*: with *Use one voice everywhere* off it names the speed alone,
+with *Use one speed everywhere* off the voice alone. A click on a row
+makes that voice the default everywhere — every document, and at once in
+every tab that is reading — and a click on the default clears it, back
+to Zotero's own per-language choice. Pick another voice in any tab's
+popup while the settings are open and the highlight moves there.
 
 ### Reading
 

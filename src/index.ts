@@ -964,18 +964,19 @@ const diagnostics = {
       const rows = defaultVoiceRows(voices, memory.voice);
       const home = rows[0] ?? null;
       const tiers = groupVoicesByTier(voices, appLanguageName);
-      const globalSpeed = loadSettings(prefs).readAloud.globalSpeed;
+      const { globalSpeed, sameForAllDocuments: sameVoice } = loadSettings(prefs).readAloud;
       return JSON.stringify(
         {
           memory,
           globalSpeed,
+          sameVoice,
           listed: voices.length,
           zoteroError,
           rows: rows.map((r) => ({ tier: r.tier, locale: r.locale, label: r.label, id: r.encoded })),
           // The language entry the row sits under, named as the popup's dropdown names it
           opensOn: home ? { tier: home.tier, language: dropdownLanguage(home.locale), name: languageNameOf(tiers, home) } : 'the usual tier (no listed row is the default)',
-          // The pane's line as it opens: the slider starts at startingSpeed, and names no default speed while the switch is off
-          status: defaultVoiceLine(memory.voice, home, tiers, globalSpeed ? startingSpeed(prefs) : null),
+          // The pane's line as it opens: the slider starts at startingSpeed; each half of the line answers to its "everywhere" switch
+          status: defaultVoiceLine(memory.voice, home, tiers, globalSpeed ? startingSpeed(prefs) : null, sameVoice),
         },
         null,
         1,

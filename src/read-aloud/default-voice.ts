@@ -28,6 +28,9 @@ import { readMemory, writeMemory, type VoiceChoice } from './read-aloud-memory';
  * choice".
  */
 
+/** The "one voice everywhere" switch's pref, as `Zotero.Prefs.registerObserver` names it (relative to `extensions.zotero.`). */
+export const SAME_VOICE_OBSERVER = 'zotero-tts.readAloud.sameForAllDocuments';
+
 export interface DefaultVoicePick extends VoiceChoice {
   /** The voice's own region subtag (`CN` for zh-CN; none for mul) — what `_persistCurrentVoice` stores as the entry's region. */
   region: string | null;

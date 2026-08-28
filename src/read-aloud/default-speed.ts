@@ -19,6 +19,9 @@ import { readMemory, writeMemory } from './read-aloud-memory';
  *   slider calls, and Zotero time-stretches the audio it already has.
  */
 
+/** The "one speed everywhere" switch's pref, as `Zotero.Prefs.registerObserver` names it (relative to `extensions.zotero.`). */
+export const GLOBAL_SPEED_OBSERVER = 'zotero-tts.readAloud.globalSpeed';
+
 /** The part of Zotero's ReadAloudManager this drives — the shape ui/read-aloud-shortcuts.ts uses too. */
 export interface SpeedManagerLike {
   /** "A Read Aloud session is open"; paused keeps it true. */

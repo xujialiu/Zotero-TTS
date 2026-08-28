@@ -18,6 +18,8 @@ import { initWebDAVRows } from './webdav-rows';
 import { initHighlightRows } from './highlight-rows';
 import { initProviderRows } from './provider-rows';
 import { createSamplePlayer, initVoiceBrowserRows } from './voice-browser-rows';
+import { GLOBAL_SPEED_OBSERVER } from '../read-aloud/default-speed';
+import { SAME_VOICE_OBSERVER } from '../read-aloud/default-voice';
 import { showPaneNotice } from './reading-guard';
 import { resolveReaderTheme, type ResolvedReaderTheme } from '../core/reader-theme';
 
@@ -372,8 +374,14 @@ export function onPaneLoad(doc: Document, hooks: PaneHooks = {}): void {
     // The manager of every open reader, the way the shortcuts reach it: a
     // released slider changes the pace of a document that is playing at once
     readAloudManagers: () => (Zotero.Reader._readers ?? []).map((r: any) => r?._internalReader?._readAloudManager).filter(Boolean),
-    // Read on release, so the checkbox above applies at once
+    // Read on release and at every repaint of the status line, so the checkboxes below apply at once
     globalSpeed: () => loadSettings(prefs).readAloud.globalSpeed,
+    sameVoice: () => loadSettings(prefs).readAloud.sameForAllDocuments,
+    // Either "everywhere" checkbox of the Reading group flipped: the status line repaints
+    watchSwitches: (onChange) => {
+      const tokens = [SAME_VOICE_OBSERVER, GLOBAL_SPEED_OBSERVER].map((name) => Zotero.Prefs.registerObserver(name, onChange));
+      return () => tokens.forEach((token) => Zotero.Prefs.unregisterObserver(token));
+    },
     log: (e) => Zotero.logError(e),
     // The popup's slider and the shortcuts move the memory (memory-sync);
     // the pane's slider follows while it is open. Observers fire
