@@ -1,0 +1,223 @@
+import { describe, expect, it, vi } from 'vitest';
+import type { ProviderId } from '../../src/core/providers/types';
+import { PREF_PREFIX, PROVIDER_IDS, type PrefsBackend } from '../../src/core/settings';
+import { initProviderRows, providerRowIds, type CheckOutcome } from '../../src/ui/provider-rows';
+
+function fakePrefs(initial: Record<string, unknown> = {}): PrefsBackend & { store: Record<string, unknown> } {
+  const store = { ...initial };
+  return { store, get: (k) => store[k], set: (k, v) => void (store[k] = v) };
+}
+
+class FakeElement {
+  disabled = false;
+  attrs = new Map<string, string>();
+  listeners = new Map<string, Array<() => unknown>>();
+  setAttribute(k: string, v: string) {
+    this.attrs.set(k, String(v));
+  }
+  addEventListener(type: string, fn: () => unknown) {
+    if (!this.listeners.has(type)) this.listeners.set(type, []);
+    this.listeners.get(type)!.push(fn);
+  }
+  /** Fires the listeners; settles once every async one has. */
+  fire(type: string) {
+    return Promise.all((this.listeners.get(type) ?? []).map((fn) => fn()));
+  }
+}
+
+/** A provider's groupbox: the fields the lock reaches. */
+class FakeSection {
+  constructor(public fields: FakeElement[]) {}
+  querySelectorAll(_selector: string) {
+    return this.fields;
+  }
+}
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (reason: unknown) => void;
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return { promise, resolve, reject };
+}
+
+const enabledPref = (id: ProviderId) => `${PREF_PREFIX}${id}.enabled`;
+const CONNECTED: CheckOutcome = { ok: true, message: 'Connected. 3 voices available.' };
+const REFUSED: CheckOutcome = { ok: false, message: 'The server rejected the API key.' };
+
+function setup(options: { prefs?: Record<string, unknown>; reading?: string[]; check?: (id: ProviderId) => Promise<CheckOutcome> } = {}) {
+  const els = new Map<string, FakeElement>();
+  const sections = new Map<string, FakeSection>();
+  for (const id of PROVIDER_IDS) {
+    const ids = providerRowIds(id);
+    els.set(ids.toggle, new FakeElement());
+    els.set(ids.test, new FakeElement());
+    els.set(ids.result, new FakeElement());
+    sections.set(ids.section, new FakeSection([new FakeElement(), new FakeElement()]));
+  }
+  const doc = { getElementById: (id: string) => els.get(id) ?? sections.get(id) ?? null };
+  const prefs = fakePrefs(options.prefs);
+  const check = vi.fn(options.check ?? (async (_id: ProviderId) => CONNECTED));
+  const onVoicesChanged = vi.fn();
+  const onUnlocked = vi.fn((_id: ProviderId) => {});
+  const warn = vi.fn((_message: string) => {});
+  const rows = initProviderRows(doc, { prefs, check, onVoicesChanged, onUnlocked, readingTabs: () => options.reading ?? [], warn });
+  const of = (id: ProviderId) => {
+    const ids = providerRowIds(id);
+    return {
+      toggle: els.get(ids.toggle)!,
+      test: els.get(ids.test)!,
+      label: () => els.get(ids.toggle)!.attrs.get('label'),
+      result: () => els.get(ids.result)!.attrs.get('value'),
+      /** The fields' disabled flags: all true while the provider is on. */
+      locked: () => sections.get(ids.section)!.fields.map((f) => f.disabled),
+      enabled: () => prefs.store[enabledPref(id)],
+    };
+  };
+  return { prefs, rows, check, onVoicesChanged, onUnlocked, warn, of };
+}
+
+describe('initProviderRows', () => {
+  it('paints every switch from its pref on load: off is "Enable" with the fields open, on is "Disable" with them locked', () => {
+    const t = setup({ prefs: { [enabledPref('azure')]: true } });
+    expect(t.of('openai').label()).toBe('Enable');
+    expect(t.of('openai').locked()).toEqual([false, false]);
+    expect(t.of('azure').label()).toBe('Disable');
+    expect(t.of('azure').locked()).toEqual([true, true]);
+    expect(t.of('local').label()).toBe('Enable');
+    // Painting open fields hands them back to the preset rows, which gray out theirs
+    expect(t.onUnlocked.mock.calls.map(([id]) => id)).toEqual(['openai', 'local']);
+    expect(t.check).not.toHaveBeenCalled();
+    expect(t.onVoicesChanged).not.toHaveBeenCalled();
+  });
+
+  it('enabling runs the check, and switches on only once it passes: the pref, the label, the lock, and the voices listed again', async () => {
+    const pending = deferred<CheckOutcome>();
+    const t = setup({ check: () => pending.promise });
+    const azure = t.of('azure');
+    const clicked = azure.toggle.fire('command');
+    expect(t.check).toHaveBeenCalledWith('azure');
+    // While the check runs: no pref yet, both buttons held, the line says so
+    expect(azure.enabled()).toBeUndefined();
+    expect(azure.label()).toBe('Checking…');
+    expect(azure.toggle.disabled).toBe(true);
+    expect(azure.test.disabled).toBe(true);
+    expect(azure.result()).toBe('Checking…');
+    pending.resolve(CONNECTED);
+    await clicked;
+    expect(azure.enabled()).toBe(true);
+    expect(azure.label()).toBe('Disable');
+    expect(azure.toggle.disabled).toBe(false);
+    expect(azure.test.disabled).toBe(false);
+    expect(azure.locked()).toEqual([true, true]);
+    expect(azure.result()).toBe('Connected. 3 voices available.');
+    expect(t.onVoicesChanged).toHaveBeenCalledTimes(1);
+  });
+
+  it('a failed check leaves the provider off, with the message where Test connection writes its own', async () => {
+    const t = setup({ check: async () => REFUSED });
+    const azure = t.of('azure');
+    await azure.toggle.fire('command');
+    expect(azure.enabled()).toBeUndefined();
+    expect(azure.label()).toBe('Enable');
+    expect(azure.locked()).toEqual([false, false]);
+    expect(azure.result()).toBe('The server rejected the API key.');
+    expect(t.onVoicesChanged).not.toHaveBeenCalled();
+  });
+
+  it('a check that throws reads as a failure, never as an unhandled rejection', async () => {
+    const t = setup({ check: async () => Promise.reject(new Error('no such provider')) });
+    const local = t.of('local');
+    await local.toggle.fire('command');
+    expect(local.enabled()).toBeUndefined();
+    expect(local.label()).toBe('Enable');
+    expect(local.result()).toBe('Connection failed: no such provider');
+  });
+
+  it('refuses to enable while a tab is reading, before any check: the user is told where', async () => {
+    const t = setup({ reading: ['Deep learning'] });
+    await t.of('openai').toggle.fire('command');
+    expect(t.warn).toHaveBeenCalledWith(expect.stringContaining('Deep learning'));
+    expect(t.check).not.toHaveBeenCalled();
+    expect(t.of('openai').enabled()).toBeUndefined();
+    expect(t.of('openai').label()).toBe('Enable');
+  });
+
+  it('disabling switches off at once — while reading too — unlocks the fields, clears the line, and lists the voices again', async () => {
+    const t = setup({ prefs: { [enabledPref('openai')]: true }, reading: ['Deep learning'] });
+    const openai = t.of('openai');
+    expect(openai.locked()).toEqual([true, true]);
+    await openai.test.fire('command');
+    expect(openai.result()).toBe('Connected. 3 voices available.');
+    t.onUnlocked.mockClear();
+    t.onVoicesChanged.mockClear();
+    await openai.toggle.fire('command');
+    expect(openai.enabled()).toBe(false);
+    expect(openai.label()).toBe('Enable');
+    expect(openai.locked()).toEqual([false, false]);
+    // The last check's outcome no longer holds
+    expect(openai.result()).toBe('');
+    expect(t.onUnlocked).toHaveBeenCalledWith('openai');
+    expect(t.onVoicesChanged).toHaveBeenCalledTimes(1);
+    expect(t.check).toHaveBeenCalledTimes(1);
+    expect(t.warn).not.toHaveBeenCalled();
+  });
+
+  it('Test connection probes without switching anything, and lists the voices again only for a provider that is on', async () => {
+    const t = setup({ prefs: { [enabledPref('azure')]: true } });
+    // Off: the outcome is shown, the pref and the fields stay as they are
+    await t.of('openai').test.fire('command');
+    expect(t.of('openai').result()).toBe('Connected. 3 voices available.');
+    expect(t.of('openai').enabled()).toBeUndefined();
+    expect(t.of('openai').label()).toBe('Enable');
+    expect(t.onVoicesChanged).not.toHaveBeenCalled();
+    // On: the server may have come back, so the browser lists again
+    await t.of('azure').test.fire('command');
+    expect(t.of('azure').label()).toBe('Disable');
+    expect(t.of('azure').locked()).toEqual([true, true]);
+    expect(t.onVoicesChanged).toHaveBeenCalledTimes(1);
+  });
+
+  it('Test connection failing on a provider that is on shows the message and lists nothing again', async () => {
+    const t = setup({ prefs: { [enabledPref('local')]: true }, check: async () => REFUSED });
+    await t.of('local').test.fire('command');
+    expect(t.of('local').result()).toBe('The server rejected the API key.');
+    expect(t.of('local').enabled()).toBe(true);
+    expect(t.onVoicesChanged).not.toHaveBeenCalled();
+  });
+
+  it('holds both buttons while a check runs, and ignores clicks meanwhile', async () => {
+    const pending = deferred<CheckOutcome>();
+    const t = setup({ check: () => pending.promise });
+    const local = t.of('local');
+    const testing = local.test.fire('command');
+    expect(local.result()).toBe('Testing…');
+    expect(local.toggle.disabled).toBe(true);
+    await local.toggle.fire('command');
+    await local.test.fire('command');
+    expect(t.check).toHaveBeenCalledTimes(1);
+    pending.resolve(CONNECTED);
+    await testing;
+    expect(local.toggle.disabled).toBe(false);
+    expect(local.test.disabled).toBe(false);
+    expect(local.label()).toBe('Enable');
+  });
+
+  it('refresh repaints from the prefs, as after a settings restore', () => {
+    const t = setup();
+    t.prefs.set(enabledPref('local'), true);
+    t.rows.refresh();
+    expect(t.of('local').label()).toBe('Disable');
+    expect(t.of('local').locked()).toEqual([true, true]);
+    expect(t.of('openai').label()).toBe('Enable');
+    expect(t.onVoicesChanged).not.toHaveBeenCalled();
+  });
+
+  it('tolerates a pane without the sections', () => {
+    const doc = { getElementById: () => null };
+    const deps = { prefs: fakePrefs(), check: vi.fn(async () => CONNECTED), onVoicesChanged: vi.fn(), readingTabs: () => [], warn: vi.fn() };
+    expect(() => initProviderRows(doc, deps).refresh()).not.toThrow();
+  });
+});

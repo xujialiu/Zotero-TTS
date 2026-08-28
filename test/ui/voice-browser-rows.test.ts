@@ -341,11 +341,19 @@ describe('loading the catalog', () => {
     expect(t.status()).toMatch(/provider/i);
   });
 
-  it('reloads on the button', async () => {
+  // The pane lists again on every provider switch; two in a row must end
+  // with the second one's voices in the columns, not the first's
+  it('lists once more after a load() asked for while one was running', async () => {
     const t = setup();
+    let release!: (catalog: CatalogEntry[]) => void;
+    t.deps.listCatalog.mockImplementationOnce(() => new Promise<CatalogEntry[]>((resolve) => (release = resolve)));
+    const running = t.rows.load();
     await t.rows.load();
-    await t.el(VOICE_BROWSER_IDS.reload).fire('command');
+    expect(t.deps.listCatalog).toHaveBeenCalledTimes(1);
+    release([]);
+    await running;
     expect(t.deps.listCatalog).toHaveBeenCalledTimes(2);
+    expect(t.tiers()).toEqual(['Standard (3)', 'Premium (1)', 'Local (5)']);
   });
 
   it('works without the Zotero deps at all', async () => {
@@ -806,12 +814,12 @@ describe('the default voice', () => {
     expect(t.highlighted()).toEqual(['Azure-晓晓']);
   });
 
-  it('keeps the tier and language being browsed across a reload', async () => {
+  it('keeps the tier and language being browsed across a new listing', async () => {
     const t = setup({ prefs: remembered(xiaoxiao, 'zh') });
     await t.rows.load();
     await t.pickTier('Standard');
     await t.pickLocale('German');
-    await t.el(VOICE_BROWSER_IDS.reload).fire('command');
+    await t.rows.load();
     expect(t.selectedTier()).toBe('Standard (3)');
     expect(t.selectedLocale()).toBe('German (1)');
   });

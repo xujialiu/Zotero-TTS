@@ -46,6 +46,11 @@ Install Plugin From File…** and restart Zotero; then enable a provider in
 | **Kokoro-FastAPI** | A server on your machine or LAN · [tutorial](tutorials/kokoro-fastapi.md) | Free; CPU works, a GPU is faster | word |
 | **OpenAI-compatible** | Base URL and model; an API key if the server wants one | OpenAI bills per character; self-hosted servers such as [Chatterbox](tutorials/chatterbox-tts-server.md) are free | sentence |
 
+Each provider section ends with **Enable**: it runs the connection check,
+and only a check that passes switches the provider on. While a provider is
+on, its fields are locked — **Disable** to edit them. **Test connection**
+probes without switching anything on.
+
 API keys are stored in Zotero's preferences in plain text, like every
 plugin setting, and go into the settings backup file.
 

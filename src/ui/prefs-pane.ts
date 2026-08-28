@@ -1,7 +1,7 @@
 import type { ProviderId, TTSProvider } from '../core/providers/types';
 import { LOCAL_ENGINES } from '../core/providers/local/registry';
 import { createProvider } from '../core/providers/factory';
-import { createZoteroPrefs, loadSettings, PROVIDER_IDS, type PrefsBackend } from '../core/settings';
+import { createZoteroPrefs, loadSettings, type PrefsBackend } from '../core/settings';
 import { getChromeWebSocket, newRequestId } from '../core/providers/azure';
 import { SynthesisError } from '../core/providers/errors';
 import { withTimeout } from '../core/timeout';
@@ -16,8 +16,9 @@ import { initBackupRows, type BackupFileIO } from './backup-rows';
 import { initServerPresetRows } from './server-preset-rows';
 import { initWebDAVRows } from './webdav-rows';
 import { initHighlightRows } from './highlight-rows';
+import { initProviderRows } from './provider-rows';
 import { createSamplePlayer, initVoiceBrowserRows } from './voice-browser-rows';
-import { guardProviderSwitches, showPaneNotice } from './reading-guard';
+import { showPaneNotice } from './reading-guard';
 import { resolveReaderTheme, type ResolvedReaderTheme } from '../core/reader-theme';
 
 const XHTML = 'http://www.w3.org/1999/xhtml';
@@ -287,6 +288,42 @@ function readingTabTitles(): string[] {
   return titles;
 }
 
+/**
+ * The provider's connection check as the pane runs it, for Test connection
+ * and for Enable alike (ui/provider-rows.ts): the provider built from the
+ * prefs as they are, and testConnection with the probes each provider
+ * gets — Azure and OpenAI cost money and have quotas, so theirs also
+ * proves the account can spend (Azure with its configured voice,
+ * OpenAI-compatible servers with the first voice they list, since a fixed
+ * name would be wrong); the local engine has neither. The server's
+ * models, when it lists them, become the Model field's suggestions.
+ */
+async function checkProvider(doc: Document, prefs: PrefsBackend, id: ProviderId): Promise<ConnectionResult> {
+  const settings = loadSettings(prefs);
+  let outcome: ConnectionResult;
+  try {
+    const provider = createProvider(id, settings, { fetch, getWebSocket: getChromeWebSocket, newRequestId });
+    outcome = await testConnection(provider, {
+      model: id === 'openai' ? settings.openai.model : undefined,
+      synthesisVoice: id === 'azure' ? settings.azure.voice : undefined,
+      probeSynthesis: id === 'openai',
+    });
+  } catch (e) {
+    outcome = { ok: false, message: `Connection failed: ${String(e)}` };
+  }
+  const suggestions = doc.getElementById(`ztts-${id}-models`);
+  if (suggestions && outcome.models) {
+    suggestions.replaceChildren(
+      ...rankModelsForSpeech(outcome.models).map((model) => {
+        const option = doc.createElementNS(XHTML, 'option') as HTMLOptionElement;
+        option.value = model;
+        return option;
+      }),
+    );
+  }
+  return outcome;
+}
+
 /** What the pane needs from the plugin's running state (src/index.ts hands it over). */
 export interface PaneHooks {
   /** memory-sync's spreadVoice (read-aloud/memory-sync.ts): a default picked in the browser reaches every tab that is reading. */
@@ -309,7 +346,6 @@ export function onPaneLoad(doc: Document, hooks: PaneHooks = {}): void {
     readingTabs: readingTabTitles,
     warn: (message: string) => showPaneNotice(doc, message, (text) => Services.prompt.alert(win, 'Zotero TTS', text)),
   };
-  guardProviderSwitches(doc, { prefs, ...readingGuard });
   const voiceBrowserRows = initVoiceBrowserRows(doc, {
     prefs,
     ...readingGuard,
@@ -361,6 +397,21 @@ export function onPaneLoad(doc: Document, hooks: PaneHooks = {}): void {
   // load costs one request per enabled provider and spends nothing.
   void voiceBrowserRows.load();
 
+  // The provider switches: Enable runs checkProvider and locks the section,
+  // and the voice browser lists again on every switch (ui/provider-rows.ts)
+  const providerRows = initProviderRows(doc, {
+    prefs,
+    ...readingGuard,
+    check: (id) => checkProvider(doc, prefs, id),
+    onVoicesChanged: () => void voiceBrowserRows.load(),
+    // Unlocked, the OpenAI fields the chosen server ignores are grayed out again
+    onUnlocked: (id) => {
+      if (id === 'openai') presetRows.refresh();
+    },
+  });
+  const localHeading = doc.getElementById('ztts-local-heading');
+  if (localHeading) localHeading.textContent = engineLabel(loadSettings(prefs).local.engine);
+
   const restoreDeps = {
     prefs,
     pluginVersion,
@@ -372,50 +423,15 @@ export function onPaneLoad(doc: Document, hooks: PaneHooks = {}): void {
       presetRows.refresh();
       highlightRows.refresh();
       voiceBrowserRows.refresh();
+      // The restored prefs may switch providers on or off: the switches and
+      // locks follow (after the preset rows, which gray their fields
+      // first), and the voices are listed again
+      providerRows.refresh();
+      void voiceBrowserRows.load();
     },
   };
   initBackupRows(doc, { ...backupFileIO(win), ...restoreDeps });
   // The sandbox's own fetch: Basic auth needs nothing from a window
   initWebDAVRows(doc, { ...restoreDeps, createClient: (cfg) => createWebDAVClient(cfg, { fetch }) });
 
-  doc.getElementById('ztts-local-enable')?.setAttribute('label', `Enable ${engineLabel(loadSettings(prefs).local.engine)}`);
-
-  for (const id of PROVIDER_IDS) {
-    doc.getElementById(`ztts-test-${id}`)?.addEventListener('command', async () => {
-      const result = doc.getElementById(`ztts-test-result-${id}`);
-      result?.setAttribute('value', 'Testing…');
-      const settings = loadSettings(prefs);
-      let outcome: ConnectionResult;
-      try {
-        const provider = createProvider(id, settings, {
-          fetch,
-          getWebSocket: getChromeWebSocket,
-          newRequestId,
-        });
-        outcome = await testConnection(provider, {
-          model: id === 'openai' ? settings.openai.model : undefined,
-          // Azure and OpenAI cost money and have quotas, so their test also
-          // proves the account can spend; the local engine has neither.
-          // Azure probes its configured voice; OpenAI-compatible servers get
-          // the first voice they list, since a fixed name would be wrong.
-          synthesisVoice: id === 'azure' ? settings.azure.voice : undefined,
-          probeSynthesis: id === 'openai',
-        });
-      } catch (e) {
-        outcome = { ok: false, message: `Connection failed: ${String(e)}` };
-      }
-      result?.setAttribute('value', outcome.message);
-      // Offer the server's models as suggestions under the Model field
-      const suggestions = doc.getElementById(`ztts-${id}-models`);
-      if (suggestions && outcome.models) {
-        suggestions.replaceChildren(
-          ...rankModelsForSpeech(outcome.models).map((model) => {
-            const option = doc.createElementNS(XHTML, 'option') as HTMLOptionElement;
-            option.value = model;
-            return option;
-          }),
-        );
-      }
-    });
-  }
 }

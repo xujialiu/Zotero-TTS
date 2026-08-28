@@ -4,9 +4,12 @@
      and only afterwards dispatches a `load` event to the fragment's root.
      A script would find none of these elements. -->
 <vbox onload="Zotero.ZoteroTTS.prefsPane.onPaneLoad(document)">
-  <groupbox>
+  <!-- One groupbox per provider, wired by ui/provider-rows.ts: Enable runs
+       the connection check and switches the provider on only when it
+       passes, locking the fields; Disable unlocks them. Test connection
+       probes without switching. Both write to the description beside them. -->
+  <groupbox id="ztts-provider-openai">
     <label><html:h2>OpenAI</html:h2></label>
-    <checkbox label="Enable OpenAI voices" preference="extensions.zotero.zotero-tts.openai.enabled"/>
     <!-- Not bound with preference=: server-preset-rows.ts writes the choice
          and the preset's defaults, and grays out the fields the server ignores. -->
     <hbox align="center">
@@ -46,14 +49,14 @@
       <html:input id="ztts-openai-headers" type="text" placeholder="Name: value; Name: value" preference="extensions.zotero.zotero-tts.openai.headers"/>
     </hbox>
     <hbox align="center">
+      <button id="ztts-enable-openai" label="Enable"/>
       <button id="ztts-test-openai" label="Test connection"/>
       <description id="ztts-test-result-openai"/>
     </hbox>
   </groupbox>
 
-  <groupbox>
+  <groupbox id="ztts-provider-azure">
     <label><html:h2>Azure</html:h2></label>
-    <checkbox label="Enable Azure voices" preference="extensions.zotero.zotero-tts.azure.enabled"/>
     <hbox align="center">
       <label value="API key" style="width: 8em"/>
       <html:input type="password" preference="extensions.zotero.zotero-tts.azure.apiKey"/>
@@ -63,17 +66,17 @@
       <html:input type="text" preference="extensions.zotero.zotero-tts.azure.region"/>
     </hbox>
     <hbox align="center">
+      <button id="ztts-enable-azure" label="Enable"/>
       <button id="ztts-test-azure" label="Test connection"/>
       <description id="ztts-test-result-azure"/>
     </hbox>
   </groupbox>
 
-  <groupbox>
-    <label><html:h2>Local engine</html:h2></label>
-    <!-- One block per engine: its own enable switch and address. Only
-         Kokoro exists today; the checkbox label is filled from the engine
-         registry in onPaneLoad. -->
-    <checkbox id="ztts-local-enable" label="Enable Kokoro-FastAPI" preference="extensions.zotero.zotero-tts.local.enabled"/>
+  <groupbox id="ztts-provider-local">
+    <!-- One block per engine: its own switch and address. Only Kokoro
+         exists today; the heading is filled from the engine registry in
+         onPaneLoad. -->
+    <label><html:h2 id="ztts-local-heading">Local engine</html:h2></label>
     <hbox align="center">
       <label value="Address" style="width: 8em"/>
       <html:input type="text" preference="extensions.zotero.zotero-tts.local.baseURL"/>
@@ -85,13 +88,15 @@
       <html:input type="text" placeholder="Name: value; Name: value" preference="extensions.zotero.zotero-tts.local.headers"/>
     </hbox>
     <hbox align="center">
+      <button id="ztts-enable-local" label="Enable"/>
       <button id="ztts-test-local" label="Test connection"/>
       <description id="ztts-test-result-local"/>
     </hbox>
   </groupbox>
 
   <!-- Every voice the enabled providers publish, grouped by language, with a
-       sample player and favorites; wired by ui/voice-browser-rows.ts. -->
+       sample player and favorites; wired by ui/voice-browser-rows.ts. Listed
+       on load and again whenever a provider switch above is used. -->
   <groupbox>
     <label><html:h2>Voice browser</html:h2></label>
     <hbox align="center">
@@ -116,7 +121,6 @@
                 style="flex: 1; min-width: 0; height: 16em; overflow-y: auto; border: 1px solid rgba(128, 128, 128, 0.4); border-radius: 4px; padding: 2px;"/>
     </html:div>
     <hbox align="center">
-      <button id="ztts-voices-reload" label="Reload voices"/>
       <description id="ztts-voices-status"/>
     </hbox>
   </groupbox>

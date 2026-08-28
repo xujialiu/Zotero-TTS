@@ -1,0 +1,139 @@
+import type { ProviderId } from '../core/providers/types';
+import { PREF_PREFIX, PROVIDER_IDS, type PrefsBackend } from '../core/settings';
+import { refuseWhileReading, type ReadingGuardDeps } from './reading-guard';
+
+/**
+ * The switch of each provider section: one button, "Enable" or "Disable".
+ * Enable is a commit point — the provider's connection check (the very one
+ * Test connection runs, prefs-pane.ts checkProvider) has to pass before
+ * the pref goes on, and while it is on the section's fields are locked. So
+ * an enabled provider always carries settings that were checked as they
+ * are, and the voice browser lists again on the switch alone: no watching
+ * of a dozen prefs, no debounce. The outcome is written where Test
+ * connection writes its own; a failed check leaves the provider off, with
+ * the message. Enabling is refused while a tab is reading (its popup
+ * would not list the new voices until Read Aloud reopens there —
+ * ui/reading-guard.ts); disabling never is, and unlocks the fields.
+ *
+ * Test connection stays: while a provider is off it probes without
+ * committing — and fills the Model suggestions, which has to happen while
+ * the fields are editable — while on it is the retry after a server came
+ * back, listing the voices again when it passes.
+ */
+
+export interface CheckOutcome {
+  ok: boolean;
+  message: string;
+}
+
+export interface ProviderRowsDeps extends ReadingGuardDeps {
+  prefs: PrefsBackend;
+  /** The provider's connection check as Test connection runs it, on the prefs as they are; bounded, never hanging. */
+  check(id: ProviderId): Promise<CheckOutcome>;
+  /** A provider went on or off, or one that is on was checked again: the voice browser lists again. */
+  onVoicesChanged(): void;
+  /** The section's fields were just unlocked: the preset rows gray out theirs again (ui/server-preset-rows.ts). Omitted where there are none. */
+  onUnlocked?(id: ProviderId): void;
+}
+
+/** The section's elements: the groupbox holding the fields, the switch, Test connection, and the line both write to. */
+export function providerRowIds(id: ProviderId): { section: string; toggle: string; test: string; result: string } {
+  return { section: `ztts-provider-${id}`, toggle: `ztts-enable-${id}`, test: `ztts-test-${id}`, result: `ztts-test-result-${id}` };
+}
+
+/** The section's fields: every input and the Server dropdown — the buttons are not among them. */
+const FIELDS_SELECTOR = 'input, menulist';
+
+export function initProviderRows(doc: { getElementById(id: string): any }, deps: ProviderRowsDeps): { refresh(): void } {
+  const pref = (id: ProviderId) => `${PREF_PREFIX}${id}.enabled`;
+  const enabled = (id: ProviderId) => deps.prefs.get(pref(id)) === true;
+  /** The providers whose check is running: their buttons are held, and a click meanwhile does nothing. */
+  const busy = new Set<ProviderId>();
+
+  const elements = (id: ProviderId) => {
+    const ids = providerRowIds(id);
+    return {
+      section: doc.getElementById(ids.section),
+      toggle: doc.getElementById(ids.toggle),
+      test: doc.getElementById(ids.test),
+      result: doc.getElementById(ids.result),
+    };
+  };
+  const say = (id: ProviderId, text: string) => elements(id).result?.setAttribute('value', text);
+  const fields = (id: ProviderId): any[] => Array.from(elements(id).section?.querySelectorAll?.(FIELDS_SELECTOR) ?? []);
+
+  /** The switch and the fields as the pref says: on is "Disable" with the fields locked, off is "Enable" with them open for editing. */
+  function paint(id: ProviderId): void {
+    const { toggle, test } = elements(id);
+    const on = enabled(id);
+    toggle?.setAttribute('label', on ? 'Disable' : 'Enable');
+    if (toggle) toggle.disabled = false;
+    if (test) test.disabled = false;
+    for (const field of fields(id)) field.disabled = on;
+    if (!on) deps.onUnlocked?.(id);
+  }
+
+  /** Both buttons held while a check runs. */
+  function hold(id: ProviderId): void {
+    const { toggle, test } = elements(id);
+    busy.add(id);
+    if (toggle) toggle.disabled = true;
+    if (test) test.disabled = true;
+  }
+
+  /** The check as Test connection runs it; one that throws is a failed one, never an unhandled rejection. */
+  async function run(id: ProviderId): Promise<CheckOutcome> {
+    try {
+      return await deps.check(id);
+    } catch (e) {
+      return { ok: false, message: `Connection failed: ${e instanceof Error ? e.message : String(e)}` };
+    }
+  }
+
+  async function onToggle(id: ProviderId): Promise<void> {
+    if (busy.has(id)) return;
+    if (enabled(id)) {
+      deps.prefs.set(pref(id), false);
+      paint(id);
+      // The last check's "Connected…" beside an Enable button would read as if it still held
+      say(id, '');
+      deps.onVoicesChanged();
+      return;
+    }
+    if (refuseWhileReading(deps)) return;
+    hold(id);
+    elements(id).toggle?.setAttribute('label', 'Checking…');
+    say(id, 'Checking…');
+    const outcome = await run(id);
+    say(id, outcome.message);
+    if (outcome.ok) deps.prefs.set(pref(id), true);
+    busy.delete(id);
+    paint(id);
+    if (outcome.ok) deps.onVoicesChanged();
+  }
+
+  async function onTest(id: ProviderId): Promise<void> {
+    if (busy.has(id)) return;
+    hold(id);
+    say(id, 'Testing…');
+    const outcome = await run(id);
+    say(id, outcome.message);
+    busy.delete(id);
+    paint(id);
+    if (outcome.ok && enabled(id)) deps.onVoicesChanged();
+  }
+
+  for (const id of PROVIDER_IDS) {
+    const { toggle, test } = elements(id);
+    toggle?.addEventListener('command', () => onToggle(id));
+    test?.addEventListener('command', () => onTest(id));
+    paint(id);
+  }
+
+  /** After a settings restore: every switch and lock as the prefs say now; a section mid-check is left to its check. */
+  function refresh(): void {
+    for (const id of PROVIDER_IDS) if (!busy.has(id)) paint(id);
+  }
+
+  return { refresh };
+}

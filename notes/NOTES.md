@@ -2715,3 +2715,66 @@ rule runs over fewer entries than the column's — the column, which lists
 every voice by design, may say "English (United States)" where the
 trimmed popup says "English"; `same` is false then, as the diagnostic's
 `favoritesOnly` explains.
+
+## Enable is a commit point: the provider switches (2026-08-28)
+
+The voice browser's Reload voices button was the only way to list again
+after a provider change in the same pane session (the pane listed once,
+on load; a settings restore only re-read the memory), and did nothing new
+the rest of the time. Rather than watch the twelve provider prefs with a
+debounce, the user chose to make Enable a commit point:
+
+- The "Enable … voices" checkboxes became one button per section,
+  `Enable` / `Disable` (ui/provider-rows.ts; bottom row, beside Test
+  connection, since both write to the line there). Enable runs the
+  provider's connection check — `checkProvider` in prefs-pane.ts, the
+  same Test connection runs: testConnection with the spend probe for
+  Azure/OpenAI, the timestamp probe for Kokoro, the Model suggestions as a
+  side effect — and writes the pref only when it passes; a failed check
+  leaves the provider off, with the message where Test connection writes
+  its own. While the check runs the button reads `Checking…` and both
+  buttons are held; a click meanwhile does nothing. Disable clears the
+  line — the last "Connected…" beside an Enable button read as if it
+  still held (seen live, 2026-08-28).
+- While a provider is on, the section's fields (`input, menulist` under
+  the groupbox `ztts-provider-<id>`) are disabled; Disable unlocks them
+  and hands the OpenAI section back to server-preset-rows (`onUnlocked` →
+  `presetRows.refresh()`), which grays out the fields the chosen server
+  ignores — a plain unlock would un-gray them. Init order matters the
+  same way: the preset rows render before the provider rows lock, and
+  onRestored calls `presetRows.refresh()` before `providerRows.refresh()`.
+- The voice browser lists again on: Enable passing, Disable, Test
+  connection passing on a provider that is on (the server came back), and
+  a settings restore (`load()` after `refresh()`). Two triggers in a row:
+  `load()` during a listing notes it and runs once more when done (the
+  `again` flag), so the last change is what the columns show. The Reload
+  button is gone; "No voices" just says to enable a provider.
+- The reading guard moved with the switch: enabling is refused while a
+  tab is reading (`refuseWhileReading`, before any check); disabling
+  never is, as before. `guardProviderSwitches` and its checkbox-vs-binding
+  order dance are gone with the checkboxes.
+- Test connection stays: off, it probes without committing and fills the
+  Model suggestions — which has to happen while the fields are editable;
+  on, it is the retry after a server came back.
+
+Lost: a server whose voice list changed while the pane is open needs the
+settings reopened, or Test connection pressed. The local section's
+heading is now the engine's name (`ztts-local-heading`, from the
+registry), since the button no longer carries it.
+
+Verified live through the zotero-dev MCP bridge (1.8.0-beta4, Zotero
+10.0.2-beta.1): Enable on Kokoro → `Checking…` with both buttons held
+(~200 ms), `Connected. 68 voices available. Word timestamps available.`,
+pref on, fields locked, Local 707 → 775; Disable → off at once, fields
+open, line cleared, Local 775 → 707; a wrong address → `Local TTS server
+is not running at that address.` with the provider left off; Test
+connection on the enabled OpenAI section → `Testing…` (buttons held 1.3
+s), `Connected. 28 voices available. Synthesis works.`, the browser
+listed again; Enable with Read Aloud open in two tabs → the pane dialog
+naming both, no check run. Driving notes: the pane is
+`Services.wm.getMostRecentWindow('zotero:pref').document`, and
+`button.click()` fires its `command`. To close Read Aloud in a tab from
+chrome use `reader._internalReader.toggleReadAloudPopup(false)` — a bare
+`manager.deactivate()` with the popup still open is undone at once by the
+popup's state sync, which re-activates the manager and, in one tab,
+started playback.

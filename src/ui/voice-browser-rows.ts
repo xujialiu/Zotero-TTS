@@ -53,7 +53,6 @@ import { refuseWhileReading } from './reading-guard';
  */
 
 export const VOICE_BROWSER_IDS = {
-  reload: 'ztts-voices-reload',
   status: 'ztts-voices-status',
   tiers: 'ztts-voices-tiers',
   locales: 'ztts-voices-locales',
@@ -561,7 +560,7 @@ export function initVoiceBrowserRows(
   function paintStatus(): void {
     if (!listed) return;
     if (!listed.length) {
-      status(problems.length ? `Listing voices failed: ${problems.join('; ')}` : 'No voices. Enable a provider above, then press Reload.');
+      status(problems.length ? `Listing voices failed: ${problems.join('; ')}` : 'No voices. Enable a provider above.');
       return;
     }
     const trouble = problems.length ? ` — ${problems.join('; ')}` : '';
@@ -669,14 +668,22 @@ export function initVoiceBrowserRows(
     if (!group?.languages.some((l) => l.language === selectedLanguage)) selectedLanguage = group?.languages[0]?.language ?? null;
   }
 
+  /** A listing asked for while one runs (a switch used twice in a row): run once more when it is done, so the last change is what the columns show. */
+  let again = false;
+
   /**
    * Both catalogs, each failing on its own: a provider that cannot list must
    * not hide Zotero's voices, and Zotero being unreachable (offline, no
    * account) must not hide the plugin's. What failed is reported beside what
-   * did arrive, never instead of it.
+   * did arrive, never instead of it. Called on load, and by the pane
+   * whenever a provider switch is used (ui/provider-rows.ts) or the settings
+   * are restored — the only times the plugin's voices change.
    */
   async function load(): Promise<void> {
-    if (loading) return;
+    if (loading) {
+      again = true;
+      return;
+    }
     loading = true;
     status('Listing voices…');
     const failures: string[] = [];
@@ -699,10 +706,13 @@ export function initVoiceBrowserRows(
       paintStatus();
     } finally {
       loading = false;
+      if (again) {
+        again = false;
+        await load();
+      }
     }
   }
 
-  doc.getElementById(VOICE_BROWSER_IDS.reload)?.addEventListener('command', () => void load());
   doc.getElementById(VOICE_BROWSER_IDS.speed)?.addEventListener('input', onSpeedInput);
   doc.getElementById(VOICE_BROWSER_IDS.speed)?.addEventListener('change', onSpeedChange);
   paintSpeed();

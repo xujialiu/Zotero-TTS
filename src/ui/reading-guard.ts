@@ -1,5 +1,3 @@
-import { PREF_PREFIX, PROVIDER_IDS, type PrefsBackend } from '../core/settings';
-
 /**
  * Adding a voice while Read Aloud is open in some tab. A reader's popup
  * lists its voices once, when it opens (ReadAloudManager.loadVoices runs
@@ -12,7 +10,9 @@ import { PREF_PREFIX, PROVIDER_IDS, type PrefsBackend } from '../core/settings';
  * same voice, so every refresh restarts the sentence being read, and a
  * listing that fails mid-playback would move the tab to another voice. The
  * settings refuse instead, naming the tabs; the user closes them (or stops
- * Read Aloud there) and adds the voice again.
+ * Read Aloud there) and adds the voice again. The refusing is done where
+ * the voice is added: the ♥ (ui/voice-browser-rows.ts) and the provider
+ * switches (ui/provider-rows.ts), both through refuseWhileReading.
  */
 
 /** Which tabs, and what to do — nothing about why (the user's call: no implementation detail in the dialog). */
@@ -122,27 +122,4 @@ export function refuseWhileReading(deps: ReadingGuardDeps): boolean {
   if (!titles.length) return false;
   deps.warn(readingTabsMessage(titles));
   return true;
-}
-
-/**
- * The three "Enable … voices" checkboxes: switching a provider on adds its
- * voices, so the switch is refused while a tab is reading. Zotero's own
- * binding writes the pref on `command` too, and its order against this
- * listener is not relied on: both the checkbox and the pref are put back
- * to off, whichever ran first. Switching off is never refused.
- */
-export function guardProviderSwitches(doc: { querySelector(selector: string): any }, deps: ReadingGuardDeps & { prefs: PrefsBackend }): void {
-  for (const id of PROVIDER_IDS) {
-    const pref = `${PREF_PREFIX}${id}.enabled`;
-    const checkbox = doc.querySelector(`checkbox[preference="${pref}"]`);
-    if (!checkbox) continue;
-    checkbox.addEventListener('command', () => {
-      if (!checkbox.checked) return;
-      const titles = deps.readingTabs();
-      if (!titles.length) return;
-      checkbox.checked = false;
-      deps.prefs.set(pref, false);
-      deps.warn(readingTabsMessage(titles));
-    });
-  }
 }
