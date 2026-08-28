@@ -94,9 +94,9 @@ Everything is under **Edit → Settings → TTS**.
 
 A word color and a sentence color, an opacity for each, and a switch to
 keep the sentence highlighted under the word. The preview is painted in
-your reader's theme. The default is a green word on a yellow sentence;
-*Restore default colors* brings it back (Zotero's own blue is `#4072e5` at
-45 % and 30 %). The colors apply to Zotero's voices as well.
+your reader's theme. The default is a blue word on a yellow sentence,
+both at 70 %; *Restore default colors* brings it back (Zotero's own blue
+is `#4072e5` at 45 % and 30 %). The colors apply to Zotero's voices as well.
 Word-by-word highlighting also needs Zotero's own switch: **Settings →
 General → Read Aloud → Highlight current → Word**.
 

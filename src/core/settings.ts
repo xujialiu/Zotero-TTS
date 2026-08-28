@@ -114,9 +114,10 @@ export const DEFAULTS: Settings = {
     favoriteVoices: '',
     favoritesOnly: false,
   },
-  // A green word on a yellow sentence, the sentence kept under the word; the reader still
-  // draws them at its own 0.4 (light) / 0.3 (dark). Zotero's own is #4072e5 at 45% and 30%
-  highlight: { wordColor: '#00ff00', wordAlpha: 100, sentenceColor: '#ffff00', sentenceAlpha: 100, sentenceUnderWord: true },
+  // A blue word (near Zotero's own #4072e5) on a yellow sentence, both at 70%, the sentence
+  // kept under the word; the reader still draws them at its own 0.4 (light) / 0.3 (dark).
+  // Zotero's own is #4072e5 at 45% and 30%. Green at 100% until 1.8.1.
+  highlight: { wordColor: '#3478f6', wordAlpha: 70, sentenceColor: '#ffff00', sentenceAlpha: 70, sentenceUnderWord: true },
 };
 
 function str(prefs: PrefsBackend, key: string, fallback: string): string {

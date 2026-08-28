@@ -74,8 +74,8 @@ describe('loadSettings', () => {
     expect(loadSettings(fakePrefs({ 'extensions.zotero.zotero-tts.speed': 2 }))).not.toHaveProperty('speed');
   });
 
-  it('ships a green word on a yellow sentence, kept under the word, and keeps the opacities within 0-100', () => {
-    expect(DEFAULTS.highlight).toEqual({ wordColor: '#00ff00', wordAlpha: 100, sentenceColor: '#ffff00', sentenceAlpha: 100, sentenceUnderWord: true });
+  it('ships a blue word on a yellow sentence, both at 70%, kept under the word, and keeps the opacities within 0-100', () => {
+    expect(DEFAULTS.highlight).toEqual({ wordColor: '#3478f6', wordAlpha: 70, sentenceColor: '#ffff00', sentenceAlpha: 70, sentenceUnderWord: true });
     expect(loadSettings(fakePrefs({ 'extensions.zotero.zotero-tts.highlight.wordAlpha': 250 })).highlight.wordAlpha).toBe(100);
     expect(loadSettings(fakePrefs({ 'extensions.zotero.zotero-tts.highlight.sentenceAlpha': -1 })).highlight.sentenceAlpha).toBe(0);
   });
