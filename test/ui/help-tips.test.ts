@@ -107,4 +107,24 @@ describe('addon/content/preferences.xhtml', () => {
     expect(xhtml).not.toMatch(/ztts-help[^>]*tooltiptext=/);
   });
 
+  it('explains the Reading switches with a ? instead of a parenthesis in the label', () => {
+    const rows: Array<[string, RegExp, RegExp]> = [
+      ['readAloud.sameForAllDocuments', /label="Use one voice everywhere"/, /one voice per document language/],
+      ['readAloud.globalSpeed', /label="Use one speed everywhere"/, /one speed per document language/],
+      ['readAloud.hideZoteroLocalVoices', /label="Hide Zotero’s own Local voices"/, /TTS- prefix/],
+    ];
+    for (const [pref, label, text] of rows) {
+      const row = rowOf(`preference="extensions.zotero.zotero-tts.${pref}"`);
+      expect(row, pref).toMatch(label);
+      expect(row.match(help)?.[1], pref).toMatch(text);
+    }
+  });
+
+  it('explains Extra headers, in the OpenAI and the local group alike', () => {
+    for (const marker of ['id="ztts-openai-headers"', 'preference="extensions.zotero.zotero-tts.local.headers"']) {
+      const text = rowOf(marker).match(help)?.[1];
+      expect(text, marker).toMatch(/Cloudflare Access/);
+      expect(text, marker).toMatch(/CF-Access-Client-Id/);
+    }
+  });
 });

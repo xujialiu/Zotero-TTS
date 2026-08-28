@@ -54,6 +54,7 @@
     <hbox align="center">
       <label value="Extra headers" style="width: 8em"/>
       <html:input id="ztts-openai-headers" type="text" placeholder="Name: value; Name: value" preference="extensions.zotero.zotero-tts.openai.headers"/>
+      <label class="ztts-help" value="?" help="Only for a server reached remotely through Cloudflare Access: its service token as two headers, CF-Access-Client-Id: …; CF-Access-Client-Secret: … (see the Cloudflare tutorial in the README). Otherwise leave empty."/>
     </hbox>
     <hbox align="center">
       <button id="ztts-enable-openai" label="Enable"/>
@@ -93,6 +94,7 @@
     <hbox align="center">
       <label value="Extra headers" style="width: 8em"/>
       <html:input type="text" placeholder="Name: value; Name: value" preference="extensions.zotero.zotero-tts.local.headers"/>
+      <label class="ztts-help" value="?" help="Only for a server reached remotely through Cloudflare Access: its service token as two headers, CF-Access-Client-Id: …; CF-Access-Client-Secret: … (see the Cloudflare tutorial in the README). Otherwise leave empty."/>
     </hbox>
     <hbox align="center">
       <button id="ztts-enable-local" label="Enable"/>
@@ -137,18 +139,21 @@
     <!-- The pref keeps its old name (settings backups carry it); off, Zotero
          keeps a voice per document language (read-aloud/memory-sync.ts) -->
     <hbox align="center">
-      <checkbox label="Use one voice everywhere — every document and every open tab (off: Zotero keeps one per language)"
+      <checkbox label="Use one voice everywhere"
                 preference="extensions.zotero.zotero-tts.readAloud.sameForAllDocuments"/>
+      <label class="ztts-help" value="?" help="One voice for every document and every open tab. Off: Zotero keeps one voice per document language."/>
     </hbox>
     <!-- Off, Zotero keeps a speed per document language and the voice
          browser's slider drives the samples only (read-aloud/default-speed.ts) -->
     <hbox align="center">
-      <checkbox label="Use one speed everywhere — every document and every open tab (off: Zotero keeps one per language)"
+      <checkbox label="Use one speed everywhere"
                 preference="extensions.zotero.zotero-tts.readAloud.globalSpeed"/>
+      <label class="ztts-help" value="?" help="One speed for every document and every open tab. Off: Zotero keeps one speed per document language."/>
     </hbox>
     <hbox align="center">
-      <checkbox label="Hide Zotero’s own Local voices (the plugin’s voices then drop their TTS- prefix)"
+      <checkbox label="Hide Zotero’s own Local voices"
                 preference="extensions.zotero.zotero-tts.readAloud.hideZoteroLocalVoices"/>
+      <label class="ztts-help" value="?" help="Zotero’s own Local voices leave the Read Aloud popup, and the plugin’s voices drop their TTS- prefix."/>
     </hbox>
     <hbox align="center">
       <checkbox label="Prefetch upcoming sentences" preference="extensions.zotero.zotero-tts.prefetchEnabled"/>

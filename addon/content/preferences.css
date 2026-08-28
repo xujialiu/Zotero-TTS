@@ -28,3 +28,8 @@ label.ztts-help[value] {
 label.ztts-help[value]:hover {
   opacity: 1;
 }
+
+/* After a checkbox the ? follows text, not a border: a little more air */
+.ztts-pane checkbox + label.ztts-help[value] {
+  margin-inline-start: 4px;
+}
