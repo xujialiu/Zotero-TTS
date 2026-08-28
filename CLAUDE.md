@@ -60,8 +60,10 @@ npm run build         # esbuild → addon/content/zotero-tts.js, zip → build/z
 npm run docs          # pandoc → docs/*.html, the Markdown rendered for the browser
 ```
 
-After any change: tests, typecheck, build — then the user installs the xpi
-(Tools → Plugins → Install from file) and restarts Zotero.
+After any change: tests, typecheck, build — then the xpi goes into the
+running Zotero through the zotero-dev bridge (`zotero_plugin_install`
+upgrades it in place, no restart) and the live verification below runs
+there.
 
 **Test builds carry a beta version.** Every xpi built for testing sets
 `addon/manifest.json`'s `version` to the next version plus `-beta`
@@ -70,42 +72,56 @@ After any change: tests, typecheck, build — then the user installs the xpi
 actually installed. `package.json` stays at the released version — it is not
 what Zotero displays, and leaving it alone keeps the lock file out of it.
 
-**Every xpi handed over comes with a Run JavaScript verification snippet
-and its expected output** — proof that the *mechanism* works, not only the
-visible effect. A fix that merely looks right may be working by accident
-(2026-08-26, multilingual-first: the dropdown looked fixed while
-diagnostics showed the patch absent — the "fix" and the symptom's cause
-had not actually met); every such delivery quietly turns into debt.
+**Every build is verified by its mechanism, not only by its visible
+effect** — a diagnostic that proves the code path ran, with the expected
+output stated before it runs. A fix that merely looks right may be working
+by accident (2026-08-26, multilingual-first: the dropdown looked fixed
+while diagnostics showed the patch absent — the "fix" and the symptom's
+cause had not actually met); every such delivery quietly turns into debt.
 Prefer `Zotero.ZoteroTTS.diagnostics.*`, which runs inside the plugin
-sandbox — plain Run JavaScript is chrome scope and cannot reproduce the
-sandbox's view. A purely visual change states that instead, and names
-exactly what to check by eye.
+sandbox — chrome-scope JS (`zotero_execute_js`, Run JavaScript) cannot
+reproduce the sandbox's view. A purely visual change states that instead,
+and names exactly what to check by eye.
 
-## Verifying a branch live, step by step
+## Verifying a branch live
 
-Before a feature branch is merged, the user verifies its new behavior in
-Zotero, in rounds; the plugin cannot be driven from here. The form was
-settled on 2026-08-27, after a round that said "run the diagnostic code"
-was rejected as unclear:
+The running Zotero is driven from here through the **zotero-dev MCP
+bridge** — `introfini/mcp-server-zotero-dev` (MCP server `zotero-dev`,
+tools `mcp__zotero-dev__*`) plus the *MCP Bridge for Zotero* plugin, which
+opens RDP on 127.0.0.1:6100 when Zotero starts. Settled 2026-08-28, after
+the provider-toggle feature was verified end to end this way. Before a
+feature branch is merged, its new behavior is verified in Zotero like
+this:
 
-- **Plan first.** List every new behavior on the branch and the round and
-  step that covers it; name what only unit tests can cover (not
-  reproducible by hand) and why. Work the list until it is empty, then
-  a last round for whatever was fixed along the way.
-- **At most 3 steps per round.** Send one round, wait for the user's
-  pasted output, confirm it field by field or diagnose, then the next
-  round. A failure stops the round: fix, rebuild, hand over the xpi, and
-  re-issue the round from its first step.
-- **Every step is self-contained.** (1) What to do in Zotero, naming the
-  UI by what it says on screen — "tab 1" / "tab 2" for the documents,
-  "the player" for the Read Aloud popup, "the language dropdown", "the ♥
-  next to Azure-Brandon" — never a letter or a variable name for a thing
-  on screen. (2) The **complete** Run JavaScript code, pasted in full in
-  that step even when the previous step used the same code — never "the
-  diagnostic code", "as above" or a name for a snippet; say whether "Run
-  as async function" must be checked (`Zotero.Debug.get` needs it). (3)
-  The expected output, field by field, and what a deviation would mean.
-- Snippets pick out the fields that matter (wrap
+- **Delegate the testing; do not drive the bridge from the main session.**
+  Live verification runs in the `zotero-tester` subagent
+  (`.claude/agents/zotero-tester.md`: Opus at maximum reasoning effort,
+  the bridge's tools, the driving rules) — `Agent` with
+  `subagent_type: "zotero-tester"`, handing it the xpi path, the list of
+  behaviors to verify, the diagnostics to run with their expected output,
+  and what state it may touch. It reports the evidence (traces, pref
+  values, screenshots); the main session plans the checks and confirms
+  the report field by field. This keeps the main session's tokens for the
+  work.
+- **Plan first.** List every new behavior on the branch and the check that
+  covers it; name what only unit tests can cover and why, and what only a
+  human can judge. Work the list until it is empty, then a last pass for
+  whatever was fixed along the way. A failure stops the pass: fix, rebuild,
+  reinstall, re-run from the first check.
+- **The user takes over only** when a check needs a human — how a voice
+  sounds, whether the word highlight keeps pace, how the popup behaves in
+  motion (screenshots are static; nothing here records) — or when the
+  bridge is down (`zotero_ping` fails: Zotero needs a restart, which only
+  the user can do; `netstat -ano -p tcp | grep 6100` shows whether the
+  listener is up). Then a hand round in the old form: at most 3
+  self-contained steps, each with (1) what to do in Zotero, naming the UI
+  by what it says on screen — "tab 1" / "tab 2", "the player" for the Read
+  Aloud popup, "the language dropdown", "the ♥ next to Azure-Brandon" —
+  never a letter or a variable name for a thing on screen; (2) the
+  **complete** Run JavaScript code pasted in full in that step, never "the
+  diagnostic code" or "as above", saying whether "Run as async function"
+  must be checked; (3) the expected output field by field and what a
+  deviation would mean. Snippets pick out the fields that matter (wrap
   `Zotero.ZoteroTTS.diagnostics.*` and `JSON.parse` its result) and name
   readers by the item's title, never by itemID.
 
@@ -126,14 +142,15 @@ skipping the third strands every installed copy on the old version:
 
 Verify: the `update_link` answers 200 and the raw `update_url` serves the
 new version; Zotero's Tools → Plugins → gear → "Check for Plugin Updates"
-should then offer it. Zotero cannot be
-driven from here, but the user will run snippets on request in **Tools →
-Developer → Run JavaScript** (chrome context: `Zotero`, `Zotero.Reader._readers`,
-`reader._internalReader`, the plugin's `Zotero.ZoteroTTS`; return a string or
-JSON to read the result) — ask for that first, it is faster than logs.
+should then offer it. Diagnostics run through the bridge's
+`zotero_execute_js` (chrome context: `Zotero`, `Zotero.Reader._readers`,
+`reader._internalReader`, the plugin's `Zotero.ZoteroTTS`; return a string
+or JSON to read the result) — the same scope as the user's **Tools →
+Developer → Run JavaScript**, the fallback when the bridge is down.
 `Zotero.ZoteroTTS.diagnostics.highlight()` reports what highlight-style.ts
-sees. For logs, ask for Help → Debug Output Logging → View Output (the user
-saves it as an .htm) and grep it for `[zotero-tts]` and `JavaScript Error`.
+sees. For logs, `zotero_read_logs` / `zotero_read_errors`, grepped for
+`[zotero-tts]` and `JavaScript Error`; without the bridge, ask for Help →
+Debug Output Logging → View Output (the user saves it as an .htm).
 
 Platform notes:
 - Windows: the Bash tool is Git Bash; long `cat <<'EOF'` heredocs have failed
@@ -149,9 +166,12 @@ Platform notes:
   `defaults/preferences/zotero.js`; plugin sandbox: `xpcom/plugins.js`.
 - Zotero profile prefs: Windows `%APPDATA%\Zotero\Zotero\Profiles\*\prefs.js`,
   macOS `~/Library/Application Support/Zotero/Profiles/*/prefs.js`.
-- Kokoro-FastAPI for local testing: on the Windows machine it runs in Docker
-  Desktop (container `kokoro`, GPU image, http://localhost:8880). On macOS use
-  the CPU image or the native `start-gpu_mac.sh` (see README).
+- Kokoro-FastAPI for testing: read the plugin's `local.baseURL` pref before
+  assuming an address — on 2026-08-28 it pointed at a remote Kokoro
+  (`https://h200-kokoro.xujialiu.top`, reachable from Zotero) while the
+  Windows machine's Docker container (`kokoro`, GPU image,
+  http://localhost:8880, Docker Desktop) was not running. On macOS use the
+  CPU image or the native `start-gpu_mac.sh` (see README).
 
 ## Layout and rules
 
