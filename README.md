@@ -263,6 +263,13 @@ npm run build
 [notes/NOTES.md](notes/NOTES.md) records the Zotero internals the plugin relies on and
 every incident so far.
 
+## Acknowledgments
+
+- Built for the [Zotero](https://www.zotero.org) plugin developer community.
+- Verified in a running Zotero through
+  [introfini/mcp-server-zotero-dev](https://github.com/introfini/mcp-server-zotero-dev),
+  the MCP bridge that drives Zotero from the outside.
+
 ## License
 
 [AGPL-3.0](LICENSE), the same license as Zotero itself. Not affiliated with Zotero.
