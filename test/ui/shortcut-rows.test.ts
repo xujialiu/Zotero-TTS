@@ -2,7 +2,8 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it, vi } from 'vitest';
-import { SHORTCUT_ACTIONS } from '../../src/core/shortcut-actions';
+import { NAVIGATION_ACTIONS, SHORTCUT_ACTIONS } from '../../src/core/shortcut-actions';
+import { SPEED_ACTIONS } from '../../src/core/read-aloud-speed';
 import { DEFAULTS, PREF_PREFIX, type PrefsBackend } from '../../src/core/settings';
 import { initShortcutRows } from '../../src/ui/shortcut-rows';
 
@@ -258,5 +259,23 @@ describe('addon/content/preferences.xhtml', () => {
       expect(xhtml, action).toContain(`id="ztts-key-${action}"`);
       expect(xhtml, action).toContain(`id="ztts-key-clear-${action}"`);
     }
+  });
+
+  // What a key does outside a Read Aloud session is the one thing its row
+  // cannot show: a ? at the end of the row says it on hover, where a
+  // paragraph under the rows once did. The speed keys work in every state
+  // and get none.
+  it('explains the keys that depend on a session with a ? at the end of the row', () => {
+    const rowOf = (action: string) => {
+      const at = xhtml.indexOf(`id="ztts-key-${action}"`);
+      return xhtml.slice(xhtml.lastIndexOf('<hbox', at), xhtml.indexOf('</hbox>', at));
+    };
+    const help = /<label class="ztts-help" value="\?" tooltiptext="([^"]+)"\/>/;
+    for (const action of [...NAVIGATION_ACTIONS, 'returnToSpoken']) {
+      expect(rowOf(action).match(help)?.[1], action).toMatch(/only while Read Aloud is open/);
+    }
+    expect(rowOf('startFromSelection').match(help)?.[1]).toMatch(/every state/);
+    for (const action of SPEED_ACTIONS) expect(rowOf(action), action).not.toMatch(help);
+    expect(xhtml).not.toContain('<description>Sentence, paragraph');
   });
 });

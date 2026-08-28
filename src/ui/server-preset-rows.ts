@@ -6,11 +6,12 @@ import { PRESETS, SERVER_PRESETS, serverPreset, type OpenAIField, type ServerPre
  * switching presets has side effects — the preset's defaults are written
  * once, the fields it does not use are grayed out — which must happen on
  * the user's action only, never on load, so that stored values survive.
- * The bound inputs redraw themselves when the defaults are written.
+ * The bound inputs redraw themselves when the defaults are written. The
+ * preset's note is the tooltip of the ? beside the dropdown.
  */
 
 export const SERVER_MENU_ID = 'ztts-openai-server';
-export const SERVER_NOTE_ID = 'ztts-openai-server-note';
+export const SERVER_HELP_ID = 'ztts-openai-server-help';
 export const FIELD_IDS: Record<OpenAIField, string> = {
   apiKey: 'ztts-openai-apiKey',
   baseURL: 'ztts-openai-baseURL',
@@ -41,7 +42,7 @@ export function initServerPresetRows(doc: RowsDocument, prefs: PrefsBackend): { 
       const el = doc.getElementById(elementId);
       if (el) el.disabled = !spec.uses[field];
     }
-    doc.getElementById(SERVER_NOTE_ID)?.setAttribute('value', spec.note);
+    doc.getElementById(SERVER_HELP_ID)?.setAttribute('tooltiptext', spec.note);
   };
 
   const refresh = () => render(serverPreset(loadSettings(prefs).openai));

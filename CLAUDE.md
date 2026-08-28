@@ -212,7 +212,8 @@ src/ui/             prefs pane (prefs-pane, shortcut-rows, backup-rows, webdav-r
                     reading-guard: no new voice while a tab reads), read-aloud-shortcuts, speed-toast
 src/index.ts        bootstrap wiring; with core/settings.createZoteroPrefs and ui/prefs-pane the
                     only code that touches Zotero globals (declared in src/globals.d.ts)
-addon/              manifest.json, bootstrap.js, prefs.js (defaults), content/preferences.xhtml
+addon/              manifest.json, bootstrap.js, prefs.js (defaults), content/preferences.xhtml,
+                    content/preferences.css (the ? icons, registered with the pane)
 test/               mirrors src/; vitest
 assets/             README media (the word-highlight GIF, popup and settings screenshots)
 ```

@@ -1,0 +1,30 @@
+/* Zotero TTS preference pane. Registered with the pane (ui/prefs-pane.ts
+   registerPrefsPane, `stylesheets`): Zotero inserts it as a stylesheet of
+   the whole preferences window, so every rule is scoped by a ztts- class. */
+
+/* The ? at the end of a row: what a line of text under the row used to say
+   is its tooltip (`tooltiptext`; hover). A XUL label[value] is an
+   inline-flex box whose text is its ::before (toolkit xul.css), so the
+   flex properties center the glyph in the circle. The selector outranks
+   Zotero's `label:not(…)` rule in preferences.css (specificity (0,1,1),
+   and its sheet comes after this one), which would otherwise give the
+   label its 1px/2px block margins and shift it off the row's center; the
+   gap to the control before the ? is that control's own end margin. */
+label.ztts-help[value] {
+  width: 1.35em;
+  height: 1.35em;
+  margin: 0;
+  justify-content: center;
+  align-items: center;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  font-size: 0.8em;
+  font-weight: 600;
+  line-height: 1;
+  opacity: 0.6;
+  cursor: help;
+}
+
+label.ztts-help[value]:hover {
+  opacity: 1;
+}

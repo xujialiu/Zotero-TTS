@@ -2844,3 +2844,88 @@ position sampler's tick, the manager hooks) running once more after their
 compartment was nuked — the same class as the position sampler's dead
 entry above. Not investigated; noted so the next in-place upgrade with a
 session open is read for it, not for the change under test.
+
+## The ? beside a setting: tooltips, a pane stylesheet, Zotero's label margins (2026-08-28)
+
+Two lines of text in the pane became `?` icons with a hover tooltip: the
+Server preset's note (server-preset-rows.ts now writes it into the
+`tooltiptext` of `<label id="ztts-openai-server-help" class="ztts-help"
+value="?"/>`, right after the dropdown) and the paragraph under the
+shortcut rows (now a `?` at the end of each row it was about — the four
+sentence/paragraph keys and Go to reading position say they act only
+while Read Aloud is open, Play / pause / resume says it works in every
+state; the speed keys work in every state and got none). The icons are
+styled by `addon/content/preferences.css`, handed to Zotero as
+`stylesheets: [rootURI + 'content/preferences.css']` in
+`Zotero.PreferencePanes.register`. Verified in Zotero's source and live:
+
+- **Plugin panes are XUL by default.** `xpcom/preferencePanes.js` registers
+  every plugin pane with `defaultXUL: true`: XUL is the default namespace,
+  HTML goes under `html:` (`MozXULElement.parseXULToFragment`). The
+  `stylesheets` URIs go through `Zotero.Plugins.resolveURI` and
+  `preferences.js` inserts each as an `<?xml-stylesheet?>` processing
+  instruction *before* `document.firstChild` — so the sheet sits **before
+  Zotero's own sheets in cascade order** (live: the first PI of the
+  window, one sheet from the xpi, 2 rules). `_initImportedNodesPreInsert`
+  hoists PIs found in the pane markup the same way.
+- **A XUL `label[value]` is `display: inline-flex` with its text in
+  `::before { content: -moz-label-content; display: block }`** (toolkit
+  xul.css), so `justify-content`/`align-items: center` center the glyph
+  in the circle. Inside an `hbox` — a flex container — it blockifies: the
+  computed `display` reads `flex`, and `getDefaultComputedStyle` says the
+  same; not a lost rule.
+- **Zotero's preferences.css gives every label margins with a selector a
+  class cannot beat:** `chrome/skin/default/zotero/preferences.css` in
+  omni.ja holds, minified, `label:not([is=zotero-text-link],.button-text,.checkbox-label,.radio-label){margin-block:1px 2px;margin-inline:0 5px}`
+  (a text search for the spaced, quoted form the CSSOM's `selectorText`
+  shows finds nothing) — specificity (0,1,1), since `:not()` counts its
+  most specific argument — and its sheet comes after ours. The first
+  build's `.ztts-help { margin-block: 0; margin-inline: 6px 0 }` was
+  silently overridden: measured `margin-inline-start: 0px`,
+  `margin-block: 1px 2px`, the icon 0.5 px *above* the row's center (the
+  larger bottom margin pushes the box up), the gap to the dropdown the
+  menulist's own 2 px. Rule: **a rule for a XUL `label` in the pane
+  needs a selector above (0,1,1) — `label.ztts-help[value]` is (0,2,1).**
+  Ours sets `margin: 0`; the gap to the control before the `?` is that
+  control's own end margin (2 px after a menulist, 5 px after a button),
+  which looked right in the screenshots. After the fix, all seven icons:
+  every computed margin `0px`, the icon's center on the row's center to
+  the thousandth of a pixel, gaps 2/5/5/5/5/5/5 px, 14.033 px square;
+  pixel comparison of the two screenshots showed the icon moved down by
+  one device pixel and nothing else changed.
+- **The default tooltip is native anonymous content.** `tooltiptext` on
+  the label opens the window's `tooltip[default="true"]`, a child of
+  `window#zotero-prefs` that `querySelectorAll('tooltip')` does not see;
+  `InspectorUtils.getChildrenForNode(doc.documentElement, true, false)`
+  finds it, and its `state` and `label` are the evidence. Live: `state`
+  `showing` at 0.8 s and `open` at 0.9 s after the mouse came to rest,
+  `label` = the icon's `tooltiptext` verbatim (the Chatterbox note, and
+  the Go-to-reading-position note), `closed` 114 ms after the mouse left;
+  the popup was 480 × 38 px for the 130-character note, so long text
+  wraps. `zotero_screenshot` never shows it (an OS popup).
+- **Driving the bridge:** `windowUtils.sendMouseEvent('mousemove', x, y,
+  0, 0, 0)` reaches the element (a listener saw `mouseover`/`mousemove`
+  with the right target) but opens no tooltip; the XUL tooltip listener
+  acts only with the DOM- and widget-synthesized flags false —
+  `sendMouseEvent('mousemove', x, y, 0, 0, 0, false, 0, 0, false, false)`,
+  approaching from 30 px away, resting, then a one-pixel nudge. And only
+  in the OS-active window: with `Services.focus.activeWindow === null`
+  (another application in front) the `:hover` rule applied and Zotero
+  filled the tooltip's `label`, but `state` stayed `closed` — `win.focus()`
+  first, then it opened 765 ms after the mouse came to rest. The pane
+  also scrolls on its own between bridge calls (`div#prefs-content`
+  scrollTop went 0 → 102 → 1632 with nothing driving it), so
+  `scrollIntoView`, the measurement and the mouse events must be one
+  script, never coordinates from an earlier call.
+  `zotero_open_preferences` opens the window on the General pane whatever
+  paneId it is given: `await win.Zotero_Preferences.navigateToPane('zotero-tts-pane')`
+  selects ours (44 ms later the elements exist). All of this is in
+  `.claude/agents/zotero-tester.md` now.
+
+Seen alongside, not caused by the build: 7 `can't access dead object` from
+the *old* bundle at the second of the in-place upgrade 1.8.0 → 1.8.1-beta
+with the Settings window open and no reader session; two same-version
+reinstalls afterwards (one with the TTS pane open, one with no reader
+open) logged none. Same class as the 19 above (the old sandbox's callbacks
+running once more after their compartment was nuked); still not
+investigated.

@@ -1,7 +1,8 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { PRESETS } from '../../src/core/server-presets';
 import { PREF_PREFIX, type PrefsBackend } from '../../src/core/settings';
-import { FIELD_IDS, initServerPresetRows, SERVER_MENU_ID, SERVER_NOTE_ID } from '../../src/ui/server-preset-rows';
+import { FIELD_IDS, initServerPresetRows, SERVER_HELP_ID, SERVER_MENU_ID } from '../../src/ui/server-preset-rows';
 
 function fakePrefs(initial: Record<string, unknown> = {}): PrefsBackend & { store: Record<string, unknown> } {
   const store = { ...initial };
@@ -28,7 +29,7 @@ class FakeElement {
 const key = (k: string) => `${PREF_PREFIX}openai.${k}`;
 
 function setup(initial: Record<string, unknown> = {}) {
-  const ids = [SERVER_MENU_ID, SERVER_NOTE_ID, ...Object.values(FIELD_IDS)];
+  const ids = [SERVER_MENU_ID, SERVER_HELP_ID, ...Object.values(FIELD_IDS)];
   const els = new Map(ids.map((id) => [id, new FakeElement()]));
   const doc = { getElementById: (id: string) => els.get(id) ?? null };
   const prefs = fakePrefs(initial);
@@ -38,7 +39,8 @@ function setup(initial: Record<string, unknown> = {}) {
     prefs,
     rows,
     menu,
-    note: () => els.get(SERVER_NOTE_ID)!.attrs.get('value'),
+    // The preset's note is the tooltip of the ? beside the dropdown
+    note: () => els.get(SERVER_HELP_ID)!.attrs.get('tooltiptext'),
     disabled: () => Object.fromEntries(Object.entries(FIELD_IDS).map(([field, id]) => [field, els.get(id)!.disabled])),
     choose(id: string) {
       menu.value = id;
@@ -96,5 +98,17 @@ describe('initServerPresetRows', () => {
 
   it('tolerates a pane that lacks the rows', () => {
     expect(() => initServerPresetRows({ getElementById: () => null }, fakePrefs())).not.toThrow();
+  });
+});
+
+// The rows are found by id; the note has no line of its own any more — it
+// is the tooltip of the ? after the dropdown.
+describe('addon/content/preferences.xhtml', () => {
+  it('has the Server dropdown, the ? beside it, and every field', () => {
+    const xhtml = readFileSync(new URL('../../addon/content/preferences.xhtml', import.meta.url), 'utf8');
+    expect(xhtml).toContain(`id="${SERVER_MENU_ID}"`);
+    expect(xhtml).toMatch(new RegExp(`<label id="${SERVER_HELP_ID}" class="ztts-help" value="\?"`));
+    for (const id of Object.values(FIELD_IDS)) expect(xhtml, id).toContain(`id="${id}"`);
+    expect(xhtml).not.toContain('ztts-openai-server-note');
   });
 });

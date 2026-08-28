@@ -11,7 +11,9 @@
   <groupbox id="ztts-provider-openai">
     <label><html:h2>OpenAI</html:h2></label>
     <!-- Not bound with preference=: server-preset-rows.ts writes the choice
-         and the preset's defaults, and grays out the fields the server ignores. -->
+         and the preset's defaults, grays out the fields the server ignores,
+         and puts the preset's note into the ? beside the dropdown (its
+         tooltiptext). The ? icons are styled by preferences.css. -->
     <hbox align="center">
       <label value="Server" style="width: 8em"/>
       <menulist id="ztts-openai-server">
@@ -21,8 +23,8 @@
           <menuitem value="other" label="Other OpenAI-compatible server"/>
         </menupopup>
       </menulist>
+      <label id="ztts-openai-server-help" class="ztts-help" value="?"/>
     </hbox>
-    <description id="ztts-openai-server-note"/>
     <hbox align="center">
       <label value="API key" style="width: 8em"/>
       <html:input id="ztts-openai-apiKey" type="password" preference="extensions.zotero.zotero-tts.openai.apiKey"/>
@@ -189,7 +191,9 @@
   </groupbox>
 
   <!-- These rows are not bound with preference=; shortcut-rows.ts records
-       key presses and writes the prefs itself. -->
+       key presses and writes the prefs itself. The ? at the end of a row
+       says what the key does outside a Read Aloud session (hover); the
+       speed keys work in every state and have none. -->
   <groupbox>
     <label><html:h2>Keyboard shortcuts</html:h2></label>
     <hbox align="center">
@@ -211,33 +215,38 @@
       <label value="Previous sentence" style="width: 12em"/>
       <button id="ztts-key-previousSentence" style="min-width: 10em"/>
       <button id="ztts-key-clear-previousSentence" label="Clear"/>
+      <label class="ztts-help" value="?" tooltiptext="Acts only while Read Aloud is open; otherwise the key pages and scrolls the reader as usual."/>
     </hbox>
     <hbox align="center">
       <label value="Next sentence" style="width: 12em"/>
       <button id="ztts-key-nextSentence" style="min-width: 10em"/>
       <button id="ztts-key-clear-nextSentence" label="Clear"/>
+      <label class="ztts-help" value="?" tooltiptext="Acts only while Read Aloud is open; otherwise the key pages and scrolls the reader as usual."/>
     </hbox>
     <hbox align="center">
       <label value="Previous paragraph" style="width: 12em"/>
       <button id="ztts-key-previousParagraph" style="min-width: 10em"/>
       <button id="ztts-key-clear-previousParagraph" label="Clear"/>
+      <label class="ztts-help" value="?" tooltiptext="Acts only while Read Aloud is open; otherwise the key pages and scrolls the reader as usual."/>
     </hbox>
     <hbox align="center">
       <label value="Next paragraph" style="width: 12em"/>
       <button id="ztts-key-nextParagraph" style="min-width: 10em"/>
       <button id="ztts-key-clear-nextParagraph" label="Clear"/>
+      <label class="ztts-help" value="?" tooltiptext="Acts only while Read Aloud is open; otherwise the key pages and scrolls the reader as usual."/>
     </hbox>
     <hbox align="center">
       <label value="Play / pause / resume" style="width: 12em"/>
       <button id="ztts-key-startFromSelection" style="min-width: 10em"/>
       <button id="ztts-key-clear-startFromSelection" label="Clear"/>
+      <label class="ztts-help" value="?" tooltiptext="Works in every state: pauses or resumes an open session, and otherwise starts reading — from the selected text, where you last stopped, or from the visible page."/>
     </hbox>
     <hbox align="center">
       <label value="Go to reading position" style="width: 12em"/>
       <button id="ztts-key-returnToSpoken" style="min-width: 10em"/>
       <button id="ztts-key-clear-returnToSpoken" label="Clear"/>
+      <label class="ztts-help" value="?" tooltiptext="Acts only while Read Aloud is open; otherwise the key keeps its usual meaning in the reader."/>
     </hbox>
-    <description>Sentence, paragraph and Go-to-reading-position keys act only while Read Aloud is open; otherwise they page and scroll the reader as usual. Play / pause / resume works in every state: it pauses or resumes an open session, and otherwise starts reading — from the selected text, where you last stopped, or from the visible page.</description>
     <description id="ztts-key-message"/>
     <hbox>
       <button id="ztts-key-defaults" label="Restore default shortcuts"/>

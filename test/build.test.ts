@@ -47,6 +47,8 @@ describe('build', () => {
     // registerPrefsPane. Dropping either breaks the pane or all defaults.
     expect(names).toContain('prefs.js');
     expect(names).toContain('content/preferences.xhtml');
+    // The ? icons' style, registered with the pane (registerPrefsPane)
+    expect(names).toContain('content/preferences.css');
   });
 
   // Zotero runs a pane's `scripts` before it inserts the pane's markup, so

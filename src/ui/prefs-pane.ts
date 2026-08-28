@@ -147,6 +147,9 @@ export async function registerPrefsPane(rootURI: string, pluginID: string, versi
     pluginID,
     id: 'zotero-tts-pane',
     src: rootURI + 'content/preferences.xhtml',
+    // The ? icons' style; Zotero inserts it as a stylesheet of the whole
+    // preferences window, so its rules are scoped by ztts- classes
+    stylesheets: [rootURI + 'content/preferences.css'],
     label: 'TTS',
   });
 }

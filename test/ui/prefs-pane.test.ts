@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { SynthesisError } from '../../src/core/providers/errors';
 import type { TTSProvider } from '../../src/core/providers/types';
-import { engineLabel, rankModelsForSpeech, testConnection } from '../../src/ui/prefs-pane';
+import { engineLabel, rankModelsForSpeech, registerPrefsPane, testConnection } from '../../src/ui/prefs-pane';
 
 describe('engineLabel', () => {
   it('names the configured engine from the registry, falling back to the id', () => {
@@ -271,5 +271,28 @@ describe('testConnection word-timestamp probe', () => {
     );
     expect(result.ok).toBe(false);
     expect(result.message).toMatch(/word-timestamp check failed/);
+  });
+});
+
+// Zotero inserts a registered stylesheet into the preferences window; the
+// markup's ? icons are styled by it (ui/prefs-pane.ts registerPrefsPane).
+// Scripts stay out: Zotero runs them before the markup exists.
+describe('registerPrefsPane', () => {
+  it('registers the markup with its stylesheet and no scripts', async () => {
+    const register = vi.fn((_options: Record<string, unknown>) => Promise.resolve());
+    (globalThis as any).Zotero = { PreferencePanes: { register } };
+    try {
+      await registerPrefsPane('jar:file:///zotero-tts.xpi!/', 'zotero-tts@xujialiu.top', '1.8.1');
+    } finally {
+      delete (globalThis as any).Zotero;
+    }
+    expect(register).toHaveBeenCalledTimes(1);
+    const options = register.mock.calls[0][0];
+    expect(options).toMatchObject({
+      pluginID: 'zotero-tts@xujialiu.top',
+      src: 'jar:file:///zotero-tts.xpi!/content/preferences.xhtml',
+      stylesheets: ['jar:file:///zotero-tts.xpi!/content/preferences.css'],
+    });
+    expect(options).not.toHaveProperty('scripts');
   });
 });

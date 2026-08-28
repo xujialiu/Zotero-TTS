@@ -24,7 +24,7 @@ export interface PresetSpec {
   defaults: Partial<Pick<Settings['openai'], 'baseURL' | 'model'>>;
   /** Fields the server reads. A field marked false is disabled in the pane and not sent. */
   uses: Record<OpenAIField, boolean>;
-  /** One line under the dropdown. */
+  /** The tooltip of the ? beside the dropdown. */
   note: string;
 }
 

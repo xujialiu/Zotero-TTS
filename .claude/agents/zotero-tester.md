@@ -32,10 +32,13 @@ the source (`src/`) and say that you did.
    again: the version must be the manifest's `-betaN`.
 3. The settings pane. An open settings window keeps the OLD pane after a
    reinstall: close it (`Services.wm.getMostRecentWindow('zotero:pref').close()`
-   through `zotero_execute_js`) and reopen it with `zotero_open_preferences`
-   (paneId `zotero-tts@xujialiu.top`). The pane is
-   `Services.wm.getMostRecentWindow('zotero:pref').document`; the element
-   ids are in `addon/content/preferences.xhtml` and `src/ui/*-rows.ts`.
+   through `zotero_execute_js`) and reopen it with `zotero_open_preferences`.
+   That opens the window on the General pane whatever paneId it is given:
+   then `await win.Zotero_Preferences.navigateToPane('zotero-tts-pane')`
+   on `win = Services.wm.getMostRecentWindow('zotero:pref')` and wait until
+   `win.document.getElementById('ztts-openai-server')` exists. The pane is
+   that window's `document`; the element ids are in
+   `addon/content/preferences.xhtml` and `src/ui/*-rows.ts`.
    `button.click()` fires the XUL `command`. Wait for the voice browser's
    status line to leave "Listing voices…" before reading the columns.
 4. Transient states (`Checking…`, `Testing…`, `Listing voices…`): one
@@ -54,7 +57,25 @@ the source (`src/`) and say that you did.
    for layout checks. `zotero_read_errors` at the end: report anything from
    the plugin (`[zotero-tts]`, `zotero-tts.js` in a stack); Zotero's own
    noise (`selectionRanges`, missing `.ftl` locale resources) is not a
-   finding.
+   finding. A burst of `can't access dead object` from the old bundle at
+   the second of an in-place upgrade is a known class (notes/NOTES.md);
+   report it with its timestamp, but it is not a finding against the change.
+7. Hover and `tooltiptext` (the ? icons of the pane): move the mouse with
+   `win.windowUtils.sendMouseEvent('mousemove', x, y, 0, 0, 0, false, 0, 0, false, false)`
+   — the two trailing `false` (the DOM- and widget-synthesized flags) are
+   what lets the XUL tooltip listener act; the six-argument form reaches
+   the element and opens nothing. Approach from 30 px away, rest on the
+   element, nudge by a pixel, then poll. The default tooltip is native
+   anonymous content, not in the DOM:
+   `Array.from(InspectorUtils.getChildrenForNode(doc.documentElement, true, false)).find(c => c.localName === 'tooltip')`
+   — its `state` (`showing` → `open`, `closed` once the mouse leaves) and
+   `label` are the evidence. A screenshot never shows it (an OS popup).
+   It opens only in the OS-active window: `win.focus()` first (with
+   `Services.focus.activeWindow === null` the `:hover` style applies and
+   the `label` is filled, but `state` stays `closed`). The pane scrolls
+   on its own between bridge calls, so `scrollIntoView`, the measurement
+   and the mouse events go in one script, never coordinates from an
+   earlier call.
 
 ## Rules
 
