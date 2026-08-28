@@ -1,5 +1,6 @@
 import { loadSettings, PREF_PREFIX, type PrefsBackend } from '../core/settings';
 import { PRESETS, SERVER_PRESETS, serverPreset, type OpenAIField, type ServerPreset } from '../core/server-presets';
+import { HELP_ATTRIBUTE } from './help-tips';
 
 /**
  * The Server dropdown of the OpenAI section. Not bound with preference=:
@@ -7,7 +8,8 @@ import { PRESETS, SERVER_PRESETS, serverPreset, type OpenAIField, type ServerPre
  * once, the fields it does not use are grayed out — which must happen on
  * the user's action only, never on load, so that stored values survive.
  * The bound inputs redraw themselves when the defaults are written. The
- * preset's note is the tooltip of the ? beside the dropdown.
+ * preset's note is the tooltip of the ? beside the dropdown (ui/help-tips.ts
+ * opens it from the icon's `help` attribute).
  */
 
 export const SERVER_MENU_ID = 'ztts-openai-server';
@@ -42,7 +44,7 @@ export function initServerPresetRows(doc: RowsDocument, prefs: PrefsBackend): { 
       const el = doc.getElementById(elementId);
       if (el) el.disabled = !spec.uses[field];
     }
-    doc.getElementById(SERVER_HELP_ID)?.setAttribute('tooltiptext', spec.note);
+    doc.getElementById(SERVER_HELP_ID)?.setAttribute(HELP_ATTRIBUTE, spec.note);
   };
 
   const refresh = () => render(serverPreset(loadSettings(prefs).openai));

@@ -270,7 +270,7 @@ describe('addon/content/preferences.xhtml', () => {
       const at = xhtml.indexOf(`id="ztts-key-${action}"`);
       return xhtml.slice(xhtml.lastIndexOf('<hbox', at), xhtml.indexOf('</hbox>', at));
     };
-    const help = /<label class="ztts-help" value="\?" tooltiptext="([^"]+)"\/>/;
+    const help = /<label class="ztts-help" value="\?" help="([^"]+)"\/>/;
     for (const action of [...NAVIGATION_ACTIONS, 'returnToSpoken']) {
       expect(rowOf(action).match(help)?.[1], action).toMatch(/only while Read Aloud is open/);
     }

@@ -209,7 +209,8 @@ src/read-aloud/     the Read Aloud integration: index (intercepts Zotero.Reader.
                     system-voices (hide Zotero's own Local voices)
 src/ui/             prefs pane (prefs-pane, shortcut-rows, backup-rows, webdav-rows,
                     server-preset-rows, highlight-rows, shortcut-recorder, voice-browser-rows,
-                    reading-guard: no new voice while a tab reads), read-aloud-shortcuts, speed-toast
+                    reading-guard: no new voice while a tab reads, help-tips: the ? icons'
+                    tooltips, opened at once), read-aloud-shortcuts, speed-toast
 src/index.ts        bootstrap wiring; with core/settings.createZoteroPrefs and ui/prefs-pane the
                     only code that touches Zotero globals (declared in src/globals.d.ts)
 addon/              manifest.json, bootstrap.js, prefs.js (defaults), content/preferences.xhtml,

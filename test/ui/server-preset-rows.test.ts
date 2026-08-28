@@ -39,8 +39,8 @@ function setup(initial: Record<string, unknown> = {}) {
     prefs,
     rows,
     menu,
-    // The preset's note is the tooltip of the ? beside the dropdown
-    note: () => els.get(SERVER_HELP_ID)!.attrs.get('tooltiptext'),
+    // The preset's note is the tooltip of the ? beside the dropdown (ui/help-tips.ts reads `help`)
+    note: () => els.get(SERVER_HELP_ID)!.attrs.get('help'),
     disabled: () => Object.fromEntries(Object.entries(FIELD_IDS).map(([field, id]) => [field, els.get(id)!.disabled])),
     choose(id: string) {
       menu.value = id;

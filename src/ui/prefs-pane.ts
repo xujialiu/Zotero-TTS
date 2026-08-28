@@ -14,6 +14,7 @@ import { createZoteroVoiceService, type ZoteroVoiceService } from '../read-aloud
 import { initShortcutRows } from './shortcut-rows';
 import { initBackupRows, type BackupFileIO } from './backup-rows';
 import { initServerPresetRows } from './server-preset-rows';
+import { initHelpTips } from './help-tips';
 import { initWebDAVRows } from './webdav-rows';
 import { initHighlightRows } from './highlight-rows';
 import { initProviderRows } from './provider-rows';
@@ -339,6 +340,8 @@ export function onPaneLoad(doc: Document, hooks: PaneHooks = {}): void {
   const prefs = createZoteroPrefs();
   const shortcutRows = initShortcutRows(doc, prefs, Zotero.isMac ? 'Cmd' : Zotero.isWin ? 'Win' : 'Super');
   const presetRows = initServerPresetRows(doc, prefs);
+  // The ? icons: their text opens at once, not after Zotero's tooltip delay (ui/help-tips.ts)
+  initHelpTips(doc);
   const highlightRows = initHighlightRows(doc, prefs, { theme: () => currentReaderTheme(doc.defaultView) });
 
   const win = doc.defaultView;
