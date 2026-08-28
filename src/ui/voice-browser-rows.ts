@@ -6,6 +6,7 @@ import type { CatalogEntry } from '../read-aloud/catalog';
 import { setDefaultSpeed, type SpeedManagerLike } from '../read-aloud/default-speed';
 import { regionOfLocale, setDefaultVoice } from '../read-aloud/default-voice';
 import { parseFavoriteVoices, serializeFavoriteVoices, toggleFavoriteVoice } from '../read-aloud/favorites';
+import { dropdownLabels, dropdownLanguage, languageDisplayName } from '../read-aloud/language-dropdown';
 import { isMultilingualVoiceId, memoryLangForLocale, readMemory, sameChoice, type VoiceChoice } from '../read-aloud/read-aloud-memory';
 import { compareVoiceLabels, encodeVoiceId, pluginVoiceLabel } from '../read-aloud/voice-catalog';
 import type { ZoteroVoice } from '../read-aloud/zotero-voices';
@@ -15,7 +16,9 @@ import { refuseWhileReading } from './reading-guard';
  * The voice browser of the settings pane: every voice Read Aloud can use, in
  * three columns — tier, then that tier's languages, then that language's
  * voices. The same three steps the reader's own popup takes (Voice Mode →
- * language → voice), so what is picked here is found there.
+ * language → voice), so what is picked here is found there. The language
+ * column is the popup's dropdown for the tier — the same entries, named
+ * the same way (read-aloud/language-dropdown.ts).
  *
  * The tiers are Zotero's: the enabled providers' voices are the Local tier's
  * remote entries, Standard and Premium are Zotero's own cloud voices
@@ -113,7 +116,12 @@ export interface VoiceBrowserDeps {
   /** One sample of Zotero's own, in the server's own words; required for Zotero's voices to be playable. */
   sampleZoteroVoice?(voiceId: string): Promise<Blob>;
   player: SamplePlayer;
-  /** Display name of a locale ("zh-CN" → "Chinese (China)"); injected so tests do not depend on the ICU data. */
+  /**
+   * Display name of a language tag as the popup's dropdown writes it
+   * (read-aloud/language-dropdown.ts languageDisplayName: "en-US" →
+   * "English (United States)", "en" → "English"); injected so tests do not
+   * depend on the ICU data.
+   */
   localeName?(code: string): string;
   /** The ReadAloudManager of every open reader, looked up when the slider is released; omitted where there is no Zotero to ask. */
   readAloudManagers?(): SpeedManagerLike[];
@@ -162,16 +170,9 @@ export type BrowserVoice = {
   tier: VoiceTier;
   locale: string;
 };
-type LocaleGroup = { locale: string; name: string; voices: BrowserVoice[] };
-type TierGroup = { tier: VoiceTier; count: number; locales: LocaleGroup[] };
-
-function defaultLocaleName(code: string): string {
-  try {
-    return new Intl.DisplayNames(undefined, { type: 'language' }).of(code) ?? code;
-  } catch {
-    return code;
-  }
-}
+/** One entry of the language column: a dropdown entry (read-aloud/language-dropdown.ts) and the voices that file under it. */
+type LanguageGroup = { language: string; name: string; voices: BrowserVoice[] };
+export type TierGroup = { tier: VoiceTier; count: number; languages: LanguageGroup[] };
 
 /**
  * Every voice the browser lists: the plugin's from the catalog it publishes,
@@ -202,30 +203,42 @@ export function browserVoices(catalog: CatalogEntry[], zoteroVoices: readonly Zo
 /**
  * The columns as the browser shows them: always all three tiers, in Zotero's
  * order — an empty one reads "(0)" rather than disappearing and shifting the
- * others under the pointer — each holding its own locales, Multilingual
- * first and the rest by display name, each holding its voices by label.
+ * others under the pointer — each holding the popup's language dropdown for
+ * that tier (read-aloud/language-dropdown.ts: a voice files under Zotero's
+ * normalized language, so every Chinese region is the one "Chinese"; an
+ * entry carries its region only where the tier holds the language in
+ * several), Multilingual first and the rest by display name, each holding
+ * its voices by label.
  */
 export function groupVoicesByTier(voices: BrowserVoice[], localeName: (code: string) => string): TierGroup[] {
   return TIERS.map((tier) => {
     const mine = voices.filter((voice) => voice.tier === tier);
-    const byLocale = new Map<string, BrowserVoice[]>();
+    const byLanguage = new Map<string, BrowserVoice[]>();
     for (const voice of mine) {
-      const list = byLocale.get(voice.locale) ?? [];
+      const language = dropdownLanguage(voice.locale);
+      const list = byLanguage.get(language) ?? [];
       list.push(voice);
-      byLocale.set(voice.locale, list);
+      byLanguage.set(language, list);
     }
-    const locales = [...byLocale.entries()]
-      .map(([locale, list]) => ({
-        locale,
-        name: localeName(locale),
+    const names = dropdownLabels(byLanguage.keys(), localeName);
+    const languages = [...byLanguage.entries()]
+      .map(([language, list]) => ({
+        language,
+        name: names.get(language) ?? language,
         voices: list.sort((a, b) => compareVoiceLabels(a.label, b.label)),
       }))
       .sort((a, b) => {
-        const mul = Number(b.locale === MULTILINGUAL) - Number(a.locale === MULTILINGUAL);
+        const mul = Number(b.language === MULTILINGUAL) - Number(a.language === MULTILINGUAL);
         return mul || compareVoiceLabels(a.name, b.name);
       });
-    return { tier, count: mine.length, locales };
+    return { tier, count: mine.length, languages };
   });
+}
+
+/** The name of the language entry a listed voice sits under: its tier's dropdown entry, the tag itself for a voice not listed. */
+export function languageNameOf(tiers: readonly TierGroup[], voice: BrowserVoice): string {
+  const language = dropdownLanguage(voice.locale);
+  return tiers.find((g) => g.tier === voice.tier)?.languages.find((l) => l.language === language)?.name ?? language;
 }
 
 /**
@@ -254,8 +267,8 @@ export function defaultVoiceRows(voices: readonly BrowserVoice[], choice: VoiceC
  * Zotero keeps a speed per document language and the slider only paces
  * the samples.
  */
-export function defaultVoiceLine(choice: VoiceChoice | null, home: BrowserVoice | null, localeName: (code: string) => string, speed: number | null): string {
-  const voice = !choice ? 'Zotero’s own choice' : home ? `${home.label} · ${localeName(home.locale)}` : `${choice.id} (not listed now)`;
+export function defaultVoiceLine(choice: VoiceChoice | null, home: BrowserVoice | null, tiers: readonly TierGroup[], speed: number | null): string {
+  const voice = !choice ? 'Zotero’s own choice' : home ? `${home.label} · ${languageNameOf(tiers, home)}` : `${choice.id} (not listed now)`;
   return `Default: ${voice} · ${speed === null ? 'speed per language' : formatSpeed(speed)}`;
 }
 
@@ -303,7 +316,7 @@ export function initVoiceBrowserRows(
   },
   deps: VoiceBrowserDeps,
 ): { load(): Promise<void>; refresh(): void; dispose(): void } {
-  const localeName = deps.localeName ?? defaultLocaleName;
+  const localeName = deps.localeName ?? languageDisplayName;
   const status = (text: string) => doc.getElementById(VOICE_BROWSER_IDS.status)?.setAttribute('value', text);
 
   let tiers: TierGroup[] = [];
@@ -312,7 +325,8 @@ export function initVoiceBrowserRows(
   /** What failed to list last time, shown beside what did until the next listing. */
   let problems: string[] = [];
   let selectedTier: VoiceTier | null = null;
-  let selectedLocale: string | null = null;
+  /** The language column's entry: a dropdown language (read-aloud/language-dropdown.ts), not a voice's own locale. */
+  let selectedLanguage: string | null = null;
   let loading = false;
   /** The encoded id being fetched / being played; at most one of each, ever. */
   let busy: string | null = null;
@@ -327,7 +341,7 @@ export function initVoiceBrowserRows(
   const readFavorites = () => parseFavoriteVoices(deps.prefs.get(FAVORITES_PREF));
   const favoritesOnly = () => deps.favoritesOnly?.() ?? false;
   const tierGroup = () => tiers.find((g) => g.tier === selectedTier) ?? null;
-  const localeGroup = () => tierGroup()?.locales.find((l) => l.locale === selectedLocale) ?? null;
+  const languageGroup = () => tierGroup()?.languages.find((l) => l.language === selectedLanguage) ?? null;
 
   const setPlayGlyph = (encoded: string, glyph: string) => {
     const button = playButtons.get(encoded);
@@ -467,7 +481,7 @@ export function initVoiceBrowserRows(
             selectedTier = group.tier;
             // Standard and Premium mostly speak the same languages: staying
             // on the current one makes comparing two tiers a single click.
-            if (!group.locales.some((l) => l.locale === selectedLocale)) selectedLocale = group.locales[0]?.locale ?? null;
+            if (!group.languages.some((l) => l.language === selectedLanguage)) selectedLanguage = group.languages[0]?.language ?? null;
             render();
           },
         ),
@@ -475,14 +489,14 @@ export function initVoiceBrowserRows(
     );
   }
 
-  function renderLocales(): void {
+  function renderLanguages(): void {
     const column = doc.getElementById(VOICE_BROWSER_IDS.locales);
     if (!column) return;
     column.replaceChildren(
-      ...(tierGroup()?.locales ?? []).map((group) =>
-        columnEntry(`${group.name} (${group.voices.length})`, group.locale === selectedLocale ? 'selected' : 'normal', () => {
-          selectedLocale = group.locale;
-          renderLocales();
+      ...(tierGroup()?.languages ?? []).map((group) =>
+        columnEntry(`${group.name} (${group.voices.length})`, group.language === selectedLanguage ? 'selected' : 'normal', () => {
+          selectedLanguage = group.language;
+          renderLanguages();
           renderVoices();
         }),
       ),
@@ -496,7 +510,7 @@ export function initVoiceBrowserRows(
     const favorites = readFavorites();
     const onlyFavorites = favoritesOnly();
     column.replaceChildren(
-      ...(localeGroup()?.voices ?? []).map((voice) => {
+      ...(languageGroup()?.voices ?? []).map((voice) => {
         const isDefault = defaults.includes(voice);
         const row = doc.createElementNS(XHTML, 'div');
         row.setAttribute('style', isDefault ? ROW_DEFAULT_STYLE : ROW_STYLE);
@@ -554,7 +568,7 @@ export function initVoiceBrowserRows(
     const defaultSpeed = (deps.globalSpeed?.() ?? true) ? speed : null;
     // A default that is not a favorite is not offered while the switch is on: the line warns at every repaint
     const warning = choice && favoritesOnly() && !readFavorites().includes(choice.id) ? NOT_A_FAVORITE : '';
-    status(defaultVoiceLine(choice, defaults[0] ?? null, localeName, defaultSpeed) + warning + trouble);
+    status(defaultVoiceLine(choice, defaults[0] ?? null, tiers, defaultSpeed) + warning + trouble);
   }
 
   /** The "offer only favorite voices" switch flipped: which rows can be picked changed, and so may the warning. */
@@ -609,10 +623,10 @@ export function initVoiceBrowserRows(
     defaults = defaultVoiceRows(listed ?? [], choice);
     // A default row in view (the row just clicked, say) keeps the columns
     // where they are; only a default elsewhere moves them
-    const home = defaults.find((v) => v.tier === selectedTier && v.locale === selectedLocale) ?? defaults[0];
+    const home = defaults.find((v) => v.tier === selectedTier && dropdownLanguage(v.locale) === selectedLanguage) ?? defaults[0];
     if (home) {
       selectedTier = home.tier;
-      selectedLocale = home.locale;
+      selectedLanguage = dropdownLanguage(home.locale);
       render();
     } else {
       renderVoices();
@@ -621,7 +635,7 @@ export function initVoiceBrowserRows(
 
   function render(): void {
     renderTiers();
-    renderLocales();
+    renderLanguages();
     renderVoices();
   }
 
@@ -649,10 +663,10 @@ export function initVoiceBrowserRows(
     if (!selectedTier || !tiers.some((g) => g.tier === selectedTier && g.count)) {
       const home = defaults[0];
       selectedTier = home?.tier ?? TIER_PREFERENCE.find((tier) => tiers.some((g) => g.tier === tier && g.count)) ?? 'local';
-      selectedLocale = home?.locale ?? selectedLocale;
+      selectedLanguage = home ? dropdownLanguage(home.locale) : selectedLanguage;
     }
     const group = tierGroup();
-    if (!group?.locales.some((l) => l.locale === selectedLocale)) selectedLocale = group?.locales[0]?.locale ?? null;
+    if (!group?.languages.some((l) => l.language === selectedLanguage)) selectedLanguage = group?.languages[0]?.language ?? null;
   }
 
   /**

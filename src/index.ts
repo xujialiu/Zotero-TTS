@@ -13,6 +13,7 @@ import { readMemory } from './read-aloud/read-aloud-memory';
 import { readReadAloudVoices } from './core/read-aloud-speed';
 import { listNamedCatalog, type CatalogEntry } from './read-aloud/catalog';
 import { parseFavoriteVoices } from './read-aloud/favorites';
+import { dropdownLanguage, languageDisplayName } from './read-aloud/language-dropdown';
 import { decodeVoiceId } from './read-aloud/voice-catalog';
 import type { ZoteroVoice } from './read-aloud/zotero-voices';
 import {
@@ -30,7 +31,7 @@ import {
   type ReadAloudShortcuts,
 } from './ui/read-aloud-shortcuts';
 import { removeSpeedToast, showSpeedToast } from './ui/speed-toast';
-import { browserVoices, createSamplePlayer, defaultVoiceLine, defaultVoiceRows, startingSpeed } from './ui/voice-browser-rows';
+import { browserVoices, createSamplePlayer, defaultVoiceLine, defaultVoiceRows, groupVoicesByTier, languageNameOf, startingSpeed } from './ui/voice-browser-rows';
 import { silentWav } from './core/silence';
 import { withTimeout } from './core/timeout';
 
@@ -830,6 +831,9 @@ function safe(fn: () => unknown): unknown {
   }
 }
 
+/** A language tag named as the popup's dropdown names it, in the app's locale — what the pane hands the voice browser too. */
+const appLanguageName = (code: string) => languageDisplayName(code, Zotero.locale ?? 'en');
+
 /** For Tools → Developer → Run JavaScript: `Zotero.ZoteroTTS.diagnostics.highlight()` etc. */
 const diagnostics = {
   highlight: () => JSON.stringify((Zotero.Reader._readers ?? []).map((r: any) => highlightStyling?.inspect(r) ?? null), null, 1),
@@ -959,13 +963,7 @@ const diagnostics = {
       const voices = browserVoices(catalog, zotero);
       const rows = defaultVoiceRows(voices, memory.voice);
       const home = rows[0] ?? null;
-      const localeName = (code: string) => {
-        try {
-          return new Intl.DisplayNames([Zotero.locale ?? 'en'], { type: 'language' }).of(code) ?? code;
-        } catch {
-          return code;
-        }
-      };
+      const tiers = groupVoicesByTier(voices, appLanguageName);
       const globalSpeed = loadSettings(prefs).readAloud.globalSpeed;
       return JSON.stringify(
         {
@@ -974,9 +972,63 @@ const diagnostics = {
           listed: voices.length,
           zoteroError,
           rows: rows.map((r) => ({ tier: r.tier, locale: r.locale, label: r.label, id: r.encoded })),
-          opensOn: home ? { tier: home.tier, locale: home.locale } : 'the usual tier (no listed row is the default)',
+          // The language entry the row sits under, named as the popup's dropdown names it
+          opensOn: home ? { tier: home.tier, language: dropdownLanguage(home.locale), name: languageNameOf(tiers, home) } : 'the usual tier (no listed row is the default)',
           // The pane's line as it opens: the slider starts at startingSpeed, and names no default speed while the switch is off
-          status: defaultVoiceLine(memory.voice, home, localeName, globalSpeed ? startingSpeed(prefs) : null),
+          status: defaultVoiceLine(memory.voice, home, tiers, globalSpeed ? startingSpeed(prefs) : null),
+        },
+        null,
+        1,
+      );
+    } catch (e) {
+      return JSON.stringify({ error: String(e) }, null, 1);
+    }
+  },
+  /**
+   * The voice browser's language column beside the popup's dropdown, from
+   * inside the sandbox: per tier, the entries the browser shows for the
+   * very listing the pane gets, and for every open reader whose popup has
+   * loaded its voices, the languages its manager offers on the tier it is
+   * on (`manager.languages` — Zotero's normalized codes). The two sets
+   * must match while every voice is offered (favorites-only off, Zotero's
+   * own Local voices hidden); the names are compared with the dropdown by
+   * eye.
+   */
+  languageColumn: async () => {
+    try {
+      let zotero: ZoteroVoice[] = [];
+      let zoteroError: string | null = null;
+      try {
+        zotero = await zoteroVoiceService().listVoices();
+      } catch (e) {
+        zoteroError = String(e);
+      }
+      const catalog = await withTimeout(listCatalog(), TEST_CONNECTION_TIMEOUT_MS, () => new Error('No voice list within 15 s'));
+      const tiers = groupVoicesByTier(browserVoices(catalog, zotero), appLanguageName);
+      const column = (tier: unknown) => tiers.find((g) => g.tier === tier)?.languages.map((l) => l.language).sort() ?? [];
+      const readers = (Zotero.Reader._readers ?? []).map((r: any) => {
+        const manager = r?._internalReader?._readAloudManager;
+        const tier = safe(() => manager?._selectedTier ?? null);
+        const languages = safe(() => [...(manager?.languages ?? [])]);
+        const popup = Array.isArray(languages) ? [...languages].sort() : languages;
+        const browser = column(tier);
+        return {
+          title: safe(() => {
+            const item = r?.itemID ? Zotero.Items.get(r.itemID) : null;
+            return (item?.parentItem ?? item)?.getField('title') ?? null;
+          }),
+          tier,
+          popup,
+          browser,
+          same: Array.isArray(popup) && JSON.stringify(popup) === JSON.stringify(browser),
+        };
+      });
+      return JSON.stringify(
+        {
+          favoritesOnly: loadSettings(prefs).readAloud.favoritesOnly,
+          zoteroError,
+          column: Object.fromEntries(tiers.map((g) => [g.tier, g.languages.map((l) => `${l.name} (${l.voices.length}) [${l.language}]`)])),
+          readers,
         },
         null,
         1,

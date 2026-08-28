@@ -8,6 +8,7 @@ import { withTimeout } from '../core/timeout';
 import { createWebDAVClient } from '../core/webdav';
 import { listNamedCatalog } from '../read-aloud/catalog';
 import { FAVORITES_ONLY_OBSERVER } from '../read-aloud/favorites';
+import { languageDisplayName } from '../read-aloud/language-dropdown';
 import { READ_ALOUD_MEMORY_OBSERVER, type VoiceChoice } from '../read-aloud/read-aloud-memory';
 import { createZoteroVoiceService, type ZoteroVoiceService } from '../read-aloud/zotero-voices';
 import { initShortcutRows } from './shortcut-rows';
@@ -330,13 +331,8 @@ export function onPaneLoad(doc: Document, hooks: PaneHooks = {}): void {
     sampleZoteroVoice: (voiceId) => zoteroVoiceService().sample(voiceId),
     // A detached element plays fine; the pane window closing stops it
     player: createSamplePlayer(() => doc.createElementNS(XHTML, 'audio') as HTMLAudioElement),
-    localeName: (code) => {
-      try {
-        return new Intl.DisplayNames([Zotero.locale ?? 'en'], { type: 'language' }).of(code) ?? code;
-      } catch {
-        return code;
-      }
-    },
+    // Named as the popup's dropdown names them, in the app's locale
+    localeName: (code) => languageDisplayName(code, Zotero.locale ?? 'en'),
     // The manager of every open reader, the way the shortcuts reach it: a
     // released slider changes the pace of a document that is playing at once
     readAloudManagers: () => (Zotero.Reader._readers ?? []).map((r: any) => r?._internalReader?._readAloudManager).filter(Boolean),

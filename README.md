@@ -133,7 +133,11 @@ Every voice Read Aloud can use, in three columns — tier, language, voice —
 the same three steps the reader's popup takes (*Voice Mode* → language →
 voice). **Local** holds the voices your enabled providers publish,
 **Standard** and **Premium** are Zotero's own; multilingual voices sit
-under "Multiple languages", first in the language column.
+under "Multiple languages", first in the language column. The language
+column is the popup's own dropdown for the tier — the same entries, named
+the same way: a region only where the tier speaks the language in several
+("English (United States)" beside "English (United Kingdom)"), and one
+"Chinese" for every Chinese voice.
 
 **▶** plays a short sample: your voices speak a sentence in the voice's own
 language (English plus Chinese for multilingual voices), synthesized by

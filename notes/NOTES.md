@@ -2670,3 +2670,48 @@ the Chinese tab's popup shows English (United States) / Azure-Blue and
 `readAloudMemory()` lists it with `lang: "en"`, `docLang: "zh"`; picking
 Xiaoxiao in the Chinese tab moves the English tabs to `lang: "zh"` with
 `docLang: "en"`.
+
+## The voice browser's language column is the popup's dropdown (2026-08-27)
+
+Reported on the 1.8.0-beta build: the voice browser said "American
+English" where the player's dropdown says "English (United States)".
+Three rules of Zotero's the column had not followed, verified in the
+bundle:
+
+- LanguageRegionSelect (reader.js ~38105) names a language through
+  `Intl.DisplayNames` with `languageDisplay: 'standard'` — "English
+  (United States)", "英语（美国）" — where the default `'dialect'`, which
+  the column used, gives "American English" / "美国英语".
+- An entry carries its region only where the list holds the base language
+  in more than one region (`baseCounts`), "English" alone otherwise. The
+  list is the selected tier's: `manager.languages` is
+  `getSupportedLanguages(this.voices)`, and `voices` filters `_allVoices`
+  by `_selectedTier` — so one language reads "English" in Zotero's tiers
+  and "English (United States)" in Local once a provider speaks it in
+  several regions.
+- A voice files under Zotero's *normalized* language (`normalizeLanguage`,
+  ~38005, applied by `getSupportedLanguages`): `cmn` → `zh`, the regions
+  CN/HK/TW dropped (REGION_EQUIVALENTS — Zotero's own tiers do not name
+  them), ar-XA/ar-SA → `ar-001`. So the dropdown has one "Chinese", and it
+  offers every Chinese voice — `isLanguageSupported` accepts any variant
+  when no region is asked for. The column had one entry per locale,
+  "Chinese (China)" beside "Chinese (Taiwan)".
+
+Built as read-aloud/language-dropdown.ts (`dropdownLanguage`,
+`dropdownLabels`, `languageDisplayName`), used by `groupVoicesByTier`:
+the column groups a tier's voices by dropdown language and names the
+entries per tier, and the status line names the default's entry the same
+way (`languageNameOf`). The selection state is a dropdown language, not a
+locale; a row keeps its own locale, so a pick still remembers its region
+(zh-TW → `region: 'TW'`) and a sample speaks its own script. The pane and
+the `defaultVoice` diagnostic render the names in `Zotero.locale`, as
+before. Diagnostic: `Zotero.ZoteroTTS.diagnostics.languageColumn()` lists
+the column per tier beside every open reader's `manager.languages` for
+the tier it is on, with `same` per reader.
+
+Costs: none to the memory or Zotero's entries. With "Offer only favorite
+voices" on, the popup's list is the favorites' languages, so its region
+rule runs over fewer entries than the column's — the column, which lists
+every voice by design, may say "English (United States)" where the
+trimmed popup says "English"; `same` is false then, as the diagnostic's
+`favoritesOnly` explains.
