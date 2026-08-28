@@ -48,7 +48,10 @@ the source (`src/`) and say that you did.
 5. Diagnostics: `Zotero.ZoteroTTS.diagnostics.<name>()` (async, returns a
    JSON string — parse it) run inside the plugin sandbox; `zotero_execute_js`
    itself is chrome scope (`Zotero`, `Zotero.Reader._readers`,
-   `reader._internalReader`, `Zotero.Prefs.get(name, true)`). The manager:
+   `reader._internalReader`; a pref: `Zotero.Prefs.get('zotero-tts.<pref>')`,
+   relative to `extensions.zotero.`, or the full name with `true` —
+   `Zotero.Prefs.get('extensions.zotero.zotero-tts.<pref>', true)`; the
+   relative name with `true` reads `undefined`). The manager:
    `reader._internalReader._readAloudManager` — `active` means the session
    is open (paused counts), `paused`, `selectedVoiceID`, `_selectedTier`,
    `languages`. Name readers by title:
@@ -60,13 +63,16 @@ the source (`src/`) and say that you did.
    finding. A burst of `can't access dead object` from the old bundle at
    the second of an in-place upgrade is a known class (notes/NOTES.md);
    report it with its timestamp, but it is not a finding against the change.
-7. Hover and `tooltiptext` (the ? icons of the pane): move the mouse with
+7. Hover and tooltips: move the mouse with
    `win.windowUtils.sendMouseEvent('mousemove', x, y, 0, 0, 0, false, 0, 0, false, false)`
    — the two trailing `false` (the DOM- and widget-synthesized flags) are
    what lets the XUL tooltip listener act; the six-argument form reaches
    the element and opens nothing. Approach from 30 px away, rest on the
-   element, nudge by a pixel, then poll. The default tooltip is native
-   anonymous content, not in the DOM:
+   element, nudge by a pixel, then poll. The pane's ? icons open their
+   own `<tooltip id="ztts-help-tip">` at once (ui/help-tips.ts, from the
+   icon's `help` attribute): its `state` and `label` are the evidence, and
+   Zotero's default tooltip must stay closed. That default tooltip
+   (`tooltiptext` elements) is native anonymous content, not in the DOM:
    `Array.from(InspectorUtils.getChildrenForNode(doc.documentElement, true, false)).find(c => c.localName === 'tooltip')`
    — its `state` (`showing` → `open`, `closed` once the mouse leaves) and
    `label` are the evidence. A screenshot never shows it (an OS popup).
@@ -75,7 +81,16 @@ the source (`src/`) and say that you did.
    the `label` is filled, but `state` stays `closed`). The pane scrolls
    on its own between bridge calls, so `scrollIntoView`, the measurement
    and the mouse events go in one script, never coordinates from an
-   earlier call.
+   earlier call. To leave an element, park the mouse on a blank spot of
+   the pane, not at (5, 5): that is the navigation list, and hovering it
+   preloads other plugins' panes (Zotero One's init throws there).
+8. A screenshot at a chosen scale: `win.windowUtils.drawSnapshot` does not
+   exist here; use
+   `win.browsingContext.currentWindowGlobal.drawSnapshot(new win.DOMRect(x, y, w, h), scale, 'rgb(255,255,255)')`
+   (the rect must be a real `DOMRect`; CSS px of the window), then an
+   `OffscreenCanvas` → `convertToBlob` → `IOUtils.write`. In
+   `zotero_execute_js` only a top-level `return` is wrapped; make an
+   `(async () => { … })()` the last expression.
 
 ## Rules
 

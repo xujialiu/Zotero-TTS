@@ -2929,3 +2929,96 @@ reinstalls afterwards (one with the TTS pane open, one with no reader
 open) logged none. Same class as the 19 above (the old sandbox's callbacks
 running once more after their compartment was nuked); still not
 investigated.
+
+### The ? tooltips open at once, Extra headers get one, the field column lines up (2026-08-28, same day)
+
+The user's asks after the first build: the help cursor's own `?` beside
+the circled one was one `?` too many (gone: no `cursor` in the rule), the
+500 ms before the text was too long (now 0), Extra headers deserves a `?`
+(both rows have one: only for a server reached remotely through Cloudflare
+Access, the service token as two headers, otherwise empty), and the
+Server dropdown stood out of the column of fields.
+
+- **The delay is `ui.tooltip.delay_ms`, an application-wide pref.** Zotero's
+  tooltip listener starts a timer on mouse rest and opens after 500 ms;
+  the pref is every tooltip in Zotero and stays in the profile — not a
+  plugin's to change. ui/help-tips.ts instead keeps an icon's text in a
+  `help` attribute (nothing of Zotero's reads it; a `tooltiptext` would
+  still open Zotero's tooltip 500 ms later) and opens one `<tooltip>` of
+  the pane itself on `mouseenter` — `setAttribute('label', text)`, then
+  `openPopupAtScreen(event.screenX, event.screenY, false)` — and
+  closes it on `mouseleave`/`mousedown`. Measured (beta2): `state`
+  `showing` in the very tick the mouse landed, `open` 14–45 ms after it
+  (765 ms before); the label the icon's text verbatim; Zotero's default
+  tooltip `closed` through a 1.2 s wait; `closed` 16 ms after the mouse
+  left. All 9 icons' listeners proven with dispatched `mouseenter`
+  events. **Placement: below the pointer, not under the icon.** The
+  first build anchored the popup 4 px under the icon (`openPopup(icon,
+  'after_start', 0, 4, …)`), and the arrow cursor — its hotspot on the
+  icon's center, its body 12 × 19 px to the lower right — covered the
+  first characters. Zotero's own tooltips open 21 px below the pointer,
+  so ours opens at the `mouseenter` event's screen point (CSS px, what
+  `openPopupAtScreen` takes) — **as is: Gecko adds the 21 px to a tooltip
+  popup itself.** The build that added 21 in the handler landed 42 px
+  below the pointer; the probe that settled it opened the same `<tooltip>`
+  with `openPopupAtScreen(x, y)` at three different y and got `outer.y =
+  y + 21` every time (x exact), while Zotero's own tooltip on the Speed
+  label measured pointer + (0, 21) — the popup manager's offset for
+  `PopupType::Tooltip`, whichever way the popup is opened. The unit test
+  could not see that: it asserts the call's arguments against a mock, and
+  the offset lives in the platform — the mechanism check in Zotero is
+  what caught it. Measured (beta5): pointer + (0, 21) at three landing
+  points, client and screen rects agreeing, side by side with Zotero's
+  own tooltip on the Speed label at the same (0, 21); open 21–38 ms after
+  landing (Zotero's own: 574 ms), 2 px clear of a 19 px arrow cursor.
+  The Reading group's three switches followed the same day: their
+  parentheses became a `?` each (12 icons now), with
+  `margin-inline-start: 4px` after a checkbox — 6 px with the checkbox's
+  own 2 px, measured — since there the icon follows text, not a border.
+- **A `<tooltip>` renders its `label` itself, in C++.** There is no JS
+  widget for it in the omni.ja (the platform jar has no `tooltip.js`, and
+  no script holds the string `tooltip-label`): `XULTooltipElement` creates
+  a `description.tooltip-label` child when the element is created and
+  copies `label` into it. So a bare `<tooltip>` is the very element and
+  look of Zotero's own tooltips (480 px wide, wrapping). **Written in the
+  pane markup it came out with two of those children** — Zotero parses
+  the markup into a fragment and imports it into the window, creating the
+  element twice (the clone brings the first's child along) — the second
+  empty and 0 px high. Rule: **create popups of the pane at run time
+  (`doc.createElementNS(XUL_NS, 'tooltip')` into a `<popupset>` of the
+  markup), not in the markup.**
+- **`width` means different boxes on a XUL menulist and an html:input.**
+  Measured (beta2, both `width: 20em` = 260 px): the menulist is
+  `box-sizing: border-box` (padding 11/11, border 1/1, margin 2/2 → 260
+  wide), the input `content-box` (padding 5/0, border 1/1, margin 4/4 →
+  267 wide), so the dropdown ended 9 px short of the inputs' right edge
+  and started 2 px before their left one, and the `?` after each sat 11
+  px apart. The rule now sets `box-sizing: border-box` and
+  `margin-inline: 4px 5px` on both; measured (beta3): all 13 controls
+  left 320, right 580, width 260, the three `?` after them at 585 (5 px
+  after each), the run-time tooltip with its one label child, open 32 ms
+  after the mouse landed. The longest preset label ("Other
+  OpenAI-compatible server", 187 px in the menulist's 13px system-ui)
+  fits the 218 px label box of a 260 px menulist: nothing crops.
+- **Bridge:** `win.windowUtils.drawSnapshot` does not exist in this
+  Zotero; `win.browsingContext.currentWindowGlobal.drawSnapshot(new
+  win.DOMRect(x, y, w, h), scale, 'rgb(255,255,255)')` → OffscreenCanvas
+  → `convertToBlob` → `IOUtils.write` gives a screenshot at any scale
+  (the rect must be a real `DOMRect`). Parking the synthesized mouse at
+  (5, 5) hovers the navigation list, and Zotero preloads the hovered
+  plugin's pane — Zotero One's init threw `scrollTop` errors on every
+  such move; park it on a blank spot of the pane instead. Both in
+  `.claude/agents/zotero-tester.md`. And `Zotero.Prefs.get(name, true)`:
+  the `true` says the name is complete, so
+  `Zotero.Prefs.get('zotero-tts.highlight.wordColor', true)` reads
+  `undefined` (and `JSON.stringify` drops the key without a trace);
+  either `Zotero.Prefs.get('zotero-tts.highlight.wordColor')` — relative
+  to `extensions.zotero.` — or the full name with `true`.
+
+The highlight defaults changed the same day, to the user's own choice: a
+blue word `#3478f6` at 70% on the yellow sentence at 70% (green at 100%
+until 1.8.1). `prefs.js` fills Zotero's default branch at plugin startup,
+so an in-place upgrade re-fills it (measured: the default branch read the
+old values before the install and the new ones after, the user's values
+untouched). A user value equal to the new default drops out of the
+profile's `prefs.js` at its next save — the effective value is the same.
