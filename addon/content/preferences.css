@@ -2,6 +2,20 @@
    registerPrefsPane, `stylesheets`): Zotero inserts it as a stylesheet of
    the whole preferences window, so every rule is scoped by a ztts- class. */
 
+/* One column for the text fields and the Server dropdown, edge to edge: a
+   menulist is as wide as its longest label and an html:input as its size
+   attribute, so the column was ragged; an html:input is content-box where
+   a XUL menulist is border-box, so one `width` still left them a padding
+   and a border apart (267 vs 260 px); and their margins differ (4 vs 2 px),
+   so the same margins put the left edges, and the ? after them, in line.
+   Number, color and range inputs keep their own. */
+.ztts-pane input:is([type="text"], [type="password"]),
+.ztts-pane menulist {
+  box-sizing: border-box;
+  width: 20em;
+  margin-inline: 4px 5px;
+}
+
 /* The ? at the end of a row: what a line of text under the row used to say
    is its tooltip (the `help` attribute, opened on hover by ui/help-tips.ts).
    A XUL label[value] is an inline-flex box whose text is its ::before
