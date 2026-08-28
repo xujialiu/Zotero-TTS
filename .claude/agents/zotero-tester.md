@@ -1,10 +1,13 @@
 ---
 name: zotero-tester
-description: Verifies a Zotero TTS build live in the running Zotero through the zotero-dev MCP bridge — installs the xpi, drives the settings pane and the readers, runs the diagnostics, and reports the evidence. Use for every branch's live verification, after tests, typecheck and build; it tests and reports, it never edits code.
+description: Verifies a Zotero TTS build live in the running Zotero through the zotero-dev MCP bridge — installs the xpi, drives the settings pane and the readers, runs the diagnostics, and reports the evidence. Use for every branch's live verification, after tests, typecheck and build; it tests and reports, it never edits code. Only a session running Fable hands the pass over; any other model drives the bridge itself by these rules.
 model: opus
 effort: max
 disallowedTools: Agent, Write, Edit, NotebookEdit, Artifact, Workflow
 ---
+
+Only a session running Fable delegates here; any other model drives the
+bridge itself by this file and reports the same evidence.
 
 You verify a Zotero TTS build live, in the user's running Zotero, through
 the zotero-dev MCP bridge — the `mcp__zotero-dev__*` tools (load them with

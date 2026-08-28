@@ -50,19 +50,27 @@ across documents, settings backup/restore (file or WebDAV), highlight colors.
   Never echo an API key into the conversation or a file. Zotero's
   `prefs.js` holds the user's keys in plaintext — grep it only for the exact
   pref you need, never print whole lines.
-- **Git housekeeping is delegated** (settled 2026-08-28): committing what
-  is in the working tree, deleting merged branches locally and on origin,
-  tagging, pushing, and `--ff-only` merges run in the `git-chores` agent
-  (`.claude/agents/git-chores.md`: Opus at maximum reasoning effort, this
-  file's rules) — `Agent` with `subagent_type: "git-chores"`, told exactly
-  what to commit, with which message, and what to leave in the working
-  tree. The main session confirms its report against `git log` / `git
-  status`. Only a merge that does not fast-forward — conflicts, a
-  diverged `main` — stays in the main session, and a resolution that is a
-  judgment call is asked about. Agent definitions under `.claude/agents/`
-  are read when a session starts: one added mid-session is "not found"
-  until the next session — then use `general-purpose` with
-  `model: "opus"` and the agent file's rules pasted into the prompt.
+- **Only a Fable session delegates** (settled 2026-08-28, gated
+  2026-08-28): the `git-chores` and `zotero-tester` agents run Opus at
+  maximum reasoning effort, which is worth a round trip only to a session
+  running Fable. Every other model — this one included — does that work
+  itself, here, in place: no subagent, the whole run in view. The agent
+  files stay the rule book either way; read
+  `.claude/agents/git-chores.md` / `.claude/agents/zotero-tester.md`
+  before doing their work by hand.
+- **Git housekeeping** (settled 2026-08-28): committing what is in the
+  working tree, deleting merged branches locally and on origin, tagging,
+  pushing, and `--ff-only` merges follow `.claude/agents/git-chores.md`.
+  A Fable session hands them to `Agent` with `subagent_type:
+  "git-chores"` — told exactly what to commit, with which message, and
+  what to leave in the working tree — then confirms the report against
+  `git log` / `git status`. Only a merge that does not fast-forward —
+  conflicts, a diverged `main` — is never handed over at all, and a
+  resolution that is a judgment call is asked about. Agent definitions
+  under `.claude/agents/` are read when a session starts: one added
+  mid-session is "not found" until the next session — then use
+  `general-purpose` with `model: "opus"` and the agent file's rules
+  pasted into the prompt.
 
 ## Commands (Node 22, ESM)
 
@@ -106,16 +114,15 @@ the provider-toggle feature was verified end to end this way. Before a
 feature branch is merged, its new behavior is verified in Zotero like
 this:
 
-- **Delegate the testing; do not drive the bridge from the main session.**
-  Live verification runs in the `zotero-tester` subagent
-  (`.claude/agents/zotero-tester.md`: Opus at maximum reasoning effort,
-  the bridge's tools, the driving rules) — `Agent` with
-  `subagent_type: "zotero-tester"`, handing it the xpi path, the list of
-  behaviors to verify, the diagnostics to run with their expected output,
-  and what state it may touch. It reports the evidence (traces, pref
-  values, screenshots); the main session plans the checks and confirms
-  the report field by field. This keeps the main session's tokens for the
-  work.
+- **The driving rules are `.claude/agents/zotero-tester.md`** (the
+  bridge's tools, how to drive them, what to report). A Fable session
+  hands the pass to `Agent` with `subagent_type: "zotero-tester"` — the
+  xpi path, the behaviors to verify, the diagnostics to run with their
+  expected output, and what state it may touch — and confirms the
+  reported evidence (traces, pref values, screenshots) field by field,
+  which keeps its tokens for the work. Any other model drives the bridge
+  here, by those same rules, and budgets for the traces and screenshots
+  landing in this context.
 - **Plan first.** List every new behavior on the branch and the check that
   covers it; name what only unit tests can cover and why, and what only a
   human can judge. Work the list until it is empty, then a last pass for
