@@ -3022,3 +3022,51 @@ so an in-place upgrade re-fills it (measured: the default branch read the
 old values before the install and the new ones after, the user's values
 untouched). A user value equal to the new default drops out of the
 profile's `prefs.js` at its next save — the effective value is the same.
+
+## README media straight out of the running Zotero (2026-08-28)
+
+The GIF and the three screenshots in `README.md` were made from here,
+through the bridge, without a screen recorder and without touching the
+user's focus. What it takes:
+
+- **`ctx.drawWindow(win, x, y, w, h, bg)`** in the chrome scope paints any
+  window's own content into a canvas — `toDataURL` → `atob` → `IOUtils.write`
+  gives a PNG at any scale (`ctx.scale(s, s)` before the call). It repaints
+  the window, so an occluded or unfocused Zotero is captured just as well as
+  a visible one. `drawSnapshot` (the note above) is the other way in.
+- **The PDF is a nested iframe.** `reader._iframeWindow` is
+  `resource://zotero/reader/reader.html`; the pages live one level deeper in
+  `reader._iframeWindow.frames[0]` (`.../reader/pdf/web/viewer.html`), and
+  `drawWindow` on the parent leaves that rectangle blank. The Read Aloud
+  popup, though, is in the *parent*. To get the popup over the page, draw
+  both into one canvas: the pdf window first, then the reader window with
+  `'rgba(0,0,0,0)'` as its background, offset by the iframe's client rect.
+- **An occluded window stops painting.** With the terminal in front,
+  `mw.document.hidden` was true and the pdf pages were never rendered (empty
+  `.page` divs, zero canvases, "missingThumbnailImage" everywhere). Setting
+  `widget.windows.window_occlusion_tracking.enabled` to false makes the
+  document visible again — no focus stolen — and the pages render.
+- **Programmatic playback dies after one segment.** `startReadAloudAtPosition`
+  from the bridge is not a user gesture: the error console fills with "An
+  AudioContext was prevented from starting automatically" and
+  `NotAllowedError: The play method is not allowed`, the first segment plays
+  (its audio element was already primed) and then the manager sits at the
+  end of it — `paused: false`, `_buffering: false`, `_error: null`, the
+  active segment never advancing. `media.autoplay.default = 0` (plus
+  `media.autoplay.blocking_policy = 0` and
+  `media.block-autoplay-until-in-foreground = false`) and it reads on
+  through segment after segment. Clear all three afterwards.
+- **Highlight coordinates.** A text-layer span's `getBoundingClientRect`
+  gives the crop; PDF coordinates for a start position come from the page
+  div: `scale = pageRect.width / 612`, `pdfX = (x - pageRect.left) / scale`,
+  `pdfY = 792 - (y - pageRect.top) / scale`, handed over as a zero-area rect
+  (`{pageIndex, rects: [[x, y, x, y]]}`, the shape "Read Aloud from Here"
+  uses). Recomputing the span's rect on every frame keeps the crop pinned to
+  the paragraph even if the reader scrolls. 110 frames at 10 fps cost ~50 ms
+  each; run the loop detached (`Zotero._capPromise = (async () => {...})()`)
+  and await it in the next call, or the RDP round trip times out.
+- **ffmpeg:** `palettegen=max_colors=64:stats_mode=diff` +
+  `paletteuse=dither=bayer:diff_mode=rectangle` turns 200 frames of
+  1308x360 into a 240 KB GIF. The same palette trick shrinks a PNG
+  screenshot by half (`max_colors=200`, `dither=none`) — while *scaling* one
+  down makes it bigger, because lanczos invents colors.
