@@ -41,8 +41,9 @@ export interface Settings {
     globalSpeed: boolean;
     /**
      * Hide Zotero's own Local voices — the operating system's — so the
-     * Local tier offers only the plugin's entries, which then drop their
-     * TTS- prefix (read-aloud/system-voices.ts).
+     * Local tier offers only the plugin's entries. Off, they stay and are
+     * marked "Local-…", which is what tells the two groups apart
+     * (read-aloud/system-voices.ts).
      */
     hideZoteroLocalVoices: boolean;
     /**

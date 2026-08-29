@@ -120,7 +120,7 @@ Zotero → Settings → TTS → **OpenAI** section:
 
 **Test connection** answers `Connected. 28 voices available. Synthesis
 works.` In Read Aloud's *Local* tier the voices appear as
-`TTS-OpenAI-Emily.wav`, `TTS-OpenAI-Henry.wav`, and so on. Highlighting is
+`OpenAI-Emily.wav`, `OpenAI-Henry.wav`, and so on. Highlighting is
 per sentence whatever the *Highlight current* setting says, since the server
 reports no word timings.
 

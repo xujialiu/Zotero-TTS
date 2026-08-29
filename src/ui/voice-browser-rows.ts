@@ -28,8 +28,9 @@ import { refuseWhileReading } from './reading-guard';
  * the locale's own language (core/sample-text.ts); Zotero's through
  * Zotero's own sample endpoint, which speaks a text of its own and costs no
  * credits. Samples are kept for the pane's lifetime, so replaying is free.
- * The plugin's labels drop the TTS- prefix — the tier column already says
- * whose voices these are.
+ * The plugin's voices are labeled here exactly as the player labels them
+ * (read-aloud/voice-catalog.ts); Zotero's own Local voices are the reader
+ * iframe's and never reach this pane, so the Local tier here is ours alone.
  *
  * A speed slider — the popup's own, 0.5×–3.0× by 0.1 — plays the samples at
  * the speed Read Aloud will read at, and releasing it makes its value that
@@ -200,7 +201,7 @@ export function browserVoices(catalog: CatalogEntry[], zoteroVoices: readonly Zo
         provider: entry.provider,
         id: voice.id,
         encoded: encodeVoiceId(entry.provider, voice.id),
-        label: pluginVoiceLabel(entry.provider, voice.label, entry.name, false),
+        label: pluginVoiceLabel(entry.provider, voice.label, entry.name),
         tier: 'local',
         locale: voice.locale,
       });

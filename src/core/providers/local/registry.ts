@@ -4,7 +4,7 @@ import { kokoroAdapter, type LocalEngineDeps } from './kokoro';
 export type LocalEngineAdapter = {
   id: string;
   label: string;
-  /** Short engine name for voice labels: "TTS-Kokoro-af_bella". */
+  /** Short engine name for voice labels: "Kokoro-af_bella". */
   voiceName: string;
   defaultBaseURL: string;
   capabilities: { wordTimestamps: boolean };

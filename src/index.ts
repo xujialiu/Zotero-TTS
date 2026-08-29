@@ -148,7 +148,6 @@ function startHijack(): void {
           multilingualFirst?.attach(reader);
         },
         listCatalog,
-        getHideZoteroLocalVoices: () => loadSettings(prefs).readAloud.hideZoteroLocalVoices,
         getFavoriteVoices: () => {
           const s = loadSettings(prefs);
           return s.readAloud.favoritesOnly ? parseFavoriteVoices(s.readAloud.favoriteVoices) : null;

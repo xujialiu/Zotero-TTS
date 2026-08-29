@@ -111,7 +111,7 @@ describe('addon/content/preferences.xhtml', () => {
     const rows: Array<[string, RegExp, RegExp]> = [
       ['readAloud.sameForAllDocuments', /label="Use one voice everywhere"/, /one voice per document language/],
       ['readAloud.globalSpeed', /label="Use one speed everywhere"/, /one speed per document language/],
-      ['readAloud.hideZoteroLocalVoices', /label="Hide Zotero’s own Local voices"/, /TTS- prefix/],
+      ['readAloud.hideZoteroLocalVoices', /label="Hide Zotero’s own Local voices"/, /marked “Local-…”/],
     ];
     for (const [pref, label, text] of rows) {
       const row = rowOf(`preference="extensions.zotero.zotero-tts.${pref}"`);

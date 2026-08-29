@@ -55,8 +55,6 @@ export type PluginCatalog = { provider: ProviderId; name?: string; voices: Voice
 
 export type RemoteInterfaceDeps = {
   listCatalog(): Promise<PluginCatalog>;
-  /** Zotero's own Local voices are hidden (read-aloud/system-voices.ts); the plugin's labels then drop their TTS- prefix. Read per call. */
-  getHideZoteroLocalVoices?(): boolean;
   /**
    * The favorite voice ids while "offer only favorites" is on; null (or
    * empty) offers everything. Read per call so the pane switch applies at
@@ -386,9 +384,7 @@ export function createRemoteInterface(deps: RemoteInterfaceDeps): RemoteInterfac
       }
 
       const voices: Record<string, unknown[]> = { ...(theirVoices ?? {}) };
-      const ours = buildVoicesResponse(catalog, deps.cacheVersion(), {
-        plainLabels: deps.getHideZoteroLocalVoices?.() ?? false,
-      });
+      const ours = buildVoicesResponse(catalog, deps.cacheVersion());
       for (const [tier, configs] of Object.entries(ours)) {
         voices[tier] = [...(voices[tier] ?? []), ...configs];
       }

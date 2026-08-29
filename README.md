@@ -35,9 +35,10 @@ things around the edges. Why it is built this way: [PHILOSOPHY.md](PHILOSOPHY.md
 Download `zotero-tts.xpi` from the [latest release](https://github.com/xujialiu/Zotero-TTS/releases/latest)
 (Firefox: right-click → *Save Link As…*), install it with **Tools → Plugins → ⚙ →
 Install Plugin From File…** and restart Zotero; then enable a provider in
-**Edit → Settings → TTS** and pick a `TTS-…` voice under the **Local** tier.
+**Edit → Settings → TTS** and pick a voice named after its provider —
+`Kokoro-af_bella`, `Azure-Ava Multilingual` — under the **Local** tier.
 
-<p align="center"><img src="assets/popup.png" width="640" alt="The Read Aloud player with a TTS- voice chosen under the Local tier"></p>
+<p align="center"><img src="assets/popup.png" width="640" alt="The Read Aloud player with a plugin voice chosen under the Local tier"></p>
 
 ## Providers
 
@@ -184,7 +185,8 @@ with, in every document. The **Speed** slider is the player's own (0.5×–3×).
   tab, set from the player's slider, the shortcuts or the settings slider.
   Off, Zotero keeps a speed per document language.
 - *Hide Zotero's own Local voices* — the Local tier then offers only the
-  plugin's entries, which drop their `TTS-` prefix.
+  plugin's entries. Off, Zotero's own are listed beside them and marked
+  `Local-Microsoft David Desktop`.
 - *Prefetch upcoming sentences* — the ones ahead are synthesized while the
   current one plays, so playback never waits for the server. Zotero fetches
   3 ahead by itself and your number adds to those. It keeps the cache below
@@ -202,7 +204,11 @@ to the voice's language (a Chinese PDF reads with your English voice, its
 sentences split by English rules); multilingual voices (Azure's, OpenAI's)
 sit under the player's "Multiple languages" entry, which the plugin pins to
 the top of the language list. *Hide Zotero's own Local voices* takes effect
-the next time the Read Aloud player opens.
+the next time the Read Aloud player opens — in both directions, and so does
+the `Local-` marker it puts on Zotero's own voices while it is off. The
+marker is the player's alone: it changes no voice id, so a voice picked
+before stays picked, and the settings pane names every voice the same way
+the player does.
 
 </details>
 
@@ -234,7 +240,7 @@ password.
   that reports word timings (Azure, Kokoro).
 - **"An unknown error occurred" part-way through a document** with an
   OpenAI-compatible server: the server failed on one segment; check its log.
-- **The `TTS-…` voices are missing after a Zotero update.** Read Aloud has
+- **The plugin's voices are missing after a Zotero update.** Read Aloud has
   no plugin API, so the plugin hooks Zotero's internal interface per reader
   tab and an update can drop its voices until the plugin catches up
   (Zotero's own keep working). Open an

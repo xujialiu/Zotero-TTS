@@ -16,18 +16,20 @@ export const PLUGIN_TIER = 'local';
 const PROVIDER_NAMES: Record<ProviderId, string> = { openai: 'OpenAI', azure: 'Azure', local: 'Local' };
 
 /**
- * "TTS-Azure-Ava Multilingual": tells plugin voices from the system voices
- * in the same tier, and the providers from each other, since every enabled
- * provider's voices are listed together. The local provider passes the
- * engine's name ("Kokoro", "Piper") as `providerName`, so its voices are
- * named after the engine that serves them; "Local" is only the fallback
- * when no engine is known. While the system voices are hidden
- * (read-aloud/system-voices.ts) ours are the only entries in the tier and
- * the TTS- marker says nothing, so `prefixed` false drops it.
+ * "Azure-Ava Multilingual": the provider's name in front of the voice's,
+ * since every enabled provider's voices are listed together. The local
+ * provider passes the engine's name ("Kokoro", "Piper") as `providerName`,
+ * so its voices are named after the engine that serves them; "Local" is
+ * only the fallback when no engine is known.
+ *
+ * No marker of the plugin's own: these are the labels read all day, in the
+ * player and in the settings pane alike, and the provider's name already
+ * tells them from "Microsoft David Desktop". It is Zotero's own Local
+ * voices that are marked, and only while they are listed beside these
+ * (read-aloud/system-voices.ts) — issue #9, which retired the TTS- prefix.
  */
-export function pluginVoiceLabel(provider: ProviderId, label: string, providerName?: string, prefixed = true): string {
-  const name = `${providerName ?? PROVIDER_NAMES[provider]}-${label}`;
-  return prefixed ? `TTS-${name}` : name;
+export function pluginVoiceLabel(provider: ProviderId, label: string, providerName?: string): string {
+  return `${providerName ?? PROVIDER_NAMES[provider]}-${label}`;
 }
 
 export function encodeVoiceId(provider: ProviderId, voiceId: string): string {
@@ -77,22 +79,16 @@ export function compareVoiceLabels(a: string, b: string): number {
  * (`...localeConfig.default`), and missing a field throws an exception;
  * the array form is explicitly tolerated and is more robust.
  */
-export type VoicesResponseOptions = {
-  /** Label the voices without the TTS- prefix — the companion of hiding Zotero's own Local voices. The ids never change, so persisted choices survive. */
-  plainLabels?: boolean;
-};
-
 export function buildVoicesResponse(
   entries: { provider: ProviderId; name?: string; voices: VoiceInfo[] }[],
   cacheVersion: string,
-  { plainLabels = false }: VoicesResponseOptions = {},
 ): Record<string, unknown[]> {
   const all: { id: string; label: string; locale: string }[] = [];
   for (const entry of entries) {
     for (const voice of entry.voices) {
       all.push({
         id: encodeVoiceId(entry.provider, voice.id),
-        label: pluginVoiceLabel(entry.provider, voice.label, entry.name, !plainLabels),
+        label: pluginVoiceLabel(entry.provider, voice.label, entry.name),
         locale: voice.locale,
       });
     }

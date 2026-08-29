@@ -33,7 +33,7 @@ export async function collectCatalog(
 
 /**
  * The catalog as the plugin publishes it: every enabled provider's voices,
- * local voices named after the engine serving them ("TTS-Kokoro-…", since
+ * local voices named after the engine serving them ("Kokoro-…", since
  * "Local" says nothing once several engines exist). The Read Aloud
  * interface and the settings' voice browser both list through this, so
  * they agree on voices and names.
