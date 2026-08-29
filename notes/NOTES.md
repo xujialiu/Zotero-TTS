@@ -3749,3 +3749,99 @@ on a real document.
 (`willSpeakRangeOfSpeechString` is not exposed through `say`), and
 speech-dispatcher has no file output at all. Nothing on either has been
 measured, so the provider reports the platform instead of pretending.
+
+
+## Text that is in the PDF but not on the page (2026-08-29, issue #15)
+
+The first real document read with the new System voices took Zotero down:
+base64 gibberish spoken aloud, then blank pages, then a restart. Second
+time round, Firefox named the spot itself — `Unresponsive script:
+resource://zotero/reader/reader.js:44083`.
+
+**The trigger is Zotero's, start to finish.** Nagpal et al. 2021 embeds
+each equation's LaTeX source into the text layer (`<latexit
+sha1_base64="…">AAAB6Hic…`), drawn at `font-size: 0px`, `color:
+rgba(0,0,0,0)`, box `0×0` — 369 spans of it. pdf.js parses that
+correctly; Read Aloud then takes the text layer whole, filters nothing
+invisible and caps no segment length (there is no such limit in the
+bundle), so five "sentences" come out at 2305–4980 characters where the
+longest real one is 618. Proven not ours: with the plugin **disabled** and
+one of Zotero's own Standard voices selected, the controller builds the
+identical 453 segments with the identical five. Both tiers declare
+`segmentGranularity: 'sentence'`.
+
+**Two costs, and the plugin took on both.**
+
+*The one that wedges the reader.* `reader.js:44083` is
+`_pushHighlightedPosition(items, this._layer._readAloudHighlightedPosition,
+READ_ALOUD_ACTIVE_SEGMENT_COLOR)` — it pushes the highlighted position's
+rectangles into the page display list every frame, and one of these blobs
+carries **4951 rectangles** (one per character run). Which position is
+drawn comes from `_resolveReadAloudPrimaryPosition` (:76310): in word
+granularity, `state.activeWordSourcePosition`. **That is precisely why
+Zotero's own Local voices never hit this** — `BrowserReadAloudController`
+produces no word timestamps, so there is no active word, the position is
+`null`, and nothing is drawn. Any provider that returns timestamps gives
+Zotero a word to highlight; and where a voice has no word timings the
+plugin sends `wholeSegmentTimestamp`, whose position is the segment's own
+— all 4951 of them.
+
+*The one that fills memory.* Zotero's own Local voices stream through
+`speechSynthesis.speak()`: no blob, no decode, no cache, no prefetch.
+Measured while `Microsoft David` read that very segment, the main process
+sat at 1185 / 1187 / 1146 MB over ninety seconds and the canvases stayed
+up. Every buffering path pays instead — same 4980 characters:
+
+| provider | wall clock | audio | bytes |
+|---|---|---|---|
+| System (SAPI at 16 kHz) | 1.3 s | 757.2 s | 24 MB WAV |
+| Kokoro-FastAPI (remote GPU) | 14.7 s | 759.4 s | ~12 MB mp3 |
+
+≈145 MB apiece once `decodeAudioData` expands them, several warmed at
+once. Both are far inside the 60 s `DEFAULT_SYNTHESIS_TIMEOUT_MS`, so the
+one bound that existed never fired. **The exposure predates #12** — Kokoro
+has always had both halves — but #12 moved nine immune voices onto the
+exposed path and made it trivial to reach (582× real time against Kokoro's
+51×).
+
+**The fix is the geometry, not the length.** A character cap was the first
+idea and it is a proxy: it refuses a long legitimate sentence and accepts a
+short invisible one. `getAudio` receives the **whole segment object**
+(reader.js:40348), and a PDF segment carries `sourcePosition.rects`, where
+a run drawn at size zero degenerates to a point. Over all 453 segments the
+split is total, with nothing in between:
+
+| zero-area share | segments |
+|---|---|
+| ≥ 0.9 | 5 — every blob (0.9974–0.9982) |
+| 0.1–0.9 | none |
+| exactly 0 | 448 — everything visible |
+
+A share and not an area, because a ratio carries no units and survives a
+different page size, font size or zoom (ink-per-character would need
+calibrating: 0.21 for the blobs, 4.08 for the faintest real segment).
+`read-aloud/invisible-text.ts`, applied where each cost is paid: the
+interface refuses the segment before any provider is asked, sends the
+400 ms pause **with no timestamps** (the half that saves the renderer — the
+primary highlight then resolves to null exactly as it does for Zotero's own
+voices), and `upcomingSegmentTexts` keeps it out of the prefetch window.
+Geometry that cannot settle the question never refuses anything, so EPUB
+and snapshot readers are untouched. No length cap: nothing has been seen
+that is both visible and enormous.
+
+**Verified on 1.9.0-beta5**, same document, same voice: segment 100 (4980
+chars, 4951 rects) returned 6444 bytes of silence with `timestamps:
+undefined` in 15 ms and **cost the daemon zero requests**; segment 60 (270
+chars) still returned 496,526 bytes with 40 word timestamps; no large temp
+file appeared, so prefetch skipped the blobs too; playback started at
+segment 100 walked to 116 in ~40 s through both of them with pages 14,
+canvases healthy and memory flat at ~950 MB.
+
+**Two process notes.** Driving the reader through the bridge in big
+compound steps (close tab, reopen, open the popup, sleep, all in one eval)
+is what produced the second hang and an RDP timeout that read like a crash;
+small steps, one action per call. And the first fix looked right and was
+half wrong — it removed the audio cost and *guaranteed* the highlight cost
+by sending a whole-segment timestamp. Only the live pass caught it, which
+is the rule in CLAUDE.md working: verify by mechanism, not by the symptom
+going away.

@@ -19,6 +19,7 @@ import { listNamedCatalog, type CatalogEntry } from './read-aloud/catalog';
 import { parseFavoriteVoices } from './read-aloud/favorites';
 import { dropdownLanguage, languageDisplayName } from './read-aloud/language-dropdown';
 import { decodeVoiceId } from './read-aloud/voice-catalog';
+import { isInvisibleSegment } from './read-aloud/invisible-text';
 import type { ZoteroVoice } from './read-aloud/zotero-voices';
 import {
   createRemoteInterface,
@@ -207,6 +208,11 @@ async function listCatalog(): Promise<CatalogEntry[]> {
  * cannot pull the window backwards. Reader-side arrays are read with
  * plain loops only: their `map`/`indexOf` would run in the reader's
  * compartment, which may not call back into sandbox-owned values.
+ *
+ * Segments the page does not show are left out (read-aloud/invisible-text.ts):
+ * the player refuses them, and warming one would synthesize the very audio
+ * that refusal exists to avoid — in the background, where nothing is
+ * playing to make the cost visible.
  */
 function upcomingSegmentTexts(reader: any, text: string, count: number): string[] {
   try {
@@ -226,8 +232,9 @@ function upcomingSegmentTexts(reader: any, text: string, count: number): string[
     if (at === -1) return [];
     const out: string[] = [];
     for (let i = at + 1; i < length && out.length < count; i++) {
-      const t = segments[i]?.text;
-      if (typeof t === 'string' && t) out.push(t);
+      const segment = segments[i];
+      const t = segment?.text;
+      if (typeof t === 'string' && t && !isInvisibleSegment(segment)) out.push(t);
     }
     return out;
   } catch (e) {

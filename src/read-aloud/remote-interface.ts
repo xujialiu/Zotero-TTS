@@ -3,6 +3,7 @@ import { silentWav } from '../core/silence';
 import type { ProviderId, SynthesisResult, Timestamp, TTSProvider, VoiceInfo } from '../core/providers/types';
 import { withTimeout } from '../core/timeout';
 import { countVoicesResponse, filterCatalogToFavorites, filterVoicesResponseToFavorites } from './favorites';
+import { isInvisibleSegment } from './invisible-text';
 import { buildVoicesResponse, decodeVoiceId } from './voice-catalog';
 
 export const SAMPLE_TEXT = 'The quick brown fox jumps over the lazy dog.';
@@ -412,6 +413,30 @@ export function createRemoteInterface(deps: RemoteInterfaceDeps): RemoteInterfac
 
       try {
         const text = segment === 'sample' ? SAMPLE_TEXT : segment.text;
+
+        // Text the page does not show is not spoken (read-aloud/invisible-text.ts).
+        // Refused before any provider is asked: a segment of it runs to
+        // minutes of audio and tens of megabytes once decoded. A short pause
+        // and the next sentence, the way a refused segment is handled below.
+        //
+        // Deliberately WITHOUT timestamps, where every other path sends the
+        // whole-segment stand-in. That stand-in is what Zotero highlights,
+        // and its position is the segment's own — 4951 rectangles for one of
+        // these blobs, pushed into the display list on every frame
+        // (_pushHighlightedPosition, reader.js:44083), which wedges the
+        // renderer until the tab is unusable. With no timestamp,
+        // _resolveReadAloudPrimaryPosition returns null in word mode
+        // (reader.js:76310) and nothing is drawn — which is right: there is
+        // nothing on the page to draw. It is exactly what Zotero's own Local
+        // voices do, and why they never hit this.
+        if (segment !== 'sample' && isInvisibleSegment(segment)) {
+          deps.debug?.(`skipping ${text.length} chars that are not visible on the page; playing a ${SILENT_PAUSE_MS} ms pause instead`);
+          // Still warms what follows: the skipped segment is the anchor the
+          // upcoming ones are found from, and it plays for only 400 ms
+          prefetchAfter(decoded.provider, decoded.voiceId, text);
+          const skipped = silentWav(SILENT_PAUSE_MS);
+          return { audio: deps.adoptAudio ? deps.adoptAudio(skipped) : skipped };
+        }
 
         // The cache holds exactly what the provider produced; the sentence
         // fallback below is applied on the way out, never stored.

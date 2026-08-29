@@ -660,6 +660,81 @@ describe('onVoicesRequested', () => {
   });
 });
 
+describe('segments the page does not show', () => {
+  // A LaTeX toolchain draws every equation's source into the text layer at
+  // font size zero; on one arXiv paper that made five "sentences" of
+  // 2305-4980 characters of base64, each 12.6 minutes of audio and ~145 MB
+  // once decoded (read-aloud/invisible-text.ts)
+  const point = (x: number, y: number) => [x, y, x, y];
+  const line = (y: number) => [49, y, 300, y + 9];
+  const invisible = { text: '<latexit sha1_base64="qQ">AAAB6Hic', sourcePosition: { pageIndex: 2, rects: Array.from({ length: 400 }, () => point(496.5, 367)) } };
+  const visible = { text: 'A sentence a reader can see.', sourcePosition: { pageIndex: 2, rects: [line(500), line(512)] } };
+  const whole = (text: string) => [{ start: 0, end: WHOLE_SEGMENT_END_SECONDS, charStart: 0, charEnd: text.length }];
+
+  it('never asks a provider for it: a pause plays and nothing is synthesized', async () => {
+    const synthesize = vi.fn();
+    const debug = vi.fn();
+    const put = vi.fn();
+    const iface = createRemoteInterface({ ...deps(fakeProvider({ synthesize })), debug, cache: () => ({ match: async () => null, put }) });
+    const result = await iface.getAudio(invisible, voice);
+    expect(synthesize).not.toHaveBeenCalled();
+    expect(result.error).toBeUndefined();
+    expect(result.audio!.type).toBe('audio/wav');
+    expect(result.audio!.size).toBe(44 + 2 * Math.round((8000 * SILENT_PAUSE_MS) / 1000));
+    expect(put).not.toHaveBeenCalled();
+    expect(debug).toHaveBeenCalledWith(expect.stringMatching(/not visible on the page/));
+  });
+
+  // The whole-segment stand-in every other path sends would be highlighted,
+  // and its position is the segment's own: 4951 rectangles pushed into the
+  // display list every frame (_pushHighlightedPosition, reader.js:44083),
+  // which wedges the renderer. No timestamp leaves the primary highlight
+  // null in word mode, exactly as Zotero's own Local voices leave it.
+  it('sends no timestamp, so nothing is highlighted for text that is not there', async () => {
+    const result = await createRemoteInterface(deps()).getAudio(invisible, voice);
+    expect(result.timestamps).toBeUndefined();
+    // A visible segment still gets the stand-in when its voice has no word timings
+    const visibleResult = await createRemoteInterface(deps()).getAudio(visible, voice);
+    expect(visibleResult.timestamps).toEqual(whole(visible.text));
+  });
+
+  it('speaks the visible segment beside it as usual', async () => {
+    const synthesize = vi.fn(async () => ({ audio: new Blob(['audio']) }));
+    const result = await createRemoteInterface(deps(fakeProvider({ synthesize }))).getAudio(visible, voice);
+    expect(synthesize).toHaveBeenCalledOnce();
+    expect(result.audio!.size).toBe(5);
+  });
+
+  it('hands the pause through adoptAudio like any other audio', async () => {
+    const adopted = new Blob(['adopted'], { type: 'audio/wav' });
+    const adoptAudio = vi.fn(() => adopted);
+    const result = await createRemoteInterface({ ...deps(), adoptAudio }).getAudio(invisible, voice);
+    expect(adoptAudio).toHaveBeenCalledOnce();
+    expect(result.audio).toBe(adopted);
+  });
+
+  it('keeps warming what follows, so the skip does not stall the pipeline', async () => {
+    const synthesize = vi.fn(async () => ({ audio: new Blob(['a']) }));
+    const getUpcomingTexts = vi.fn(() => ['the next real sentence']);
+    const iface = createRemoteInterface({
+      ...deps(fakeProvider({ synthesize })),
+      cache: () => ({ match: async () => null, put: async () => {} }),
+      getPrefetch: () => ({ enabled: true, count: 1 }),
+      getUpcomingTexts,
+    });
+    await iface.getAudio(invisible, voice);
+    await new Promise((r) => setTimeout(r, 0));
+    expect(getUpcomingTexts).toHaveBeenCalledWith(invisible.text, 1);
+    expect(synthesize).toHaveBeenCalledWith('the next real sentence', expect.anything());
+  });
+
+  it('leaves the sample alone: it has no geometry and is always ours to speak', async () => {
+    const synthesize = vi.fn(async () => ({ audio: new Blob(['audio']) }));
+    await createRemoteInterface(deps(fakeProvider({ synthesize }))).getAudio('sample', voice);
+    expect(synthesize).toHaveBeenCalledWith(SAMPLE_TEXT, expect.anything());
+  });
+});
+
 describe('tiny segments the server refuses', () => {
   // Chatterbox-TTS-Server answers HTTP 500 for "1.", "No", "I." — its
   // alignment analyzer needs more tokens — while whole sentences are fine
