@@ -3333,3 +3333,74 @@ different version, 7 dead entries in the log at the moment of teardown —
 logged nothing, with `Zotero.logError` wrapped to catch what
 `nsIScriptError` drops. So: four columns = old code somewhere; one column =
 look at the fix.
+
+## The player's Options key: a DOM click, because there is no method (2026-08-29, issue #7)
+
+Every button of the Read Aloud player had a key except the leftmost one,
+**Options** — the sliders icon that unfolds the speed slider, the tier, the
+language and the voice. It is now `Shift+O`, a rebindable action
+(`toggleOptions`, a fourth shortcut group `PLAYER_ACTIONS`).
+
+- **The panel has no state outside Zotero's React component.**
+  `ReadAloudPopup` holds it in `let [showOptions, setShowOptions] =
+  useState(false)` (reader.js ~38512); the button is
+  `onClick: () => setShowOptions(!showOptions)` (~38610), and nothing of it
+  reaches `_readAloudManager` or `reader._state`. There is no method to
+  call and no pref to write — the only handle is the button, in
+  `reader._iframeWindow.document`. React's `onClick` is a delegated
+  synthetic listener, so a plain `element.click()` runs the same handler
+  the mouse does.
+- **Which button.** The popup's `.row.buttons` holds three `.group`s —
+  options, the skip/play cluster, annotate — and every one of them is a
+  `toolbar-button` whose `title` is a localized string, so only position
+  tells them apart:
+  `.read-aloud-popup .row.buttons .group:first-child > button.toolbar-button`
+  (`src/ui/player-options.ts`). Open, the popup root takes an `expanded`
+  class (~38604) — that is what the toggle is verified by, and what
+  `Zotero.ZoteroTTS.diagnostics.playerOptions(true)` reports before and
+  after pressing.
+- **No focus is moved, deliberately.** A mouse press on that button does
+  not focus it either: the reader's `_handlePointerDown` `preventDefault()`s
+  a press on anything outside `input, textarea, select, …`. So the key is
+  exactly as good as the mouse, and the panel's rows stay reachable the
+  same way both open it — Tab walks `[data-tabstop]` groups across the
+  reader document (`.row.speed`, the tier row, the language row,
+  `.row.voices`), arrows move within a group (reader.js ~81313/81394).
+- **`Shift+O` is free**: no `Shift-o` in the reader's `getKeyCombination`
+  dispatch, and no `<key>` in Zotero's chrome keysets carries a bare
+  `shift` with `O`.
+- The guard is "the button is in the DOM", not "the manager is active":
+  the popup can be on screen with the manager idle, and an `active`
+  manager on a background tab has no popup to press. No button, the key
+  falls through to the reader.
+
+Verified live (2026-08-29, 1.8.4-beta, through the bridge):
+
+- **`nsIDOMWindowUtils.sendKeyEvent` is gone** in this Gecko (Firefox 140);
+  `sendNativeKeyEvent` needs the window OS-active, which it is not from
+  here. A shortcut is driven instead by dispatching a `KeyboardEvent` on
+  the chrome window — the very object our capture listener gets. Its
+  `defaultPrevented` afterwards says the key was consumed, and a
+  bubble-phase probe on the same window that **never fires** is the proof
+  of our `stopPropagation`.
+- The Tab walk answers the issue's second question: from the view iframe,
+  **Tab 1 → the Options button, Tab 2 → the speed slider, Tab 3 → the
+  voice select**. The tier and language rows are bare `.custom-select`
+  with no `data-tabstop`, so Tab skips them — Zotero's own gap, the same
+  whether the panel was opened by mouse or by key.
+- **The arrows on a focused speed slider go to our skip bindings.** The
+  reader exempts `input[type="range"]` from its own arrow handling
+  (~81285), but our capture listener on the chrome window runs first and
+  `isEditableTarget` counts `range` as non-editable, so ArrowLeft/Right
+  skip a sentence instead of nudging the slider while a session is open.
+  Pre-existing, not introduced here; Up/Down, Tab and Enter all work, so
+  the panel stays operable. A fix would be one clause in the chrome
+  window's `isEditable` hook.
+- **Two agents on one Zotero overwrite each other's build.** A second
+  session installed its own `1.8.3-beta` mid-pass, then `1.8.3`: the pane
+  silently lost the row under test and a screenshot came out of the wrong
+  build. `zotero_plugin_list` cannot tell two identical `-beta` labels
+  apart — count the suffix up (`-beta2`, …) and re-read the version
+  **and** a marker of the change (here `typeof
+  Zotero.ZoteroTTS.diagnostics.playerOptions === 'function'`) before
+  trusting any result.

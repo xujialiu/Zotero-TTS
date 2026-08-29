@@ -3,18 +3,21 @@ import { SPEED_ACTIONS } from '../../src/core/read-aloud-speed';
 import {
   allowsBareArrows,
   isNavigationAction,
+  isPlayerAction,
   isPositionAction,
   NAVIGATION,
   NAVIGATION_ACTIONS,
+  PLAYER_ACTIONS,
   POSITION_ACTIONS,
   SHORTCUT_ACTIONS,
 } from '../../src/core/shortcut-actions';
 
 describe('shortcut actions', () => {
-  it('lists the speed actions first, then the navigation ones, then the position ones', () => {
-    expect(SHORTCUT_ACTIONS).toEqual([...SPEED_ACTIONS, ...NAVIGATION_ACTIONS, ...POSITION_ACTIONS]);
+  it('lists the speed actions first, then the navigation ones, then the position ones, then the player ones', () => {
+    expect(SHORTCUT_ACTIONS).toEqual([...SPEED_ACTIONS, ...NAVIGATION_ACTIONS, ...POSITION_ACTIONS, ...PLAYER_ACTIONS]);
     expect(NAVIGATION_ACTIONS).toEqual(['previousSentence', 'nextSentence', 'previousParagraph', 'nextParagraph']);
     expect(POSITION_ACTIONS).toEqual(['startFromSelection', 'returnToSpoken']);
+    expect(PLAYER_ACTIONS).toEqual(['toggleOptions']);
   });
 
   it("maps each navigation action to a direction and a granularity Zotero's manager understands", () => {
@@ -41,5 +44,15 @@ describe('shortcut actions', () => {
     expect(isNavigationAction('startFromSelection')).toBe(false);
     expect(allowsBareArrows('startFromSelection')).toBe(false);
     expect(allowsBareArrows('returnToSpoken')).toBe(false);
+  });
+
+  it('tells the player action apart from every other group, and keeps it off bare arrow keys', () => {
+    expect(isPlayerAction('toggleOptions')).toBe(true);
+    expect(isPlayerAction('returnToSpoken')).toBe(false);
+    expect(isPlayerAction('nextSentence')).toBe(false);
+    expect(isPlayerAction('speedUp')).toBe(false);
+    expect(isPositionAction('toggleOptions')).toBe(false);
+    expect(isNavigationAction('toggleOptions')).toBe(false);
+    expect(allowsBareArrows('toggleOptions')).toBe(false);
   });
 });

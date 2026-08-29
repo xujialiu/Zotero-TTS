@@ -61,12 +61,14 @@ const IDS = [
   'ztts-key-nextParagraph',
   'ztts-key-startFromSelection',
   'ztts-key-returnToSpoken',
+  'ztts-key-toggleOptions',
   'ztts-key-clear-previousSentence',
   'ztts-key-clear-nextSentence',
   'ztts-key-clear-previousParagraph',
   'ztts-key-clear-nextParagraph',
   'ztts-key-clear-startFromSelection',
   'ztts-key-clear-returnToSpoken',
+  'ztts-key-clear-toggleOptions',
   'ztts-key-defaults',
   'ztts-key-message',
 ];
@@ -130,6 +132,7 @@ describe('initShortcutRows', () => {
     expect(doc.el('ztts-key-nextParagraph').label).toBe('Shift+ArrowRight');
     expect(doc.el('ztts-key-startFromSelection').label).toBe('Shift+Space');
     expect(doc.el('ztts-key-returnToSpoken').label).toBe('Shift+Enter');
+    expect(doc.el('ztts-key-toggleOptions').label).toBe('Shift+O');
     expect(doc.recording).toBe(0);
   });
 
@@ -271,7 +274,7 @@ describe('addon/content/preferences.xhtml', () => {
       return xhtml.slice(xhtml.lastIndexOf('<hbox', at), xhtml.indexOf('</hbox>', at));
     };
     const help = /<label class="ztts-help" value="\?" help="([^"]+)"\/>/;
-    for (const action of [...NAVIGATION_ACTIONS, 'returnToSpoken']) {
+    for (const action of [...NAVIGATION_ACTIONS, 'returnToSpoken', 'toggleOptions']) {
       expect(rowOf(action).match(help)?.[1], action).toMatch(/only while Read Aloud is open/);
     }
     expect(rowOf('startFromSelection').match(help)?.[1]).toMatch(/every state/);

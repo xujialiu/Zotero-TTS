@@ -106,6 +106,8 @@ export const DEFAULTS: Settings = {
     startFromSelection: 'Shift+Space',
     // Taken only while a Read Aloud session is open
     returnToSpoken: 'Shift+Enter',
+    // The player's Options panel; taken only while the player is on screen
+    toggleOptions: 'Shift+O',
   },
   readAloud: {
     sameForAllDocuments: true,
@@ -179,6 +181,7 @@ export function loadSettings(prefs: PrefsBackend): Settings {
       nextParagraph: str(prefs, 'shortcuts.nextParagraph', DEFAULTS.shortcuts.nextParagraph),
       startFromSelection: str(prefs, 'shortcuts.startFromSelection', DEFAULTS.shortcuts.startFromSelection),
       returnToSpoken: str(prefs, 'shortcuts.returnToSpoken', DEFAULTS.shortcuts.returnToSpoken),
+      toggleOptions: str(prefs, 'shortcuts.toggleOptions', DEFAULTS.shortcuts.toggleOptions),
     },
     readAloud: {
       sameForAllDocuments: bool(prefs, 'readAloud.sameForAllDocuments', DEFAULTS.readAloud.sameForAllDocuments),

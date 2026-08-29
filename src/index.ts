@@ -30,6 +30,7 @@ import {
   pickReader,
   type ReadAloudShortcuts,
 } from './ui/read-aloud-shortcuts';
+import { findOptionsButton, hasPlayer, isOptionsPanelOpen } from './ui/player-options';
 import { removeSpeedToast, showSpeedToast } from './ui/speed-toast';
 import { browserVoices, createSamplePlayer, defaultVoiceLine, defaultVoiceRows, groupVoicesByTier, languageNameOf, startingSpeed } from './ui/voice-browser-rows';
 import { silentWav } from './core/silence';
@@ -538,6 +539,11 @@ function startReadAloudShortcuts(pluginID: string): void {
       reader._internalReader.startReadAloudAtPosition(win ? Components.utils.cloneInto(target, win) : target);
       return true;
     },
+    // The player's Options button, in the reader's own document: the panel
+    // is React state local to Zotero's popup, so there is nothing to call
+    // (ui/player-options.ts). No player on screen, no button — the key
+    // falls through.
+    findOptionsButton: (reader: any) => findOptionsButton(reader?._iframeWindow?.document),
     log: (e) => Zotero.logError(e),
   });
   for (const win of mainWindows()) watchWindow(win);
@@ -893,6 +899,45 @@ const diagnostics = {
       return { itemID: safe(() => r?.itemID), canReadAloud, active, paused, hasSelection, stored, wouldDo };
     });
     return JSON.stringify({ shortcut: loadSettings(prefs).shortcuts.startFromSelection, readers }, null, 1);
+  },
+  /**
+   * The Options key (Shift+O) as the plugin sees it: for every reader,
+   * whether the player is on screen, whether its Options button was found,
+   * and whether the panel is unfolded. `playerOptions(true)` runs the very
+   * toggle the key runs and reports the panel state before and after — the
+   * press is proved by `expanded` flipping, never by the panel looking
+   * right (CLAUDE.md, verify by mechanism).
+   */
+  playerOptions: async (press = false) => {
+    const docOf = (r: any) => {
+      try {
+        return r?._iframeWindow?.document ?? null;
+      } catch {
+        return null;
+      }
+    };
+    const state = (r: any) => {
+      const doc = docOf(r);
+      return {
+        player: safe(() => hasPlayer(doc)) === true,
+        button: safe(() => !!findOptionsButton(doc)) === true,
+        expanded: safe(() => isOptionsPanelOpen(doc)) === true,
+      };
+    };
+    const readers: unknown[] = [];
+    for (const r of Zotero.Reader._readers ?? []) {
+      const before = state(r);
+      let toggled: unknown = 'not pressed';
+      let after: unknown = null;
+      if (press) {
+        toggled = safe(() => readAloudShortcuts?.toggleOptions(r));
+        // React flushes its re-render on the click itself; a tick costs nothing and rules the timing out
+        await new Promise((resolve) => setTimeout(resolve, 50));
+        after = state(r);
+      }
+      readers.push({ itemID: safe(() => r?.itemID), before, toggled, after });
+    }
+    return JSON.stringify({ shortcut: loadSettings(prefs).shortcuts.toggleOptions, readers }, null, 1);
   },
   /**
    * The stored Read Aloud positions and what the sampler sees right now.

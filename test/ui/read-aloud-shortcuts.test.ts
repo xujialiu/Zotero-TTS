@@ -66,6 +66,7 @@ const BINDINGS = {
   nextParagraph: 'Shift+ArrowRight',
   startFromSelection: 'Shift+Space',
   returnToSpoken: 'Shift+Enter',
+  toggleOptions: 'Shift+O',
 };
 const voicesPref = (prefs: { store: Record<string, unknown> }) => JSON.parse(prefs.store[READ_ALOUD_VOICES_PREF] as string);
 
@@ -81,6 +82,8 @@ function setup(over: Partial<ReadAloudShortcutsDeps> = {}) {
   const togglePaused = vi.fn();
   const emitState = vi.fn();
   const resumeLastPosition = vi.fn(() => true);
+  const optionsButton = { click: vi.fn() };
+  const findOptionsButton = vi.fn((_reader: unknown) => optionsButton as { click(): void } | null);
   const log = vi.fn();
   const shortcuts = createReadAloudShortcuts({
     getBindings: () => BINDINGS,
@@ -94,6 +97,7 @@ function setup(over: Partial<ReadAloudShortcutsDeps> = {}) {
     togglePaused,
     emitState,
     resumeLastPosition,
+    findOptionsButton,
     log,
     ...over,
   });
@@ -110,6 +114,8 @@ function setup(over: Partial<ReadAloudShortcutsDeps> = {}) {
     togglePaused,
     emitState,
     resumeLastPosition,
+    optionsButton,
+    findOptionsButton,
     log,
     resolve: () => reader,
   };
@@ -589,6 +595,95 @@ describe('return to spoken position', () => {
     manager.active = false;
     expect(shortcuts.returnToSpoken(reader)).toBe(false);
     expect(lockPosition).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("the player's options key (action toggleOptions)", () => {
+  const letterO = (partial: Partial<ShortcutKeyEvent> = {}) => keyEvent({ key: 'O', code: 'KeyO', shiftKey: true, ...partial });
+
+  it('presses the options button and consumes the key', () => {
+    const { shortcuts, optionsButton, findOptionsButton, reader, resolve } = setup();
+    const event = letterO();
+    expect(shortcuts.handleKeyDown(event, resolve)).toBe(true);
+    expect(findOptionsButton).toHaveBeenCalledWith(reader);
+    expect(optionsButton.click).toHaveBeenCalledTimes(1);
+    expect(event.preventDefault).toHaveBeenCalled();
+    expect(event.stopPropagation).toHaveBeenCalled();
+  });
+
+  // Pressed again it presses the same button again: the panel is Zotero's
+  // React state, and the button is what folds it back
+  it('presses again to close, without tracking a state of its own', () => {
+    const { shortcuts, optionsButton, resolve } = setup();
+    shortcuts.handleKeyDown(letterO(), resolve);
+    shortcuts.handleKeyDown(letterO(), resolve);
+    expect(optionsButton.click).toHaveBeenCalledTimes(2);
+  });
+
+  it('falls through when no player is on screen', () => {
+    const { shortcuts, resolve } = setup({ findOptionsButton: () => null });
+    const event = letterO();
+    expect(shortcuts.handleKeyDown(event, resolve)).toBe(false);
+    expect(event.preventDefault).not.toHaveBeenCalled();
+  });
+
+  it('falls through when the lookup is not wired at all', () => {
+    const { shortcuts, resolve } = setup({ findOptionsButton: undefined });
+    const event = letterO();
+    expect(shortcuts.handleKeyDown(event, resolve)).toBe(false);
+    expect(event.preventDefault).not.toHaveBeenCalled();
+  });
+
+  // An open session is not the test: the popup can be on screen with the
+  // manager idle, and a manager that is active with the popup gone has no
+  // button to press
+  it('asks only for the button, never the manager', () => {
+    const { shortcuts, manager, optionsButton, resolve } = setup();
+    manager.active = false;
+    expect(shortcuts.handleKeyDown(letterO(), resolve)).toBe(true);
+    expect(optionsButton.click).toHaveBeenCalledTimes(1);
+  });
+
+  it('logs a lookup that throws and lets the key through', () => {
+    const { shortcuts, log, resolve } = setup({
+      findOptionsButton: () => {
+        throw new Error('dead document');
+      },
+    });
+    const event = letterO();
+    expect(shortcuts.handleKeyDown(event, resolve)).toBe(false);
+    expect(log).toHaveBeenCalledWith(expect.any(Error));
+    expect(event.preventDefault).not.toHaveBeenCalled();
+  });
+
+  it('logs a click that throws, having already consumed the key', () => {
+    const { shortcuts, optionsButton, log, resolve } = setup();
+    optionsButton.click.mockImplementation(() => {
+      throw new Error('boom');
+    });
+    expect(shortcuts.handleKeyDown(letterO(), resolve)).toBe(true);
+    expect(log).toHaveBeenCalledWith(expect.any(Error));
+  });
+
+  it('lets typing through in editable fields', () => {
+    const { shortcuts, optionsButton, resolve } = setup();
+    const event = letterO({ target: { tagName: 'INPUT', type: 'text' } });
+    expect(shortcuts.handleKeyDown(event, resolve)).toBe(false);
+    expect(optionsButton.click).not.toHaveBeenCalled();
+  });
+
+  it('swallows auto-repeat: one toggle per press', () => {
+    const { shortcuts, optionsButton, resolve } = setup();
+    expect(shortcuts.handleKeyDown(letterO({ repeat: true }), resolve)).toBe(true);
+    expect(optionsButton.click).not.toHaveBeenCalled();
+  });
+
+  it('toggleOptions() reports whether there was a player to act on', () => {
+    const { shortcuts, reader, optionsButton } = setup();
+    expect(shortcuts.toggleOptions(reader)).toBe(true);
+    expect(optionsButton.click).toHaveBeenCalledTimes(1);
+    const none = setup({ findOptionsButton: () => null });
+    expect(none.shortcuts.toggleOptions(none.reader)).toBe(false);
   });
 });
 

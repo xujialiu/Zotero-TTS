@@ -28,6 +28,7 @@ const ACTION_NAMES: Record<ShortcutAction, string> = {
   nextParagraph: 'Next paragraph',
   startFromSelection: 'Play / pause / resume',
   returnToSpoken: 'Go to reading position',
+  toggleOptions: 'Player options',
 };
 
 /**

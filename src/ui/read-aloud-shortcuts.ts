@@ -114,6 +114,14 @@ export interface ReadAloudShortcutsDeps {
    * nothing stored — the smart key then falls back to startReadAloud.
    */
   resumeLastPosition?(reader: unknown): boolean;
+  /**
+   * The player's Options button in the reader's own document
+   * (ui/player-options.ts). Null when no player is on screen: the key then
+   * falls through to the reader, the rule the arrows and Shift+Enter
+   * follow. There is nothing else to ask — the panel's open/closed state
+   * never leaves Zotero's React component.
+   */
+  findOptionsButton?(reader: unknown): { click(): void } | null;
   log?(e: unknown): void;
 }
 
@@ -133,6 +141,8 @@ export interface ReadAloudShortcuts {
   smartPlay(reader: unknown): boolean;
   /** Bring the view back to the spoken position; false when no Read Aloud session is open. */
   returnToSpoken(reader: unknown): boolean;
+  /** Unfold or fold the player's options panel; false when no player is on screen. */
+  toggleOptions(reader: unknown): boolean;
   /** Attach a capturing keydown listener to a window; idempotent per window, detaches itself on unload. */
   listen(target: EventTargetLike, resolveReader: () => unknown, options?: HandleOptions): void;
   unlisten(target: EventTargetLike): void;
@@ -289,6 +299,27 @@ export function createReadAloudShortcuts(deps: ReadAloudShortcutsDeps): ReadAlou
     return true;
   }
 
+  /** The Options button, or null when the player is not on screen (or the lookup is not wired). */
+  const optionsButton = (reader: unknown): { click(): void } | null => {
+    try {
+      return deps.findOptionsButton?.(reader) ?? null;
+    } catch (e) {
+      log(e);
+      return null;
+    }
+  };
+
+  function toggleOptions(reader: unknown): boolean {
+    const button = optionsButton(reader);
+    if (!button) return false;
+    try {
+      button.click();
+    } catch (e) {
+      log(e);
+    }
+    return true;
+  }
+
   function handleKeyDown(event: ShortcutKeyEvent, resolveReader: () => unknown, options: HandleOptions = {}): boolean {
     if (event.defaultPrevented) return false;
     const action = actionFor(event);
@@ -301,10 +332,12 @@ export function createReadAloudShortcuts(deps: ReadAloudShortcutsDeps): ReadAlou
     // is borrowed only while a Read Aloud session is open (playing or
     // paused) and falls through untouched otherwise. The smart key is
     // consumed whenever Read Aloud exists — only an older Zotero without
-    // startReadAloudAtPosition leaves Shift+Space paging.
+    // startReadAloudAtPosition leaves Shift+Space paging. The options key
+    // needs the player itself on screen: the button is all there is to press.
     if (isNavigationAction(action) && !canSkip(managerOf(reader))) return false;
     if (action === 'startFromSelection' && !canSmartPlay(reader)) return false;
     if (action === 'returnToSpoken' && !canReturnToSpoken(reader)) return false;
+    if (action === 'toggleOptions' && !optionsButton(reader)) return false;
     event.preventDefault();
     event.stopPropagation();
     // Holding the key down would restart the current segment on every auto-repeat
@@ -312,6 +345,7 @@ export function createReadAloudShortcuts(deps: ReadAloudShortcutsDeps): ReadAlou
     if (isNavigationAction(action)) navigate(reader, action);
     else if (action === 'startFromSelection') smartPlay(reader);
     else if (action === 'returnToSpoken') returnToSpoken(reader);
+    else if (action === 'toggleOptions') toggleOptions(reader);
     else adjust(reader, action);
     return true;
   }
@@ -349,7 +383,7 @@ export function createReadAloudShortcuts(deps: ReadAloudShortcutsDeps): ReadAlou
     for (const target of [...listeners.keys()]) unlisten(target);
   }
 
-  return { handleKeyDown, adjust, navigate, smartPlay, returnToSpoken, listen, unlisten, dispose };
+  return { handleKeyDown, adjust, navigate, smartPlay, returnToSpoken, toggleOptions, listen, unlisten, dispose };
 }
 
 /**

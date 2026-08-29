@@ -26,7 +26,7 @@ things around the edges. Why it is built this way: [PHILOSOPHY.md](PHILOSOPHY.md
 - 🔖 **Resume where you stopped** — close a document, open it again later, press `Shift+Space`, and Read Aloud starts at the sentence you left off on. [→ Resume where you stopped](#resume-where-you-stopped)
 - 🎧 **A voice browser** in the settings: every voice by tier and language — yours and Zotero's own — a play button for a short sample, hearts for favorites, and a switch to offer only the favorites. [→ Voice browser](#voice-browser)
 - ✨ **Word *and* sentence highlighting at once**, in your own colors and opacities — for Zotero's voices too. [→ Highlight](#highlight)
-- ⌨️ **Keyboard shortcuts**: speed up, down, reset; jump by sentence or paragraph; read from the selection; bring the view back to what's being read. All rebindable. [→ Shortcuts](#keyboard-shortcuts)
+- ⌨️ **Keyboard shortcuts**: speed up, down, reset; jump by sentence or paragraph; read from the selection; bring the view back to what's being read; open the player's options panel. All rebindable. [→ Shortcuts](#keyboard-shortcuts)
 - 📌 **One voice and speed everywhere** — every document and every open tab, picked in any popup or in the voice browser — instead of Zotero's choice per language. [→ Reading](#reading)
 - 💾 **Settings backup** to a file or a WebDAV folder. [→ Backup](#backup)
 
@@ -110,8 +110,10 @@ on a yellow sentence, both at 70 %; *Restore default colors* brings it back
 `Shift+Space` is the one play key and always does the right thing: it
 pauses and resumes an open session, and otherwise starts reading — from the
 selected text, from where you last stopped (below), or from the visible
-page. The arrow keys and `Shift+Enter` act only while Read Aloud is open
-and page or scroll as usual otherwise. Click a field to record another key.
+page. `Shift+O` opens and closes the player's options panel — the speed
+slider, the tier, the language and the voice. The arrow keys, `Shift+Enter`
+and `Shift+O` act only while Read Aloud is open and keep their usual
+meaning otherwise. Click a field to record another key.
 
 ### Resume where you stopped
 
