@@ -3457,3 +3457,82 @@ flips `readAloud.favoritesOnly` and the box's `checked` together (true → false
 a click on the box flips them back — the `command` the preference binding waits
 for comes from the checkbox itself, which is exactly why the run had to be
 drawn inside it.
+
+---
+
+## A source build sorts below its own version (2026-08-29, issue #8)
+
+A user on CachyOS could not install the xpi: *"The add-on "Zotero TTS" could
+not be installed. It may be incompatible with this version of Zotero."* — the
+same sentence as incident #1, a different cause. His Zotero was
+`10.0.SOURCE.22f08d1ce`, a build made from source, and we shipped
+`strict_min_version: "10.0"`.
+
+**Mozilla's comparator ranks a trailing non-numeric part *below* nothing.**
+`1.0pre < 1.0` is the documented rule, and a Zotero source build is spelled
+`10.0.SOURCE.<hash>`, so it sorts *under* plain `10.0`. Read out of the
+running Zotero:
+
+```
+Services.vc.compare("10.0.SOURCE.22f08d1ce", "10.0")  === -1
+Services.vc.compare("10.0.SOURCE.22f08d1ce", "9.999") ===  1
+```
+
+Only the `10.0` line is affected: `10.1.SOURCE.<hash>` passes, because its
+second part (`1`) already beats `0`. So this locked out everyone building
+Zotero 10.0 themselves — Arch/CachyOS, NixOS — and nobody else, which is why
+it survived a month of installs.
+
+The path through Zotero (line numbers from 10.0.2-beta.1's `omni.ja`):
+
+- `XPIInstall.sys.mjs:590-594` — `applications.zotero.strict_min_version`
+  becomes `targetApplications[0].minVersion`.
+- `XPIInstall.sys.mjs:507` — Zotero's patch: an app version containing
+  `-beta`, `-dev` or `SOURCE` sets `strictCompatibility = false`.
+- `XPIDatabase.sys.mjs:593-596` — that only drops the **maximum**. The
+  non-strict branch still returns
+  `Services.vc.compare(version, minVersion) >= 0`.
+- `XPIDatabase.sys.mjs:2724-2730` `isUsableAddon` → `appDisabled`;
+  `XPIInstall.sys.mjs:2794-2795` → `ERROR_INCOMPATIBLE`; `standalone.js:1174`
+  shows `standalone.addonInstallationFailed.body`.
+
+**Incident #1's wrong turn (a) was half right and recorded as fully right.**
+It says the `strict_min_version` comparison was "ruled out from
+`XPIDatabase.sys.mjs`: on a `-beta` build, `maxVersion` is not even
+consulted" — that rules out the *maximum*. The minimum is always consulted,
+and was never examined. A note that says "ruled out" should name which half.
+
+**The dialog tells you which of the two it is.** `standalone.js:1178` passes
+`installs[0].name || installs[0].file.path`: incident #1 showed a file path,
+because the manifest was rejected during parsing, before the name was read;
+this one showed "Zotero TTS", so parsing had succeeded and the failure came
+later, at the compatibility check.
+
+**Fix.** `strict_min_version: "9.999"` in `addon/manifest.json` and in
+`update.json` — the same convention Zotero 7 plugins used with `6.999`, and
+`update.json` matters because it gates auto-updates through the identical
+check. Dropping the key instead would be wrong: Zotero defaults a missing
+minimum to `"0"` (`XPIDatabase.sys.mjs:572`), and `strict_max_version:
+"10.*"` alone lets Zotero 7 install a plugin that cannot work there.
+
+**Tests.** `test/zotero-version.ts` ports `nsVersionComparator.cpp` and
+`isCompatibleWith`; `test/zotero-version.test.ts` pins all 27 of its rankings
+against the values Zotero's own `Services.vc` produced, so the port is checked
+rather than trusted, and `test/build.test.ts` runs the built manifest and
+`update.json` through it for a release, a beta and a source build. The old
+test pinned the literal `'10.0'` — it asserted the bug.
+
+**Caveat when probing this live.** `addon.isCompatibleWith(version, pv)` reads
+`Services.appinfo.version` — the *running* Zotero — for the beta/dev/SOURCE
+test at `XPIDatabase.sys.mjs:593`, not the version you pass in. On a `-beta`
+machine every `strict_max_version` question therefore answers "compatible":
+`isCompatibleWith("11.0", pv)` returned `true` here. Only the minimum half of
+that call is trustworthy from a beta build.
+
+Verified live in 1.8.4-beta2, through Zotero's own check. Before:
+`isCompatibleWith("10.0.SOURCE.22f08d1ce")` `false`, `"10.0.4"` `true`,
+`"7.0.9"` `false`. After: `"10.0.SOURCE.22f08d1ce"` and `"10.0.SOURCE.abc1234"`
+`true`, `"10.0"` and `"10.0.4"` `true`, `"9.9.9"` and `"7.0.9"` still `false`;
+plugin active, `appDisabled: false`, all patches live (readers 1, highlight
+2/2, systemVoices 1/1, multilingualFirst 1/1, readAloudMemory 3/3), no
+`[zotero-tts]` errors.

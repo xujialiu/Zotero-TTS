@@ -245,8 +245,9 @@ password.
 
 ## Compatibility
 
-- Zotero 10 on the desktop, pinned to `10.*`. In use on Windows and macOS;
-  Linux should be the same, but is untested.
+- Zotero 10 on the desktop, pinned to `10.*`, including builds made from
+  source (`10.0.SOURCE.…`). In use on Windows and macOS; Linux should be
+  the same, but is untested.
 
 ## Development
 

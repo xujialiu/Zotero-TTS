@@ -1,9 +1,10 @@
 import { execFileSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import AdmZip from 'adm-zip';
 import { describe, expect, it } from 'vitest';
+import { acceptsPlugin } from './zotero-version';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const xpi = join(root, 'build', 'zotero-tts.xpi');
@@ -19,12 +20,42 @@ describe('build', () => {
     expect(names).toContain('content/zotero-tts.js');
   });
 
-  it('declares the plugin id and minimum Zotero version', () => {
+  it('declares the plugin id', () => {
     execFileSync('node', ['scripts/build.mjs'], { cwd: root, stdio: 'pipe' });
     const entry = new AdmZip(xpi).getEntry('manifest.json');
     const manifest = JSON.parse(entry!.getData().toString('utf8'));
     expect(manifest.applications.zotero.id).toBe('zotero-tts@xujialiu.top');
-    expect(manifest.applications.zotero.strict_min_version).toBe('10.0');
+  });
+
+  // The version bounds are run through Mozilla's comparator, which ranks a
+  // trailing non-numeric part *below* nothing ("1.0pre" < "1.0"). A minimum of
+  // "10.0" therefore locked out every Zotero 10.0 built from source, whose
+  // version is "10.0.SOURCE.<hash>" (issue #8). Both the shipped manifest and
+  // update.json — which gates auto-updates the same way — must accept them.
+  it.each([
+    ['10.0', 'a Zotero 10.0 release'],
+    ['10.0.4', 'a later Zotero 10 release'],
+    ['10.0.2-beta.1+33297dd19', 'a Zotero 10 beta'],
+    ['10.0.SOURCE.22f08d1ce', 'a Zotero 10.0 built from source'],
+  ])('is installable on %s (%s)', (version) => {
+    execFileSync('node', ['scripts/build.mjs'], { cwd: root, stdio: 'pipe' });
+    const entry = new AdmZip(xpi).getEntry('manifest.json');
+    const { zotero } = JSON.parse(entry!.getData().toString('utf8')).applications;
+    expect(acceptsPlugin(version, zotero)).toBe(true);
+
+    const update = JSON.parse(readFileSync(join(root, 'update.json'), 'utf8'));
+    const { applications } = update.addons['zotero-tts@xujialiu.top'].updates[0];
+    expect(acceptsPlugin(version, applications.zotero)).toBe(true);
+  });
+
+  it.each([
+    ['7.0.9', 'Zotero 7'],
+    ['11.0', 'Zotero 11'],
+  ])('is not installable on %s (%s)', (version) => {
+    execFileSync('node', ['scripts/build.mjs'], { cwd: root, stdio: 'pipe' });
+    const entry = new AdmZip(xpi).getEntry('manifest.json');
+    const { zotero } = JSON.parse(entry!.getData().toString('utf8')).applications;
+    expect(acceptsPlugin(version, zotero)).toBe(false);
   });
 
   // Zotero 10's Extension.sys.mjs (parseManifest) hard-rejects any extension
