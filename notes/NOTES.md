@@ -3536,3 +3536,104 @@ Verified live in 1.8.4-beta2, through Zotero's own check. Before:
 plugin active, `appDisabled: false`, all patches live (readers 1, highlight
 2/2, systemVoices 1/1, multilingualFirst 1/1, readAloudMemory 3/3), no
 `[zotero-tts]` errors.
+
+## The marker moved to Zotero's own voices, and the first accessor patch (2026-08-29, issue #9)
+
+The plugin's voices lost their `TTS-` prefix everywhere — `Kokoro-af_bella`,
+`Azure-Ava Multilingual` — and while *Hide Zotero's own Local voices* is off,
+Zotero's own carry `Local-` instead. Our half was a deletion (`prefixed`,
+`plainLabels`, `getHideZoteroLocalVoices`); Zotero's half needed a new kind of
+patch.
+
+**The label is an accessor, and `ownerOf` cannot be pointed at one.**
+`BrowserReadAloudVoice.label` is a prototype getter (reader.js:39629) over the
+instance field `impl` (:39250). `ownerOf` probes with `typeof proto[name] ===
+'function'`, which *calls* the getter with the prototype as `this` and throws
+on `this.impl.name`. Hence `accessorOwnerOf`, which walks the chain through
+`getOwnPropertyDescriptor` and never reads the property. Same trap for the
+undo log: `proto[name] = original` is ignored by a getter-only property, so
+`proto-patches.ts` now records an **undo closure** per entry instead of the
+original function, and `shadowGetter` puts the whole descriptor back.
+
+**The class is private to the bundle, so an instance is the only way in.**
+Unlike `Intl.DisplayNames` (multilingual-first.ts), `BrowserReadAloudVoice` is
+not on any global: the prototype is reached from the first system voice of
+`_allVoices`, inside the `_resolveVoice` hook system-voices.ts already owns.
+That is why the marking cannot happen in `attach()` — at attach time the list
+is empty. The two sides of the switch are exclusive there (`enabled() ? strip
+: mark`), which also keeps the splice from removing the instance the class is
+reached through.
+
+**The marker is computed, never stored.** The wrapper calls the original
+getter and prefixes its result, so: no `Local-Local-` however often
+`_resolveVoice` re-runs without a rebuild (setLanguage, selectTier); macOS's
+`(Premium)` → `(macOS Premium)` rewrite survives because it happens inside the
+original; and flipping the switch on makes the same voices read plain again
+with no second patch.
+
+**The first-run popup is a separate window in the desktop app — the issue body
+was wrong about this.** reader.js's inline `ReadAloudFirstRunPopup` (:42595)
+never renders here: `:83106` says "call it instead of rendering the inline
+popup" and `chrome/…/xpcom/reader.js:640` always supplies
+`onOpenReadAloudFirstRunPopup`. What opens is `readAloudFirstRunDialog.xhtml`
+running `read-aloud-first-run.js`, and Zotero's "Manage voices" is
+`readAloudVoicesDialog.xhtml` running `read-aloud-voices.js` (`voice.label`
+per row at :3869) — each its own window, its own bundle, its own copy of the
+class. So a prototype patch in the reader reaches neither, exactly as the
+hiding does not. Our own voices do reach both: their labels travel in the
+voices response.
+
+**The door to those two, if they ever matter.** Both dialogs build their
+interface with `this._getReadAloudRemoteInterface(win)` (`chrome/…/xpcom/
+reader.js:1904` and `:1934`) — the instance property this plugin overrides —
+so the plugin is handed each dialog's window. From a window one can reach
+`waive(win).SpeechSynthesisVoice.prototype` and patch `name`, the source
+`label` is derived from, the way multilingual-first patches `Intl.DisplayNames.
+prototype.of`. Not done: it patches a Web API rather than the class that means
+"a voice Zotero shows", for a surface the sibling switch leaves alone anyway.
+
+**Rejected: letting Zotero draw a divider.** `buildVoiceOptions` inserts one
+whenever `creditsPerMinute` changes between adjacent voices (:38458), and the
+field has only four reads in the bundle — `minutesRemaining` is `null` for the
+local tier whatever it holds (:39255-39261), so no credits or purchase UI
+would appear. But our voices sort first only while their cost is *below* the
+OS voices' `null ?? -1`, i.e. a negative number smuggled through a billing
+field, and a bare divider says there are two groups without saying which is
+Zotero's.
+
+**Rejected: a suffix `(Zotero)`.** Tempting, because `useSamplePlayback`
+strips a trailing parenthetical (:38192) — the spoken sample would not say the
+marker — and the dropdown's type-ahead would keep working. It fails on
+Windows, where the names are long already: measured here, `Microsoft David
+Desktop - English (United States)`, 49 characters. A suffix is what the
+dropdown truncates away.
+
+**Costs accepted with the prefix.** The dropdown's type-ahead compares
+`label.toLowerCase().startsWith(...)` (:37566), so every OS voice now answers
+to "l"; and the spoken sample says "Hi, I'm Local-Microsoft David". Both are
+the same shape of cost multilingual-first already accepts.
+
+**Verified live in 1.8.5-beta2** (Zotero 10.0.2-beta.1, 9 OS voices, Azure +
+Kokoro enabled), one fresh reader tab per pass, `diagnostics.systemVoices()`
+plus the manager's own `_allVoices`:
+
+| pass | result |
+|---|---|
+| switch on | `{enabled: true, patched: true, voices: {standard 1, local-plugin 5}}`, no `labelPatched`/`systemLabel` key, labels `Azure-…`/`Kokoro-…`, no `TTS-` |
+| switch off | `labelPatched: true`, `systemLabel: "Local-Microsoft David - English (United States)"`, `local-system: 9`, all nine marked once, plugin labels untouched, patch log 2 |
+| setLanguage/selectTier ×3 | still marked once, patch log still 2 |
+| on again | system voices gone, patch fields absent |
+| off again | marked once again, `selectedVoiceID` survived every flip |
+| second tab | both readers `labelPatched: true`, patch log 4 |
+| plugin reload | every label back to `Microsoft David - English (United States)`, patch log 1, no `[zotero-tts]` errors |
+
+The dropdown, by eye: `✓ Kokoro-am_puck` above `Local-Microsoft David -
+English (United States)` and its five siblings. `extensions.zotero.reader.
+readAloudVoices` was untouched throughout — it keys by id, and the `zh` entry
+holds an OS voice id (`local-urn:moz-tts:sapi:…`), which is exactly why labels
+have never been keys.
+
+**`labelPatched` and `systemLabel` are about the voices listed now.** While
+they are hidden there is no instance to reach the class through and nothing to
+mark, so the diagnostic omits both fields rather than reporting `false` for a
+patch that is in fact still held (`diagnostics.patches()` counts it).

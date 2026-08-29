@@ -125,7 +125,7 @@ Zotero → Settings → TTS → **OpenAI** section:
 
 **Test connection** should answer `Connected. 28 voices available. Synthesis
 works.` The voices then appear in Read Aloud's *Local* tier as
-`TTS-OpenAI-Emily.wav` and so on.
+`OpenAI-Emily.wav` and so on.
 
 The two header values are as sensitive as an API key: they are stored in
 Zotero's preferences in plain text, and anyone holding them can use your

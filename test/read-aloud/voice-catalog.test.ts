@@ -43,24 +43,17 @@ describe('tierForProvider', () => {
 });
 
 describe('pluginVoiceLabel', () => {
-  // The local tier also holds the operating system's voices, and every
-  // enabled provider's voices are listed together: the label names both
-  it('reads TTS-<Provider>-<name>', () => {
-    expect(pluginVoiceLabel('openai', 'Alloy')).toBe('TTS-OpenAI-Alloy');
-    expect(pluginVoiceLabel('azure', 'Ava Multilingual')).toBe('TTS-Azure-Ava Multilingual');
+  // Every enabled provider's voices are listed together, so the label names
+  // the provider; no marker of the plugin's own (issue #9)
+  it('reads <Provider>-<name>', () => {
+    expect(pluginVoiceLabel('openai', 'Alloy')).toBe('OpenAI-Alloy');
+    expect(pluginVoiceLabel('azure', 'Ava Multilingual')).toBe('Azure-Ava Multilingual');
   });
 
   it('names local voices after their engine, falling back to "Local" without one', () => {
-    expect(pluginVoiceLabel('local', 'af_bella', 'Kokoro')).toBe('TTS-Kokoro-af_bella');
-    expect(pluginVoiceLabel('local', 'voice', 'Piper')).toBe('TTS-Piper-voice');
-    expect(pluginVoiceLabel('local', 'af_bella')).toBe('TTS-Local-af_bella');
-  });
-
-  // While Zotero's own Local voices are hidden, ours are the only entries in
-  // the tier and the TTS- marker that told them apart says nothing
-  it('drops the TTS- prefix when asked, keeping the provider name', () => {
-    expect(pluginVoiceLabel('azure', 'Ava Multilingual', undefined, false)).toBe('Azure-Ava Multilingual');
-    expect(pluginVoiceLabel('local', 'af_bella', 'Kokoro', false)).toBe('Kokoro-af_bella');
+    expect(pluginVoiceLabel('local', 'af_bella', 'Kokoro')).toBe('Kokoro-af_bella');
+    expect(pluginVoiceLabel('local', 'voice', 'Piper')).toBe('Piper-voice');
+    expect(pluginVoiceLabel('local', 'af_bella')).toBe('Local-af_bella');
   });
 });
 
@@ -111,17 +104,17 @@ describe('buildVoicesResponse', () => {
   // Chinese collation puts Han names first (by pinyin), then Latin names (A–Z)
   it('orders the configs by label: Han by pinyin, then Latin alphabetically', () => {
     expect(configs().map(labelOf)).toEqual([
-      'TTS-Azure-晓晓 多语言',
-      'TTS-Azure-云希',
-      'TTS-Azure-Ava',
-      'TTS-Kokoro-af_bella',
-      'TTS-OpenAI-alloy',
-      'TTS-OpenAI-nova',
+      'Azure-晓晓 多语言',
+      'Azure-云希',
+      'Azure-Ava',
+      'Kokoro-af_bella',
+      'OpenAI-alloy',
+      'OpenAI-nova',
     ]);
   });
 
   it('lists each voice under its locale as a plain array, which parseVoicesResponse tolerates', () => {
-    const ava = configs().find((c) => labelOf(c) === 'TTS-Azure-Ava');
+    const ava = configs().find((c) => labelOf(c) === 'Azure-Ava');
     expect(ava.locales).toEqual({ 'en-US': [encodeVoiceId('azure', 'en-US-AvaNeural')] });
     expect(Array.isArray(ava.locales['en-US'])).toBe(true);
   });
@@ -129,15 +122,15 @@ describe('buildVoicesResponse', () => {
   // A multilingual voice is offered for every language through Zotero's
   // wildcard locale rather than by repeating it under each one
   it('passes the wildcard locale through untouched', () => {
-    const xiaoxiao = configs().find((c) => labelOf(c) === 'TTS-Azure-晓晓 多语言');
+    const xiaoxiao = configs().find((c) => labelOf(c) === 'Azure-晓晓 多语言');
     expect(xiaoxiao.locales).toEqual({ mul: [encodeVoiceId('azure', 'zh-CN-XiaoxiaoMultilingualNeural')] });
-    const alloy = configs().find((c) => labelOf(c) === 'TTS-OpenAI-alloy');
+    const alloy = configs().find((c) => labelOf(c) === 'OpenAI-alloy');
     expect(alloy.locales).toEqual({ mul: [encodeVoiceId('openai', 'alloy')] });
   });
 
   it('declares every voice under its encoded id with its label', () => {
-    const bella = configs().find((c) => labelOf(c) === 'TTS-Kokoro-af_bella');
-    expect(bella.voices).toEqual({ [encodeVoiceId('local', 'af_bella')]: { label: 'TTS-Kokoro-af_bella' } });
+    const bella = configs().find((c) => labelOf(c) === 'Kokoro-af_bella');
+    expect(bella.voices).toEqual({ [encodeVoiceId('local', 'af_bella')]: { label: 'Kokoro-af_bella' } });
   });
 
   it('asks for sentence segments, the prerequisite for word-level highlighting', () => {
@@ -181,26 +174,20 @@ describe('multilingual locales', () => {
   });
 });
 
-describe('plainLabels', () => {
+describe('labels', () => {
   const entries = [
     { provider: 'azure' as const, voices: [{ id: 'en-US-AvaNeural', label: 'Ava', locale: 'en-US' }] },
     { provider: 'local' as const, name: 'Kokoro', voices: [{ id: 'af_bella', label: 'af_bella', locale: 'en-US' }] },
   ];
 
-  // The switch that hides Zotero's own Local voices also drops the prefix;
-  // the ids stay identical, so persisted voice choices survive the rename
-  it('labels the voices without the TTS- prefix, leaving the ids untouched', () => {
-    const out = buildVoicesResponse(entries, 'v1', { plainLabels: true });
-    const configs = out.local as any[];
+  // Whatever the hideZoteroLocalVoices switch says: it is Zotero's own
+  // voices that carry a marker now, and only in the player (issue #9)
+  it('never marks the plugin’s own voices, and leaves the ids untouched', () => {
+    const configs = buildVoicesResponse(entries, 'v1').local as any[];
     expect(configs.map((c) => (Object.values(c.voices)[0] as { label: string }).label)).toEqual(['Azure-Ava', 'Kokoro-af_bella']);
     expect(configs.map((c) => Object.keys(c.voices)[0])).toEqual([
       encodeVoiceId('azure', 'en-US-AvaNeural'),
       encodeVoiceId('local', 'af_bella'),
     ]);
-  });
-
-  it('keeps the prefix by default', () => {
-    const configs = buildVoicesResponse(entries, 'v1').local as any[];
-    expect(configs.map((c) => (Object.values(c.voices)[0] as { label: string }).label)).toEqual(['TTS-Azure-Ava', 'TTS-Kokoro-af_bella']);
   });
 });

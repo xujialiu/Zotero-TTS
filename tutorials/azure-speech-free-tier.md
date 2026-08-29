@@ -84,8 +84,8 @@ Zotero → Settings → TTS → **Azure** section:
 **Test connection** should answer `Connected. N voices available. Synthesis
 works.` — the test synthesizes two characters, which proves the key can
 spend, not just list voices. Open Read Aloud, choose the *Local* tier, and
-the `TTS-Azure-…` voices are there; for reading a document in one language
-pick a voice of that language (`TTS-Azure-Xiaoxiao`, `TTS-Azure-Ava`), for
+the `Azure-…` voices are there; for reading a document in one language
+pick a voice of that language (`Azure-Xiaoxiao`, `Azure-Ava`), for
 mixed-language documents one of the *Multilingual* ones under the "Multiple
 languages" entry. For word-by-word highlighting set *Settings → General →
 Read Aloud → Highlight current* to **Word**.

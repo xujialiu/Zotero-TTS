@@ -39,6 +39,15 @@ export interface ProtoPatchDeps {
 export interface ProtoPatches {
   /** Replace `proto[name]` with `make(original)`, unless this log already holds that pair. */
   shadow(proto: any, name: string, make: (original: AnyFn) => AnyFn): void;
+  /**
+   * The same for a **getter**: `BrowserReadAloudVoice.label` is an accessor
+   * (reader.js:39629), and a property that has only a getter ignores the
+   * assignment `shadow` makes — restoring it by assignment would not work
+   * either. So the accessor is replaced through its descriptor, and it is
+   * that descriptor `restoreAll` puts back. Nothing happens, and nothing is
+   * recorded, when `name` is not an accessor of `proto` itself.
+   */
+  shadowGetter(proto: any, name: string, make: (originalGet: AnyFn) => AnyFn): void;
   /** Whether this log already patched `proto` — any method of it, or `name` alone. */
   has(proto: unknown, name?: string): boolean;
   /** Put back every prototype whose tab is still open; drop the rest without a word. */
@@ -48,7 +57,9 @@ export interface ProtoPatches {
 }
 
 export function createProtoPatches(deps: ProtoPatchDeps): ProtoPatches {
-  const entries: Array<{ proto: any; name: string; original: AnyFn }> = [];
+  // `undo` rather than the original itself: a method goes back by
+  // assignment, an accessor only through its descriptor
+  const entries: Array<{ proto: any; name: string; undo(): void }> = [];
 
   // A throw here means the check itself is missing or broken, not that the
   // tab is gone: fall back to "alive", which is the restore-and-log
@@ -72,20 +83,37 @@ export function createProtoPatches(deps: ProtoPatchDeps): ProtoPatches {
     return entries.some((e) => e.proto === proto && (name === undefined || e.name === name));
   }
 
+  const exported = (fn: AnyFn, proto: any): AnyFn => (deps.exportFunction ? deps.exportFunction(fn, proto) : fn);
+
   function shadow(proto: any, name: string, make: (original: AnyFn) => AnyFn): void {
     prune();
     if (has(proto, name)) return;
     const original = proto[name] as AnyFn;
-    const wrapper = make(original);
-    proto[name] = deps.exportFunction ? deps.exportFunction(wrapper, proto) : wrapper;
-    entries.push({ proto, name, original });
+    proto[name] = exported(make(original), proto);
+    entries.push({
+      proto,
+      name,
+      undo: () => {
+        proto[name] = original;
+      },
+    });
+  }
+
+  function shadowGetter(proto: any, name: string, make: (originalGet: AnyFn) => AnyFn): void {
+    prune();
+    if (has(proto, name)) return;
+    const descriptor = Object.getOwnPropertyDescriptor(proto, name);
+    const original = descriptor?.get;
+    if (!descriptor || typeof original !== 'function') return;
+    Object.defineProperty(proto, name, { ...descriptor, get: exported(make(original), proto) });
+    entries.push({ proto, name, undo: () => Object.defineProperty(proto, name, descriptor) });
   }
 
   function restoreAll(): void {
-    for (const { proto, name, original } of [...entries].reverse()) {
+    for (const { proto, undo } of [...entries].reverse()) {
       if (isDead(proto)) continue;
       try {
-        proto[name] = original;
+        undo();
       } catch (e) {
         deps.error(e);
       }
@@ -99,5 +127,5 @@ export function createProtoPatches(deps: ProtoPatchDeps): ProtoPatches {
     return { total: entries.length, live };
   }
 
-  return { shadow, has, restoreAll, counts };
+  return { shadow, shadowGetter, has, restoreAll, counts };
 }

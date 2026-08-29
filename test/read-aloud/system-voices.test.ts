@@ -12,8 +12,32 @@ const systemVoice2 = () => ({ id: 'local-urn:moz-tts:osx:com.apple.eloquence.en-
 const pluginVoice = () => ({ id: encodeVoiceId('azure', 'en-US-AvaMultilingualNeural'), tier: 'local' });
 const cloudVoice = () => ({ id: 'am_default', tier: 'standard' });
 
+/**
+ * Zotero's own Local voices as the reader builds them: `label` is a
+ * prototype getter over the instance's `impl` (reader.js:39625-39634) — on
+ * macOS it rewrites the OS's "(Premium)" on the way out — and each reader
+ * tab has its own copy of the class.
+ */
+function osVoiceClass() {
+  return class BrowserReadAloudVoice {
+    impl: { name: string };
+    constructor(name: string) {
+      this.impl = { name };
+    }
+    get id() {
+      return 'local-' + this.impl.name;
+    }
+    get tier() {
+      return 'local';
+    }
+    get label() {
+      return this.impl.name.replace('(Premium)', '(macOS Premium)');
+    }
+  };
+}
+
 // One manager class per reader tab, as each tab has its own bundle
-function makeReader(voices: unknown[]) {
+function makeReader(voices: any[]) {
   class Manager {
     _allVoices = voices;
     resolved = 0;
@@ -175,14 +199,167 @@ describe('createSystemVoiceHiding', () => {
     expect(hiding.inspect(reader)).toEqual({
       enabled: true,
       patched: true,
+      labelPatched: false,
+      systemLabel: undefined,
       voices: { standard: 1, 'local-system': 1, 'local-plugin': 1 },
     });
+    // Hidden: nothing of Zotero's own is listed, so there is no class to
+    // report a label patch for and nothing to mark
     manager._resolveVoice();
     expect(hiding.inspect(reader)).toEqual({
       enabled: true,
       patched: true,
+      labelPatched: undefined,
+      systemLabel: undefined,
       voices: { standard: 1, 'local-plugin': 1 },
     });
     expect(hiding.inspect({})).toMatchObject({ patched: false });
+  });
+});
+
+// Issue #9: the plugin's voices never carry a marker, so Zotero's own
+// Local voices carry one while the two groups are listed side by side.
+describe('createSystemVoiceHiding, marking the system voices', () => {
+  const showing = (overrides: Partial<SystemVoiceHidingDeps> = {}) => make({ enabled: () => false, ...overrides });
+
+  it('marks them with Local- while the switch is off, keeping the macOS rewrite', () => {
+    const OSVoice = osVoiceClass();
+    const { manager, reader } = makeReader([new OSVoice('Ava (Premium)'), pluginVoice()]);
+    const { hiding, error } = showing();
+    hiding.attach(reader);
+    manager._resolveVoice();
+
+    expect(manager._allVoices.map((v: any) => v.label)).toEqual(['Local-Ava (macOS Premium)', undefined]);
+    expect(manager.resolved).toBe(1);
+    expect(error).not.toHaveBeenCalled();
+  });
+
+  // The marker is computed, never stored: the same voices read plain again
+  // the moment the switch goes on, and they are spliced out anyway
+  it('stops marking as soon as the switch goes on', () => {
+    const OSVoice = osVoiceClass();
+    const { manager, reader } = makeReader([new OSVoice('Microsoft David')]);
+    let hidden = false;
+    const { hiding } = make({ enabled: () => hidden });
+    hiding.attach(reader);
+    manager._resolveVoice();
+    expect(manager._allVoices[0].label).toBe('Local-Microsoft David');
+
+    hidden = true;
+    const voice = manager._allVoices[0];
+    manager._resolveVoice();
+    expect(voice.label).toBe('Microsoft David');
+    expect(manager._allVoices).toEqual([]);
+  });
+
+  // loadVoices builds new voice objects on every popup open; the patch sits
+  // on the class they share
+  it('marks the voices of a rebuilt list without patching twice', () => {
+    const OSVoice = osVoiceClass();
+    const { manager, reader } = makeReader([new OSVoice('Zira')]);
+    const { hiding } = showing();
+    hiding.attach(reader);
+    manager._resolveVoice();
+    manager._allVoices = [new OSVoice('Mark'), new OSVoice('Zira')];
+    manager._resolveVoice();
+
+    expect(manager._allVoices.map((v: any) => v.label)).toEqual(['Local-Mark', 'Local-Zira']);
+    expect(hiding.patchCounts()).toEqual({ total: 2, live: 2 });
+  });
+
+  it('marks each reader tab’s own class', () => {
+    const first = makeReader([new (osVoiceClass())('David')]);
+    const second = makeReader([new (osVoiceClass())('Huihui')]);
+    const { hiding } = showing();
+    hiding.attach(first.reader);
+    hiding.attach(second.reader);
+    first.manager._resolveVoice();
+    second.manager._resolveVoice();
+
+    expect(first.manager._allVoices[0].label).toBe('Local-David');
+    expect(second.manager._allVoices[0].label).toBe('Local-Huihui');
+    expect(hiding.patchCounts()).toEqual({ total: 4, live: 4 });
+  });
+
+  it('leaves the plugin’s own voices alone', () => {
+    const OSVoice = osVoiceClass();
+    const Ours = class RemoteReadAloudVoice {
+      constructor(public impl: { id: string; label: string }) {}
+      get id() {
+        return this.impl.id;
+      }
+      get tier() {
+        return 'local';
+      }
+      get label() {
+        return this.impl.label;
+      }
+    };
+    const ours = new Ours({ id: encodeVoiceId('local', 'af_bella'), label: 'Kokoro-af_bella' });
+    const { manager, reader } = makeReader([new OSVoice('David'), ours]);
+    const { hiding } = showing();
+    hiding.attach(reader);
+    manager._resolveVoice();
+
+    expect(manager._allVoices.map((v: any) => v.label)).toEqual(['Local-David', 'Kokoro-af_bella']);
+  });
+
+  it('a broken enabled() inside the getter is reported and the label survives', () => {
+    const OSVoice = osVoiceClass();
+    const { manager, reader } = makeReader([new OSVoice('David')]);
+    let broken = false;
+    const { hiding, error } = make({
+      enabled: () => {
+        if (broken) throw new Error('prefs gone');
+        return false;
+      },
+    });
+    hiding.attach(reader);
+    manager._resolveVoice();
+    broken = true;
+
+    expect(manager._allVoices[0].label).toBe('David');
+    expect(error).toHaveBeenCalled();
+  });
+
+  it('dispose puts the original label back', () => {
+    const OSVoice = osVoiceClass();
+    const { manager, reader } = makeReader([new OSVoice('Ava (Premium)')]);
+    const { hiding } = showing();
+    hiding.attach(reader);
+    manager._resolveVoice();
+    hiding.dispose();
+
+    expect(manager._allVoices[0].label).toBe('Ava (macOS Premium)');
+    expect(hiding.patchCounts()).toEqual({ total: 0, live: 0 });
+  });
+
+  it('exports the getter into the reader compartment when a helper is given', () => {
+    const exportFunction = vi.fn((fn: (...args: unknown[]) => unknown) => fn);
+    const OSVoice = osVoiceClass();
+    const { manager, reader } = makeReader([new OSVoice('David')]);
+    const { hiding } = showing({ exportFunction });
+    hiding.attach(reader);
+    manager._resolveVoice();
+
+    // _resolveVoice and label
+    expect(exportFunction).toHaveBeenCalledTimes(2);
+    expect(manager._allVoices[0].label).toBe('Local-David');
+  });
+
+  it('inspect reports the label patch and the label as it now reads', () => {
+    const OSVoice = osVoiceClass();
+    const { manager, reader } = makeReader([new OSVoice('David'), pluginVoice()]);
+    const { hiding } = showing();
+    hiding.attach(reader);
+    expect(hiding.inspect(reader)).toMatchObject({ enabled: false, labelPatched: false, systemLabel: 'David' });
+    manager._resolveVoice();
+    expect(hiding.inspect(reader)).toMatchObject({
+      enabled: false,
+      patched: true,
+      labelPatched: true,
+      systemLabel: 'Local-David',
+      voices: { 'local-system': 1, 'local-plugin': 1 },
+    });
   });
 });

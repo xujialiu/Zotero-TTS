@@ -1,7 +1,7 @@
 {
   "manifest_version": 2,
   "name": "Zotero TTS",
-  "version": "1.8.4",
+  "version": "1.8.5-beta2",
   "description": "Enhances Read Aloud: more voices in its Local tier (Azure Speech, Kokoro-FastAPI, OpenAI-compatible servers), highlight colors, keyboard shortcuts",
   "applications": {
     "zotero": {

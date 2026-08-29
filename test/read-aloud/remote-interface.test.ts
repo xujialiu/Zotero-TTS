@@ -34,14 +34,11 @@ describe('getVoices', () => {
     expect(result.voices!.standard).toBeUndefined();
   });
 
-  // The switch that hides Zotero's own Local voices (system-voices.ts) also
-  // drops the TTS- prefix: ours are then the only entries in the tier
-  it('drops the TTS- label prefix while the system voices are hidden', async () => {
+  // Our voices carry no marker, whatever hideZoteroLocalVoices says: it is
+  // Zotero's own that are marked, in the reader (system-voices.ts, issue #9)
+  it('publishes the plugin’s voices under their provider name alone', async () => {
     const labelOf = (result: any) => (Object.values((result.voices!.local as any[])[0].voices)[0] as { label: string }).label;
-    const hidden = await createRemoteInterface({ ...deps(), getHideZoteroLocalVoices: () => true }).getVoices();
-    expect(labelOf(hidden)).toBe('OpenAI-Alloy');
-    const shown = await createRemoteInterface(deps()).getVoices();
-    expect(labelOf(shown)).toBe('TTS-OpenAI-Alloy');
+    expect(labelOf(await createRemoteInterface(deps()).getVoices())).toBe('OpenAI-Alloy');
   });
 
   // The "offer only favorites" switch: the ids come from the voice browser's
