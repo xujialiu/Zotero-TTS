@@ -18,9 +18,13 @@ import { lookupPosition, putPosition, readPositions, samePosition, writePosition
  * reader's window and dies with its tab, so every value is copied into our
  * own compartment on the way in (plainCopy).
  *
- * `setInterval` is not in the sandbox whitelist, so the tick is a recursive
- * `setTimeout`. Writes go through a throttle: continuous listening moves the
- * position every few seconds and every pref write hits prefs.js.
+ * The tick's interval changes with activity (ACTIVE_TICK_MS vs IDLE_TICK_MS),
+ * so it is a recursive `setTimeout` rather than a fixed `setInterval` — which
+ * the sandbox does provide, contrary to what this comment used to claim
+ * (`plugins.js` assigns setInterval/clearInterval/requestIdleCallback;
+ * verified again 2026-08-30 by reading the live sandbox global). Writes go
+ * through a throttle: continuous listening moves the position every few
+ * seconds and every pref write hits prefs.js.
  *
  * Recording is already sentence-triggered — an entry is only touched when
  * the sentence actually changes — so the tick is just how fast that change
