@@ -109,7 +109,8 @@
   <groupbox>
     <label><html:h2>Voice browser</html:h2></label>
     <hbox align="center">
-      <checkbox label="Offer only favorite voices in the Read Aloud popup"
+      <checkbox label="Offer only favorite voices in the Read Aloud player"
+                bold="favorite voices"
                 preference="extensions.zotero.zotero-tts.readAloud.favoritesOnly"/>
     </hbox>
     <!-- The Read Aloud popup's own speed slider (0.5–3.0 by 0.1): the samples
@@ -153,7 +154,7 @@
     <hbox align="center">
       <checkbox label="Hide Zotero’s own Local voices"
                 preference="extensions.zotero.zotero-tts.readAloud.hideZoteroLocalVoices"/>
-      <label class="ztts-help" value="?" help="Zotero’s own Local voices leave the Read Aloud popup, and the plugin’s voices drop their TTS- prefix."/>
+      <label class="ztts-help" value="?" help="Zotero’s own Local voices leave the Read Aloud player, and the plugin’s voices drop their TTS- prefix."/>
     </hbox>
     <!-- The switch locks the cache below on: without it the warmer has
          nowhere to put what it synthesizes (ui/prefetch-rows.ts) -->

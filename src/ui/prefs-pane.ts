@@ -15,6 +15,7 @@ import { initShortcutRows } from './shortcut-rows';
 import { initBackupRows, type BackupFileIO } from './backup-rows';
 import { initServerPresetRows } from './server-preset-rows';
 import { initHelpTips } from './help-tips';
+import { initBoldLabels } from './bold-labels';
 import { initWebDAVRows } from './webdav-rows';
 import { initHighlightRows } from './highlight-rows';
 import { initPrefetchRows, PREFETCH_ENABLED_OBSERVER } from './prefetch-rows';
@@ -343,6 +344,8 @@ export function onPaneLoad(doc: Document, hooks: PaneHooks = {}): void {
   const presetRows = initServerPresetRows(doc, prefs);
   // The ? icons: their text opens at once, not after Zotero's tooltip delay (ui/help-tips.ts)
   initHelpTips(doc);
+  // A checkbox's `bold` run: the label attribute is plain text (ui/bold-labels.ts)
+  initBoldLabels(doc);
   const highlightRows = initHighlightRows(doc, prefs, { theme: () => currentReaderTheme(doc.defaultView) });
   // Prefetch keeps the audio cache on and its checkbox locked: without the
   // cache the warmer has nowhere to put what it synthesizes (ui/prefetch-rows.ts)

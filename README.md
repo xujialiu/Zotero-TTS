@@ -22,12 +22,12 @@ things around the edges. Why it is built this way: [PHILOSOPHY.md](PHILOSOPHY.md
 
 ## What it adds
 
-- 🗣️ **More voices in the Local tier** of the Read Aloud popup — Azure Speech, a [Kokoro-FastAPI](https://github.com/remsky/Kokoro-FastAPI) on your machine, OpenAI or any OpenAI-compatible server — next to Zotero's Standard and Premium voices. [→ Providers](#providers)
+- 🗣️ **More voices in the Local tier** of the Read Aloud player — Azure Speech, a [Kokoro-FastAPI](https://github.com/remsky/Kokoro-FastAPI) on your machine, OpenAI or any OpenAI-compatible server — next to Zotero's Standard and Premium voices. [→ Providers](#providers)
 - 🔖 **Resume where you stopped** — close a document, open it again later, press `Shift+Space`, and Read Aloud starts at the sentence you left off on. [→ Resume where you stopped](#resume-where-you-stopped)
 - 🎧 **A voice browser** in the settings: every voice by tier and language — yours and Zotero's own — a play button for a short sample, hearts for favorites, and a switch to offer only the favorites. [→ Voice browser](#voice-browser)
 - ✨ **Word *and* sentence highlighting at once**, in your own colors and opacities — for Zotero's voices too. [→ Highlight](#highlight)
 - ⌨️ **Keyboard shortcuts**: speed up, down, reset; jump by sentence or paragraph; read from the selection; bring the view back to what's being read; open the player's options panel. All rebindable. [→ Shortcuts](#keyboard-shortcuts)
-- 📌 **One voice and speed everywhere** — every document and every open tab, picked in any popup or in the voice browser — instead of Zotero's choice per language. [→ Reading](#reading)
+- 📌 **One voice and speed everywhere** — every document and every open tab, picked in any tab's player or in the voice browser — instead of Zotero's choice per language. [→ Reading](#reading)
 - 💾 **Settings backup** to a file or a WebDAV folder. [→ Backup](#backup)
 
 ## Install
@@ -37,7 +37,7 @@ Download `zotero-tts.xpi` from the [latest release](https://github.com/xujialiu/
 Install Plugin From File…** and restart Zotero; then enable a provider in
 **Edit → Settings → TTS** and pick a `TTS-…` voice under the **Local** tier.
 
-<p align="center"><img src="assets/popup.png" width="640" alt="The Read Aloud popup with a TTS- voice chosen under the Local tier"></p>
+<p align="center"><img src="assets/popup.png" width="640" alt="The Read Aloud player with a TTS- voice chosen under the Local tier"></p>
 
 ## Providers
 
@@ -138,10 +138,10 @@ looking at.
 
 <p align="center"><img src="assets/settings-voices.png" width="700" alt="The voice browser: tier, language and voice columns"></p>
 
-Every voice Read Aloud can use, in the popup's own three steps — tier,
+Every voice Read Aloud can use, in the player's own three steps — tier,
 language, voice. **▶** plays a short sample, **♥** marks a favorite, and a
 click on a row makes that voice the **default**: what Read Aloud starts
-with, in every document. The **Speed** slider is the popup's own (0.5×–3×).
+with, in every document. The **Speed** slider is the player's own (0.5×–3×).
 
 <details>
 <summary><b>Favorites, samples, the default voice</b></summary>
@@ -149,11 +149,11 @@ with, in every document. The **Speed** slider is the popup's own (0.5×–3×).
 - **Local** holds the voices your enabled providers publish, **Standard**
   and **Premium** are Zotero's own; multilingual voices sit under "Multiple
   languages", first in the language column. The language column is the
-  popup's own dropdown for the tier — the same entries, named the same way.
+  player's own dropdown for the tier — the same entries, named the same way.
 - **▶** — your voices speak a sentence in the voice's own language,
   synthesized by your provider like any sentence; Zotero's voices speak
   Zotero's own sample, which spends no credits.
-- *Offer only favorite voices* trims the Read Aloud popup to the marked
+- *Offer only favorite voices* trims the Read Aloud player to the marked
   ones **in every tier** — a tier you marked nothing in comes up empty, and
   Zotero grays it out. With nothing marked at all, or when none of the
   marked voices is listed any more, everything is offered again. While the
@@ -162,7 +162,7 @@ with, in every document. The **Speed** slider is the popup's own (0.5×–3×).
 - The status line names the default by tier, language and voice with the
   speed (`Default voice: Local | Chinese | Azure-晓晓 | 1.8×`); a click on
   the default row clears it, back to Zotero's own per-language choice. Pick
-  another voice in any tab's popup while the settings are open and the
+  another voice in any tab's player while the settings are open and the
   highlight moves there.
 - The **Speed** slider plays the samples at that speed, and releasing it
   makes that the speed Read Aloud starts with — at once in a document that
@@ -171,7 +171,7 @@ with, in every document. The **Speed** slider is the popup's own (0.5×–3×).
 - While Read Aloud is open in some tab, adding a voice — marking a favorite
   with *Offer only favorite voices* on, or enabling a provider — is refused
   with a message naming the tabs: close them, then try again. Zotero has no
-  way to refresh an open popup's list.
+  way to refresh an open player's list.
 
 </details>
 
@@ -181,7 +181,7 @@ with, in every document. The **Speed** slider is the popup's own (0.5×–3×).
   tab, whatever the document's language. Off, Zotero remembers a voice per
   document language.
 - *Use one speed everywhere* — one speed for every document and every open
-  tab, set from the popup's slider, the shortcuts or the settings slider.
+  tab, set from the player's slider, the shortcuts or the settings slider.
   Off, Zotero keeps a speed per document language.
 - *Hide Zotero's own Local voices* — the Local tier then offers only the
   plugin's entries, which drop their `TTS-` prefix.
@@ -195,14 +195,14 @@ with, in every document. The **Speed** slider is the popup's own (0.5×–3×).
 <details>
 <summary><b>Details</b></summary>
 
-Pick the one voice in the popup of any tab and every other tab that is
+Pick the one voice in any tab's player and every other tab that is
 reading goes on with it from its current sentence; the rest get it when
-their popup opens. The popup of a document in another language is switched
+their player opens. The player of a document in another language is switched
 to the voice's language (a Chinese PDF reads with your English voice, its
 sentences split by English rules); multilingual voices (Azure's, OpenAI's)
-sit under the popup's "Multiple languages" entry, which the plugin pins to
+sit under the player's "Multiple languages" entry, which the plugin pins to
 the top of the language list. *Hide Zotero's own Local voices* takes effect
-the next time the Read Aloud popup opens.
+the next time the Read Aloud player opens.
 
 </details>
 

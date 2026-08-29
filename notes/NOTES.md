@@ -3404,3 +3404,45 @@ Verified live (2026-08-29, 1.8.4-beta, through the bridge):
   **and** a marker of the change (here `typeof
   Zotero.ZoteroTTS.diagnostics.playerOptions === 'function'`) before
   trusting any result.
+
+## A word of a checkbox's label in bold (2026-08-29)
+
+*Offer only favorite voices in the Read Aloud player* now bolds **favorite
+voices**, and "popup" became "player" in every string a user reads — this
+label, the *Hide Zotero's own Local voices* tooltip, README.md and
+PHILOSOPHY.md. Source comments and these notes keep "popup", which is what
+Zotero's own code calls it (`popupOpen`), as do the XUL element names and
+`assets/popup.png`. The bold run is drawn by `ui/bold-labels.ts`, wired into
+`onPaneLoad`.
+
+Read out of the installed `omni.ja` (toolkit
+`chrome/toolkit/content/global/elements/{checkbox,text}.js`, `xul.css`,
+`customElements.js`; Zotero `chrome/content/zotero/preferences/preferences.js`
+and `zotero-platform/win/preferences.css`):
+
+- **A XUL `<checkbox>` label is plain text, and its children are thrown
+  away.** `MozCheckbox.connectedCallback` does `this.textContent = ''` and
+  appends its own markup, so no `<b>` survives in the source; the label
+  arrives through `inheritedAttributes` as `".checkbox-label": "text=label"`,
+  and `text=` in `inheritAttribute` means `el.textContent = value`. So the
+  text stays in the attribute — the accessible name, and the fallback if our
+  code never runs — and the run named by a `bold` attribute is redrawn into
+  that same `.checkbox-label` child (light DOM, no shadow root, so
+  `box.querySelector('.checkbox-label')` reaches it).
+- **A `<label control="…">` beside a bare checkbox would tick the box and not
+  write the pref.** `MozTextLabel._onClick` does
+  `controlElement.checked = !controlElement.checked` — the setter fires only
+  `CheckboxStateChange`, while Zotero's preference binding listens for
+  `command`, `input` and `change` (`_syncToPrefOnModify`). The checkbox's own
+  click gets a `command` from XUL; a label's forwarded one does not.
+- **`<html:input type="checkbox" preference="…">` does bind** —
+  `_useChecked` accepts it — but nothing styles it: Zotero draws
+  `checkbox[native] .checkbox-check` with its own
+  `chrome://zotero/skin/win/*/checkbox-*.svg`, and has no rule at all for
+  `input[type=checkbox]`. It would be the one Firefox-looking box in the
+  pane.
+- **The `<b>` lays out inline** because `xul.css` gives `label` `display:
+  inline-block` and only `label:where([value])` `inline-flex` —
+  `.checkbox-label` carries its text as a child, not a `value`, so the runs
+  around the `<b>` keep their spaces. In a flex box each text run would have
+  become its own item and the spaces would have collapsed away.

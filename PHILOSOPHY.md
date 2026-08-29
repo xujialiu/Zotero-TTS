@@ -21,7 +21,7 @@ speaks.
 
 1. **Zotero keeps doing the reading.** Segmentation, playback, prefetching,
    skipping, position and highlighting are Zotero's. The plugin's voices are
-   ordinary entries in the popup's Local tier, next to Zotero's Standard and
+   ordinary entries in the player's Local tier, next to Zotero's Standard and
    Premium voices, which stay exactly as they are: the list grows, nothing on
    it is replaced.
 2. **Add, never take away.** Everything the plugin changes is a setting
