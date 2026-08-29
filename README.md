@@ -209,10 +209,14 @@ with, in every document. The **Speed** slider is the player's own (0.5×–3×).
   makes that the speed Read Aloud starts with — at once in a document that
   is playing. Zotero stretches its audio, pitch kept, so the slider costs
   no new request.
-- While Read Aloud is open in some tab, adding a voice — marking a favorite
-  with *Offer only favorite voices* on, or enabling a provider — is refused
-  with a message naming the tabs: close them, then try again. Zotero has no
-  way to refresh an open player's list.
+- While Read Aloud is open in some tab, every setting that changes what the
+  player lists is refused with a message naming the tabs — close them, then
+  try again. Zotero has no way to refresh an open player's list, and two
+  tabs listing different voices would send *Use one voice everywhere* to a
+  voice one of them does not have. The settings: switching a provider on or
+  off, *Offer only favorite voices*, *Hide System Local voices*, a favorite
+  marked or unmarked while only favorites are offered, and restoring a
+  settings backup from a file or from WebDAV.
 
 </details>
 
@@ -228,6 +232,7 @@ with, in every document. The **Speed** slider is the player's own (0.5×–3×).
   itself lists them leave the player, so the Local tier offers only the
   plugin's entries. Off, they stay and are marked
   `Local-Microsoft David Desktop`. Enabling *System voices* turns this on.
+  Not changeable while a tab is reading.
 - *Prefetch upcoming sentences* — the ones ahead are synthesized while the
   current one plays, so playback never waits for the server. Zotero fetches
   3 ahead by itself and your number adds to those. It keeps the cache below

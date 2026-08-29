@@ -1,18 +1,42 @@
 /**
- * Adding a voice while Read Aloud is open in some tab. A reader's popup
- * lists its voices once, when it opens (ReadAloudManager.loadVoices runs
- * from _prepareReadAloud and from nowhere else), and Zotero has no path to
- * refresh an open popup's list — so a voice added now (a favorite marked
- * while only favorites are offered, a provider switched on) would not
- * reach a tab that is reading until Read Aloud is closed and opened there
- * again. Reloading the list live was researched and rejected
- * (notes/NOTES.md): Zotero's resolve recreates the controller even onto the
- * same voice, so every refresh restarts the sentence being read, and a
- * listing that fails mid-playback would move the tab to another voice. The
- * settings refuse instead, naming the tabs; the user closes them (or stops
- * Read Aloud there) and adds the voice again. The refusing is done where
- * the voice is added: the ♥ (ui/voice-browser-rows.ts) and the provider
- * switches (ui/provider-rows.ts), both through refuseWhileReading.
+ * Editing the Read Aloud player's voice list while a tab is reading.
+ *
+ * A reader's popup lists its voices once, when it opens
+ * (ReadAloudManager.loadVoices runs from _prepareReadAloud and from nowhere
+ * else), and Zotero has no path to refresh an open popup's list. Reloading
+ * it live was researched and rejected (notes/NOTES.md): Zotero's resolve
+ * recreates the controller even onto the same voice, so every refresh
+ * restarts the sentence being read, and a listing that fails mid-playback
+ * would move the tab to another voice.
+ *
+ * So every setting that edits the list is refused while any tab is reading,
+ * and the invariant that buys is:
+ *
+ *   **every player that is open right now was built from the same settings**
+ *
+ * — a setting can only move while no player is open anywhere, and each
+ * player opened afterwards builds its list from the settings as they then
+ * are. Two tabs listing different voices is not cosmetic: with *Use one
+ * voice everywhere* on, memory-sync spreads a pick from one tab into the
+ * other, whose `_resolveVoice` then finds no such entry and silently falls
+ * back to another voice — measured on issue #11, where the fallback was a
+ * paid one and was persisted over the user's own choice.
+ *
+ * The events, all of them through refuseWhileReading (issue #11):
+ *
+ * - a provider switched **on or off** (ui/provider-rows.ts) — and the check
+ *   is repeated after the connection test, since the pref is written a
+ *   quarter of a minute after the click;
+ * - *Hide System Local voices* and *Offer only favorite voices*, both
+ *   directions (ui/voice-list-switches.ts);
+ * - a ♥ marked **or unmarked** while only favorites are offered
+ *   (ui/voice-browser-rows.ts);
+ * - a settings restore, from a file or from WebDAV (ui/backup-rows.ts,
+ *   ui/webdav-rows.ts), which writes every one of the above at once.
+ *
+ * Out of reach, and documented rather than guarded: prefs edited by hand,
+ * Zotero's own side (signing in or out, a voice installed in the OS), and a
+ * provider's server changing what it publishes.
  */
 
 /** Which tabs, and what to do — nothing about why (the user's call: no implementation detail in the dialog). */
@@ -116,10 +140,14 @@ export function showPaneNotice(
   }
 }
 
-/** Whether adding a voice must wait: Read Aloud is open somewhere, and the user has just been told where. */
-export function refuseWhileReading(deps: ReadingGuardDeps): boolean {
-  const titles = deps.readingTabs();
+/**
+ * Whether the change must wait: Read Aloud is open somewhere, and the user
+ * has just been told where. The deps are optional so a row that a test
+ * builds without them still runs — no `readingTabs`, no guard.
+ */
+export function refuseWhileReading(deps: Partial<ReadingGuardDeps>): boolean {
+  const titles = deps.readingTabs?.() ?? [];
   if (!titles.length) return false;
-  deps.warn(readingTabsMessage(titles));
+  deps.warn?.(readingTabsMessage(titles));
   return true;
 }

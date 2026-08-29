@@ -11,9 +11,15 @@ import { refuseWhileReading, type ReadingGuardDeps } from './reading-guard';
  * are, and the voice browser lists again on the switch alone: no watching
  * of a dozen prefs, no debounce. The outcome is written where Test
  * connection writes its own; a failed check leaves the provider off, with
- * the message. Enabling is refused while a tab is reading (its popup
- * would not list the new voices until Read Aloud reopens there —
- * ui/reading-guard.ts); disabling never is, and unlocks the fields.
+ * the message.
+ *
+ * **Both** directions are refused while a tab is reading (ui/reading-guard.ts):
+ * an open popup lists its voices until Read Aloud reopens there, so enabling
+ * would leave the new voices out of that tab and disabling would leave the
+ * gone ones in it — either way two tabs listing different things, which is
+ * what issue #11 is about. Enabling asks twice, before the connection check
+ * and again before the write: the check may take a quarter of a minute, and
+ * it is the write that has to be safe.
  *
  * Test connection stays: while a provider is off it probes without
  * committing — and fills the Model suggestions, which has to happen while
@@ -100,6 +106,7 @@ export function initProviderRows(doc: { getElementById(id: string): any }, deps:
   async function onToggle(id: ProviderId): Promise<void> {
     if (busy.has(id)) return;
     if (enabled(id)) {
+      if (refuseWhileReading(deps)) return;
       deps.prefs.set(pref(id), false);
       deps.onSwitched?.(id, false);
       paint(id);
@@ -113,14 +120,19 @@ export function initProviderRows(doc: { getElementById(id: string): any }, deps:
     elements(id).toggle?.setAttribute('label', 'Checking…');
     say(id, 'Checking…');
     const outcome = await run(id);
-    say(id, outcome.message);
-    if (outcome.ok) {
+    // Asked again, because the write is what the guard is about and the
+    // check has had a quarter of a minute in which a player could open. The
+    // outcome is dropped with it: the dialog is what the user is told, and
+    // "Connected…" beside a switch that stayed Enable would read as if it held
+    const refused = outcome.ok && refuseWhileReading(deps);
+    say(id, refused ? '' : outcome.message);
+    if (outcome.ok && !refused) {
       deps.prefs.set(pref(id), true);
       deps.onSwitched?.(id, true);
     }
     busy.delete(id);
     paint(id);
-    if (outcome.ok) deps.onVoicesChanged();
+    if (outcome.ok && !refused) deps.onVoicesChanged();
   }
 
   async function onTest(id: ProviderId): Promise<void> {

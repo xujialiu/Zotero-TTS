@@ -1,6 +1,7 @@
 import { loadSettings, type PrefsBackend } from '../core/settings';
 import { applyBackup, BACKUP_FILENAME, createBackup, parseBackup, serializeBackup } from '../core/settings-backup';
 import type { WebDAVClient, WebDAVConfig } from '../core/webdav';
+import { refuseWhileReading, type ReadingGuardDeps } from './reading-guard';
 
 /**
  * The WebDAV rows of the Backup group: the very file the Backup and Restore
@@ -10,6 +11,8 @@ import type { WebDAVClient, WebDAVConfig } from '../core/webdav';
  * injected (prefs-pane.ts builds core/webdav.ts on the sandbox's fetch), so
  * the flow is testable without a network. Settings bound with preference=
  * redraw themselves after a restore; onRestored covers the rows that are not.
+ * A download is refused while a tab is reading, for the reason the file
+ * restore is (ui/backup-rows.ts, ui/reading-guard.ts, issue #11).
  */
 
 export const WEBDAV_IDS = {
@@ -19,7 +22,7 @@ export const WEBDAV_IDS = {
   message: 'ztts-webdav-message',
 } as const;
 
-export interface WebDAVRowsDeps {
+export interface WebDAVRowsDeps extends Partial<ReadingGuardDeps> {
   prefs: PrefsBackend;
   /** A client for the settings as they are now; throws a WebDAVError('config') for an unusable URL. */
   createClient(cfg: WebDAVConfig): WebDAVClient;
@@ -82,6 +85,7 @@ export function initWebDAVRows(doc: RowsDocument, deps: WebDAVRowsDeps): void {
     const count = Object.keys(parsed.settings).length;
     const saved = parsed.exportedAt ? `, saved ${parsed.exportedAt}` : '';
     if (deps.confirm && !deps.confirm(`Replace the current settings with the ${count} on ${client.url}${saved}?`)) return '';
+    if (refuseWhileReading(deps)) return '';
     const applied = applyBackup(deps.prefs, parsed);
     deps.onRestored?.();
     const skipped = parsed.ignored.length ? ` Skipped ${parsed.ignored.length}: ${parsed.ignored.join(', ')}.` : '';

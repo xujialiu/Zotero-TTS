@@ -1249,13 +1249,16 @@ describe('marking a favorite while a tab is reading', () => {
     expect(t.deps.warn).toHaveBeenCalledWith(expect.stringContaining('Deep learning'));
   });
 
-  it('is never refused for unmarking', async () => {
+  // Unmarking takes the voice out of the popup, and unmarking the last one
+  // listed puts every voice back into it: both edit the list (issue #11)
+  it('is refused for unmarking too, the heart left as it was', async () => {
     const t = setup({ favoritesOnly: true, readingTabs: ['Deep learning'], prefs: favorites(xiaoxiao) });
     await t.rows.load();
     await t.pickLocale('Chinese');
     await t.heart(0).fire('click');
-    expect(parseFavoriteVoices(t.prefs.store[FAVORITES_PREF])).toEqual([]);
-    expect(t.deps.warn).not.toHaveBeenCalled();
+    expect(parseFavoriteVoices(t.prefs.store[FAVORITES_PREF])).toEqual([xiaoxiao]);
+    expect(t.heart(0).textContent).toBe(GLYPHS.favorite);
+    expect(t.deps.warn).toHaveBeenCalledWith(expect.stringContaining('Deep learning'));
   });
 
   it('goes through while the switch is off — the popup offers every voice regardless', async () => {

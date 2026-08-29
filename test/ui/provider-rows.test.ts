@@ -145,8 +145,8 @@ describe('initProviderRows', () => {
     expect(t.of('openai').label()).toBe('Enable');
   });
 
-  it('disabling switches off at once — while reading too — unlocks the fields, clears the line, and lists the voices again', async () => {
-    const t = setup({ prefs: { [enabledPref('openai')]: true }, reading: ['Deep learning'] });
+  it('disabling switches off at once, unlocks the fields, clears the line, and lists the voices again', async () => {
+    const t = setup({ prefs: { [enabledPref('openai')]: true } });
     const openai = t.of('openai');
     expect(openai.locked()).toEqual([true, true]);
     await openai.test.fire('command');
@@ -163,6 +163,42 @@ describe('initProviderRows', () => {
     expect(t.onVoicesChanged).toHaveBeenCalledTimes(1);
     expect(t.check).toHaveBeenCalledTimes(1);
     expect(t.warn).not.toHaveBeenCalled();
+  });
+
+  // Its voices stop being published: an open player keeps listing them and
+  // the next one to open does not, which is the divergence issue #11 is about
+  it('refuses to disable while a tab is reading: the provider stays on and the fields stay locked', async () => {
+    const t = setup({ prefs: { [enabledPref('openai')]: true }, reading: ['Deep learning'] });
+    const openai = t.of('openai');
+    await openai.toggle.fire('command');
+    expect(t.warn).toHaveBeenCalledWith(expect.stringContaining('Deep learning'));
+    expect(openai.enabled()).toBe(true);
+    expect(openai.label()).toBe('Disable');
+    expect(openai.locked()).toEqual([true, true]);
+    expect(t.onVoicesChanged).not.toHaveBeenCalled();
+  });
+
+  // The check may take a quarter of a minute; a player opened meanwhile
+  // would be listing voices the pref is about to contradict
+  it('checks again after the connection check, and refuses the write if a tab started reading meanwhile', async () => {
+    const pending = deferred<CheckOutcome>();
+    const reading: string[] = [];
+    const t = setup({ check: () => pending.promise, reading });
+    const azure = t.of('azure');
+    const clicked = azure.toggle.fire('command');
+    expect(t.check).toHaveBeenCalledWith('azure');
+    reading.push('Deep learning');
+    pending.resolve(CONNECTED);
+    await clicked;
+    expect(t.warn).toHaveBeenCalledWith(expect.stringContaining('Deep learning'));
+    expect(azure.enabled()).toBeUndefined();
+    expect(azure.label()).toBe('Enable');
+    expect(azure.locked()).toEqual([false, false]);
+    expect(azure.result()).toBe('');
+    expect(t.onVoicesChanged).not.toHaveBeenCalled();
+    // The buttons are handed back: the retry costs one more check, no reload
+    expect(azure.toggle.disabled).toBe(false);
+    expect(azure.test.disabled).toBe(false);
   });
 
   it('Test connection probes without switching anything, and lists the voices again only for a provider that is on', async () => {

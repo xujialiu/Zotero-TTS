@@ -97,7 +97,7 @@ describe('addon/content/preferences.xhtml', () => {
   const checkboxes = [...xhtml.matchAll(/<checkbox\b[^>]*>/g)].map((match) => match[0]);
 
   it('bolds the favorite voices of the voice browser switch, in the Read Aloud player', () => {
-    const box = checkboxes.find((markup) => markup.includes('readAloud.favoritesOnly'));
+    const box = checkboxes.find((markup) => markup.includes('id="ztts-favorites-only"'));
     expect(box).toBeDefined();
     expect(box).toContain('label="Offer only favorite voices in the Read Aloud player"');
     expect(box).toContain(`${BOLD_ATTRIBUTE}="favorite voices"`);

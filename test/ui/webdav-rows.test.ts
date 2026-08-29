@@ -27,7 +27,7 @@ class FakeElement {
 
 const FOLDER = 'https://dav.example.com/zotero-tts/';
 
-function setup(options: { prefs?: Record<string, unknown>; url?: string; confirm?: boolean } = {}) {
+function setup(options: { prefs?: Record<string, unknown>; url?: string; confirm?: boolean; reading?: string[] } = {}) {
   const els = new Map((Object.values(WEBDAV_IDS) as string[]).map((id) => [id, new FakeElement()]));
   const doc = { getElementById: (id: string) => els.get(id) ?? null };
   const prefs = fakePrefs({
@@ -52,6 +52,8 @@ function setup(options: { prefs?: Record<string, unknown>; url?: string; confirm
     now: () => '2026-08-23T10:00:00.000Z',
     confirm: vi.fn(() => options.confirm ?? true),
     onRestored: vi.fn(),
+    readingTabs: vi.fn(() => options.reading ?? []),
+    warn: vi.fn((_message: string) => {}),
   } satisfies WebDAVRowsDeps;
   initWebDAVRows(doc, deps);
   return {
@@ -141,6 +143,18 @@ describe('Download from WebDAV', () => {
     const t = setup({ confirm: false, prefs: { [PREF_PREFIX + 'azure.region']: 'eastasia' } });
     t.client.download.mockResolvedValueOnce(file);
     await t.el(WEBDAV_IDS.download).fire('command');
+    expect(t.prefs.store[PREF_PREFIX + 'azure.region']).toBe('eastasia');
+    expect(t.deps.onRestored).not.toHaveBeenCalled();
+    expect(t.message()).toBe('');
+  });
+
+  // The same guard the file restore has: a backup edits what the player
+  // lists (issue #11)
+  it('is refused while a tab is reading, and the settings stay as they were', async () => {
+    const t = setup({ reading: ['Deep learning'], prefs: { [PREF_PREFIX + 'azure.region']: 'eastasia' } });
+    t.client.download.mockResolvedValueOnce(file);
+    await t.el(WEBDAV_IDS.download).fire('command');
+    expect(t.deps.warn).toHaveBeenCalledWith(expect.stringContaining('Deep learning'));
     expect(t.prefs.store[PREF_PREFIX + 'azure.region']).toBe('eastasia');
     expect(t.deps.onRestored).not.toHaveBeenCalled();
     expect(t.message()).toBe('');

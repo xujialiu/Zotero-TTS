@@ -26,7 +26,9 @@ class FakeElement {
 
 const IDS = ['ztts-backup', 'ztts-restore', 'ztts-backup-message'];
 
-function setup(options: { prefs?: Record<string, unknown>; file?: string | null; savePath?: string | null; confirm?: boolean } = {}) {
+function setup(
+  options: { prefs?: Record<string, unknown>; file?: string | null; savePath?: string | null; confirm?: boolean; reading?: string[] } = {},
+) {
   const els = new Map(IDS.map((id) => [id, new FakeElement()]));
   const doc = { getElementById: (id: string) => els.get(id) ?? null };
   const prefs = fakePrefs(options.prefs);
@@ -43,6 +45,8 @@ function setup(options: { prefs?: Record<string, unknown>; file?: string | null;
     readFile: vi.fn(async () => options.file ?? ''),
     confirm: vi.fn(() => options.confirm ?? true),
     onRestored: vi.fn(),
+    readingTabs: vi.fn(() => options.reading ?? []),
+    warn: vi.fn((_message: string) => {}),
   } satisfies BackupRowsDeps;
   initBackupRows(doc, deps);
   return {
@@ -126,6 +130,17 @@ describe('Restore settings', () => {
     const t = setup({ file: partial });
     await t.el('ztts-restore').fire('command');
     expect(t.message()).toBe('Restored 1 settings from C:\\backups\\tts.json. Skipped 1: future.setting.');
+  });
+
+  // A backup carries the provider switches, the favorites and the hiding
+  // switch, so restoring one edits what the player lists (issue #11)
+  it('is refused while a tab is reading, and the settings stay as they were', async () => {
+    const t = setup({ file, reading: ['Deep learning'], prefs: { [PREF_PREFIX + 'azure.region']: 'eastasia' } });
+    await t.el('ztts-restore').fire('command');
+    expect(t.deps.warn).toHaveBeenCalledWith(expect.stringContaining('Deep learning'));
+    expect(t.prefs.store[PREF_PREFIX + 'azure.region']).toBe('eastasia');
+    expect(t.deps.onRestored).not.toHaveBeenCalled();
+    expect(t.message()).toBe('');
   });
 
   it('reports a file that could not be read', async () => {

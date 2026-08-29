@@ -25,6 +25,7 @@ import { initHighlightRows } from './highlight-rows';
 import { initPrefetchRows, PREFETCH_ENABLED_OBSERVER } from './prefetch-rows';
 import { initProviderRows } from './provider-rows';
 import { createSamplePlayer, initVoiceBrowserRows } from './voice-browser-rows';
+import { initVoiceListSwitches } from './voice-list-switches';
 import { GLOBAL_SPEED_OBSERVER } from '../read-aloud/default-speed';
 import { SAME_VOICE_OBSERVER } from '../read-aloud/default-voice';
 import { showPaneNotice } from './reading-guard';
@@ -426,6 +427,16 @@ export function onPaneLoad(doc: Document, hooks: PaneHooks = {}): void {
     readingTabs: readingTabTitles,
     warn: (message: string) => showPaneNotice(doc, message, (text) => Services.prompt.alert(win, 'Zotero TTS', text)),
   };
+  // The two checkboxes that edit what the Read Aloud player lists: unbound,
+  // written here, and refused while a tab is reading (ui/voice-list-switches.ts)
+  const voiceListSwitches = initVoiceListSwitches(doc, {
+    prefs,
+    ...readingGuard,
+    watch: (name, onChange) => {
+      const token = Zotero.Prefs.registerObserver(name, onChange);
+      return () => Zotero.Prefs.unregisterObserver(token);
+    },
+  });
   const voiceBrowserRows = initVoiceBrowserRows(doc, {
     prefs,
     ...readingGuard,
@@ -483,6 +494,7 @@ export function onPaneLoad(doc: Document, hooks: PaneHooks = {}): void {
     () => {
       voiceBrowserRows.dispose();
       prefetchRows.dispose();
+      voiceListSwitches.dispose();
     },
     { once: true },
   );
@@ -510,6 +522,7 @@ export function onPaneLoad(doc: Document, hooks: PaneHooks = {}): void {
 
   const restoreDeps = {
     prefs,
+    ...readingGuard,
     pluginVersion,
     now: () => new Date().toISOString(),
     confirm: (message: string): boolean => Services.prompt.confirm(win, 'Zotero TTS', message),
@@ -519,6 +532,7 @@ export function onPaneLoad(doc: Document, hooks: PaneHooks = {}): void {
       presetRows.refresh();
       highlightRows.refresh();
       prefetchRows.refresh();
+      voiceListSwitches.refresh();
       voiceBrowserRows.refresh();
       // The restored prefs may switch providers on or off: the switches and
       // locks follow (after the preset rows, which gray their fields

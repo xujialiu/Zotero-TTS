@@ -108,15 +108,17 @@ describe('addon/content/preferences.xhtml', () => {
   });
 
   it('explains the Reading switches with a ? instead of a parenthesis in the label', () => {
+    // The hiding switch is unbound and found by its id: it owns its write,
+    // so that it can be refused while a tab is reading (ui/voice-list-switches.ts)
     const rows: Array<[string, RegExp, RegExp]> = [
-      ['readAloud.sameForAllDocuments', /label="Use one voice everywhere"/, /one voice per document language/],
-      ['readAloud.globalSpeed', /label="Use one speed everywhere"/, /one speed per document language/],
-      ['readAloud.hideZoteroLocalVoices', /label="Hide System Local voices"/, /marked “Local-…”/],
+      ['preference="extensions.zotero.zotero-tts.readAloud.sameForAllDocuments"', /label="Use one voice everywhere"/, /one voice per document language/],
+      ['preference="extensions.zotero.zotero-tts.readAloud.globalSpeed"', /label="Use one speed everywhere"/, /one speed per document language/],
+      ['id="ztts-hide-system-voices"', /label="Hide System Local voices"/, /marked “Local-…”/],
     ];
-    for (const [pref, label, text] of rows) {
-      const row = rowOf(`preference="extensions.zotero.zotero-tts.${pref}"`);
-      expect(row, pref).toMatch(label);
-      expect(row.match(help)?.[1], pref).toMatch(text);
+    for (const [marker, label, text] of rows) {
+      const row = rowOf(marker);
+      expect(row, marker).toMatch(label);
+      expect(row.match(help)?.[1], marker).toMatch(text);
     }
   });
 

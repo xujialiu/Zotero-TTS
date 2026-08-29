@@ -449,11 +449,12 @@ export function initVoiceBrowserRows(
    */
   function onHeart(voice: BrowserVoice, button: any): void {
     const favorites = readFavorites();
-    // Only favorites are offered: marking one adds it to the popup, which a
-    // tab that is reading would not see until Read Aloud reopens there —
-    // refused while any tab is (ui/reading-guard.ts); unmarking never is
-    const marking = !favorites.includes(voice.encoded);
-    if (marking && favoritesOnly() && deps.readingTabs && refuseWhileReading({ readingTabs: deps.readingTabs, warn: deps.warn ?? (() => {}) })) return;
+    // Only favorites are offered, so either direction edits the popup's
+    // list — marking adds a voice, unmarking takes one out, and unmarking
+    // the last one listed puts every voice back — which a tab that is
+    // reading would not see until Read Aloud reopens there. Refused while
+    // any tab is (ui/reading-guard.ts, issue #11)
+    if (favoritesOnly() && refuseWhileReading(deps)) return;
     const next = toggleFavoriteVoice(favorites, voice.encoded);
     deps.prefs.set(FAVORITES_PREF, serializeFavoriteVoices(next));
     paintHeart(button, next.includes(voice.encoded));
