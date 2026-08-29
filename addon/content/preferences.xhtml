@@ -302,4 +302,14 @@
     </hbox>
     <description id="ztts-webdav-message"/>
   </groupbox>
+
+  <!-- Which build this is, last in the pane and filled by ui/build-rows.ts:
+       the version startup handed the plugin, the date the xpi was built
+       (baked in by scripts/build.mjs), and who wrote it. -->
+  <groupbox>
+    <label><html:h2>Build</html:h2></label>
+    <hbox align="center">
+      <label id="ztts-build-line"/>
+    </hbox>
+  </groupbox>
 </vbox>

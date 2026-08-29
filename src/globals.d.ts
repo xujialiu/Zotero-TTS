@@ -7,6 +7,10 @@ declare const Components: any;
 declare const ChromeUtils: any;
 declare const IOUtils: any;
 
+// Baked in by scripts/build.mjs (esbuild `define`): the date the xpi was
+// built, shown in the pane's Build section. Undefined outside a build.
+declare const __BUILD_DATE__: string | undefined;
+
 interface Document {
   createXULElement(name: string): HTMLElement;
 }

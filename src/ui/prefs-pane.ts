@@ -16,6 +16,7 @@ import { initBackupRows, type BackupFileIO } from './backup-rows';
 import { initServerPresetRows } from './server-preset-rows';
 import { initHelpTips } from './help-tips';
 import { initBoldLabels } from './bold-labels';
+import { initBuildRows } from './build-rows';
 import { initWebDAVRows } from './webdav-rows';
 import { initHighlightRows } from './highlight-rows';
 import { initPrefetchRows, PREFETCH_ENABLED_OBSERVER } from './prefetch-rows';
@@ -346,6 +347,10 @@ export function onPaneLoad(doc: Document, hooks: PaneHooks = {}): void {
   initHelpTips(doc);
   // A checkbox's `bold` run: the label attribute is plain text (ui/bold-labels.ts)
   initBoldLabels(doc);
+  // The Build section at the foot of the pane (ui/build-rows.ts):
+  // registerPrefsPane kept the version startup handed the plugin, and the
+  // date comes baked into the bundle
+  initBuildRows(doc, { version: pluginVersion });
   const highlightRows = initHighlightRows(doc, prefs, { theme: () => currentReaderTheme(doc.defaultView) });
   // Prefetch keeps the audio cache on and its checkbox locked: without the
   // cache the warmer has nowhere to put what it synthesizes (ui/prefetch-rows.ts)

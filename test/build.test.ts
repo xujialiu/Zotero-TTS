@@ -4,6 +4,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import AdmZip from 'adm-zip';
 import { describe, expect, it } from 'vitest';
+import { buildDateString } from '../scripts/build-date.mjs';
 import { acceptsPlugin } from './zotero-version';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -80,6 +81,16 @@ describe('build', () => {
     expect(names).toContain('content/preferences.xhtml');
     // The ? icons' style, registered with the pane (registerPrefsPane)
     expect(names).toContain('content/preferences.css');
+  });
+
+  // The date the pane's Build section shows exists nowhere else: esbuild's
+  // `define` is what puts it into the bundle, and a define that stops being
+  // applied would leave the identifier standing and the row on a dash.
+  it('bakes the build date into the bundle', () => {
+    execFileSync('node', ['scripts/build.mjs'], { cwd: root, stdio: 'pipe' });
+    const bundle = new AdmZip(xpi).getEntry('content/zotero-tts.js')!.getData().toString('utf8');
+    expect(bundle).not.toContain('__BUILD_DATE__');
+    expect(bundle).toContain(`"${buildDateString()}"`);
   });
 
   // Zotero runs a pane's `scripts` before it inserts the pane's markup, so
