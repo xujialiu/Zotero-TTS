@@ -3317,3 +3317,19 @@ Live evidence (1.8.3-beta, Zotero 10.0.2-beta.1, through the bridge):
 One thing the counter shows honestly: the entries of a tab closed *last* stay
 in the log until the next attach. They are nuked shells; the next reader tab
 drops them.
+
+**One burst during the release pass, and how to read a burst from now on.**
+The in-place upgrade beta → 1.8.3 logged 7 `can't access dead object` — one
+closed tab's worth — after the profile had gone 1.8.2 → beta → disable →
+enable → 1.8.3 within minutes. It was pre-fix code being torn down late, not
+the fix failing, and the column numbers are the tell: **the shipped bundle
+has exactly one restore site** (`restoreAll`, one `proto[name] = original`),
+so every error from it would share one position, while that burst had four
+distinct columns — 1465 / 2459 / 1252 / 2521, the four dispose loops of the
+pre-fix bundle (the issue measured 1464 / 2458 / 1251 / 2520 on 1.8.2; two
+builds of the same code differ by a column or three). Replaying the exact
+sequence on the fix — tab cycle, disable/enable, tab cycle, upgrade to a
+different version, 7 dead entries in the log at the moment of teardown —
+logged nothing, with `Zotero.logError` wrapped to catch what
+`nsIScriptError` drops. So: four columns = old code somewhere; one column =
+look at the fix.
