@@ -1,7 +1,7 @@
 import type { ProviderId } from './providers/types';
 import type { ShortcutAction } from './shortcut-actions';
 
-export const PROVIDER_IDS: readonly ProviderId[] = ['openai', 'azure', 'local'];
+export const PROVIDER_IDS: readonly ProviderId[] = ['openai', 'azure', 'local', 'system'];
 
 export interface Settings {
   /** Each provider is switched on independently; every enabled one contributes voices. */
@@ -21,6 +21,14 @@ export interface Settings {
   azure: { enabled: boolean; apiKey: string; region: string; voice: string };
   /** `headers`: extra request headers for a gateway in front of the server, same format as openai.headers. */
   local: { enabled: boolean; engine: string; baseURL: string; voice: string; headers: string };
+  /**
+   * The operating system's own voices, synthesized by the plugin through a
+   * helper process (core/providers/system) so they are ordinary plugin
+   * voices — browsable, sampleable, favoritable, cached, word-highlighted.
+   * Nothing to configure: there is no key and no address, only the switch.
+   * Windows only for now; elsewhere enabling it fails with a message.
+   */
+  system: { enabled: boolean };
   /** The WebDAV folder holding the settings backup (core/webdav.ts, ui/webdav-rows.ts); the password is a plain pref like the API keys. */
   webdav: { url: string; username: string; password: string };
   /** Warm the audio cache this many sentences ahead of playback (read-aloud/remote-interface.ts); `prefetchEnabled` is the switch. */
@@ -40,10 +48,12 @@ export interface Settings {
     /** One speed for every document and every open tab (read-aloud/default-speed.ts); off, Zotero keeps a speed per document language. */
     globalSpeed: boolean;
     /**
-     * Hide Zotero's own Local voices — the operating system's — so the
-     * Local tier offers only the plugin's entries. Off, they stay and are
-     * marked "Local-…", which is what tells the two groups apart
-     * (read-aloud/system-voices.ts).
+     * Hide the system's Local voices — Zotero's own copies of the
+     * operating system's — so the Local tier offers only the plugin's
+     * entries. Off, they stay and are marked "Local-…", which is what
+     * tells them from the plugin's own System- voices
+     * (read-aloud/system-voices.ts). Switching the `system` provider on
+     * turns this on, since the two lists are then the same voices twice.
      */
     hideZoteroLocalVoices: boolean;
     /**
@@ -88,6 +98,7 @@ export const DEFAULTS: Settings = {
   },
   azure: { enabled: false, apiKey: '', region: 'eastasia', voice: 'zh-CN-XiaoxiaoNeural' },
   local: { enabled: false, engine: 'kokoro', baseURL: 'http://localhost:8880', voice: 'af_bella', headers: '' },
+  system: { enabled: false },
   webdav: { url: '', username: '', password: '' },
   prefetch: 3,
   prefetchEnabled: true,
@@ -164,6 +175,9 @@ export function loadSettings(prefs: PrefsBackend): Settings {
       voice: str(prefs, 'local.voice', DEFAULTS.local.voice),
       headers: str(prefs, 'local.headers', DEFAULTS.local.headers),
     },
+    system: {
+      enabled: bool(prefs, 'system.enabled', DEFAULTS.system.enabled),
+    },
     webdav: {
       url: str(prefs, 'webdav.url', DEFAULTS.webdav.url),
       username: str(prefs, 'webdav.username', DEFAULTS.webdav.username),
@@ -223,6 +237,7 @@ export function saveSettings(prefs: PrefsBackend, s: Settings): void {
   for (const [k, v] of Object.entries(s.openai)) prefs.set(PREF_PREFIX + 'openai.' + k, v);
   for (const [k, v] of Object.entries(s.azure)) prefs.set(PREF_PREFIX + 'azure.' + k, v);
   for (const [k, v] of Object.entries(s.local)) prefs.set(PREF_PREFIX + 'local.' + k, v);
+  for (const [k, v] of Object.entries(s.system)) prefs.set(PREF_PREFIX + 'system.' + k, v);
   for (const [k, v] of Object.entries(s.webdav)) prefs.set(PREF_PREFIX + 'webdav.' + k, v);
   prefs.set(PREF_PREFIX + 'prefetch', s.prefetch);
   prefs.set(PREF_PREFIX + 'prefetchEnabled', s.prefetchEnabled);

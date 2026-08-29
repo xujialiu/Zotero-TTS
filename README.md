@@ -23,6 +23,7 @@ things around the edges. Why it is built this way: [PHILOSOPHY.md](PHILOSOPHY.md
 ## What it adds
 
 - 🗣️ **More voices in the Local tier** of the Read Aloud player — Azure Speech, a [Kokoro-FastAPI](https://github.com/remsky/Kokoro-FastAPI) on your machine, OpenAI or any OpenAI-compatible server — next to Zotero's Standard and Premium voices. [→ Providers](#providers)
+- 🖥️ **Your Windows voices, promoted** — the ones Read Aloud already lists, but taken over by the plugin so they get the voice browser, samples, favorites, the cache *and* word-level highlighting, which Zotero's own path cannot do for them. [→ System voices](#system-voices)
 - 🔖 **Resume where you stopped** — close a document, open it again later, press `Shift+Space`, and Read Aloud starts at the sentence you left off on. [→ Resume where you stopped](#resume-where-you-stopped)
 - 🎧 **A voice browser** in the settings: every voice by tier and language — yours and Zotero's own — a play button for a short sample, hearts for favorites, and a switch to offer only the favorites. [→ Voice browser](#voice-browser)
 - ✨ **Word *and* sentence highlighting at once**, in your own colors and opacities — for Zotero's voices too. [→ Highlight](#highlight)
@@ -47,6 +48,7 @@ Install Plugin From File…** and restart Zotero; then enable a provider in
 | **Azure Speech** | Speech resource key + region · [tutorial](tutorials/azure-speech-free-tier.md) | Free tier: 500,000 characters a month | word |
 | **Kokoro-FastAPI** | A server on your machine or LAN · [tutorial](tutorials/kokoro-fastapi.md) | Free; CPU works, a GPU is faster | word |
 | **OpenAI-compatible** | Base URL and model; an API key if the server wants one | OpenAI bills per character; self-hosted servers such as [Chatterbox](tutorials/chatterbox-tts-server.md) are free | sentence |
+| **System voices** | Nothing — Windows only, for now | Free, offline | word |
 
 Each provider section ends with **Enable**: it runs the connection check,
 and only a check that passes switches the provider on. While a provider is
@@ -79,6 +81,44 @@ Put the gateway's headers in **Extra headers** — of the OpenAI section, or
 of the Local engine section for Kokoro — as `Name: value` pairs separated
 by `;`, for example `CF-Access-Client-Id: …; CF-Access-Client-Secret: …`.
 They go out with every request. [Tutorial](tutorials/remote-access-cloudflare.md).
+
+</details>
+
+### System voices
+
+Windows already installs a handful of voices, and Read Aloud already lists
+them under **Local**. It gets them straight from the browser engine, which
+hands over no audio and no word timings — so those voices are the one kind
+the plugin could never touch: no voice browser, no samples, no ♡, no cache,
+no word highlight.
+
+**Enable** in the *System voices* section takes them over. The plugin talks
+to the same Windows speech engines itself, through a small helper process,
+and publishes the result as ordinary plugin voices called
+`System-Microsoft David`, `System-Microsoft Huihui` and so on — with word
+timings, which is more than Zotero's own path can give them.
+
+Enabling also switches on *Hide System Local voices* below, since Zotero's
+own copies would otherwise be listed a second time; and a voice you had
+already picked from those copies is re-pointed at the plugin's equivalent,
+so it keeps playing.
+
+<details>
+<summary><b>Details</b></summary>
+
+Two Windows APIs are needed and together they are exactly the list Read
+Aloud shows: `System.Speech` for the older "… Desktop" voices and
+`Windows.Media.SpeechSynthesis` for the rest. The helper is one
+`powershell.exe` for the whole Zotero session, started at the first
+sentence and stopped with the plugin; a sentence takes 10–100 ms, far
+faster than real time.
+
+Audio is made at the voice's natural pace, like every other provider's, and
+Read Aloud's slider stretches it — so the same voice sounds a little
+different from Zotero's own path, which changes the engine's rate instead.
+
+macOS and Linux are not covered yet; the section says so, and enabling it
+there fails with a message.
 
 </details>
 
@@ -116,7 +156,7 @@ slider, the tier, the language and the voice. The arrow keys, `Shift+Enter`
 and `Shift+O` act only while Read Aloud is open and keep their usual
 meaning otherwise. Click a field to record another key.
 
-### Resume where you stopped
+## Resume where you stopped
 
 Close a document in the middle of listening, open it again later, press
 `Shift+Space` — Read Aloud starts at the sentence you left off on. If the
@@ -184,9 +224,10 @@ with, in every document. The **Speed** slider is the player's own (0.5×–3×).
 - *Use one speed everywhere* — one speed for every document and every open
   tab, set from the player's slider, the shortcuts or the settings slider.
   Off, Zotero keeps a speed per document language.
-- *Hide Zotero's own Local voices* — the Local tier then offers only the
-  plugin's entries. Off, Zotero's own are listed beside them and marked
-  `Local-Microsoft David Desktop`.
+- *Hide System Local voices* — the operating system's voices as Zotero
+  itself lists them leave the player, so the Local tier offers only the
+  plugin's entries. Off, they stay and are marked
+  `Local-Microsoft David Desktop`. Enabling *System voices* turns this on.
 - *Prefetch upcoming sentences* — the ones ahead are synthesized while the
   current one plays, so playback never waits for the server. Zotero fetches
   3 ahead by itself and your number adds to those. It keeps the cache below
@@ -203,7 +244,7 @@ their player opens. The player of a document in another language is switched
 to the voice's language (a Chinese PDF reads with your English voice, its
 sentences split by English rules); multilingual voices (Azure's, OpenAI's)
 sit under the player's "Multiple languages" entry, which the plugin pins to
-the top of the language list. *Hide Zotero's own Local voices* takes effect
+the top of the language list. *Hide System Local voices* takes effect
 the next time the Read Aloud player opens — in both directions, and so does
 the `Local-` marker it puts on Zotero's own voices while it is off. The
 marker is the player's alone: it changes no voice id, so a voice picked

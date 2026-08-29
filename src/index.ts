@@ -1,5 +1,9 @@
 import { getChromeWebSocket, newRequestId } from './core/providers/azure';
 import { createProvider } from './core/providers/factory';
+import { createDaemon, type Daemon, type DaemonProcess } from './core/providers/system/daemon';
+import { encodeCommand, WINDOWS_DAEMON_SCRIPT, WINDOWS_POWERSHELL, windowsCommandArguments } from './core/providers/system/daemon-script.win';
+import { listSystemVoiceRecords, type SystemProviderDeps } from './core/providers/system';
+import { zoteroVoiceId } from './core/providers/system/voices';
 import { createMemoryCache } from './core/memory-cache';
 import { audioCacheOn, createZoteroPrefs, loadSettings, migrateLegacyProviderPref } from './core/settings';
 import { installHijack } from './read-aloud';
@@ -69,8 +73,121 @@ function cacheVersion(): string {
  */
 const audioCache = createMemoryCache({ maxBytes: 64 * 1024 * 1024 });
 
+// ---- The operating system's own voices (issue #12) -------------------------
+//
+// One helper process for the whole session, driven through the framed
+// protocol in core/providers/system. Everything Zotero-flavored is here;
+// the provider itself knows only the injected shape.
+
+/** How long any one helper request may take: a cold start loads System.Speech (~285 ms), a sentence is 10–100 ms warm. */
+const SPEECH_TIMEOUT_MS = 20_000;
+
+let speechDaemon: Daemon | null = null;
+/** Distinguishes this Zotero's temp WAVs from another instance's, so a sweep never takes a live one. */
+const speechRunId = Math.random().toString(36).slice(2, 10);
+let speechFileSeq = 0;
+
+/** Why this platform gets no system voices, or null when it does. Windows only for now: nothing else has been measured. */
+function speechUnsupportedReason(): string | null {
+  if (!Zotero.isWin) {
+    return 'System voices need the Windows speech helper; this build has none for macOS or Linux yet.';
+  }
+  return null;
+}
+
+/**
+ * The helper as Subprocess runs it. `pathSearch` cannot find powershell.exe
+ * — Zotero's process environment has no PATH (measured 2026-08-29) — so the
+ * absolute path is used. The process gets no console window
+ * (`MainWindowHandle` 0), which is also why the helper never touches
+ * `[Console]::OutputEncoding`. stderr is drained in the background: PowerShell
+ * writes CLIXML progress records there, and a full pipe would block it.
+ */
+async function spawnSpeechHelper(): Promise<DaemonProcess> {
+  const { Subprocess } = ChromeUtils.importESModule('resource://gre/modules/Subprocess.sys.mjs');
+  const encoded = encodeCommand(WINDOWS_DAEMON_SCRIPT, (binary) => btoa(binary));
+  const proc = await Subprocess.call({
+    command: WINDOWS_POWERSHELL,
+    arguments: windowsCommandArguments(encoded),
+    stderr: 'pipe',
+  });
+  void (async () => {
+    try {
+      for (;;) {
+        const chunk = await proc.stderr.readString();
+        if (!chunk) break;
+        // CLIXML progress records are normal; anything else is worth the log
+        if (!/^#< CLIXML/.test(chunk.trim())) Zotero.debug('[zotero-tts] speech helper stderr: ' + chunk.trim().slice(0, 500));
+      }
+    } catch {
+      // The pipe closes with the process; nothing to report
+    }
+  })();
+  return {
+    write: (bytes) => proc.stdin.write(bytes),
+    read: async (length) => new Uint8Array(await proc.stdout.read(length)),
+    kill: () => proc.kill(),
+  };
+}
+
+function startSpeechDaemon(): void {
+  stopSpeechDaemon();
+  if (speechUnsupportedReason()) return;
+  speechDaemon = createDaemon({
+    spawn: spawnSpeechHelper,
+    timeoutMs: SPEECH_TIMEOUT_MS,
+    debug: (message) => Zotero.debug('[zotero-tts] ' + message),
+    log: (e) => Zotero.logError(e),
+  });
+}
+
+function stopSpeechDaemon(): void {
+  speechDaemon?.stop();
+  speechDaemon = null;
+}
+
+/**
+ * Temp WAVs a crash left behind. Every synthesis removes its own file in a
+ * `finally`, so only an unclean exit leaks one; an hour of age is what
+ * distinguishes those from a file another Zotero profile is using right now,
+ * which must never be taken from under it.
+ */
+async function sweepSpeechFiles(): Promise<void> {
+  const hourAgo = Date.now() - 3600_000;
+  const dir = await PathUtils.tempDir;
+  for (const path of await IOUtils.getChildren(dir)) {
+    // On the name, not the path: Windows separators are backslashes
+    if (!/^zotero-tts-[a-z0-9]+-\d+\.wav$/.test(PathUtils.filename(path))) continue;
+    try {
+      const stat = await IOUtils.stat(path);
+      if (stat.lastModified < hourAgo) await IOUtils.remove(path, { ignoreAbsent: true });
+    } catch {
+      // A file that vanished or is locked is not this sweep's business
+    }
+  }
+}
+
+/** The plugin sandbox has no AbortController (CLAUDE.md); the diagnostics' one synthesis needs a signal that simply never fires. */
+const NEVER_ABORTS = {
+  aborted: false,
+  addEventListener() {},
+  removeEventListener() {},
+} as unknown as AbortSignal;
+
+/** The system provider's plumbing: the session's helper, and one temp WAV per sentence. */
+function speechDeps(): SystemProviderDeps {
+  return {
+    daemon: speechDaemon,
+    unsupportedReason: speechUnsupportedReason() ?? undefined,
+    tempFile: async () => PathUtils.join(await PathUtils.tempDir, `zotero-tts-${speechRunId}-${speechFileSeq++}.wav`),
+    readFile: (path) => IOUtils.read(path),
+    removeFile: (path) => IOUtils.remove(path, { ignoreAbsent: true }),
+    debug: (message) => Zotero.debug('[zotero-tts] ' + message),
+  };
+}
+
 function providerDeps() {
-  return { fetch, getWebSocket: getChromeWebSocket, newRequestId };
+  return { fetch, getWebSocket: getChromeWebSocket, newRequestId, system: speechDeps() };
 }
 
 /** The voices of every enabled provider; one failing is logged and skipped, not fatal. */
@@ -773,6 +890,14 @@ async function startup({ id, version, rootURI }: StartupParams): Promise<void> {
     Zotero.debug('[zotero-tts] failed to install the highlight colors');
   }
   try {
+    startSpeechDaemon();
+    // Nothing waits on the sweep; a crash's leftovers are not urgent
+    void sweepSpeechFiles().catch((e) => Zotero.debug('[zotero-tts] temp sweep skipped: ' + e));
+  } catch (e) {
+    Zotero.logError(e);
+    Zotero.debug('[zotero-tts] failed to prepare the system speech helper');
+  }
+  try {
     startSystemVoiceHiding();
   } catch (e) {
     Zotero.logError(e);
@@ -813,6 +938,7 @@ async function shutdown(): Promise<void> {
   stopPositionSync();
   stopReadAloudMemory();
   stopHighlightStyling();
+  stopSpeechDaemon();
   stopSystemVoiceHiding();
   stopMultilingualFirst();
   Zotero.debug('[zotero-tts] stopped');
@@ -1133,6 +1259,53 @@ const diagnostics = {
     }
   },
   /**
+   * The system-voice provider, proved by its own mechanism rather than by
+   * the list looking right: the helper's state, the voices it enumerates
+   * with the id each maps onto in Zotero's own list, and — with a voice id
+   * — one real synthesis, reporting the audio's length, the engine's word
+   * marks and the timestamps they became. `words: 0` with `marks` above zero
+   * is the SAPI rate trap (core/providers/system/daemon-script.win.ts): the
+   * engine's timeline is not the file's and the marks were dropped rather
+   * than drawn in the wrong place.
+   */
+  systemProvider: async (voice?: string) => {
+    const settings = loadSettings(prefs);
+    const out: Record<string, unknown> = {
+      enabled: settings.system.enabled,
+      hideZoteroLocalVoices: settings.readAloud.hideZoteroLocalVoices,
+      platform: Zotero.isWin ? 'win' : Zotero.isMac ? 'mac' : 'other',
+      unsupported: speechUnsupportedReason(),
+      daemon: speechDaemon ? speechDaemon.state() : null,
+    };
+    try {
+      const records = await listSystemVoiceRecords(speechDeps());
+      out.voices = records.map((r) => ({ id: r.id, name: r.name, lang: r.lang, zoteroId: zoteroVoiceId(r) }));
+    } catch (e) {
+      out.voicesError = String(e);
+    }
+    if (voice) {
+      try {
+        const text = 'Read Aloud gives Zotero a voice, and this plugin gives it more.';
+        const provider = createProvider('system', settings, providerDeps());
+        const started = Date.now();
+        const result = await provider.synthesize(text, { voice, signal: NEVER_ABORTS });
+        out.synthesis = {
+          ms: Date.now() - started,
+          bytes: result.audio.size,
+          type: result.audio.type,
+          words: result.timestamps?.length ?? 0,
+          note: result.note ?? null,
+          first: result.timestamps?.slice(0, 3).map((t) => ({ ...t, text: text.slice(t.charStart, t.charEnd) })),
+          last: result.timestamps?.[result.timestamps.length - 1],
+        };
+      } catch (e) {
+        out.synthesisError = String(e);
+      }
+    }
+    if (speechDaemon) out.daemonAfter = speechDaemon.state();
+    return JSON.stringify(out, null, 1);
+  },
+  /**
    * The default speed and voice, from every place that holds them: the
    * plugin's memory (what the pane's slider writes; memory-sync reads it on
    * every use and applies the voice while `sameForAllDocuments` is on, the
@@ -1198,6 +1371,16 @@ Zotero.ZoteroTTS = {
   onMainWindowUnload,
   // The pane runs in this sandbox too, but its module has no reach to the
   // running memory-sync; a default picked there goes to the tabs through this
-  prefsPane: { onPaneLoad: (doc: Document) => onPaneLoad(doc, { spreadVoice: (choice) => readAloudMemory?.spreadVoice(choice) }) },
+  prefsPane: {
+    onPaneLoad: (doc: Document) =>
+      onPaneLoad(doc, {
+        spreadVoice: (choice) => readAloudMemory?.spreadVoice(choice),
+        // A rewrite of Zotero's voices pref that is not a pick must not be learned as one
+        applySilently: (fn) => (readAloudMemory ? readAloudMemory.applySilently(fn) : fn()),
+        // The speech helper is one process for the whole of Zotero, so the
+        // pane's samples and checks must use this session's, not one of their own
+        providerDeps,
+      }),
+  },
   diagnostics,
 };

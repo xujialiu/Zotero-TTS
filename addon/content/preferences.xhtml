@@ -103,6 +103,25 @@
     </hbox>
   </groupbox>
 
+  <!-- The operating system's own voices, synthesized by the plugin through a
+       helper process, so they are ordinary plugin voices (issue #12). No
+       fields: there is no key and no address. Enabling also hides Zotero's
+       own copies of the same voices, which would otherwise be listed twice
+       (ui/prefs-pane.ts). -->
+  <groupbox id="ztts-provider-system">
+    <label><html:h2>System voices</html:h2></label>
+    <hbox align="center">
+      <description id="ztts-system-note" style="max-width: 44em"
+                   value="Windows only. The voices Windows itself installs — browsable, sampleable, favoritable, cached and word-highlighted like every other provider's."/>
+      <label class="ztts-help" value="?" help="Read Aloud already lists these voices, but Zotero reads them straight from the browser engine, which gives no audio and no word timings — so they miss the voice browser, samples, favorites, the cache and the word highlight. Enabling this synthesizes them here instead, through the same Windows engines, and they gain all of it. Enabling also turns on “Hide System Local voices” below, since Zotero’s own copies would otherwise be listed a second time."/>
+    </hbox>
+    <hbox align="center">
+      <button id="ztts-enable-system" label="Enable"/>
+      <button id="ztts-test-system" label="Test connection"/>
+      <description id="ztts-test-result-system"/>
+    </hbox>
+  </groupbox>
+
   <!-- Every voice the enabled providers publish, grouped by language, with a
        sample player and favorites; wired by ui/voice-browser-rows.ts. Listed
        on load and again whenever a provider switch above is used. -->
@@ -152,9 +171,9 @@
       <label class="ztts-help" value="?" help="One speed for every document and every open tab. Off: Zotero keeps one speed per document language."/>
     </hbox>
     <hbox align="center">
-      <checkbox label="Hide Zotero’s own Local voices"
+      <checkbox label="Hide System Local voices"
                 preference="extensions.zotero.zotero-tts.readAloud.hideZoteroLocalVoices"/>
-      <label class="ztts-help" value="?" help="Zotero’s own Local voices leave the Read Aloud player. Off, they stay, marked “Local-…” — the plugin’s are the unmarked ones."/>
+      <label class="ztts-help" value="?" help="The operating system’s voices as Zotero itself lists them leave the Read Aloud player. Off, they stay, marked “Local-…” — the plugin’s own copies of the same voices are the “System-…” ones. Enabling the System voices provider above turns this on."/>
     </hbox>
     <!-- The switch locks the cache below on: without it the warmer has
          nowhere to put what it synthesizes (ui/prefetch-rows.ts) -->

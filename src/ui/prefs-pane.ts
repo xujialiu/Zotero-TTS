@@ -1,7 +1,7 @@
 import type { ProviderId, TTSProvider } from '../core/providers/types';
 import { LOCAL_ENGINES } from '../core/providers/local/registry';
-import { createProvider } from '../core/providers/factory';
-import { createZoteroPrefs, loadSettings, type PrefsBackend } from '../core/settings';
+import { createProvider, type ProviderDeps } from '../core/providers/factory';
+import { createZoteroPrefs, loadSettings, PREF_PREFIX, type PrefsBackend } from '../core/settings';
 import { getChromeWebSocket, newRequestId } from '../core/providers/azure';
 import { SynthesisError } from '../core/providers/errors';
 import { withTimeout } from '../core/timeout';
@@ -9,7 +9,10 @@ import { createWebDAVClient } from '../core/webdav';
 import { listNamedCatalog } from '../read-aloud/catalog';
 import { FAVORITES_ONLY_OBSERVER } from '../read-aloud/favorites';
 import { languageDisplayName } from '../read-aloud/language-dropdown';
-import { READ_ALOUD_MEMORY_OBSERVER, type VoiceChoice } from '../read-aloud/read-aloud-memory';
+import { readMemory, writeMemory, READ_ALOUD_MEMORY_OBSERVER, type VoiceChoice } from '../read-aloud/read-aloud-memory';
+import { readReadAloudVoices, READ_ALOUD_VOICES_PREF } from '../core/read-aloud-speed';
+import { migrateChoices } from '../read-aloud/system-voice-choices';
+import { listSystemVoiceRecords } from '../core/providers/system';
 import { createZoteroVoiceService, type ZoteroVoiceService } from '../read-aloud/zotero-voices';
 import { initShortcutRows } from './shortcut-rows';
 import { initBackupRows, type BackupFileIO } from './backup-rows';
@@ -189,8 +192,8 @@ function backupFileIO(win: any): BackupFileIO {
  * sandbox's whitelist has none — and without one the timeout still fires,
  * only the request is not cancelled.
  */
-async function synthesizeSample(win: any, prefs: PrefsBackend, id: ProviderId, voiceId: string, text: string): Promise<Blob> {
-  const provider = createProvider(id, loadSettings(prefs), { fetch, getWebSocket: getChromeWebSocket, newRequestId });
+async function synthesizeSample(win: any, prefs: PrefsBackend, id: ProviderId, voiceId: string, text: string, deps: ProviderDeps): Promise<Blob> {
+  const provider = createProvider(id, loadSettings(prefs), deps);
   let controller: { signal: AbortSignal; abort(): void } | null = null;
   try {
     if (win?.AbortController) controller = new win.AbortController();
@@ -307,11 +310,15 @@ function readingTabTitles(): string[] {
  * name would be wrong); the local engine has neither. The server's
  * models, when it lists them, become the Model field's suggestions.
  */
-async function checkProvider(doc: Document, prefs: PrefsBackend, id: ProviderId): Promise<ConnectionResult> {
+async function checkProvider(doc: Document, prefs: PrefsBackend, id: ProviderId, deps: ProviderDeps): Promise<ConnectionResult> {
   const settings = loadSettings(prefs);
   let outcome: ConnectionResult;
+  // Test connection is the retry after an environment was fixed, so it
+  // forgives a speech helper that used up its start budget earlier in the
+  // session (core/providers/system/daemon.ts MAX_STARTS)
+  if (id === 'system') deps.system?.daemon?.reset();
   try {
-    const provider = createProvider(id, settings, { fetch, getWebSocket: getChromeWebSocket, newRequestId });
+    const provider = createProvider(id, settings, deps);
     outcome = await testConnection(provider, {
       model: id === 'openai' ? settings.openai.model : undefined,
       synthesisVoice: id === 'azure' ? settings.azure.voice : undefined,
@@ -333,14 +340,61 @@ async function checkProvider(doc: Document, prefs: PrefsBackend, id: ProviderId)
   return outcome;
 }
 
+/**
+ * What switching the system provider on does beyond the switch itself
+ * (issue #12): Zotero's own copies of the very voices the plugin has just
+ * begun publishing are hidden, since the Local tier would otherwise carry
+ * every one of them twice; and a voice already chosen from those copies is
+ * re-pointed at the plugin's equivalent, so it keeps playing instead of
+ * being quietly replaced by Zotero's fallback
+ * (read-aloud/system-voice-choices.ts).
+ *
+ * The mapping is exact or it does not happen: both Windows APIs report the
+ * description Gecko builds its voice ids from, so a match is proof. Nothing
+ * here is undone when the provider goes off again — the checkbox is the
+ * user's, and a rewritten choice names a real voice either way.
+ */
+async function adoptSystemVoices(prefs: PrefsBackend, deps: ProviderDeps, hooks: PaneHooks): Promise<void> {
+  try {
+    prefs.set(PREF_PREFIX + 'readAloud.hideZoteroLocalVoices', true);
+    if (!deps.system) return;
+    const records = await withTimeout(listSystemVoiceRecords(deps.system), TEST_CONNECTION_TIMEOUT_MS, () => new Error('no voice list within 15 s'));
+    const { voices, memory, changes } = migrateChoices(readReadAloudVoices(prefs), readMemory(prefs), records);
+    // Silently: rewriting an id is not the user picking a voice, and
+    // memory-sync's observer would otherwise learn it as one, move the
+    // remembered default onto it and spread it to every reading tab
+    const write = hooks.applySilently ?? ((fn: () => void) => fn());
+    write(() => {
+      if (voices) prefs.set(READ_ALOUD_VOICES_PREF, JSON.stringify(voices));
+      if (memory) writeMemory(prefs, memory);
+    });
+    if (changes.length) Zotero.debug(`[zotero-tts] system voices adopted ${changes.length} remembered choice(s): ${changes.map((c) => c.to).join(', ')}`);
+  } catch (e) {
+    // The hiding is the part that matters and is already written; a failed
+    // remap leaves Zotero's own fallback doing what it always did
+    Zotero.logError(e);
+  }
+}
+
 /** What the pane needs from the plugin's running state (src/index.ts hands it over). */
 export interface PaneHooks {
   /** memory-sync's spreadVoice (read-aloud/memory-sync.ts): a default picked in the browser reaches every tab that is reading. */
   spreadVoice?(choice: VoiceChoice | null): void;
+  /**
+   * What the running plugin builds providers with (src/index.ts). It carries
+   * the session's speech helper, which is one process for the whole of
+   * Zotero and so cannot be made here; without it the pane still works, and
+   * the system provider reports that it has none.
+   */
+  providerDeps?(): ProviderDeps;
+  /** memory-sync's applySilently: a rewrite of Zotero's voices pref that is not a user's pick must not be learned as one. */
+  applySilently?<T>(fn: () => T): T;
 }
 
 export function onPaneLoad(doc: Document, hooks: PaneHooks = {}): void {
   const prefs = createZoteroPrefs();
+  /** Providers are built from this everywhere in the pane, so the samples and the checks reach the same speech helper the readers do. */
+  const providerDeps = (): ProviderDeps => hooks.providerDeps?.() ?? { fetch, getWebSocket: getChromeWebSocket, newRequestId };
   const shortcutRows = initShortcutRows(doc, prefs, Zotero.isMac ? 'Cmd' : Zotero.isWin ? 'Win' : 'Super');
   const presetRows = initServerPresetRows(doc, prefs);
   // The ? icons: their text opens at once, not after Zotero's tooltip delay (ui/help-tips.ts)
@@ -381,12 +435,12 @@ export function onPaneLoad(doc: Document, hooks: PaneHooks = {}): void {
     listCatalog: () => {
       const settings = loadSettings(prefs);
       return withTimeout(
-        listNamedCatalog(settings, (id) => createProvider(id, settings, { fetch, getWebSocket: getChromeWebSocket, newRequestId }), (e) => Zotero.logError(e)),
+        listNamedCatalog(settings, (id) => createProvider(id, settings, providerDeps()), (e) => Zotero.logError(e)),
         TEST_CONNECTION_TIMEOUT_MS,
         () => new SynthesisError('network', `No voice list within ${Math.round(TEST_CONNECTION_TIMEOUT_MS / 1000)} s`),
       );
     },
-    synthesizeSample: (id, voiceId, text) => synthesizeSample(win, prefs, id, voiceId, text),
+    synthesizeSample: (id, voiceId, text) => synthesizeSample(win, prefs, id, voiceId, text, providerDeps()),
     // Zotero's own Standard and Premium voices, listed and sampled beside
     // the plugin's; failing on its own leaves the plugin's voices listed
     listZoteroVoices: () => zoteroVoiceService().listVoices(),
@@ -441,8 +495,11 @@ export function onPaneLoad(doc: Document, hooks: PaneHooks = {}): void {
   const providerRows = initProviderRows(doc, {
     prefs,
     ...readingGuard,
-    check: (id) => checkProvider(doc, prefs, id),
+    check: (id) => checkProvider(doc, prefs, id, providerDeps()),
     onVoicesChanged: () => void voiceBrowserRows.load(),
+    onSwitched: (id, on) => {
+      if (id === 'system' && on) void adoptSystemVoices(prefs, providerDeps(), hooks);
+    },
     // Unlocked, the OpenAI fields the chosen server ignores are grayed out again
     onUnlocked: (id) => {
       if (id === 'openai') presetRows.refresh();

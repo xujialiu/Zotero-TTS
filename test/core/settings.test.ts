@@ -119,9 +119,10 @@ describe('enabledProviders', () => {
       ...DEFAULTS,
       azure: { ...DEFAULTS.azure, enabled: true },
       local: { ...DEFAULTS.local, enabled: true },
+      system: { ...DEFAULTS.system, enabled: true },
     };
     expect(enabledProviders(all)).toEqual(PROVIDER_IDS);
-    expect(enabledProviders({ ...all, openai: { ...DEFAULTS.openai, enabled: false } })).toEqual(['azure', 'local']);
+    expect(enabledProviders({ ...all, openai: { ...DEFAULTS.openai, enabled: false } })).toEqual(['azure', 'local', 'system']);
   });
 });
 

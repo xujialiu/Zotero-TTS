@@ -1,7 +1,7 @@
 import type { ProviderId, VoiceInfo } from '../core/providers/types';
 
 const SEPARATOR = '::';
-const PROVIDERS: readonly ProviderId[] = ['openai', 'azure', 'local'];
+const PROVIDERS: readonly ProviderId[] = ['openai', 'azure', 'local', 'system'];
 
 /**
  * The tier every plugin voice is filed under. Zotero's tier dropdown is
@@ -13,7 +13,7 @@ const PROVIDERS: readonly ProviderId[] = ['openai', 'azure', 'local'];
  */
 export const PLUGIN_TIER = 'local';
 
-const PROVIDER_NAMES: Record<ProviderId, string> = { openai: 'OpenAI', azure: 'Azure', local: 'Local' };
+const PROVIDER_NAMES: Record<ProviderId, string> = { openai: 'OpenAI', azure: 'Azure', local: 'Local', system: 'System' };
 
 /**
  * "Azure-Ava Multilingual": the provider's name in front of the voice's,
@@ -27,6 +27,12 @@ const PROVIDER_NAMES: Record<ProviderId, string> = { openai: 'OpenAI', azure: 'A
  * tells them from "Microsoft David Desktop". It is Zotero's own Local
  * voices that are marked, and only while they are listed beside these
  * (read-aloud/system-voices.ts) — issue #9, which retired the TTS- prefix.
+ *
+ * The system provider's name is what makes that distinction readable once
+ * the same voices can be listed twice: the plugin's are "System-Microsoft
+ * David", Zotero's own copies "Local-Microsoft David - English (United
+ * States)" (issue #12). Switching the provider on hides Zotero's, so the
+ * pair is only ever seen by someone who turned the hiding back off.
  */
 export function pluginVoiceLabel(provider: ProviderId, label: string, providerName?: string): string {
   return `${providerName ?? PROVIDER_NAMES[provider]}-${label}`;

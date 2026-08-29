@@ -32,6 +32,13 @@ export interface ProviderRowsDeps extends ReadingGuardDeps {
   check(id: ProviderId): Promise<CheckOutcome>;
   /** A provider went on or off, or one that is on was checked again: the voice browser lists again. */
   onVoicesChanged(): void;
+  /**
+   * A provider's switch was just written, with its new value. The system
+   * provider uses it to hide Zotero's own copies of the very voices it has
+   * begun publishing, and to keep a choice that named one of them
+   * (ui/prefs-pane.ts).
+   */
+  onSwitched?(id: ProviderId, on: boolean): void;
   /** The section's fields were just unlocked: the preset rows gray out theirs again (ui/server-preset-rows.ts). Omitted where there are none. */
   onUnlocked?(id: ProviderId): void;
 }
@@ -94,6 +101,7 @@ export function initProviderRows(doc: { getElementById(id: string): any }, deps:
     if (busy.has(id)) return;
     if (enabled(id)) {
       deps.prefs.set(pref(id), false);
+      deps.onSwitched?.(id, false);
       paint(id);
       // The last check's "Connected…" beside an Enable button would read as if it still held
       say(id, '');
@@ -106,7 +114,10 @@ export function initProviderRows(doc: { getElementById(id: string): any }, deps:
     say(id, 'Checking…');
     const outcome = await run(id);
     say(id, outcome.message);
-    if (outcome.ok) deps.prefs.set(pref(id), true);
+    if (outcome.ok) {
+      deps.prefs.set(pref(id), true);
+      deps.onSwitched?.(id, true);
+    }
     busy.delete(id);
     paint(id);
     if (outcome.ok) deps.onVoicesChanged();

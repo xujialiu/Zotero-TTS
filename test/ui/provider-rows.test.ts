@@ -88,7 +88,7 @@ describe('initProviderRows', () => {
     expect(t.of('azure').locked()).toEqual([true, true]);
     expect(t.of('local').label()).toBe('Enable');
     // Painting open fields hands them back to the preset rows, which gray out theirs
-    expect(t.onUnlocked.mock.calls.map(([id]) => id)).toEqual(['openai', 'local']);
+    expect(t.onUnlocked.mock.calls.map(([id]) => id)).toEqual(['openai', 'local', 'system']);
     expect(t.check).not.toHaveBeenCalled();
     expect(t.onVoicesChanged).not.toHaveBeenCalled();
   });

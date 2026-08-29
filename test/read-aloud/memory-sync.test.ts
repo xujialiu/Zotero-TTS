@@ -219,6 +219,35 @@ describe('createReadAloudMemorySync', () => {
     expect(z.deps.error).not.toHaveBeenCalled();
   });
 
+  // Caught live on 2026-08-29: enabling the system provider rewrote the
+  // system-voice ids in Zotero's pref, the observer read that as a voice
+  // pick, and the user's remembered Kokoro default silently became a
+  // Windows voice (issue #12, ui/prefs-pane.ts adoptSystemVoices).
+  describe('applySilently', () => {
+    it('learns nothing from a rewrite of Zotero’s pref that is not a pick', () => {
+      const z = fakeZotero(voices, { speed: 1.4, voice: { id: AOEDE, lang: 'en' } });
+      const sync = createReadAloudMemorySync(z.deps);
+      const migrated = 'system::onecore/MSTTS_V110_zhCN_HuihuiM';
+      sync.applySilently(() => {
+        z.deps.prefs.set(READ_ALOUD_VOICES_PREF, JSON.stringify({ ...voices, zh: { voice: migrated, tierVoices: { local: migrated } } }));
+      });
+      expect(z.voices().zh.voice).toBe(migrated);
+      // The remembered default is still the user's own choice
+      expect(z.storedMemory().voice).toEqual({ id: AOEDE, lang: 'en' });
+      sync.dispose();
+    });
+
+    it('goes on learning the next real pick, so the guard is not sticky', () => {
+      const z = fakeZotero(voices, { speed: 1.4, voice: { id: AOEDE, lang: 'en' } });
+      const sync = createReadAloudMemorySync(z.deps);
+      sync.applySilently(() => z.zoteroWrites('zh', { voice: 'system::onecore/X' }));
+      expect(z.storedMemory().voice).toEqual({ id: AOEDE, lang: 'en' });
+      z.zoteroWrites('zh', { voice: 'system::onecore/Y' });
+      expect(z.storedMemory().voice).toEqual({ id: 'system::onecore/Y', lang: 'zh' });
+      sync.dispose();
+    });
+  });
+
   it('moves the manager to Multiple languages before Zotero restores, so Zotero picks the remembered voice', () => {
     const z = fakeZotero();
     const sync = createReadAloudMemorySync(z.deps);

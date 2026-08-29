@@ -3637,3 +3637,115 @@ have never been keys.
 they are hidden there is no instance to reach the class through and nothing to
 mark, so the diagnostic omits both fields rather than reporting `false` for a
 patch that is in fact still held (`diagnostics.patches()` counts it).
+
+
+## The operating system becomes a provider (2026-08-29, issue #12)
+
+Read Aloud's Local tier was fed from two places that never met: the
+plugin's voices through the remote interface, the OS's straight from the
+reader iframe's `window.speechSynthesis` (`_allVoices = [...remoteVoices,
+...browserVoices]`, ~82031). Everything the plugin does for a voice
+therefore stopped at the OS voices, and no lesser fix closes it — the Web
+Speech API has no audio, stream or capture member at all, and Gecko's SAPI
+path does direct audio, so even chrome-privileged code has no PCM to
+intercept. The provider synthesizes them itself: same engine token,
+identical audio, plus word timings Zotero's own path cannot produce
+(`BrowserReadAloudController` tracks only `charIndex`, ~39583).
+
+**Two Windows APIs, and together they are exactly Firefox's list.** Measured
+on this machine: `System.Speech` (SAPI5, `HKLM\SOFTWARE\Microsoft\Speech\Voices`)
+gives 3 — David / Zira / Huihui **Desktop**; WinRT
+`Windows.Media.SpeechSynthesis` (`Speech_OneCore`) gives 6 — David / Mark /
+Zira / Huihui / Kangkang / Yaoyao; `speechSynthesis.getVoices()` gives 9,
+one for one. Neither alone is enough.
+
+**`SpeakProgress.AudioPosition` is not the position in the WAV** — the trap,
+and the one thing issue #12's evidence had wrong (it checked only the first
+three words, where the drift is still small). It is always counted at
+16 kHz, whatever rate the wave writer was given. Same sentence, same David
+engine, byte-identical audio (both files 4559/4560 ms, silence runs
+1900-2340 and 3780-4560):
+
+| | word 1 | word 6 | word 7 | word 12 | audio |
+|---|---|---|---|---|---|
+| SAPI at its default 22050 | 137 | 2045 | 3217 | **4767** | 4559 ms |
+| WinRT, same engine | 101 | 1486 | 2336 | 3461 | 4560 ms |
+
+The ratio is exactly 22050/16000 = 1.378, and asking for 8000/16000/22050/44100
+scales the marks 50/100/137/274 for the same first word — strictly
+proportional to the requested rate. So the helper asks for **16 kHz mono**
+and the marks then match WinRT's to the millisecond (100/320/650 against
+101/321/651). `VoiceInfo.SupportedAudioFormats` is empty for all three MS
+voices and the registry `Attributes` carry no `SamplesPerSec`, so 16 kHz is
+an assumption about the engine, not something read from it; a third-party
+SAPI voice with another native rate would be skewed. `timestampsFromMarks`
+therefore drops the whole set when any mark reaches the end of the audio —
+sentence highlighting instead of a highlight in the wrong place.
+
+**Environment facts the helper's shape exists for.**
+- `Subprocess.pathSearch('powershell.exe')` fails: Zotero's process
+  environment has no `PATH` (`Subprocess.getEnvironment().PATH` is null).
+  The absolute path is spelled out.
+- The spawned process has **no console** (`MainWindowHandle` 0,
+  `[Console]::WindowWidth` throws), so `[Console]::OutputEncoding = …` —
+  the obvious codepage fix, and what the issue proposed — throws on the
+  first line and the daemon never starts. All I/O is raw bytes on the
+  standard streams instead, which open fine.
+- Framing is **uint32 LE length + UTF-8 JSON**, Firefox's own native-messaging
+  shape, read with `Subprocess`'s `read(4)` / `read(length)`. Line framing
+  would have needed escaping: the pipe hands back arbitrary chunks, so a
+  UTF-8 sequence split across two decodes to replacement characters. With
+  lengths, Chinese came back with exact character offsets (朗读 / 功能 / 让)
+  and no daemon-side escaping at all.
+- The script goes over `-EncodedCommand` (base64 of UTF-16LE), which needs
+  no file and is not subject to the execution policy. It is kept ASCII
+  anyway — PowerShell 5.1 reads a BOM-less `.ps1` in the console codepage,
+  which broke a probe outright — and a test pins the command line well
+  inside `CreateProcess`'s 32767 characters.
+
+**Ids are engine tokens, never descriptions.** `sapi5/TTS_MS_EN-US_DAVID_11.0`,
+`onecore/MSTTS_V110_enUS_DavidM`. The description is localized, so it moves
+with the Windows display language; tokens do not. The description is still
+needed for one thing: both APIs report it *exactly* as Gecko's voice name,
+so `local-urn:moz-tts:sapi:<desc>?<lang>` is an exact reconstruction of
+Zotero's own id for the same voice (all nine verified) — which is what lets
+a choice already made be re-pointed at the plugin's copy instead of falling
+through `_findFallbackVoice`. A voice that does not match is left to Zotero,
+never guessed.
+
+**Enabling the provider is three writes, and the third one bit.** It sets
+`system.enabled`, turns on `hideZoteroLocalVoices` (the same voices would
+otherwise be listed twice), and rewrites the ids in
+`reader.readAloudVoices`. That third write went through memory-sync's
+observer, which read it as *the user picking a voice*: on the live pass the
+remembered default silently moved from `Kokoro-am_puck` to
+`System-Microsoft Huihui`, and it would have been spread to every reading
+tab. memory-sync already had the guard for its own writes (`whileApplying`);
+it is now exposed as `applySilently` and the migration runs inside it. Any
+future code that rewrites that pref without a user having picked anything
+must do the same.
+
+**Verified live in 1.9.0-beta2** (Zotero 10.0.2-beta.1, Windows 11), through
+`diagnostics.systemProvider()` and the reader's own remote interface:
+
+| check | result |
+|---|---|
+| enumeration from the plugin sandbox | 9 voices, every `zoteroId` equal to what `speechSynthesis.getVoices()` reports |
+| synthesis, WinRT Mark | 134126 B WAV, 12 marks, `Read@0.101 Aloud@0.316 gives@0.641`, last ends 4.19 s |
+| synthesis, SAPI David Desktop | 145966 B (16 kHz), 12 marks, `0.10 / 0.32 / 0.65`, last 3.46 — WinRT's timeline, not the old 4.767 |
+| helper lifetime | one process for all of it: `starts: 1` after 7 requests, 31–137 ms each |
+| Test connection | "Connected. 9 voices available. Word timestamps available." and `system.enabled` still false |
+| Enable | switch on, `hideZoteroLocalVoices` on and its checkbox redrawn, only the `zh` entry rewritten (`voice` and `tierVoices.local`), memory unchanged |
+| Enable while a tab is reading | refused by the reading guard, as every provider's is |
+| the player | 9 `System-…` voices under Local, `local-system: 0` — Zotero's own copies gone |
+| getAudio through the reader | WAV + 12 timestamps in 31–82 ms; a replay came from the cache in 0 ms |
+
+Two things only a human can judge and neither was checked here: how the
+voices sound at a stretched speed, and whether the word highlight keeps pace
+on a real document.
+
+**macOS and Linux are not covered.** `say --file-format=WAVE
+--data-format=LEI16@22050 -o` would give audio but no word timings
+(`willSpeakRangeOfSpeechString` is not exposed through `say`), and
+speech-dispatcher has no file output at all. Nothing on either has been
+measured, so the provider reports the platform instead of pretending.

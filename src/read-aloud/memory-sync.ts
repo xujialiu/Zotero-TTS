@@ -117,6 +117,17 @@ export interface ReadAloudMemorySync {
    * Zotero's own choice.
    */
   spreadVoice(choice: VoiceChoice | null): void;
+  /**
+   * Runs `fn` with the pref observer told that whatever it writes to
+   * Zotero's `reader.readAloudVoices` is not a user's pick. Any code
+   * outside a popup that rewrites that pref must go through here, or the
+   * observer learns the write as a voice choice, moves the remembered
+   * default to it and spreads it to every reading tab. The system
+   * provider's id migration is such a write (ui/prefs-pane.ts) — caught
+   * live on 2026-08-29, when enabling the provider silently replaced a
+   * Kokoro default with a Windows voice.
+   */
+  applySilently<T>(fn: () => T): T;
   /** The language a reader's document is in, as far as the sync knows: the manager's, or the one the manager was moved to Multiple languages from. */
   documentLanguage(reader: unknown): string | null;
   /** Prototypes held by the pick hooks, and how many of them a closed tab has not taken with it. */
@@ -441,5 +452,5 @@ export function createReadAloudMemorySync(deps: ReadAloudMemoryDeps): ReadAloudM
     }
   }
 
-  return { attach, memory, spreadVoice, documentLanguage, patchCounts: pickPatches.counts, dispose };
+  return { attach, memory, spreadVoice, applySilently: whileApplying, documentLanguage, patchCounts: pickPatches.counts, dispose };
 }

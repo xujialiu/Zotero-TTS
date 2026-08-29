@@ -6,6 +6,7 @@ declare const Services: any;
 declare const Components: any;
 declare const ChromeUtils: any;
 declare const IOUtils: any;
+declare const PathUtils: any;
 
 // Baked in by scripts/build.mjs (esbuild `define`): the date the xpi was
 // built, shown in the pane's Build section. Undefined outside a build.
