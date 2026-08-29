@@ -42,13 +42,17 @@ across documents, settings backup/restore (file or WebDAV), highlight colors.
   one fixed in ten minutes — the issue is the public record of a
   production incident, and NOTES.md still gets its entry. A feature gets
   one when it needs a design decision or spans more than one session
-  (what used to be a README TODO step; issues have replaced it). One-line
-  UI polish, docs, wording, refactors and chores get none. The issue is
-  written **before** the fix and holds the problem and the evidence — the
-  Zotero internals dug out and cited by file and line (`#6` is the
-  shape); NOTES.md, afterwards, holds what was learned and what broke,
-  and names the issue number. Neither copies the other. Labels are `bug`
-  and `enhancement`, nothing else, no milestones. The commit that
+  (what used to be a README TODO step; issues have replaced it). Such an
+  issue is written **before** the fix and holds the problem and the
+  evidence — the Zotero internals dug out and cited by file and line
+  (`#6` is the shape); NOTES.md, afterwards, holds what was learned and
+  what broke, and names the issue number. Neither copies the other.
+  Everything that leaves the plugin's behavior alone — docs, the settings
+  pane's wording and layout, refactors, housekeeping — gets a `chore`
+  issue instead, when the change is worth a public record: a couple of
+  lines saying what and why, no evidence section, no NOTES.md entry. A
+  one-line tweak still gets nothing. Labels are `bug`, `enhancement` and
+  `chore`, nothing else, no milestones. The commit that
   finishes one closes it, with the number in the subject: `fix: … (#5)`.
   Open an issue because writing it clarifies the problem, not to defer
   it — on a public repo an issue left open is a promise to strangers, and
