@@ -261,7 +261,7 @@ every incident so far.
 ## Acknowledgments
 
 - Built for the [Zotero](https://www.zotero.org) plugin developer community.
-- Verified in a running Zotero through
+- Developed with the help of
   [introfini/mcp-server-zotero-dev](https://github.com/introfini/mcp-server-zotero-dev),
   the MCP bridge that drives Zotero from the outside.
 
