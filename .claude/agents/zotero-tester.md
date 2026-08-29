@@ -60,9 +60,10 @@ the source (`src/`) and say that you did.
    for layout checks. `zotero_read_errors` at the end: report anything from
    the plugin (`[zotero-tts]`, `zotero-tts.js` in a stack); Zotero's own
    noise (`selectionRanges`, missing `.ftl` locale resources) is not a
-   finding. A burst of `can't access dead object` from the old bundle at
-   the second of an in-place upgrade is a known class (notes/NOTES.md);
-   report it with its timestamp, but it is not a finding against the change.
+   finding. A burst of `can't access dead object` at the second of an
+   in-place upgrade was the teardown bug of issue #5, fixed in 1.8.3
+   (notes/NOTES.md): from that build on it is a regression, not background
+   noise — report it with its timestamp and its count.
 7. Hover and tooltips: move the mouse with
    `win.windowUtils.sendMouseEvent('mousemove', x, y, 0, 0, 0, false, 0, 0, false, false)`
    — the two trailing `false` (the DOM- and widget-synthesized flags) are

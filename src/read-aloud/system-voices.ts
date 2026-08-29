@@ -30,6 +30,7 @@
  * its own splice and primitive arguments only.
  */
 
+import { createProtoPatches } from './proto-patches';
 import { decodeVoiceId } from './voice-catalog';
 
 type AnyFn = (...args: any[]) => any;
@@ -41,6 +42,8 @@ export interface SystemVoiceHidingDeps {
   exportFunction?(fn: AnyFn, target: object): AnyFn;
   /** Components.utils.waiveXrays for what the reader passes into the exported wrapper. Optional for tests. */
   waiveXrays?(value: unknown): unknown;
+  /** Components.utils.isDeadWrapper, so a closed tab's prototype is skipped instead of throwing (proto-patches.ts). Optional for tests. */
+  isDead?(value: unknown): boolean;
   error(e: unknown): void;
   debug?(message: string): void;
 }
@@ -50,6 +53,8 @@ export interface SystemVoiceHiding {
   attach(reader: unknown): boolean;
   /** What this module sees in a reader, as plain data, for Tools → Developer → Run JavaScript. */
   inspect(reader: unknown): Record<string, unknown>;
+  /** Prototypes held, and how many of them a closed tab has not taken with it. */
+  patchCounts(): { total: number; live: number };
   /** Put every patched prototype back. */
   dispose(): void;
 }
@@ -67,7 +72,7 @@ export function ownerOf(obj: unknown, name: string): any {
 const isSystemLocalVoice = (v: any): boolean => !!v && v.tier === 'local' && decodeVoiceId(String(v.id ?? '')) === null;
 
 export function createSystemVoiceHiding(deps: SystemVoiceHidingDeps): SystemVoiceHiding {
-  const patches: Array<{ proto: any; name: string; original: AnyFn }> = [];
+  const patches = createProtoPatches({ exportFunction: deps.exportFunction, isDead: deps.isDead, error: deps.error });
 
   const waive = (value: unknown): any => (deps.waiveXrays ? deps.waiveXrays(value) : value);
 
@@ -89,18 +94,17 @@ export function createSystemVoiceHiding(deps: SystemVoiceHidingDeps): SystemVoic
       const manager = reader?._internalReader?._readAloudManager;
       const proto = manager ? ownerOf(manager, '_resolveVoice') : null;
       if (!proto) return false;
-      if (patches.some((p) => p.proto === proto)) return true;
-      const original = proto._resolveVoice as AnyFn;
-      const wrapper = function (this: any, ...args: unknown[]) {
-        try {
-          if (deps.enabled()) stripSystemVoices(waive(this));
-        } catch (e) {
-          deps.error(e);
-        }
-        return Reflect.apply(original, this, args);
-      };
-      proto._resolveVoice = deps.exportFunction ? deps.exportFunction(wrapper, proto) : wrapper;
-      patches.push({ proto, name: '_resolveVoice', original });
+      if (patches.has(proto)) return true;
+      patches.shadow(proto, '_resolveVoice', (original) =>
+        function (this: any, ...args: unknown[]) {
+          try {
+            if (deps.enabled()) stripSystemVoices(waive(this));
+          } catch (e) {
+            deps.error(e);
+          }
+          return Reflect.apply(original, this, args);
+        },
+      );
       deps.debug?.('system-voice hiding attached');
       return true;
     } catch (e) {
@@ -115,7 +119,7 @@ export function createSystemVoiceHiding(deps: SystemVoiceHidingDeps): SystemVoic
       const proto = manager ? ownerOf(manager, '_resolveVoice') : null;
       const result: Record<string, unknown> = {
         enabled: deps.enabled(),
-        patched: !!proto && patches.some((p) => p.proto === proto),
+        patched: !!proto && patches.has(proto),
       };
       const all = manager?._allVoices;
       if (all && typeof all.length === 'number') {
@@ -135,15 +139,8 @@ export function createSystemVoiceHiding(deps: SystemVoiceHidingDeps): SystemVoic
   }
 
   function dispose(): void {
-    for (const { proto, name, original } of patches.reverse()) {
-      try {
-        proto[name] = original;
-      } catch (e) {
-        deps.error(e);
-      }
-    }
-    patches.length = 0;
+    patches.restoreAll();
   }
 
-  return { attach, inspect, dispose };
+  return { attach, inspect, patchCounts: patches.counts, dispose };
 }

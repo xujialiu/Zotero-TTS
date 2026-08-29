@@ -2843,7 +2843,9 @@ had logged nothing. Consistent with the old sandbox's callbacks (the
 position sampler's tick, the manager hooks) running once more after their
 compartment was nuked — the same class as the position sampler's dead
 entry above. Not investigated; noted so the next in-place upgrade with a
-session open is read for it, not for the change under test.
+session open is read for it, not for the change under test. **Wrong guess,
+settled 2026-08-29 (issue #5): these came from our own `dispose()` restoring
+the prototypes of tabs that had been closed — see the last entry.**
 
 ## The ? beside a setting: tooltips, a pane stylesheet, Zotero's label margins (2026-08-28)
 
@@ -2926,9 +2928,9 @@ Seen alongside, not caused by the build: 7 `can't access dead object` from
 the *old* bundle at the second of the in-place upgrade 1.8.0 → 1.8.1-beta
 with the Settings window open and no reader session; two same-version
 reinstalls afterwards (one with the TTS pane open, one with no reader
-open) logged none. Same class as the 19 above (the old sandbox's callbacks
-running once more after their compartment was nuked); still not
-investigated.
+open) logged none. Same class as the 19 above — and, settled 2026-08-29 (issue #5),
+the same cause: our own `dispose()` restoring the prototypes of closed
+tabs. See the last entry.
 
 ### The ? tooltips open at once, Extra headers get one, the field column lines up (2026-08-28, same day)
 
@@ -3232,3 +3234,86 @@ leaves the cache on and merely returns the choice.
   prefetch lines; cache on + prefetch off → 9 hits; cache off + prefetch on
   → 8 hits and the warmer running. The middle round is the one that was
   impossible before this change.
+
+## A dead prototype is not restorable: the teardown noise, and what held the tabs (2026-08-29, issue #5)
+
+Every module that shadows a reader-side prototype recorded its undo entry in
+a plain array. A reader tab's prototypes live in the tab's own compartment,
+so closing the tab turned every one of its entries into a dead object, and
+`dispose()`'s `proto[name] = original` threw `can't access dead object` on
+each — caught, so nothing broke, but the error console filled up at every
+plugin upgrade, reload and quit. **Measured before the fix**: one PDF tab
+opened, its Read Aloud popup opened, the tab closed, `Services.console.reset()`,
+plugin reloaded → **15** `can't access dead object` and nothing else. Seven of
+those are one tab's worth (highlight-style 2, system-voices 1,
+multilingual-first 1, memory-sync 3); the rest were tabs closed earlier in the
+same session, which is the shape of the leak: the array only ever grew.
+
+This is the bug behind the two "seen alongside, not caused by the build"
+entries above (19 errors at the 1.8.1-beta upgrade, 7 at 1.8.0 → 1.8.1-beta).
+The guess recorded there — the old sandbox's callbacks running once more —
+was wrong: it is our own restore loop walking prototypes of tabs that had
+been closed.
+
+**`Cu.isDeadWrapper`, not `WeakRef`.** Probed in a nuked `freshCompartment`
+sandbox (`Cu.nukeSandbox`, which is what a closing tab does to its
+compartment's wrappers), all measured at the moment of the nuke, no GC in
+between:
+
+| probe | result |
+|---|---|
+| `Cu.isDeadWrapper(proto)` | `true` — at once |
+| `Cu.isDeadWrapper(original)` | `true` — the captured function is a dead shell too |
+| `proto[name] = original` | `TypeError: can't access dead object` |
+| `typeof proto`, `proto === proto` | fine — a dedup scan over dead entries is safe |
+| `ref.deref()` | **an object, not `undefined`**, and no longer `=== proto` |
+
+So the obvious `WeakRef` fix does not work: `deref()` keeps handing back a
+dead wrapper until a GC actually collects it, and `shutdown()` runs at an
+upgrade or a reload with no guarantee that one happened. `isDeadWrapper` is
+the deterministic test, and it is reachable from the plugin sandbox — the
+same `Components.utils` that already provides `waiveXrays` and
+`exportFunction`. `ChromeUtils.isDeadWrapper` does **not** exist (reads
+`undefined` in chrome scope). And because both `proto` and `original` are
+dead shells the moment the tab goes, the entries never pinned the tab's
+compartment: nuking is what lets it be collected. The cost was the console
+and an array that grew with every tab opened, not retained readers.
+
+`src/read-aloud/proto-patches.ts` now holds the undo log for all four
+modules (`shadow` / `has` / `restoreAll` / `counts`): `shadow()` compacts the
+log before its dedup scan, so it stays proportional to the tabs that are
+*open*, and `restoreAll()` skips a dead prototype in silence while still
+restoring the live ones. `isDead` is injected from `index.ts` like the other
+`Components.utils` helpers; without it nothing is ever dead, which is what
+the unit tests want.
+
+**The fifth site, which threw nothing.** `installHijack` kept every reader
+ever pushed into `_readers` in a strong array until `uninstall()`. Those are
+*chrome-side* reader objects — never nuked, so no error, no console line —
+and the one place that really did hold on to closed tabs for the session. It
+is a `WeakSet` now, and `uninstall()` walks the live `readers` array, which
+is the only place a reader it can still clean up is reachable from.
+
+Live evidence (1.8.3-beta, Zotero 10.0.2-beta.1, through the bridge):
+
+- `diagnostics.patches()` is the counter: `{ total, live }` per module, `live`
+  computed with `isDeadWrapper` on the spot. One open reader = 7 entries.
+  Opening a second tab and its popup → 14/14; closing it → **14 total, 7
+  live** (the deadness is visible immediately, again without a GC); opening a
+  third tab → **14/14**, not 21 — the dead entries went at that attach.
+- The same repro that gave 15 errors on 1.8.2 gives **0** on the fix. So does
+  a disable/enable cycle.
+- The live tab's prototypes are still put back: with the plugin on,
+  `Intl.DisplayNames.of('mul')` reads `" Multiple languages"` (our sort
+  prefix) and `_resolveVoice` / `selectVoice` / `setReadAloudState` /
+  `_pushHighlightedPosition` all read `function () { [native code] }` (the
+  exported wrappers); after `addon.disable()` the label is
+  `"Multiple languages"` and all four read Zotero's own source again. That is
+  the check the strong references were accidentally guaranteeing.
+- A reader opened while the plugin is on carries the hijack
+  (`Object.hasOwn(reader, '_getReadAloudRemoteInterface')` true) and loses it
+  on disable — the `WeakSet` rewrite of `installHijack` verified on a live tab.
+
+One thing the counter shows honestly: the entries of a tab closed *last* stay
+in the log until the next attach. They are nuked shells; the next reader tab
+drops them.

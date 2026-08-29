@@ -108,6 +108,25 @@ describe('installHijack', () => {
     expect(Object.hasOwn(reader, '_getReadAloudRemoteInterface')).toBe(false);
   });
 
+  it('holds no reader of its own: uninstall works from the array Zotero maintains', () => {
+    const readers = fakeReaders();
+    const uninstall = installHijack(readers, () => ({}));
+
+    const closed: any = {};
+    const open: any = {};
+    readers.push(closed);
+    readers.push(open);
+    // The tab closed, so Zotero took its reader out of _readers. Keeping a
+    // reference here to clean it up later would pin every reader ever
+    // opened for the rest of the session (issue #5).
+    readers.splice(0, 1);
+
+    uninstall();
+
+    expect(Object.hasOwn(open, '_getReadAloudRemoteInterface')).toBe(false);
+    expect(Object.hasOwn(closed, '_getReadAloudRemoteInterface')).toBe(true);
+  });
+
   it('is safe to uninstall twice', () => {
     const readers = fakeReaders();
     const uninstall = installHijack(readers, () => ({}));

@@ -619,6 +619,9 @@ function startReadAloudMemory(): void {
         internal.setReadAloudVoices(Components.utils.cloneInto(readReadAloudVoices(prefs), win));
       }
     },
+    // A prototype whose reader tab has closed: its compartment is nuked and
+    // every assignment through it throws, so shutdown skips it (proto-patches.ts)
+    isDead: (value) => Components.utils.isDeadWrapper(value),
     error: (e) => Zotero.logError(e),
     debug: (message) => Zotero.debug('[zotero-tts] ' + message),
   });
@@ -682,6 +685,7 @@ function startHighlightStyling(): void {
     cloneIntoReader: (reader: any, value) => (reader?._iframeWindow ? Components.utils.cloneInto(value, reader._iframeWindow) : value),
     // What the reader hands an exported function arrives behind Xray wrappers (see highlight-style.ts)
     waiveXrays: (value) => ((value && typeof value === 'object') || typeof value === 'function' ? Components.utils.waiveXrays(value) : value),
+    isDead: (value) => Components.utils.isDeadWrapper(value),
     error: (e) => Zotero.logError(e),
     debug: (message) => Zotero.debug('[zotero-tts] ' + message),
   });
@@ -704,6 +708,7 @@ function startSystemVoiceHiding(): void {
     enabled: () => loadSettings(prefs).readAloud.hideZoteroLocalVoices,
     exportFunction: (fn, target) => Components.utils.exportFunction(fn, target),
     waiveXrays: (value) => ((value && typeof value === 'object') || typeof value === 'function' ? Components.utils.waiveXrays(value) : value),
+    isDead: (value) => Components.utils.isDeadWrapper(value),
     error: (e) => Zotero.logError(e),
     debug: (message) => Zotero.debug('[zotero-tts] ' + message),
   });
@@ -728,6 +733,7 @@ function startMultilingualFirst(): void {
     // The diagnostics probe hands an options object to a reader-compartment
     // constructor; a sandbox-built object is unreadable there
     cloneInto: (reader: any, value) => (reader?._iframeWindow ? Components.utils.cloneInto(value, reader._iframeWindow) : value),
+    isDead: (value) => Components.utils.isDeadWrapper(value),
     error: (e) => Zotero.logError(e),
     debug: (message) => Zotero.debug('[zotero-tts] ' + message),
   });
@@ -841,6 +847,25 @@ const diagnostics = {
   highlight: () => JSON.stringify((Zotero.Reader._readers ?? []).map((r: any) => highlightStyling?.inspect(r) ?? null), null, 1),
   systemVoices: () => JSON.stringify((Zotero.Reader._readers ?? []).map((r: any) => systemVoiceHiding?.inspect(r) ?? null), null, 1),
   multilingualFirst: () => JSON.stringify((Zotero.Reader._readers ?? []).map((r: any) => multilingualFirst?.inspect(r) ?? null), null, 1),
+  /**
+   * The undo logs of the four modules that shadow a reader-side prototype
+   * (read-aloud/proto-patches.ts): `total` entries held, `live` of them
+   * belonging to a tab that is still open. They used to drift apart by one
+   * tab's worth of entries per closed tab, and shutdown logged a dead
+   * object for each of those (issue #5); now `total` follows the open tabs.
+   */
+  patches: () =>
+    JSON.stringify(
+      {
+        readers: (Zotero.Reader._readers ?? []).length,
+        highlight: safe(() => highlightStyling?.patchCounts()) ?? null,
+        systemVoices: safe(() => systemVoiceHiding?.patchCounts()) ?? null,
+        multilingualFirst: safe(() => multilingualFirst?.patchCounts()) ?? null,
+        readAloudMemory: safe(() => readAloudMemory?.patchCounts()) ?? null,
+      },
+      null,
+      1,
+    ),
   /**
    * What the smart play key (Shift+Space) would do on each reader right
    * now, mirroring smartPlay's dispatch (notes/shift_space_logic.md):

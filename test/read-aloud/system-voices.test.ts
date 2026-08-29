@@ -150,6 +150,23 @@ describe('createSystemVoiceHiding', () => {
     expect(manager._allVoices).toHaveLength(1);
   });
 
+  it('dispose leaves the prototype of a closed tab alone, and says nothing about it', () => {
+    const { manager, reader } = makeReader([pluginVoice()]);
+    const closed = new Set<unknown>();
+    const { hiding, error } = make({ isDead: (p) => closed.has(p) });
+    hiding.attach(reader);
+    expect(hiding.patchCounts()).toEqual({ total: 1, live: 1 });
+
+    // The tab closed: its compartment is nuked, so the prototype is a dead
+    // object every assignment throws through (issue #5)
+    closed.add(Object.getPrototypeOf(manager));
+    expect(hiding.patchCounts()).toEqual({ total: 1, live: 0 });
+    hiding.dispose();
+
+    expect(error).not.toHaveBeenCalled();
+    expect(hiding.patchCounts()).toEqual({ total: 0, live: 0 });
+  });
+
   it('inspect reports the switch, the patch and the tier counts', () => {
     const { manager, reader } = makeReader([cloudVoice(), systemVoice(), pluginVoice()]);
     const { hiding } = make();

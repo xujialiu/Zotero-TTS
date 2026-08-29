@@ -11,6 +11,7 @@ import {
   type ReadAloudMemory,
   type VoiceChoice,
 } from './read-aloud-memory';
+import { createProtoPatches } from './proto-patches';
 import { ownerOf } from './system-voices';
 
 /**
@@ -96,6 +97,8 @@ export interface ReadAloudMemoryDeps {
    * still the old entry. A resync refreshes it before the restore.
    */
   refreshVoices?(reader: unknown): void;
+  /** Components.utils.isDeadWrapper, so a closed tab's prototype is skipped instead of throwing (proto-patches.ts). Optional for tests. */
+  isDead?(value: unknown): boolean;
   error(e: unknown): void;
   debug?(message: string): void;
 }
@@ -116,6 +119,8 @@ export interface ReadAloudMemorySync {
   spreadVoice(choice: VoiceChoice | null): void;
   /** The language a reader's document is in, as far as the sync knows: the manager's, or the one the manager was moved to Multiple languages from. */
   documentLanguage(reader: unknown): string | null;
+  /** Prototypes held by the pick hooks, and how many of them a closed tab has not taken with it. */
+  patchCounts(): { total: number; live: number };
   dispose(): void;
 }
 
@@ -300,7 +305,7 @@ export function createReadAloudMemorySync(deps: ReadAloudMemoryDeps): ReadAloudM
   }
 
   const PICKS = ['selectVoice', 'selectTier', 'setLanguage'] as const;
-  const pickPatches: Array<{ proto: any; name: string; original: SyncMethod }> = [];
+  const pickPatches = createProtoPatches({ exportFunction: deps.exportFunction, isDead: deps.isDead, error: deps.error });
 
   /**
    * The popup's three picks, shadowed where Zotero defined them — the
@@ -311,22 +316,21 @@ export function createReadAloudMemorySync(deps: ReadAloudMemoryDeps): ReadAloudM
    */
   function attachPicks(manager: any): void {
     const proto = manager ? ownerOf(manager, 'selectVoice') : null;
-    if (!proto || pickPatches.some((p) => p.proto === proto)) return;
+    if (!proto || pickPatches.has(proto)) return;
     for (const name of PICKS) {
-      const original = proto[name] as SyncMethod;
-      if (typeof original !== 'function') continue;
-      const wrapper: SyncMethod = function (this: any, ...args: unknown[]) {
-        const result = Reflect.apply(original, this, args);
-        try {
-          const persist = name !== 'setLanguage' || !!waive(args[1])?.persist;
-          if (persist) notePick(waive(this));
-        } catch (e) {
-          deps.error(e);
-        }
-        return result;
-      };
-      proto[name] = deps.exportFunction ? deps.exportFunction(wrapper, proto) : wrapper;
-      pickPatches.push({ proto, name, original });
+      if (typeof proto[name] !== 'function') continue;
+      pickPatches.shadow(proto, name, (original) =>
+        function (this: any, ...args: unknown[]) {
+          const result = Reflect.apply(original, this, args);
+          try {
+            const persist = name !== 'setLanguage' || !!waive(args[1])?.persist;
+            if (persist) notePick(waive(this));
+          } catch (e) {
+            deps.error(e);
+          }
+          return result;
+        },
+      );
     }
   }
 
@@ -422,14 +426,7 @@ export function createReadAloudMemorySync(deps: ReadAloudMemoryDeps): ReadAloudM
 
   function dispose(): void {
     deps.unregisterObserver(token);
-    for (const { proto, name, original } of pickPatches.reverse()) {
-      try {
-        proto[name] = original;
-      } catch (e) {
-        deps.error(e);
-      }
-    }
-    pickPatches.length = 0;
+    pickPatches.restoreAll();
     for (const reader of deps.readers()) {
       try {
         const internal = (reader as any)?._internalReader;
@@ -444,5 +441,5 @@ export function createReadAloudMemorySync(deps: ReadAloudMemoryDeps): ReadAloudM
     }
   }
 
-  return { attach, memory, spreadVoice, documentLanguage, dispose };
+  return { attach, memory, spreadVoice, documentLanguage, patchCounts: pickPatches.counts, dispose };
 }

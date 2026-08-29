@@ -84,6 +84,7 @@
  *   glyph-height and the word stands a little proud of them.
  */
 
+import { createProtoPatches } from './proto-patches';
 import { WHOLE_SEGMENT_END_SECONDS } from './remote-interface';
 
 export interface HighlightStyle {
@@ -189,6 +190,8 @@ export interface HighlightStylingDeps {
    * before setSpotlight. Optional for tests.
    */
   cloneIntoReader?(reader: unknown, value: unknown): unknown;
+  /** Components.utils.isDeadWrapper, so a closed tab's prototype is skipped instead of throwing (proto-patches.ts). Optional for tests. */
+  isDead?(value: unknown): boolean;
   error(e: unknown): void;
   debug?(message: string): void;
 }
@@ -198,6 +201,8 @@ export interface HighlightStyling {
   attach(reader: unknown): boolean;
   /** What this module sees in a reader, as plain data, for Tools → Developer → Run JavaScript (`Zotero.ZoteroTTS.diagnostics.highlight()`). */
   inspect(reader: unknown): Record<string, unknown>;
+  /** Prototypes held, and how many of them a closed tab has not taken with it. */
+  patchCounts(): { total: number; live: number };
   /** Put every patched prototype back. */
   dispose(): void;
 }
@@ -235,7 +240,8 @@ function ownerOf(obj: unknown, name: string): any {
 }
 
 export function createHighlightStyling(deps: HighlightStylingDeps): HighlightStyling {
-  const patches: Array<{ proto: any; name: string; original: AnyFn }> = [];
+  /** Every prototype this module shadows, per reader tab, so shutdown can put them back — see proto-patches.ts for why a closed tab's entry is dropped rather than restored. */
+  const patches = createProtoPatches({ exportFunction: deps.exportFunction, isDead: deps.isDead, error: deps.error });
   const patchedViews = new WeakSet<object>();
   /** The sentence position / selector this module put into a view's secondary slot, to tell it from Zotero's flashes. */
   const oursPDF = new WeakMap<object, unknown>();
@@ -255,14 +261,6 @@ export function createHighlightStyling(deps: HighlightStylingDeps): HighlightSty
       deps.error(e);
     }
   };
-
-  function shadow(proto: any, name: string, make: (original: AnyFn) => AnyFn): void {
-    if (patches.some((p) => p.proto === proto && p.name === name)) return;
-    const original = proto[name] as AnyFn;
-    const wrapper = make(original);
-    proto[name] = deps.exportFunction ? deps.exportFunction(wrapper, proto) : wrapper;
-    patches.push({ proto, name, original });
-  }
 
   // One debug line per change of what matters, never one per render
   const lastLogged = new Map<string, string>();
@@ -408,7 +406,7 @@ export function createHighlightStyling(deps: HighlightStylingDeps): HighlightSty
     const pageProto = page ? ownerOf(page, '_pushHighlightedPosition') : null;
     const viewProto = ownerOf(view, 'setReadAloudState');
     if (!pageProto || !viewProto || typeof view._render !== 'function') return false;
-    shadow(pageProto, '_pushHighlightedPosition', (original) =>
+    patches.shadow(pageProto, '_pushHighlightedPosition', (original) =>
       function (this: any, items: unknown, position: unknown, color: unknown) {
         let replaced = color;
         let drawnPosition = position;
@@ -437,7 +435,7 @@ export function createHighlightStyling(deps: HighlightStylingDeps): HighlightSty
         return Reflect.apply(original, this, [items, drawnPosition, replaced]);
       },
     );
-    shadow(viewProto, 'setReadAloudState', (original) =>
+    patches.shadow(viewProto, 'setReadAloudState', (original) =>
       function (this: any, ...args: unknown[]) {
         // Zotero's method is async but sets the highlight positions before
         // its first await, so they are in place when the original returns
@@ -755,7 +753,7 @@ export function createHighlightStyling(deps: HighlightStylingDeps): HighlightSty
     const viewProto = ownerOf(view, '_getSpotlightColor');
     const helperProto = helper ? ownerOf(helper, 'setState') : null;
     if (!viewProto || !helperProto || typeof helper._resolveSegmentSelector !== 'function') return false;
-    shadow(viewProto, '_getSpotlightColor', (original) =>
+    patches.shadow(viewProto, '_getSpotlightColor', (original) =>
       function (this: any, key: unknown) {
         try {
           if (key === SEGMENT_KEY) {
@@ -777,7 +775,7 @@ export function createHighlightStyling(deps: HighlightStylingDeps): HighlightSty
     );
     const rangeProto = ownerOf(view, 'toDisplayedRange');
     if (rangeProto) {
-      shadow(rangeProto, 'toDisplayedRange', (original) =>
+      patches.shadow(rangeProto, 'toDisplayedRange', (original) =>
         function (this: any, selector: unknown) {
           let piece: SentencePiece | null = null;
           try {
@@ -798,7 +796,7 @@ export function createHighlightStyling(deps: HighlightStylingDeps): HighlightSty
       view[PIECES_READY] = true;
       domViews.push(typeof WeakRef === 'function' ? new WeakRef(view) : { deref: () => view });
     }
-    shadow(helperProto, 'setState', (original) =>
+    patches.shadow(helperProto, 'setState', (original) =>
       function (this: any, ...args: unknown[]) {
         try {
           repairWordPosition(reader, waive(this), waive(args[0]));
@@ -934,15 +932,8 @@ export function createHighlightStyling(deps: HighlightStylingDeps): HighlightSty
       }
     }
     domViews.length = 0;
-    for (const { proto, name, original } of patches.reverse()) {
-      try {
-        proto[name] = original;
-      } catch (e) {
-        deps.error(e);
-      }
-    }
-    patches.length = 0;
+    patches.restoreAll();
   }
 
-  return { attach, inspect, dispose };
+  return { attach, inspect, patchCounts: patches.counts, dispose };
 }

@@ -1,4 +1,5 @@
 import { MULTILINGUAL } from '../core/providers/types';
+import { createProtoPatches } from './proto-patches';
 
 /**
  * Pins "Multiple languages" to the top of the Read Aloud popup's language
@@ -44,6 +45,8 @@ export interface MultilingualFirstDeps {
    * sees no `type` and throws (the 2026-08-26 diagnostics crash).
    */
   cloneInto?(reader: unknown, value: unknown): unknown;
+  /** Components.utils.isDeadWrapper, so a closed tab's prototype is skipped instead of throwing (proto-patches.ts). Optional for tests. */
+  isDead?(value: unknown): boolean;
   error(e: unknown): void;
   debug?(message: string): void;
 }
@@ -53,12 +56,14 @@ export interface MultilingualFirst {
   attach(reader: unknown): boolean;
   /** What this module sees in a reader, as plain data, for Tools → Developer → Run JavaScript. */
   inspect(reader: unknown): Record<string, unknown>;
+  /** Prototypes held, and how many of them a closed tab has not taken with it. */
+  patchCounts(): { total: number; live: number };
   /** Put every patched prototype back. */
   dispose(): void;
 }
 
 export function createMultilingualFirst(deps: MultilingualFirstDeps): MultilingualFirst {
-  const patches: Array<{ proto: any; original: AnyFn }> = [];
+  const patches = createProtoPatches({ exportFunction: deps.exportFunction, isDead: deps.isDead, error: deps.error });
 
   const waive = (value: unknown): any => (deps.waiveXrays ? deps.waiveXrays(value) : value);
 
@@ -78,14 +83,13 @@ export function createMultilingualFirst(deps: MultilingualFirstDeps): Multilingu
     try {
       const proto = protoOf(reader);
       if (!proto) return false;
-      if (patches.some((p) => p.proto === proto)) return true;
-      const original = proto.of as AnyFn;
-      const wrapper = function (this: unknown, ...args: unknown[]) {
-        const label = Reflect.apply(original, waive(this), args);
-        return args[0] === MULTILINGUAL && typeof label === 'string' ? SORT_FIRST_PREFIX + label : label;
-      };
-      proto.of = deps.exportFunction ? deps.exportFunction(wrapper, proto) : wrapper;
-      patches.push({ proto, original });
+      if (patches.has(proto)) return true;
+      patches.shadow(proto, 'of', (original) =>
+        function (this: unknown, ...args: unknown[]) {
+          const label = Reflect.apply(original, waive(this), args);
+          return args[0] === MULTILINGUAL && typeof label === 'string' ? SORT_FIRST_PREFIX + label : label;
+        },
+      );
       deps.debug?.('multilingual-first attached');
       return true;
     } catch (e) {
@@ -105,7 +109,7 @@ export function createMultilingualFirst(deps: MultilingualFirstDeps): Multilingu
       // Both views of the window, so a wrapper-behavior change shows at a glance
       result.intl = { direct: typeof raw?.Intl, waived: typeof win?.Intl };
       const proto = protoOf(reader);
-      result.patched = !!proto && patches.some((p) => p.proto === proto);
+      result.patched = !!proto && patches.has(proto);
       // No identity check on proto.of: a function read back through the
       // waived membrane is a different wrapper object than the reference
       // exportFunction returned (verified live — it read false while the
@@ -126,15 +130,8 @@ export function createMultilingualFirst(deps: MultilingualFirstDeps): Multilingu
   }
 
   function dispose(): void {
-    for (const { proto, original } of patches.reverse()) {
-      try {
-        proto.of = original;
-      } catch (e) {
-        deps.error(e);
-      }
-    }
-    patches.length = 0;
+    patches.restoreAll();
   }
 
-  return { attach, inspect, dispose };
+  return { attach, inspect, patchCounts: patches.counts, dispose };
 }

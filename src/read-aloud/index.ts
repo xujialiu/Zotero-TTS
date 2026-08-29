@@ -38,14 +38,18 @@ function callOriginal(reader: ReaderLike, targetWindow: unknown): unknown {
  */
 export function installHijack(readers: ReaderLike[], makeInterface: InterfaceFactory): () => void {
   const originalPush = readers.push;
-  const patched: ReaderLike[] = [];
+  // Which readers carry the override, without holding one: a strong list
+  // here would pin every reader ever opened for the rest of the session,
+  // and the only readers uninstall can still reach are the ones Zotero
+  // itself still lists (issue #5).
+  const patched = new WeakSet<ReaderLike>();
   let installed = true;
 
   readers.push = function (this: ReaderLike[], ...items: ReaderLike[]): number {
     for (const reader of items) {
       reader._getReadAloudRemoteInterface = (targetWindow: unknown) =>
         makeInterface(reader, targetWindow, () => callOriginal(reader, targetWindow));
-      patched.push(reader);
+      patched.add(reader);
     }
     return originalPush.apply(this, items);
   };
@@ -54,9 +58,8 @@ export function installHijack(readers: ReaderLike[], makeInterface: InterfaceFac
     if (!installed) return;
     installed = false;
     readers.push = originalPush;
-    for (const reader of patched) {
-      delete reader._getReadAloudRemoteInterface;
+    for (const reader of readers) {
+      if (patched.has(reader)) delete reader._getReadAloudRemoteInterface;
     }
-    patched.length = 0;
   };
 }
