@@ -7,9 +7,11 @@
  * markup gave it, so no <b> can be written there. The text therefore stays
  * in the attribute — it is the accessible name, and what shows if this never
  * runs — and `bold="…"` names the run of it redrawn here, in that same
- * `.checkbox-label`. A XUL label is `display: inline-block` unless it has a
- * `value` attribute (xul.css), and this one has none, so the <b> and the text
- * around it lay out as one line.
+ * `.checkbox-label`. That child is a block container — `xul.css` gives a XUL
+ * label `display: inline-block` unless it carries a `value` attribute, and
+ * this one has none; as a flex item of `.checkbox-label-box` it blockifies to
+ * `block` — so the <b> and the text around it lay out inline, on one line,
+ * their spaces kept.
  *
  * Not a bare checkbox beside a <label control="…"> holding the markup:
  * MozTextLabel's click flips the checkbox's `checked` without a `command`

@@ -3441,8 +3441,19 @@ and `zotero-platform/win/preferences.css`):
   `chrome://zotero/skin/win/*/checkbox-*.svg`, and has no rule at all for
   `input[type=checkbox]`. It would be the one Firefox-looking box in the
   pane.
-- **The `<b>` lays out inline** because `xul.css` gives `label` `display:
-  inline-block` and only `label:where([value])` `inline-flex` —
-  `.checkbox-label` carries its text as a child, not a `value`, so the runs
-  around the `<b>` keep their spaces. In a flex box each text run would have
-  become its own item and the spaces would have collapsed away.
+- **The `<b>` lays out inline** because `.checkbox-label` is a block
+  container. `xul.css` gives `label` `display: inline-block` and only
+  `label:where([value])` `inline-flex`, and this one carries its text as a
+  child, not a `value` — but live it computes to `block`, not `inline-block`:
+  it is a flex item of `.checkbox-label-box` (`display: flex`), and a flex
+  item blockifies. Either way the runs around the `<b>` keep their spaces;
+  had the label itself been the flex container, each run would have become
+  its own item and the spaces would have collapsed away.
+
+Verified live in 1.8.3-beta2: the label's children are `#text "Offer only "`,
+`b` (XHTML namespace) `"favorite voices"`, `#text " in the Read Aloud player"`,
+font-weight 400 against 700, one 17 px line. A synthesized click on the `<b>`
+flips `readAloud.favoritesOnly` and the box's `checked` together (true → false),
+a click on the box flips them back — the `command` the preference binding waits
+for comes from the checkbox itself, which is exactly why the run had to be
+drawn inside it.
