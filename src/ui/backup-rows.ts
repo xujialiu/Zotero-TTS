@@ -35,6 +35,13 @@ export interface BackupRowsDeps extends BackupFileIO, Partial<ReadingGuardDeps> 
   confirm?(message: string): boolean;
   /** Runs after a restore, for rows that must redraw themselves. */
   onRestored?(): void;
+  /**
+   * The connection check a restore ends in (issue #21): every provider the
+   * restored settings turn on is checked, and one that fails goes back off.
+   * Returns the sentence to append, or '' when there was nothing to check.
+   * Omitted, a restore behaves as it did before there was one.
+   */
+  verifyProviders?(): Promise<string>;
 }
 
 interface ElementLike {
@@ -47,6 +54,23 @@ interface RowsDocument {
 }
 
 const describe = (e: unknown) => (e instanceof Error ? e.message : String(e));
+
+/** What the pane says while the providers are being checked. */
+export const CHECKING_PROVIDERS = 'Checking the providers it turns on…';
+
+/**
+ * The restore's closing check (issue #21), tolerant of its own failure: the
+ * settings are on disk and in the prefs either way, so a check that breaks
+ * is reported beside the restore, never as a failed restore.
+ */
+export async function verifyRestoredProviders(deps: { verifyProviders?(): Promise<string> }): Promise<string> {
+  if (!deps.verifyProviders) return '';
+  try {
+    return (await deps.verifyProviders()) || '';
+  } catch (e) {
+    return `The providers could not be checked: ${describe(e)}`;
+  }
+}
 
 export function initBackupRows(doc: RowsDocument, deps: BackupRowsDeps): void {
   const message = (text: string) => doc.getElementById('ztts-backup-message')?.setAttribute('value', text);
@@ -88,7 +112,14 @@ export function initBackupRows(doc: RowsDocument, deps: BackupRowsDeps): void {
       const applied = applyBackup(deps.prefs, parsed);
       deps.onRestored?.();
       const skipped = parsed.ignored.length ? ` Skipped ${parsed.ignored.length}: ${parsed.ignored.join(', ')}.` : '';
-      message(`Restored ${applied} settings from ${path}.${skipped}`);
+      const restored = `Restored ${applied} settings from ${path}.${skipped}`;
+      if (!deps.verifyProviders) {
+        message(restored);
+        return;
+      }
+      message(`${restored} ${CHECKING_PROVIDERS}`);
+      const verdict = await verifyRestoredProviders(deps);
+      message(verdict ? `${restored} ${verdict}` : restored);
     } catch (e) {
       message(`Restore failed: ${describe(e)}`);
     }

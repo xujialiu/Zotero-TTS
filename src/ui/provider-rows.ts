@@ -57,7 +57,10 @@ export function providerRowIds(id: ProviderId): { section: string; toggle: strin
 /** The section's fields: every input and the Server dropdown — the buttons are not among them. */
 const FIELDS_SELECTOR = 'input, menulist';
 
-export function initProviderRows(doc: { getElementById(id: string): any }, deps: ProviderRowsDeps): { refresh(): void } {
+export function initProviderRows(
+  doc: { getElementById(id: string): any },
+  deps: ProviderRowsDeps,
+): { refresh(): void; verifyEnabled(): Promise<string> } {
   const pref = (id: ProviderId) => `${PREF_PREFIX}${id}.enabled`;
   const enabled = (id: ProviderId) => deps.prefs.get(pref(id)) === true;
   /** The providers whose check is running: their buttons are held, and a click meanwhile does nothing. */
@@ -165,5 +168,47 @@ export function initProviderRows(doc: { getElementById(id: string): any }, deps:
     for (const id of PROVIDER_IDS) if (!busy.has(id)) paint(id);
   }
 
-  return { refresh };
+  /**
+   * The commit point a restore skipped (issue #21). A backup writes the four
+   * switches straight to the prefs (core/settings-backup.ts applyBackup), so
+   * a restore can leave a provider on carrying settings that have never
+   * worked here — a local address from another machine, a key rotated since,
+   * an expired gateway token. Every provider the restored prefs say is on is
+   * checked as Enable would have checked it, and one that fails goes back
+   * off with its message where Enable would have put it.
+   *
+   * All at once rather than one after another: each check is bounded by its
+   * own timeout, and four in a row would be a minute of a pane that looks
+   * frozen. Returns one sentence for the restore's message line.
+   */
+  async function verifyEnabled(): Promise<string> {
+    const wanted = PROVIDER_IDS.filter((id) => enabled(id) && !busy.has(id));
+    if (!wanted.length) return '';
+    for (const id of wanted) {
+      hold(id);
+      elements(id).toggle?.setAttribute('label', 'Checking…');
+      say(id, 'Checking…');
+    }
+    const turnedOff: ProviderId[] = [];
+    await Promise.all(
+      wanted.map(async (id) => {
+        const outcome = await run(id);
+        if (!outcome.ok) {
+          deps.prefs.set(pref(id), false);
+          deps.onSwitched?.(id, false);
+          turnedOff.push(id);
+        }
+        say(id, outcome.message);
+        busy.delete(id);
+        paint(id);
+      }),
+    );
+    if (!turnedOff.length) return `Checked ${wanted.length} provider${wanted.length === 1 ? '' : 's'}: all working.`;
+    // The switches moved, so the voice browser lists again — once, after all of them
+    deps.onVoicesChanged();
+    const named = PROVIDER_IDS.filter((id) => turnedOff.includes(id)).join(', ');
+    return `Turned off ${named}: the restored settings do not work here — see the message beside ${turnedOff.length === 1 ? 'it' : 'each'}.`;
+  }
+
+  return { refresh, verifyEnabled };
 }

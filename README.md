@@ -262,6 +262,12 @@ way the player does.
 WebDAV* and *Download from WebDAV* use the same file in a WebDAV folder, so
 settings follow you between machines.
 
+Restoring ends by checking every provider the file switches on — the same
+check **Enable** runs. One that does not work on this machine (a local
+server that is not running here, a key that has since been rotated) is left
+**off**, with the reason beside it, instead of looking enabled and playing
+nothing.
+
 <details>
 <summary><b>WebDAV URL examples</b></summary>
 

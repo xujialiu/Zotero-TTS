@@ -27,7 +27,9 @@ class FakeElement {
 
 const FOLDER = 'https://dav.example.com/zotero-tts/';
 
-function setup(options: { prefs?: Record<string, unknown>; url?: string; confirm?: boolean; reading?: string[] } = {}) {
+function setup(
+  options: { prefs?: Record<string, unknown>; url?: string; confirm?: boolean; reading?: string[]; verify?: () => Promise<string> } = {},
+) {
   const els = new Map((Object.values(WEBDAV_IDS) as string[]).map((id) => [id, new FakeElement()]));
   const doc = { getElementById: (id: string) => els.get(id) ?? null };
   const prefs = fakePrefs({
@@ -54,6 +56,7 @@ function setup(options: { prefs?: Record<string, unknown>; url?: string; confirm
     onRestored: vi.fn(),
     readingTabs: vi.fn(() => options.reading ?? []),
     warn: vi.fn((_message: string) => {}),
+    ...(options.verify ? { verifyProviders: options.verify } : {}),
   } satisfies WebDAVRowsDeps;
   initWebDAVRows(doc, deps);
   return {
@@ -137,6 +140,45 @@ describe('Download from WebDAV', () => {
     expect(t.deps.onRestored).toHaveBeenCalledOnce();
     const count = Object.keys(parseBackup(file).settings).length;
     expect(t.message()).toBe(`Restored ${count} settings from ${FOLDER}${BACKUP_FILENAME}.`);
+  });
+
+  // The same commit point the file restore ends in (issue #21)
+  it('checks the providers the downloaded settings turn on, and appends what it found', async () => {
+    const t = setup({ verify: async () => 'Turned off local: the settings restored for it do not work here.' });
+    t.client.download.mockResolvedValueOnce(file);
+    await t.el(WEBDAV_IDS.download).fire('command');
+    const count = Object.keys(parseBackup(file).settings).length;
+    expect(t.message()).toBe(
+      `Restored ${count} settings from ${FOLDER}${BACKUP_FILENAME}. Turned off local: the settings restored for it do not work here.`,
+    );
+  });
+
+  it('says the check is running while it runs', async () => {
+    let release!: (said: string) => void;
+    const t = setup({ verify: () => new Promise<string>((r) => (release = r)) });
+    t.client.download.mockResolvedValueOnce(file);
+    const downloading = t.el(WEBDAV_IDS.download).fire('command');
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(t.message()).toContain('Checking the providers it turns on…');
+    release('Checked 1 provider: all working.');
+    await downloading;
+    expect(t.message()).toContain('Checked 1 provider: all working.');
+  });
+
+  it('keeps the restore when the check itself throws', async () => {
+    const t = setup({
+      prefs: { [PREF_PREFIX + 'azure.region']: 'eastasia' },
+      verify: async () => {
+        throw new Error('no network');
+      },
+    });
+    t.client.download.mockResolvedValueOnce(file);
+    await t.el(WEBDAV_IDS.download).fire('command');
+    expect(t.prefs.store[PREF_PREFIX + 'azure.region']).toBe('westeurope');
+    expect(t.message()).toContain('Restored');
+    expect(t.message()).toContain('no network');
   });
 
   it('changes nothing when the user declines', async () => {

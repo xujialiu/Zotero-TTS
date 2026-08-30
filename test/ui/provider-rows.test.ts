@@ -293,6 +293,92 @@ describe('initProviderRows', () => {
     expect(secret.revealPassword).toBe(true);
   });
 
+  // A restore writes the four switches straight to the prefs, so an enabled
+  // provider can carry settings that were never checked on this machine
+  // (issue #21). verifyEnabled is the commit point Enable would have been.
+  describe('verifyEnabled, after a settings restore', () => {
+    it('checks every provider the restored prefs turn on, and no others', async () => {
+      const t = setup({ prefs: { [enabledPref('openai')]: true, [enabledPref('azure')]: true } });
+      await t.rows.verifyEnabled();
+      expect(t.check.mock.calls.map(([id]) => id).sort()).toEqual(['azure', 'openai']);
+    });
+
+    it('switches off a provider whose check fails, with the failure beside it', async () => {
+      const t = setup({ prefs: { [enabledPref('azure')]: true }, check: async () => REFUSED });
+      await t.rows.verifyEnabled();
+      expect(t.of('azure').enabled()).toBe(false);
+      expect(t.of('azure').label()).toBe('Enable');
+      expect(t.of('azure').locked()).toEqual([false, false]);
+      expect(t.of('azure').result()).toBe(REFUSED.message);
+    });
+
+    it('leaves a provider whose check passes on, with its message', async () => {
+      const t = setup({ prefs: { [enabledPref('local')]: true } });
+      await t.rows.verifyEnabled();
+      expect(t.of('local').enabled()).toBe(true);
+      expect(t.of('local').label()).toBe('Disable');
+      expect(t.of('local').locked()).toEqual([true, true]);
+      expect(t.of('local').result()).toBe(CONNECTED.message);
+    });
+
+    it('says which providers it turned off, and says so when none needed it', async () => {
+      const bad = setup({ prefs: { [enabledPref('azure')]: true, [enabledPref('local')]: true }, check: async () => REFUSED });
+      const said = await bad.rows.verifyEnabled();
+      expect(said).toContain('azure');
+      expect(said).toContain('local');
+      expect(said).toMatch(/turned off/i);
+      const good = setup({ prefs: { [enabledPref('local')]: true } });
+      expect(await good.rows.verifyEnabled()).not.toMatch(/turned off/i);
+      const none = setup();
+      expect(await none.rows.verifyEnabled()).toBe('');
+    });
+
+    // A check that throws is a failed check, never an unhandled rejection
+    it('treats a check that throws as a failure', async () => {
+      const t = setup({
+        prefs: { [enabledPref('azure')]: true },
+        check: async () => {
+          throw new Error('boom');
+        },
+      });
+      await t.rows.verifyEnabled();
+      expect(t.of('azure').enabled()).toBe(false);
+      expect(t.of('azure').result()).toContain('boom');
+    });
+
+    it('lists the voices again only when a switch actually moved', async () => {
+      const off = setup({ prefs: { [enabledPref('azure')]: true }, check: async () => REFUSED });
+      await off.rows.verifyEnabled();
+      expect(off.onVoicesChanged).toHaveBeenCalledTimes(1);
+      const kept = setup({ prefs: { [enabledPref('azure')]: true } });
+      await kept.rows.verifyEnabled();
+      expect(kept.onVoicesChanged).not.toHaveBeenCalled();
+    });
+
+    it('holds the buttons while it runs and releases them after', async () => {
+      const gate = deferred<CheckOutcome>();
+      const t = setup({ prefs: { [enabledPref('azure')]: true }, check: () => gate.promise });
+      const done = t.rows.verifyEnabled();
+      expect(t.of('azure').toggle.disabled).toBe(true);
+      expect(t.of('azure').test.disabled).toBe(true);
+      expect(t.of('azure').result()).toBe('Checking…');
+      gate.resolve(CONNECTED);
+      await done;
+      expect(t.of('azure').toggle.disabled).toBe(false);
+      expect(t.of('azure').test.disabled).toBe(false);
+    });
+
+    it('leaves a section whose own check is already running alone', async () => {
+      const gate = deferred<CheckOutcome>();
+      const t = setup({ prefs: { [enabledPref('azure')]: true }, check: () => gate.promise });
+      const testing = t.of('azure').test.fire('command');
+      await t.rows.verifyEnabled();
+      expect(t.check).toHaveBeenCalledTimes(1);
+      gate.resolve(CONNECTED);
+      await testing;
+    });
+  });
+
   it('tolerates a pane without the sections', () => {
     const doc = { getElementById: () => null };
     const deps = { prefs: fakePrefs(), check: vi.fn(async () => CONNECTED), onVoicesChanged: vi.fn(), readingTabs: () => [], warn: vi.fn() };

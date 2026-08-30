@@ -27,7 +27,14 @@ class FakeElement {
 const IDS = ['ztts-backup', 'ztts-restore', 'ztts-backup-message'];
 
 function setup(
-  options: { prefs?: Record<string, unknown>; file?: string | null; savePath?: string | null; confirm?: boolean; reading?: string[] } = {},
+  options: {
+    prefs?: Record<string, unknown>;
+    file?: string | null;
+    savePath?: string | null;
+    confirm?: boolean;
+    reading?: string[];
+    verify?: () => Promise<string>;
+  } = {},
 ) {
   const els = new Map(IDS.map((id) => [id, new FakeElement()]));
   const doc = { getElementById: (id: string) => els.get(id) ?? null };
@@ -47,6 +54,7 @@ function setup(
     onRestored: vi.fn(),
     readingTabs: vi.fn(() => options.reading ?? []),
     warn: vi.fn((_message: string) => {}),
+    ...(options.verify ? { verifyProviders: options.verify } : {}),
   } satisfies BackupRowsDeps;
   initBackupRows(doc, deps);
   return {
@@ -123,6 +131,50 @@ describe('Restore settings', () => {
     expect(t.message()).toBe('Restore failed: The file is not JSON');
     expect(t.prefs.store[PREF_PREFIX + 'azure.region']).toBe('eastasia');
     expect(t.deps.confirm).not.toHaveBeenCalled();
+  });
+
+  // A restore writes the provider switches straight to the prefs, so it ends
+  // in the connection check Enable would have run (issue #21)
+  it('checks the providers the restored settings turn on, and appends what it found', async () => {
+    const t = setup({ file, verify: async () => 'Turned off azure: the settings restored for it do not work here.' });
+    await t.el('ztts-restore').fire('command');
+    const count = Object.keys(parseBackup(file).settings).length;
+    expect(t.message()).toBe(`Restored ${count} settings from C:\\backups\\tts.json. Turned off azure: the settings restored for it do not work here.`);
+  });
+
+  it('says the check is running while it runs', async () => {
+    let release!: (said: string) => void;
+    const t = setup({ file, verify: () => new Promise<string>((r) => (release = r)) });
+    const restoring = t.el('ztts-restore').fire('command');
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(t.message()).toContain('Checking the providers it turns on…');
+    release('Checked 1 provider: all working.');
+    await restoring;
+    expect(t.message()).toContain('Checked 1 provider: all working.');
+  });
+
+  it('appends nothing when there was nothing to check', async () => {
+    const t = setup({ file, verify: async () => '' });
+    await t.el('ztts-restore').fire('command');
+    const count = Object.keys(parseBackup(file).settings).length;
+    expect(t.message()).toBe(`Restored ${count} settings from C:\\backups\\tts.json.`);
+  });
+
+  // The settings are restored either way: a check that breaks is not a
+  // failed restore, and saying "Restore failed" would be a lie
+  it('keeps the restore when the check itself throws', async () => {
+    const t = setup({
+      file,
+      verify: async () => {
+        throw new Error('no network');
+      },
+      prefs: { [PREF_PREFIX + 'azure.region']: 'eastasia' },
+    });
+    await t.el('ztts-restore').fire('command');
+    expect(t.prefs.store[PREF_PREFIX + 'azure.region']).toBe('westeurope');
+    expect(t.message()).toContain('Restored');
+    expect(t.message()).toContain('no network');
   });
 
   it('names the entries it had to skip', async () => {

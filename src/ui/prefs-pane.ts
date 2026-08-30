@@ -540,6 +540,11 @@ export function onPaneLoad(doc: Document, hooks: PaneHooks = {}): void {
       providerRows.refresh();
       void voiceBrowserRows.load();
     },
+    // A restore writes the provider switches straight to the prefs, so it
+    // ends in the check Enable would have run: a provider the restored
+    // settings turn on but that does not work here goes back off, with its
+    // failure beside it (ui/provider-rows.ts, issue #21)
+    verifyProviders: () => providerRows.verifyEnabled(),
   };
   initBackupRows(doc, { ...backupFileIO(win), ...restoreDeps });
   // The sandbox's own fetch: Basic auth needs nothing from a window

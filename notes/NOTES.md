@@ -230,3 +230,4 @@ cite `notes/NOTES.md` with a date or a section title resolve through this index.
 - Hiding Zotero's own Local voices became unconditional (issue #17)
 - The ? sat on the note because a XUL `value` never wraps (issue #18)
 - Gecko's password reveal button is on in Zotero, and the pref does not say so (issue #19)
+- A restored backup turned providers on without checking them (issue #21)

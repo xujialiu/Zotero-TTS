@@ -1,6 +1,7 @@
 import { loadSettings, type PrefsBackend } from '../core/settings';
 import { applyBackup, BACKUP_FILENAME, createBackup, parseBackup, serializeBackup } from '../core/settings-backup';
 import type { WebDAVClient, WebDAVConfig } from '../core/webdav';
+import { CHECKING_PROVIDERS, verifyRestoredProviders } from './backup-rows';
 import { refuseWhileReading, type ReadingGuardDeps } from './reading-guard';
 
 /**
@@ -33,6 +34,8 @@ export interface WebDAVRowsDeps extends Partial<ReadingGuardDeps> {
   confirm?(message: string): boolean;
   /** Runs after a restore, for rows that must redraw themselves. */
   onRestored?(): void;
+  /** The connection check a restore ends in, as the file restore runs it (ui/backup-rows.ts, issue #21). */
+  verifyProviders?(): Promise<string>;
 }
 
 interface ElementLike {
@@ -89,6 +92,10 @@ export function initWebDAVRows(doc: RowsDocument, deps: WebDAVRowsDeps): void {
     const applied = applyBackup(deps.prefs, parsed);
     deps.onRestored?.();
     const skipped = parsed.ignored.length ? ` Skipped ${parsed.ignored.length}: ${parsed.ignored.join(', ')}.` : '';
-    return `Restored ${applied} settings from ${client.url}${BACKUP_FILENAME}.${skipped}`;
+    const restored = `Restored ${applied} settings from ${client.url}${BACKUP_FILENAME}.${skipped}`;
+    if (!deps.verifyProviders) return restored;
+    message(`${restored} ${CHECKING_PROVIDERS}`);
+    const verdict = await verifyRestoredProviders(deps);
+    return verdict ? `${restored} ${verdict}` : restored;
   });
 }
