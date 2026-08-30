@@ -3,9 +3,10 @@
 Zotero 10 plugin that adds voices to Zotero's built-in **Read Aloud**: OpenAI
 (or any OpenAI-compatible server), Azure Speech, and a local Kokoro-FastAPI.
 Zotero's own Standard/Premium voices keep working; ours join the Local tier as
-`TTS-<Provider>-<voice>`. Also: shortcuts for the speed (Shift+Z/X/C) and for
-skipping by sentence / paragraph (arrows / Shift+arrows), one voice and speed
-across documents, settings backup/restore (file or WebDAV), highlight colors.
+`<Provider>-<voice>` (`Kokoro-af_bella`; issue #9 retired the old `TTS-`
+prefix). Also: shortcuts for the speed (Shift+Z/X/C) and for skipping by
+sentence / paragraph (arrows / Shift+arrows), one voice and speed across
+documents, settings backup/restore (file or WebDAV), highlight colors.
 
 - `README.md` — user-facing docs, kept short and scannable (header with
   badges, a GIF, emoji feature list, install, providers table, settings;
@@ -40,6 +41,21 @@ across documents, settings backup/restore (file or WebDAV), highlight colors.
   product strings (Azure's "多语言" voice names, the rendered "多语种"
   label) and test fixtures for the Chinese collation are data, not prose,
   and stay as they are.
+- **The plugin is called `Zotero-TTS`** (settled 2026-08-30, issue #20):
+  that hyphen, that capitalization, everywhere a person reads it — the
+  manifest's `name` (which is what Tools → Plugins shows), the settings
+  pane's label, dialog titles, error messages, the README and tutorials,
+  this file, NOTES.md, commits and issues. Never `Zotero TTS`, never bare
+  `TTS` — `TTS` names the technology, not this plugin. The lowercase
+  `zotero-tts` is a different thing, an identifier, and is never "fixed"
+  to match: the plugin id `zotero-tts@xujialiu.top`, the
+  `extensions.zotero.zotero-tts.*` prefs, `zotero-tts.xpi` and the bundle,
+  the `[zotero-tts]` log prefix, the `zotero-tts-pane` id, the
+  `zotero-tts-settings` backup format, `package.json`'s npm name. Renaming
+  any of those throws away every user's settings or breaks the update
+  flow, so a sweep for the display name leaves them alone. The name in the
+  plugin store at zotero-chinese.com is scraped from a release's
+  `manifest.json` and needs no submission of its own.
 - Architecture-level forks: present the options with concrete costs and a
   recommendation, then wait. Implementation details: pick the sane default,
   state it in one line, move on.
