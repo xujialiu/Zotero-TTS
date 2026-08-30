@@ -57,6 +57,19 @@ across documents, settings backup/restore (file or WebDAV), highlight colors.
   Open an issue because writing it clarifies the problem, not to defer
   it — on a public repo an issue left open is a promise to strangers, and
   a backlog of stale enhancements reads as an abandoned project.
+  **The issue is the running log of the work** (settled 2026-08-30): when
+  the research settles on a plan, that plan goes on the issue as a comment
+  **before** any of it is implemented — the approach, the files it
+  touches, the steps in order, and what was weighed and rejected, so the
+  record holds the decision and not only its result. While the work runs,
+  anything that departs from that plan gets a comment as it happens — a
+  step that turned out wrong, a constraint found late, a change of
+  approach — rather than a silent correction at the end. When it is
+  finished, a closing comment summarizes the whole thing: what was
+  actually built, how it was verified, and anything left open. It goes up
+  before the commit that closes the issue, and it is about this change —
+  NOTES.md still gets the durable Zotero knowledge, and neither copies the
+  other.
   **Never hard-wrap an issue or comment body** (settled 2026-08-30):
   GitHub renders issue, PR and comment Markdown with `breaks: true`, so
   every single newline becomes a `<br>` and a paragraph wrapped at 80
