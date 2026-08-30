@@ -180,8 +180,8 @@ describe('labels', () => {
     { provider: 'local' as const, name: 'Kokoro', voices: [{ id: 'af_bella', label: 'af_bella', locale: 'en-US' }] },
   ];
 
-  // Whatever the hideZoteroLocalVoices switch says: it is Zotero's own
-  // voices that carry a marker now, and only in the player (issue #9)
+  // No marker of the plugin's own since issue #9, and nothing to tell apart
+  // since #17 hid Zotero's own Local voices for good
   it('never marks the plugin’s own voices, and leaves the ids untouched', () => {
     const configs = buildVoicesResponse(entries, 'v1').local as any[];
     expect(configs.map((c) => (Object.values(c.voices)[0] as { label: string }).label)).toEqual(['Azure-Ava', 'Kokoro-af_bella']);

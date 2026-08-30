@@ -108,12 +108,9 @@ describe('addon/content/preferences.xhtml', () => {
   });
 
   it('explains the Reading switches with a ? instead of a parenthesis in the label', () => {
-    // The hiding switch is unbound and found by its id: it owns its write,
-    // so that it can be refused while a tab is reading (ui/voice-list-switches.ts)
     const rows: Array<[string, RegExp, RegExp]> = [
       ['preference="extensions.zotero.zotero-tts.readAloud.sameForAllDocuments"', /label="Use one voice everywhere"/, /one voice per document language/],
       ['preference="extensions.zotero.zotero-tts.readAloud.globalSpeed"', /label="Use one speed everywhere"/, /one speed per document language/],
-      ['id="ztts-hide-system-voices"', /label="Hide System Local voices"/, /marked “Local-…”/],
     ];
     for (const [marker, label, text] of rows) {
       const row = rowOf(marker);

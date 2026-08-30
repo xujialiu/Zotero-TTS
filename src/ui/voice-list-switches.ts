@@ -3,9 +3,10 @@ import { PREF_PREFIX, type PrefsBackend } from '../core/settings';
 import { refuseWhileReading, type ReadingGuardDeps } from './reading-guard';
 
 /**
- * The two checkboxes of the pane that edit what the Read Aloud player
- * lists — *Offer only favorite voices* and *Hide System Local voices* — and
- * the only rows in the pane that own a checkbox instead of binding it.
+ * The checkboxes of the pane that edit what the Read Aloud player lists —
+ * *Offer only favorite voices*, and nothing else since issue #17 retired
+ * *Hide System Local voices* — and the only rows in the pane that own a
+ * checkbox instead of binding it.
  *
  * They have to own it. A `preference=`-bound checkbox has already written
  * the pref by the time any listener runs: `_syncToPrefOnModify`
@@ -16,15 +17,10 @@ import { refuseWhileReading, type ReadingGuardDeps } from './reading-guard';
  * ours to make — or not to make, when a tab is reading
  * (ui/reading-guard.ts).
  *
- * The cost of unbinding is that nothing redraws the boxes any more, and
- * both prefs are written from elsewhere: enabling the System voices
- * provider turns the hiding on (ui/prefs-pane.ts, issue #12), and a
- * settings restore writes both. So each box follows its own pref observer,
- * and `refresh()` repaints on demand.
+ * The cost of unbinding is that nothing redraws the box any more, and the
+ * pref is written from elsewhere too: a settings restore writes it. So the
+ * box follows its own pref observer, and `refresh()` repaints on demand.
  */
-
-/** `readAloud.hideZoteroLocalVoices` as `Zotero.Prefs.registerObserver` names it (relative to `extensions.zotero.`). */
-export const HIDE_SYSTEM_VOICES_OBSERVER = 'zotero-tts.readAloud.hideZoteroLocalVoices';
 
 export interface VoiceListSwitch {
   /** The checkbox in addon/content/preferences.xhtml. */
@@ -37,7 +33,6 @@ export interface VoiceListSwitch {
 
 export const VOICE_LIST_SWITCHES: readonly VoiceListSwitch[] = [
   { id: 'ztts-favorites-only', pref: 'readAloud.favoritesOnly', observer: FAVORITES_ONLY_OBSERVER },
-  { id: 'ztts-hide-system-voices', pref: 'readAloud.hideZoteroLocalVoices', observer: HIDE_SYSTEM_VOICES_OBSERVER },
 ];
 
 export interface VoiceListSwitchesDeps extends ReadingGuardDeps {

@@ -98,10 +98,14 @@ and publishes the result as ordinary plugin voices called
 `System-Microsoft David`, `System-Microsoft Huihui` and so on — with word
 timings, which is more than Zotero's own path can give them.
 
-Enabling also switches on *Hide System Local voices* below, since Zotero's
-own copies would otherwise be listed a second time; and a voice you had
-already picked from those copies is re-pointed at the plugin's equivalent,
-so it keeps playing.
+Zotero's own copies of these voices are never listed in the player, whether
+or not this is enabled: the plugin hides them, because Zotero reaches them
+through the browser engine and nothing the plugin does for a voice can
+follow it there. A voice you had already picked from those copies is
+re-pointed at the plugin's equivalent when you enable this, so it keeps
+playing. On macOS and Linux, where the helper does not exist yet, the player
+therefore offers Zotero's own Standard and Premium voices plus whichever
+providers you have configured.
 
 <details>
 <summary><b>Details</b></summary>
@@ -214,9 +218,9 @@ with, in every document. The **Speed** slider is the player's own (0.5×–3×).
   try again. Zotero has no way to refresh an open player's list, and two
   tabs listing different voices would send *Use one voice everywhere* to a
   voice one of them does not have. The settings: switching a provider on or
-  off, *Offer only favorite voices*, *Hide System Local voices*, a favorite
-  marked or unmarked while only favorites are offered, and restoring a
-  settings backup from a file or from WebDAV.
+  off, *Offer only favorite voices*, a favorite marked or unmarked while
+  only favorites are offered, and restoring a settings backup from a file or
+  from WebDAV.
 
 </details>
 
@@ -228,11 +232,6 @@ with, in every document. The **Speed** slider is the player's own (0.5×–3×).
 - *Use one speed everywhere* — one speed for every document and every open
   tab, set from the player's slider, the shortcuts or the settings slider.
   Off, Zotero keeps a speed per document language.
-- *Hide System Local voices* — the operating system's voices as Zotero
-  itself lists them leave the player, so the Local tier offers only the
-  plugin's entries. Off, they stay and are marked
-  `Local-Microsoft David Desktop`. Enabling *System voices* turns this on.
-  Not changeable while a tab is reading.
 - *Prefetch upcoming sentences* — the ones ahead are synthesized while the
   current one plays, so playback never waits for the server. Zotero fetches
   3 ahead by itself and your number adds to those. It keeps the cache below
@@ -249,12 +248,8 @@ their player opens. The player of a document in another language is switched
 to the voice's language (a Chinese PDF reads with your English voice, its
 sentences split by English rules); multilingual voices (Azure's, OpenAI's)
 sit under the player's "Multiple languages" entry, which the plugin pins to
-the top of the language list. *Hide System Local voices* takes effect
-the next time the Read Aloud player opens — in both directions, and so does
-the `Local-` marker it puts on Zotero's own voices while it is off. The
-marker is the player's alone: it changes no voice id, so a voice picked
-before stays picked, and the settings pane names every voice the same way
-the player does.
+the top of the language list. The settings pane names every voice the same
+way the player does.
 
 </details>
 

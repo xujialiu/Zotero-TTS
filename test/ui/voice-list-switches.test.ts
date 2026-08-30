@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it, vi } from 'vitest';
 import { PREF_PREFIX, type PrefsBackend } from '../../src/core/settings';
 import { FAVORITES_ONLY_OBSERVER } from '../../src/read-aloud/favorites';
-import { HIDE_SYSTEM_VOICES_OBSERVER, initVoiceListSwitches, VOICE_LIST_SWITCHES } from '../../src/ui/voice-list-switches';
+import { initVoiceListSwitches, VOICE_LIST_SWITCHES } from '../../src/ui/voice-list-switches';
 
 function fakePrefs(initial: Record<string, unknown> = {}): PrefsBackend & { store: Record<string, unknown> } {
   const store = { ...initial };
@@ -23,7 +23,6 @@ class FakeCheckbox {
   }
 }
 
-const HIDE = VOICE_LIST_SWITCHES.find((s) => s.pref === 'readAloud.hideZoteroLocalVoices')!;
 const FAVORITES = VOICE_LIST_SWITCHES.find((s) => s.pref === 'readAloud.favoritesOnly')!;
 
 function setup(options: { prefs?: Record<string, unknown>; reading?: string[]; watch?: boolean } = {}) {
@@ -52,42 +51,43 @@ function setup(options: { prefs?: Record<string, unknown>; reading?: string[]; w
     watchers,
     box: (id: string) => boxes.get(id)!,
     value: (pref: string) => prefs.store[PREF_PREFIX + pref],
-    /** What an observer of `pref` firing does — a restore, or the System provider switching on. */
+    /** What an observer of `pref` firing does — a settings restore. */
     notify: (pref: string) => watchers.filter((w) => w.name === `zotero-tts.${pref}`).forEach((w) => w.onChange()),
   };
 }
 
 describe('initVoiceListSwitches', () => {
-  it('covers exactly the two switches that edit what the player lists, and names their observers as Zotero does', () => {
-    expect(VOICE_LIST_SWITCHES.map((s) => s.pref)).toEqual(['readAloud.favoritesOnly', 'readAloud.hideZoteroLocalVoices']);
-    expect('extensions.zotero.' + HIDE_SYSTEM_VOICES_OBSERVER).toBe(PREF_PREFIX + 'readAloud.hideZoteroLocalVoices');
-    expect(HIDE.observer).toBe(HIDE_SYSTEM_VOICES_OBSERVER);
+  // Issue #17 retired the second one, *Hide System Local voices*: hiding
+  // Zotero's own Local voices is unconditional now and has no setting.
+  it('covers exactly the switches that edit what the player lists, and names their observers as Zotero does', () => {
+    expect(VOICE_LIST_SWITCHES.map((s) => s.pref)).toEqual(['readAloud.favoritesOnly']);
     expect(FAVORITES.observer).toBe(FAVORITES_ONLY_OBSERVER);
+    expect('extensions.zotero.' + FAVORITES_ONLY_OBSERVER).toBe(PREF_PREFIX + 'readAloud.favoritesOnly');
   });
 
   it('paints every box from its pref on load', () => {
-    const t = setup({ prefs: { [PREF_PREFIX + HIDE.pref]: true } });
-    expect(t.box(HIDE.id).checked).toBe(true);
-    expect(t.box(FAVORITES.id).checked).toBe(false);
+    const t = setup({ prefs: { [PREF_PREFIX + FAVORITES.pref]: true } });
+    expect(t.box(FAVORITES.id).checked).toBe(true);
+    expect(setup().box(FAVORITES.id).checked).toBe(false);
   });
 
   it('writes the pref while nothing is reading, in both directions', () => {
     const t = setup();
-    t.box(HIDE.id).click();
-    expect(t.value(HIDE.pref)).toBe(true);
+    t.box(FAVORITES.id).click();
+    expect(t.value(FAVORITES.pref)).toBe(true);
     expect(t.warn).not.toHaveBeenCalled();
-    t.box(HIDE.id).click();
-    expect(t.value(HIDE.pref)).toBe(false);
+    t.box(FAVORITES.id).click();
+    expect(t.value(FAVORITES.pref)).toBe(false);
   });
 
   // The list is rebuilt only when the player opens, so a switch that moved
   // now would leave the tabs listing different voices (ui/reading-guard.ts)
   it('refuses both directions while a tab is reading: the pref stays, the box goes back, the user is told where', () => {
-    const t = setup({ reading: ['Deep learning'] });
-    t.box(HIDE.id).click();
-    expect(t.value(HIDE.pref)).toBeUndefined();
-    expect(t.box(HIDE.id).checked).toBe(false);
-    expect(t.warn).toHaveBeenCalledWith(expect.stringContaining('Deep learning'));
+    const on = setup({ reading: ['Deep learning'] });
+    on.box(FAVORITES.id).click();
+    expect(on.value(FAVORITES.pref)).toBeUndefined();
+    expect(on.box(FAVORITES.id).checked).toBe(false);
+    expect(on.warn).toHaveBeenCalledWith(expect.stringContaining('Deep learning'));
 
     const off = setup({ prefs: { [PREF_PREFIX + FAVORITES.pref]: true }, reading: ['Deep learning', 'Attention'] });
     expect(off.box(FAVORITES.id).checked).toBe(true);
@@ -98,30 +98,29 @@ describe('initVoiceListSwitches', () => {
   });
 
   it('says nothing and writes nothing when the box already holds the pref', () => {
-    const t = setup({ prefs: { [PREF_PREFIX + HIDE.pref]: true }, reading: ['Deep learning'] });
-    t.box(HIDE.id).checked = true;
-    for (const fn of t.box(HIDE.id).listeners.get('command') ?? []) fn();
+    const t = setup({ prefs: { [PREF_PREFIX + FAVORITES.pref]: true }, reading: ['Deep learning'] });
+    t.box(FAVORITES.id).checked = true;
+    for (const fn of t.box(FAVORITES.id).listeners.get('command') ?? []) fn();
     expect(t.warn).not.toHaveBeenCalled();
   });
 
-  // The boxes are no longer `preference=`-bound, so nothing redraws them
-  // for us: enabling the System provider writes the hiding pref itself
-  // (ui/prefs-pane.ts), and so does a settings restore
+  // The box is no longer `preference=`-bound, so nothing redraws it for us:
+  // a settings restore writes the pref from elsewhere
   it('follows a pref written elsewhere, through the observer and through refresh()', () => {
     const t = setup();
-    expect(t.watchers.map((w) => w.name)).toEqual([FAVORITES_ONLY_OBSERVER, HIDE_SYSTEM_VOICES_OBSERVER]);
-    t.prefs.store[PREF_PREFIX + HIDE.pref] = true;
-    t.notify(HIDE.pref);
-    expect(t.box(HIDE.id).checked).toBe(true);
-
+    expect(t.watchers.map((w) => w.name)).toEqual([FAVORITES_ONLY_OBSERVER]);
     t.prefs.store[PREF_PREFIX + FAVORITES.pref] = true;
-    t.rows.refresh();
+    t.notify(FAVORITES.pref);
     expect(t.box(FAVORITES.id).checked).toBe(true);
+
+    t.prefs.store[PREF_PREFIX + FAVORITES.pref] = false;
+    t.rows.refresh();
+    expect(t.box(FAVORITES.id).checked).toBe(false);
   });
 
   it('dispose unregisters every observer', () => {
     const t = setup();
-    expect(t.watchers).toHaveLength(2);
+    expect(t.watchers).toHaveLength(1);
     t.rows.dispose();
     expect(t.watchers).toHaveLength(0);
   });
@@ -149,5 +148,12 @@ describe('addon/content/preferences.xhtml', () => {
       expect(box, s.id).not.toContain('preference=');
       expect(xhtml).not.toContain(`preference="${PREF_PREFIX}${s.pref}"`);
     }
+  });
+
+  // Issue #17: the switch is gone from the pane, and so is the pref behind it
+  it('has no Hide System Local voices row left', () => {
+    expect(xhtml).not.toContain('ztts-hide-system-voices');
+    expect(xhtml).not.toContain('hideZoteroLocalVoices');
+    expect(xhtml).not.toContain('Hide System Local voices');
   });
 });

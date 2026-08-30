@@ -343,12 +343,13 @@ async function checkProvider(doc: Document, prefs: PrefsBackend, id: ProviderId,
 
 /**
  * What switching the system provider on does beyond the switch itself
- * (issue #12): Zotero's own copies of the very voices the plugin has just
- * begun publishing are hidden, since the Local tier would otherwise carry
- * every one of them twice; and a voice already chosen from those copies is
- * re-pointed at the plugin's equivalent, so it keeps playing instead of
- * being quietly replaced by Zotero's fallback
- * (read-aloud/system-voice-choices.ts).
+ * (issue #12): a voice already chosen from Zotero's own copies of these
+ * voices is re-pointed at the plugin's equivalent, so it keeps playing
+ * instead of being quietly replaced by Zotero's fallback
+ * (read-aloud/system-voice-choices.ts). Those copies are hidden from the
+ * player whatever this provider does (read-aloud/system-voices.ts, issue
+ * #17), so enabling it is the moment a mapping to migrate *to* first
+ * exists — and the only one.
  *
  * The mapping is exact or it does not happen: both Windows APIs report the
  * description Gecko builds its voice ids from, so a match is proof. Nothing
@@ -357,7 +358,6 @@ async function checkProvider(doc: Document, prefs: PrefsBackend, id: ProviderId,
  */
 async function adoptSystemVoices(prefs: PrefsBackend, deps: ProviderDeps, hooks: PaneHooks): Promise<void> {
   try {
-    prefs.set(PREF_PREFIX + 'readAloud.hideZoteroLocalVoices', true);
     if (!deps.system) return;
     const records = await withTimeout(listSystemVoiceRecords(deps.system), TEST_CONNECTION_TIMEOUT_MS, () => new Error('no voice list within 15 s'));
     const { voices, memory, changes } = migrateChoices(readReadAloudVoices(prefs), readMemory(prefs), records);
@@ -371,8 +371,8 @@ async function adoptSystemVoices(prefs: PrefsBackend, deps: ProviderDeps, hooks:
     });
     if (changes.length) Zotero.debug(`[zotero-tts] system voices adopted ${changes.length} remembered choice(s): ${changes.map((c) => c.to).join(', ')}`);
   } catch (e) {
-    // The hiding is the part that matters and is already written; a failed
-    // remap leaves Zotero's own fallback doing what it always did
+    // A failed remap costs nothing the provider needed: it leaves Zotero's
+    // own fallback doing what it does for every other unresolvable id
     Zotero.logError(e);
   }
 }

@@ -834,7 +834,6 @@ function stopHighlightStyling(): void {
 function startSystemVoiceHiding(): void {
   stopSystemVoiceHiding();
   systemVoiceHiding = createSystemVoiceHiding({
-    enabled: () => loadSettings(prefs).readAloud.hideZoteroLocalVoices,
     exportFunction: (fn, target) => Components.utils.exportFunction(fn, target),
     waiveXrays: (value) => ((value && typeof value === 'object') || typeof value === 'function' ? Components.utils.waiveXrays(value) : value),
     isDead: (value) => Components.utils.isDeadWrapper(value),
@@ -1279,7 +1278,6 @@ const diagnostics = {
     const settings = loadSettings(prefs);
     const out: Record<string, unknown> = {
       enabled: settings.system.enabled,
-      hideZoteroLocalVoices: settings.readAloud.hideZoteroLocalVoices,
       platform: Zotero.isWin ? 'win' : Zotero.isMac ? 'mac' : 'other',
       unsupported: speechUnsupportedReason(),
       daemon: speechDaemon ? speechDaemon.state() : null,

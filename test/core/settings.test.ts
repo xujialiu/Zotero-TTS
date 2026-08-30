@@ -180,12 +180,8 @@ describe('readAloud.sameForAllDocuments', () => {
 
   it('is written back by saveSettings', () => {
     const prefs = fakePrefs();
-    saveSettings(prefs, {
-      ...DEFAULTS,
-      readAloud: { ...DEFAULTS.readAloud, sameForAllDocuments: false, hideZoteroLocalVoices: true },
-    });
+    saveSettings(prefs, { ...DEFAULTS, readAloud: { ...DEFAULTS.readAloud, sameForAllDocuments: false } });
     expect(prefs.store[PREF_PREFIX + 'readAloud.sameForAllDocuments']).toBe(false);
-    expect(prefs.store[PREF_PREFIX + 'readAloud.hideZoteroLocalVoices']).toBe(true);
   });
 });
 
@@ -218,14 +214,9 @@ describe('readAloud favorites', () => {
   });
 });
 
-// readAloud.multilingualEverywhere was removed in 1.6.0; a leftover user
-// value is undeclared now and nothing reads it
-describe('readAloud.hideZoteroLocalVoices', () => {
-  it('is off by default and reads the stored switch', () => {
-    expect(loadSettings(fakePrefs()).readAloud.hideZoteroLocalVoices).toBe(false);
-    expect(loadSettings(fakePrefs({ [PREF_PREFIX + 'readAloud.hideZoteroLocalVoices']: true })).readAloud.hideZoteroLocalVoices).toBe(true);
-  });
-});
+// Settings that were removed and left a user value behind, undeclared now
+// and read by nothing: readAloud.multilingualEverywhere (1.6.0) and
+// readAloud.hideZoteroLocalVoices (issue #17, hiding is unconditional)
 
 describe('openai.server', () => {
   it('is empty by default (guess from the address) and reads the stored choice', () => {

@@ -34,8 +34,9 @@ describe('getVoices', () => {
     expect(result.voices!.standard).toBeUndefined();
   });
 
-  // Our voices carry no marker, whatever hideZoteroLocalVoices says: it is
-  // Zotero's own that are marked, in the reader (system-voices.ts, issue #9)
+  // Our voices carry no marker at all: the provider's name in front of the
+  // voice's is what names them (issue #9), and Zotero's own Local voices are
+  // no longer listed beside them (system-voices.ts, issue #17)
   it('publishes the plugin’s voices under their provider name alone', async () => {
     const labelOf = (result: any) => (Object.values((result.voices!.local as any[])[0].voices)[0] as { label: string }).label;
     expect(labelOf(await createRemoteInterface(deps()).getVoices())).toBe('OpenAI-Alloy');

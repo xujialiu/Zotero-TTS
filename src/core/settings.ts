@@ -48,15 +48,6 @@ export interface Settings {
     /** One speed for every document and every open tab (read-aloud/default-speed.ts); off, Zotero keeps a speed per document language. */
     globalSpeed: boolean;
     /**
-     * Hide the system's Local voices — Zotero's own copies of the
-     * operating system's — so the Local tier offers only the plugin's
-     * entries. Off, they stay and are marked "Local-…", which is what
-     * tells them from the plugin's own System- voices
-     * (read-aloud/system-voices.ts). Switching the `system` provider on
-     * turns this on, since the two lists are then the same voices twice.
-     */
-    hideZoteroLocalVoices: boolean;
-    /**
      * Voices marked with the heart in the settings' voice browser: a JSON
      * array of encoded voice ids (read-aloud/favorites.ts). A string
      * because voice ids may contain any character, commas included.
@@ -124,7 +115,6 @@ export const DEFAULTS: Settings = {
   readAloud: {
     sameForAllDocuments: true,
     globalSpeed: true,
-    hideZoteroLocalVoices: false,
     favoriteVoices: '',
     favoritesOnly: false,
   },
@@ -201,7 +191,6 @@ export function loadSettings(prefs: PrefsBackend): Settings {
     readAloud: {
       sameForAllDocuments: bool(prefs, 'readAloud.sameForAllDocuments', DEFAULTS.readAloud.sameForAllDocuments),
       globalSpeed: bool(prefs, 'readAloud.globalSpeed', DEFAULTS.readAloud.globalSpeed),
-      hideZoteroLocalVoices: bool(prefs, 'readAloud.hideZoteroLocalVoices', DEFAULTS.readAloud.hideZoteroLocalVoices),
       favoriteVoices: str(prefs, 'readAloud.favoriteVoices', DEFAULTS.readAloud.favoriteVoices),
       favoritesOnly: bool(prefs, 'readAloud.favoritesOnly', DEFAULTS.readAloud.favoritesOnly),
     },

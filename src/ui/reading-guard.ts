@@ -27,8 +27,8 @@
  * - a provider switched **on or off** (ui/provider-rows.ts) — and the check
  *   is repeated after the connection test, since the pref is written a
  *   quarter of a minute after the click;
- * - *Hide System Local voices* and *Offer only favorite voices*, both
- *   directions (ui/voice-list-switches.ts);
+ * - *Offer only favorite voices*, both directions
+ *   (ui/voice-list-switches.ts);
  * - a ♥ marked **or unmarked** while only favorites are offered
  *   (ui/voice-browser-rows.ts);
  * - a settings restore, from a file or from WebDAV (ui/backup-rows.ts,
