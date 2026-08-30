@@ -77,7 +77,7 @@ export function showPaneNotice(
   doc: { createElementNS(ns: string, tag: string): any; documentElement?: any; body?: any; defaultView?: any },
   message: string,
   fallback: (message: string) => void,
-  title = 'Zotero TTS',
+  title = 'Zotero-TTS',
 ): void {
   const root = doc.body ?? doc.documentElement;
   const dialog = doc.createElementNS(XHTML, 'dialog');

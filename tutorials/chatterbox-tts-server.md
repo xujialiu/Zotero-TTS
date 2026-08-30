@@ -109,7 +109,7 @@ writes a playable `test.mp3`.
 
 ## 5. Point the plugin at it
 
-Zotero → Settings → TTS → **OpenAI** section:
+Zotero → Settings → Zotero-TTS → **OpenAI** section:
 
 | Field | Value |
 |---|---|

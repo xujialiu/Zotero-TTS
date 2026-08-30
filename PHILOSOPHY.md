@@ -1,6 +1,6 @@
 # Philosophy
 
-**Zotero TTS is an enhancer for Zotero's Read Aloud, not a replacement for it.**
+**Zotero-TTS is an enhancer for Zotero's Read Aloud, not a replacement for it.**
 
 ## The idea
 

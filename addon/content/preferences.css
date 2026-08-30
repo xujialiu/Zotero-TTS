@@ -1,4 +1,4 @@
-/* Zotero TTS preference pane. Registered with the pane (ui/prefs-pane.ts
+/* Zotero-TTS preference pane. Registered with the pane (ui/prefs-pane.ts
    registerPrefsPane, `stylesheets`): Zotero inserts it as a stylesheet of
    the whole preferences window, so every rule is scoped by a ztts- class. */
 

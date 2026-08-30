@@ -158,7 +158,7 @@ export async function registerPrefsPane(rootURI: string, pluginID: string, versi
     // The ? icons' style; Zotero inserts it as a stylesheet of the whole
     // preferences window, so its rules are scoped by ztts- classes
     stylesheets: [rootURI + 'content/preferences.css'],
-    label: 'TTS',
+    label: 'Zotero-TTS',
   });
 }
 
@@ -177,8 +177,8 @@ function backupFileIO(win: any): BackupFileIO {
     return typeof chosen === 'string' && chosen ? chosen : null;
   };
   return {
-    pickSavePath: (defaultName) => pick('Backup Zotero TTS settings', 'save', defaultName),
-    pickOpenPath: () => pick('Restore Zotero TTS settings', 'open'),
+    pickSavePath: (defaultName) => pick('Backup Zotero-TTS settings', 'save', defaultName),
+    pickOpenPath: () => pick('Restore Zotero-TTS settings', 'open'),
     // IOUtils is handed to the plugin scope by Zotero's plugin loader
     writeFile: async (path, text) => {
       await IOUtils.writeUTF8(path, text);
@@ -425,7 +425,7 @@ export function onPaneLoad(doc: Document, hooks: PaneHooks = {}): void {
   // white ring around a dark dialog on Windows (reading-guard.ts showPaneNotice)
   const readingGuard = {
     readingTabs: readingTabTitles,
-    warn: (message: string) => showPaneNotice(doc, message, (text) => Services.prompt.alert(win, 'Zotero TTS', text)),
+    warn: (message: string) => showPaneNotice(doc, message, (text) => Services.prompt.alert(win, 'Zotero-TTS', text)),
   };
   // The two checkboxes that edit what the Read Aloud player lists: unbound,
   // written here, and refused while a tab is reading (ui/voice-list-switches.ts)
@@ -525,7 +525,7 @@ export function onPaneLoad(doc: Document, hooks: PaneHooks = {}): void {
     ...readingGuard,
     pluginVersion,
     now: () => new Date().toISOString(),
-    confirm: (message: string): boolean => Services.prompt.confirm(win, 'Zotero TTS', message),
+    confirm: (message: string): boolean => Services.prompt.confirm(win, 'Zotero-TTS', message),
     // Bound inputs redraw themselves (Zotero observes every bound pref); these rows do not
     onRestored: () => {
       shortcutRows.refresh();

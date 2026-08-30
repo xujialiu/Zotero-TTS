@@ -70,12 +70,12 @@ The first run downloads a few GB; later starts take seconds.
 
 ## Check it
 
-In Zotero, *Settings → TTS → Local engine*, tick **Enable Kokoro-FastAPI** and
-press **Test connection**; it should say `Connected. 68 voices available.`
-Then open Read Aloud, choose the Local tier, and pick a `Kokoro-…` voice
-(`af_bella` and `af_heart` are good English voices; `zf_xiaobei` /
-`zm_yunxi` speak Chinese). For word-by-word highlighting set *Settings →
-General → Read Aloud → Highlight current* to **Word**.
+In Zotero, *Settings → Zotero-TTS → Local engine*, tick **Enable
+Kokoro-FastAPI** and press **Test connection**; it should say `Connected. 68
+voices available.` Then open Read Aloud, choose the Local tier, and pick a
+`Kokoro-…` voice (`af_bella` and `af_heart` are good English voices;
+`zf_xiaobei` / `zm_yunxi` speak Chinese). For word-by-word highlighting set
+*Settings → General → Read Aloud → Highlight current* to **Word**.
 
 ## Day to day
 

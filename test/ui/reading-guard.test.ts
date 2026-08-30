@@ -97,7 +97,7 @@ describe('showPaneNotice', () => {
     const [style, title, body, buttons] = dialog.children;
     expect(style.tag).toBe('style');
     expect(style.textContent).toContain('#ztts-notice::backdrop');
-    expect(title.textContent).toBe('Zotero TTS');
+    expect(title.textContent).toBe('Zotero-TTS');
     expect(body.children[0].textContent).toBe('⚠️');
     expect(body.children[1].children[0].textContent).toBe('Read Aloud is open in a tab:');
     expect(body.children[1].children[0].attrs.get('style')).toContain('font-weight: 600');

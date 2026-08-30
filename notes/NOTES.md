@@ -1,4 +1,4 @@
-# zotero-tts — engineering notes
+# Zotero-TTS — engineering notes
 
 Working notes: incidents, what was verified in Zotero's source, and why things
 are the way they are. Kept private until 2026-08-23, tracked in git since.

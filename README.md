@@ -1,4 +1,4 @@
-<h1 align="center">Zotero TTS</h1>
+<h1 align="center">Zotero-TTS</h1>
 
 <p align="center"><em>An enhancer for Zotero 10's Read Aloud: more voices in its Local tier, word-and-sentence highlighting in your colors, keyboard shortcuts.</em></p>
 
@@ -36,7 +36,7 @@ things around the edges. Why it is built this way: [PHILOSOPHY.md](PHILOSOPHY.md
 Download `zotero-tts.xpi` from the [latest release](https://github.com/xujialiu/Zotero-TTS/releases/latest)
 (Firefox: right-click → *Save Link As…*), install it with **Tools → Plugins → ⚙ →
 Install Plugin From File…** and restart Zotero; then enable a provider in
-**Edit → Settings → TTS** and pick a voice named after its provider —
+**Edit → Settings → Zotero-TTS** and pick a voice named after its provider —
 `Kokoro-af_bella`, `Azure-Ava Multilingual` — under the **Local** tier.
 
 <p align="center"><img src="assets/popup.png" width="640" alt="The Read Aloud player with a plugin voice chosen under the Local tier"></p>
@@ -128,7 +128,7 @@ there fails with a message.
 
 ## Settings
 
-Everything is under **Edit → Settings → TTS**.
+Everything is under **Edit → Settings → Zotero-TTS**.
 
 ### Highlight
 

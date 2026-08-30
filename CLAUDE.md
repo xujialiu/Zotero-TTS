@@ -1,4 +1,4 @@
-# CLAUDE.md — zotero-tts
+# CLAUDE.md — Zotero-TTS
 
 Zotero 10 plugin that adds voices to Zotero's built-in **Read Aloud**: OpenAI
 (or any OpenAI-compatible server), Azure Speech, and a local Kokoro-FastAPI.

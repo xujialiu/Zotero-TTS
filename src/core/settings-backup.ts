@@ -88,7 +88,7 @@ export function parseBackup(text: string): ParsedBackup {
   }
   const backup = data as Partial<SettingsBackup> | null;
   if (!backup || typeof backup !== 'object' || backup.format !== BACKUP_FORMAT || !backup.settings || typeof backup.settings !== 'object') {
-    throw new BackupError('The file is not a Zotero TTS settings backup');
+    throw new BackupError('The file is not a Zotero-TTS settings backup');
   }
   const settings: FlatSettings = {};
   const ignored: string[] = [];
