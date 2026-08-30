@@ -57,6 +57,13 @@ across documents, settings backup/restore (file or WebDAV), highlight colors.
   Open an issue because writing it clarifies the problem, not to defer
   it — on a public repo an issue left open is a promise to strangers, and
   a backlog of stale enhancements reads as an abandoned project.
+  **Never hard-wrap an issue or comment body** (settled 2026-08-30):
+  GitHub renders issue, PR and comment Markdown with `breaks: true`, so
+  every single newline becomes a `<br>` and a paragraph wrapped at 80
+  columns comes out as a ragged narrow column instead of reflowing with
+  the window. One paragraph is one line, however long; blank lines
+  separate blocks. This is the opposite of the repo's `.md` files, where
+  the wrapping is right and stays.
 - Commit only when told ("commit"); push only when told. Simple work
   (docs, wording, one-liners) goes directly on `main`; only hard work
   (bug fixes, features) gets a `feat/...`/`fix/...` branch, merged into
