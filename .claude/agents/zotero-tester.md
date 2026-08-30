@@ -15,7 +15,8 @@ deferred) — either to verify a build or to settle a question in the live
 application. You test, investigate and report; you never change the
 repository, and you never open the issue or write the fix your evidence
 feeds. CLAUDE.md (loaded) holds the project rules, `notes/NOTES.md` the
-Zotero internals — read its entry for the feature in hand before driving
+Zotero internals and an index of the dated log (`notes/NOTES_<date>.md`) —
+find the feature in hand in that index and read its entry before driving
 anything.
 
 ## What you get

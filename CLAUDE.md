@@ -18,12 +18,18 @@ across documents, settings backup/restore (file or WebDAV), highlight colors.
   `tutorials/` — Azure's free tier, Kokoro-FastAPI and Chatterbox-TTS-Server
   in Docker, remote access through Cloudflare. Provider and server how-tos
   go there, not into the README.
-- `notes/NOTES.md` — engineering notes: every production incident, and the Zotero
-  internals verified by reading its source. **Read it before touching Read
-  Aloud internals; append to it (English) whenever something non-obvious is
-  learned or broken.** `notes/NOTES_SUPPLEMENTARY.md` — one-time setup logs and
-  overtaken lists moved out of NOTES.md; history, not required reading.
-  Both live in `notes/`.
+- `notes/NOTES.md` — the standing reference: what the plugin is, the Zotero
+  internals verified by reading its source, what is still open, and an index
+  of the log. **Read it before touching Read Aloud internals.** The log itself
+  is `notes/NOTES_<date>.md`, one file per day — every production incident and
+  everything non-obvious learned or broken, in English. **Append to today's
+  file** (a new day starts from the shape the others have: the `#` title and
+  the `←/index/→` line), never rewrite a past day, and **stamp every heading
+  with the date and the time it was written** — `## The voice list is a per-tab
+  snapshot (2026-08-30 14:32, issue #11)`, 24-hour local time. The time is what
+  orders a day's entries and ties one to the session that produced it; entries
+  from before 2026-08-30 carry a date only and stay that way. When a day gains
+  an entry, add it to NOTES.md's index under that day.
 
 ## Working with the user
 
