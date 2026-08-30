@@ -111,6 +111,19 @@ start over.
    `OffscreenCanvas` → `convertToBlob` → `IOUtils.write`. In
    `zotero_execute_js` only a top-level `return` is wrapped; make an
    `(async () => { … })()` the last expression.
+9. Trusted key events: `windowUtils.sendKeyEvent` does not exist in this
+   Firefox (140) — use `nsITextInputProcessor`
+   (`@mozilla.org/text-input-processor;1`):
+   `tip.beginInputTransactionForTests(win)`, then
+   `tip.keydown(new win.KeyboardEvent('', { key, code, keyCode }))` /
+   `tip.keyup(...)`, a modifier held as its own keydown/keyup pair around
+   the key. `keydown()` returning 1 means a handler consumed the event —
+   that return value is the evidence a shortcut fired.
+10. A `zotero_execute_js` eval times out after ~8–9 s, and a timeout
+    returns bare `undefined` — indistinguishable from the script throwing.
+    Split any wait into ≤8 s polling windows across separate calls, give
+    every step its own try/catch, and always return a JSON string, so
+    `undefined` can only ever mean the timeout.
 
 ## Rules
 
