@@ -294,6 +294,14 @@ assets/             README media (the word-highlight GIF, popup and settings scr
   `<vbox onload="Zotero.ZoteroTTS.prefsPane.onPaneLoad(document)">`.
   `preference=`-bound inputs redraw themselves on pref change; unbound rows
   (shortcuts) expose a `refresh()`.
+- **The pane's text says the effect, never the implementation.** A visible
+  line and a `?` tooltip tell the user what the setting gives them, and a
+  platform or cost limit if there is one; how it is done — which Zotero
+  API it goes through, what it patches, what the player drops behind the
+  scenes — stays out. The user can neither act on it nor check it, and it
+  is the first thing the next fix rewrites. Background goes to the README,
+  the mechanism to `notes/NOTES.md` (issue #18 is the shape: a `?` that
+  read like a changelog of the plugin's internals).
 
 ## Zotero pitfalls that have already cost a round-trip
 
