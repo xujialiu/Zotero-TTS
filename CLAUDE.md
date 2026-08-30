@@ -90,11 +90,13 @@ across documents, settings backup/restore (file or WebDAV), highlight colors.
   `prefs.js` holds the user's keys in plaintext — grep it only for the exact
   pref you need, never print whole lines.
 - **Only a Fable session delegates** (settled 2026-08-28, gated
-  2026-08-28): the `git-chores` and `zotero-tester` agents run Opus at
-  maximum reasoning effort, which is worth a round trip only to a session
-  running Fable. Every other model — this one included — does that work
-  itself, here, in place: no subagent, the whole run in view. The agent
-  files stay the rule book either way; read
+  2026-08-28, widened 2026-08-30): the `git-chores` and `zotero-tester`
+  agents run Opus at maximum reasoning effort, which is worth a round trip
+  only to a session running Fable — and a Fable session hands their work
+  over always, not only when it looks heavy: every git chore, every run of
+  the zotero-dev bridge. Every other model — this one included — does that
+  work itself, here, in place: no subagent, the whole run in view. The
+  agent files stay the rule book either way; read
   `.claude/agents/git-chores.md` / `.claude/agents/zotero-tester.md`
   before doing their work by hand.
 - **Git housekeeping** (settled 2026-08-28): committing what is in the
@@ -143,30 +145,40 @@ sandbox — chrome-scope JS (`zotero_execute_js`, Run JavaScript) cannot
 reproduce the sandbox's view. A purely visual change states that instead,
 and names exactly what to check by eye.
 
-## Verifying a branch live
+## Driving Zotero live
 
 The running Zotero is driven from here through the **zotero-dev MCP
 bridge** — `introfini/mcp-server-zotero-dev` (MCP server `zotero-dev`,
 tools `mcp__zotero-dev__*`) plus the *MCP Bridge for Zotero* plugin, which
 opens RDP on 127.0.0.1:6100 when Zotero starts. Settled 2026-08-28, after
 the provider-toggle feature was verified end to end this way. **"Test with
-zotero dev" / "用 zotero dev 测试" means exactly this bridge** — install the
-build into the running Zotero and drive it with `mcp__zotero-dev__*`; never
-some other route, and never hand the checks back to the user except in the
-two cases below. Before a feature branch is merged, its new behavior is
-verified in Zotero like this:
+zotero dev" / "用 zotero dev 测试" means exactly this bridge** — drive the
+running Zotero with `mcp__zotero-dev__*`; never some other route, and never
+hand the checks back to the user except in the two cases below. Two kinds
+of run go through it, under the same rules: **verifying** a branch's new
+behavior before it is merged, and **researching** — reproducing a bug,
+reading a reader's live state, digging an issue's evidence out of Zotero
+before the issue is written.
 
 - **The driving rules are `.claude/agents/zotero-tester.md`** (the
   bridge's tools, how to drive them, what to report). A Fable session
-  hands the pass to `Agent` with `subagent_type: "zotero-tester"` — the
-  xpi path, the behaviors to verify, the diagnostics to run with their
-  expected output, and what state it may touch — and confirms the
-  reported evidence (traces, pref values, screenshots) field by field,
-  which keeps its tokens for the work. Any other model drives the bridge
-  here, by those same rules, and budgets for the traces and screenshots
-  landing in this context.
+  hands **every** run to `Agent` with `subagent_type: "zotero-tester"` —
+  research as much as verification, since research is what floods a
+  context with traces, DOM dumps and unpacked Zotero source — and
+  confirms the reported evidence (traces, pref values, screenshots) field
+  by field, which keeps its tokens for the work. A **verification brief**
+  names the xpi path, the behaviors to verify, the diagnostics with their
+  expected output, and what state it may touch; a **research brief** names
+  the question to settle and what state it may touch, and leaves the
+  expected output to the agent. Follow-ups go to that same agent through
+  `SendMessage`, never a fresh `Agent` call: research is look → guess →
+  look again, and a new agent has lost the thread. What comes back is
+  evidence — the issue, the fix and the commit stay in the main session.
+  Any other model drives the bridge here, by those same rules, and budgets
+  for the traces and screenshots landing in this context.
 - **Plan first.** List every new behavior on the branch and the check that
-  covers it; name what only unit tests can cover and why, and what only a
+  covers it — for research, every question and the observation that would
+  settle it; name what only unit tests can cover and why, and what only a
   human can judge. Work the list until it is empty, then a last pass for
   whatever was fixed along the way. A failure stops the pass: fix, rebuild,
   reinstall, re-run from the first check.
