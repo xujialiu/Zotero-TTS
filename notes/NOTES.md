@@ -235,3 +235,5 @@ cite `notes/NOTES.md` with a date or a section title resolve through this index.
 ### [2026-08-31](NOTES_2026-08-31.md)
 
 - The store keeps the resume point, and a center is noisier than its rect (issue #14)
+- The positions moved into zotero-tts.sqlite, and the pass ran against a zombie (issue #16)
+- Clean session: the zombie owned the patches, and imported hit 0 (issue #16)

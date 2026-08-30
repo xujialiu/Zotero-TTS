@@ -1,13 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import type { PrefsBackend } from '../../src/core/settings';
 import {
   createPositionSync,
   IDLE_TICK_MS,
   ACTIVE_TICK_MS,
-  WRITE_THROTTLE_MS,
   type PositionSyncDeps,
 } from '../../src/read-aloud/position-sync';
-import { READ_ALOUD_POSITIONS_PREF, readPositions } from '../../src/read-aloud/read-aloud-position';
+import type { PositionEntry } from '../../src/read-aloud/read-aloud-position';
 
 // What the reader hands out (the full merged-line rect list) and what the
 // store keeps (the center of the first rect — the only part resume reads,
@@ -35,16 +33,18 @@ const reader = (over: Partial<FakeReader> = {}): FakeReader => ({
   ...over,
 });
 
-function harness(readers: FakeReader[], over: Partial<PositionSyncDeps> = {}, initial: Record<string, unknown> = {}) {
-  const store: Record<string, unknown> = { ...initial };
-  const prefs: PrefsBackend = { get: (k) => store[k], set: (k, v) => void (store[k] = v) };
+function harness(readers: FakeReader[], over: Partial<PositionSyncDeps> = {}, initial: PositionEntry[] = []) {
+  const saved: PositionEntry[] = [];
   const errors: unknown[] = [];
+  let retries = 0;
   let clock = 0;
   const timers: { fn: () => void; at: number; handle: number }[] = [];
   let nextHandle = 1;
 
   const deps: PositionSyncDeps = {
-    prefs,
+    initial,
+    save: (entry) => void saved.push(entry),
+    retryWrites: () => void retries++,
     readers: () => readers,
     attachmentOf: (r) => {
       const f = r as FakeReader;
@@ -82,66 +82,63 @@ function harness(readers: FakeReader[], over: Partial<PositionSyncDeps> = {}, in
   /** How long the next tick is scheduled for, so the cadence can be asserted. */
   const nextDelay = () => (timers.length ? timers[0].at - clock : null);
 
-  return { sync: createPositionSync(deps), store, prefs, errors, advance, timers, nextDelay };
+  return { sync: createPositionSync(deps), saved, errors, advance, timers, nextDelay, retries: () => retries };
 }
 
 describe('createPositionSync', () => {
-  it('records the saved position of an active reader, normalized to the resume point', () => {
+  it('saves the position of an active reader, normalized to the resume point', () => {
     const h = harness([reader()]);
     h.sync.sample();
-    h.sync.flush();
-    expect(readPositions(h.prefs)).toEqual([{ lib: 1, key: 'ABCD1234', pos: PDF_POINT, ts: 0 }]);
+    expect(h.saved).toEqual([{ lib: 1, key: 'ABCD1234', pos: PDF_POINT, ts: 0 }]);
   });
 
   it('ignores a reader whose session is not active', () => {
     const h = harness([reader({ active: false })]);
     h.sync.sample();
-    h.sync.flush();
-    expect(readPositions(h.prefs)).toEqual([]);
+    expect(h.saved).toEqual([]);
   });
 
   it('ignores a null saved position', () => {
     const h = harness([reader({ saved: null })]);
     h.sync.sample();
-    h.sync.flush();
-    expect(readPositions(h.prefs)).toEqual([]);
+    expect(h.saved).toEqual([]);
   });
 
   it('ignores a reader with no attachment', () => {
     const h = harness([reader({ key: '' })]);
     h.sync.sample();
-    h.sync.flush();
-    expect(readPositions(h.prefs)).toEqual([]);
+    expect(h.saved).toEqual([]);
   });
 
-  it('writes at most once per throttle window while ticking', () => {
+  // The pref rewrite needed a throttle; a row write does not (#16). Every
+  // changed sentence goes straight into the store's queue — and only
+  // changed ones.
+  it('saves each sentence change once, as it happens', () => {
     const readers = [reader()];
     const h = harness(readers);
     h.sync.start();
     h.advance(IDLE_TICK_MS);
-    expect(h.store[READ_ALOUD_POSITIONS_PREF]).toBeUndefined();
+    expect(h.saved).toHaveLength(1);
     readers[0].saved = LATER_POS;
     h.advance(ACTIVE_TICK_MS);
-    expect(h.store[READ_ALOUD_POSITIONS_PREF]).toBeUndefined();
-    h.advance(WRITE_THROTTLE_MS);
-    expect(readPositions(h.prefs)[0].pos).toEqual(LATER_POINT);
+    expect(h.saved).toHaveLength(2);
+    expect(h.saved[1].pos).toEqual(LATER_POINT);
+    // Nothing moves, nothing is written
+    h.advance(ACTIVE_TICK_MS * 5);
+    expect(h.saved).toHaveLength(2);
   });
 
-  it('flush() bypasses the throttle', () => {
-    const h = harness([reader()]);
+  it('nudges the store retry on every pass', () => {
+    const h = harness([]);
     h.sync.start();
-    h.sync.sample();
-    expect(h.store[READ_ALOUD_POSITIONS_PREF]).toBeUndefined();
-    h.sync.flush();
-    expect(readPositions(h.prefs)).toHaveLength(1);
+    h.advance(IDLE_TICK_MS * 3);
+    expect(h.retries()).toBe(3);
   });
 
-  it('stop() flushes what is pending and stops ticking', () => {
+  it('stop() stops ticking', () => {
     const h = harness([reader()]);
     h.sync.start();
-    h.sync.sample();
     h.sync.stop();
-    expect(readPositions(h.prefs)).toHaveLength(1);
     expect(h.timers).toHaveLength(0);
     h.advance(IDLE_TICK_MS * 3);
     expect(h.timers).toHaveLength(0);
@@ -190,39 +187,34 @@ describe('createPositionSync', () => {
       },
     });
     h.sync.sample();
-    h.sync.flush();
     expect(h.errors).toHaveLength(1);
-    expect(readPositions(h.prefs).map((e) => e.key)).toEqual(['GOOD']);
+    expect(h.saved.map((e) => e.key)).toEqual(['GOOD']);
   });
 
-  it('does not rewrite an unchanged position', () => {
+  it('does not save an unchanged position twice', () => {
     const h = harness([reader()]);
     h.sync.sample();
-    h.sync.flush();
-    const first = h.store[READ_ALOUD_POSITIONS_PREF];
-    h.store[READ_ALOUD_POSITIONS_PREF] = 'clobbered';
     h.sync.sample();
-    h.sync.flush();
-    expect(h.store[READ_ALOUD_POSITIONS_PREF]).toBe('clobbered');
-    expect(first).toBeTypeOf('string');
+    expect(h.saved).toHaveLength(1);
   });
 
-  it('starts from what the pref already holds, normalized on the way in', () => {
-    const store: Record<string, unknown> = {
-      [READ_ALOUD_POSITIONS_PREF]: JSON.stringify({ v: 1, items: [{ lib: 1, key: 'OLD', pos: PDF_POS, ts: 5 }] }),
+  it('starts from the loaded rows', () => {
+    const h = harness([], {}, [{ lib: 1, key: 'OLD00000', pos: PDF_POINT, ts: 5 }]);
+    expect(h.sync.lookup(reader({ key: 'OLD00000' }))).toEqual(PDF_POINT);
+  });
+
+  // Rows from the database are already normal; the legacy-pref fallback
+  // (the database failed to open) can carry pre-#14 rect lists
+  it('normalizes initial entries on the way in, without writing anything', () => {
+    const fat = {
+      pageIndex: 7,
+      rects: Array.from({ length: 500 }, (_, i) => [i, i, i + 1, i + 1]),
     };
-    const fresh = createPositionSync({
-      prefs: { get: (k) => store[k], set: (k, v) => void (store[k] = v) },
-      readers: () => [],
-      attachmentOf: () => ({ lib: 1, key: 'OLD' }),
-      managerOf: () => null,
-      savedPositionOf: () => null,
-      setTimeout: () => 0,
-      clearTimeout: () => {},
-      now: () => 0,
-      error: () => {},
-    });
-    expect(fresh.lookup({})).toEqual(PDF_POINT);
+    const h = harness([], {}, [{ lib: 1, key: 'FATPDF00', pos: fat, ts: 5 }]);
+    h.sync.start();
+    h.advance(IDLE_TICK_MS * 3);
+    expect(h.sync.lookup(reader({ key: 'FATPDF00' }))).toEqual({ pageIndex: 7, rects: [[0.5, 0.5, 0.5, 0.5]] });
+    expect(h.saved).toEqual([]);
   });
 
   it('stores a copy, not the object it read from the reader', () => {
@@ -243,21 +235,8 @@ describe('createPositionSync', () => {
     };
     const h = harness([reader({ saved: dead })]);
     h.sync.sample();
-    h.sync.flush();
-    expect(readPositions(h.prefs)).toEqual([]);
+    expect(h.saved).toEqual([]);
     expect(h.errors).toHaveLength(1);
-  });
-
-  it('flushes as soon as a reader it was tracking is gone', () => {
-    const readers = [reader()];
-    const h = harness(readers);
-    h.sync.start();
-    h.advance(IDLE_TICK_MS);
-    // Recorded, but still inside the throttle window
-    expect(h.store[READ_ALOUD_POSITIONS_PREF]).toBeUndefined();
-    readers.length = 0; // the tab was closed
-    h.advance(ACTIVE_TICK_MS);
-    expect(readPositions(h.prefs)[0].key).toBe('ABCD1234');
   });
 
   it('keeps ticking after a pass throws', () => {
@@ -280,10 +259,10 @@ describe('createPositionSync', () => {
     expect(h.timers).toHaveLength(1);
   });
 
-  // The unload hook: one last read while the closing reader is still alive,
-  // written out at once — the fix for resuming one sentence early when the
-  // tab closed inside the tick window (notes/NOTES.md 2026-08-26)
-  it('captureClose() records the closing reader at once, past the throttle', () => {
+  // The close hook: one last read while the closing reader is still alive —
+  // the fix for resuming one sentence early when the tab closed inside the
+  // tick window (notes/NOTES.md 2026-08-26)
+  it('captureClose() saves the closing reader at once', () => {
     const readers = [reader()];
     const h = harness(readers);
     h.sync.start();
@@ -291,23 +270,23 @@ describe('createPositionSync', () => {
     // The sentence changed after the last tick — exactly the race
     readers[0].saved = LATER_POS;
     h.sync.captureClose(readers[0]);
-    expect(readPositions(h.prefs)[0].pos).toEqual(LATER_POINT);
+    expect(h.saved[h.saved.length - 1].pos).toEqual(LATER_POINT);
   });
 
-  it('captureClose() writes what was already pending even if the final read fails', () => {
+  it('captureClose() on a dead reader loses only the final read', () => {
     const readers = [reader()];
     const h = harness(readers);
     h.sync.start();
     h.advance(IDLE_TICK_MS);
-    expect(h.store[READ_ALOUD_POSITIONS_PREF]).toBeUndefined();
-    h.sync.captureClose({ dead: true });
-    expect(readPositions(h.prefs)[0].pos).toEqual(PDF_POINT);
+    expect(h.saved).toHaveLength(1);
+    expect(() => h.sync.captureClose({ dead: true })).not.toThrow();
+    expect(h.saved).toHaveLength(1);
   });
 
   it('captureClose() on a reader that never played stores nothing', () => {
     const h = harness([reader({ active: false })]);
     h.sync.captureClose(reader({ active: false }));
-    expect(readPositions(h.prefs)).toEqual([]);
+    expect(h.saved).toEqual([]);
   });
 
   // Ticks read only open sessions: what a deactivated reader's state does
@@ -335,7 +314,7 @@ describe('createPositionSync', () => {
     readers[0].active = false;
     readers[0].saved = LATER_POS;
     h.sync.captureClose(readers[0]);
-    expect(readPositions(h.prefs)[0].pos).toEqual(LATER_POINT);
+    expect(h.saved[h.saved.length - 1].pos).toEqual(LATER_POINT);
   });
 
   // The incident: after the capture, the closed reader lingered in _readers
@@ -365,14 +344,14 @@ describe('createPositionSync', () => {
     expect(h.sync.lookup(reader())).toBeNull();
   });
 
-  it('stop() takes a last look before writing', () => {
+  it('stop() takes a last look before the store drains', () => {
     const readers = [reader()];
     const h = harness(readers);
     h.sync.start();
     h.advance(IDLE_TICK_MS);
     readers[0].saved = LATER_POS;
     h.sync.stop();
-    expect(readPositions(h.prefs)[0].pos).toEqual(LATER_POINT);
+    expect(h.saved[h.saved.length - 1].pos).toEqual(LATER_POINT);
   });
 
   it('stop() still reads a deactivated reader that played this session', () => {
@@ -383,7 +362,7 @@ describe('createPositionSync', () => {
     readers[0].active = false;
     readers[0].saved = LATER_POS;
     h.sync.stop();
-    expect(readPositions(h.prefs)[0].pos).toEqual(LATER_POINT);
+    expect(h.saved[h.saved.length - 1].pos).toEqual(LATER_POINT);
   });
 
   it('lookup() returns null for an attachment with nothing stored', () => {
@@ -393,107 +372,25 @@ describe('createPositionSync', () => {
     expect(h.sync.lookup(reader({ key: 'OTHER' }))).toBeNull();
   });
 
-  // Entries written before normalization existed can carry the full rect
-  // list — one was 106,938 chars (#14). writePositions rewrites the whole
-  // array on every flush, so an entry left raw would be re-written at full
-  // size each time until 50 newer documents push it out; normalizing at
-  // load sheds it on the first flush instead, listening or not.
-  it('sheds a stored raw rect list on the first flush without the document playing', () => {
-    const fat = {
-      pageIndex: 7,
-      rects: Array.from({ length: 500 }, (_, i) => [i, i, i + 1, i + 1]),
-    };
-    const cfi = { type: 'FragmentSelector', value: 'epubcfi(/6/34!/4/2/4/2/4/1,:0,:94)' };
-    const h = harness([], {}, {
-      [READ_ALOUD_POSITIONS_PREF]: JSON.stringify({
-        v: 1,
-        items: [
-          { lib: 1, key: 'FATPDF00', pos: fat, ts: 5 },
-          { lib: 1, key: 'EPUB0000', pos: cfi, ts: 4 },
-        ],
-      }),
-    });
-    h.sync.start();
-    h.advance(WRITE_THROTTLE_MS + IDLE_TICK_MS);
-    expect(readPositions(h.prefs)).toEqual([
-      { lib: 1, key: 'FATPDF00', pos: { pageIndex: 7, rects: [[0.5, 0.5, 0.5, 0.5]] }, ts: 5 },
-      { lib: 1, key: 'EPUB0000', pos: cfi, ts: 4 },
-    ]);
-  });
-
-  it('writes nothing on startup when the store is already normal', () => {
-    const raw = JSON.stringify({
-      v: 1,
-      items: [{ lib: 1, key: 'DONE0000', pos: { pageIndex: 7, rects: [[0.5, 0.5, 0.5, 0.5]] }, ts: 5 }],
-    });
-    const h = harness([], {}, { [READ_ALOUD_POSITIONS_PREF]: raw });
-    h.sync.start();
-    h.advance(WRITE_THROTTLE_MS * 3);
-    expect(h.store[READ_ALOUD_POSITIONS_PREF]).toBe(raw);
-  });
-
   // The samePosition comparison must see like against like: the store holds
   // the normalized point, the reader hands out the raw rect list, and the
   // same sentence must not look like a change (#14's "normalize before
   // samePosition compares" trap)
-  it('does not rewrite when the raw position normalizes to what is stored', () => {
-    const raw = JSON.stringify({
-      v: 1,
-      items: [{ lib: 1, key: 'ABCD1234', pos: PDF_POINT, ts: 5 }],
-    });
-    const h = harness([reader()], {}, { [READ_ALOUD_POSITIONS_PREF]: raw });
+  it('does not save when the raw position normalizes to what is stored', () => {
+    const h = harness([reader()], {}, [{ lib: 1, key: 'ABCD1234', pos: PDF_POINT, ts: 5 }]);
     h.sync.sample();
-    h.sync.flush();
-    expect(h.store[READ_ALOUD_POSITIONS_PREF]).toBe(raw);
-    expect(readPositions(h.prefs)[0].ts).toBe(5);
+    expect(h.saved).toEqual([]);
   });
 
-  // Zotero.Prefs.set logs and rethrows (xpcom/prefs.js) — the store must
-  // not treat a failed write as done, and must not retry it on every
-  // 500 ms tick either: dirty stays, lastWrite advances, one retry per
-  // throttle window (#14, item 3 — the silent-freeze failure shape)
-  it('keeps a failed write dirty and retries once per throttle window', () => {
-    let failing = true;
-    const store: Record<string, unknown> = {};
-    const readers = [reader()];
-    const h = harness(readers, {
-      prefs: {
-        get: (k) => store[k],
-        set: (k, v) => {
-          if (failing) throw new Error("Error setting preference 'zotero-tts.readAloud.positions'");
-          store[k] = v;
-        },
+  it('reports a save that throws instead of throwing', () => {
+    const h = harness([reader()], {
+      save: () => {
+        throw new Error('Database permanently closed');
       },
     });
-    h.sync.start();
-    h.advance(IDLE_TICK_MS); // recorded, dirty
-    h.advance(WRITE_THROTTLE_MS); // first attempt: throws
-    expect(h.errors.length).toBe(1);
-    expect(store[READ_ALOUD_POSITIONS_PREF]).toBeUndefined();
-    // Active ticks inside the window must not hammer the failing write
-    h.advance(ACTIVE_TICK_MS * 4);
-    expect(h.errors.length).toBe(1);
-    h.advance(WRITE_THROTTLE_MS); // second window: retried, still failing
-    expect(h.errors.length).toBe(2);
-    failing = false;
-    h.advance(WRITE_THROTTLE_MS); // third window: lands, dirty cleared
-    expect(h.errors.length).toBe(2);
-    expect(readPositions({ get: (k) => store[k], set: () => {} })[0].pos).toEqual(PDF_POINT);
-  });
-
-  it('stop() reports a write failure instead of throwing', () => {
-    const readers = [reader()];
-    const h = harness(readers, {
-      prefs: {
-        get: () => undefined,
-        set: () => {
-          throw new Error("Error setting preference 'zotero-tts.readAloud.positions'");
-        },
-      },
-    });
-    h.sync.start();
-    h.advance(IDLE_TICK_MS);
-    expect(() => h.sync.stop()).not.toThrow();
-    expect(h.errors.length).toBeGreaterThan(0);
+    expect(() => h.sync.sample()).not.toThrow();
+    expect(h.errors).toHaveLength(1);
+    // The in-memory copy still advanced; resume in this session still works
+    expect(h.sync.lookup(reader())).toEqual(PDF_POINT);
   });
 });

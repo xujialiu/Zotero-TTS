@@ -12,7 +12,8 @@ import { createHighlightStyling, type HighlightStyling } from './read-aloud/high
 import { createSystemVoiceHiding, type SystemVoiceHiding } from './read-aloud/system-voices';
 import { createMultilingualFirst, type MultilingualFirst } from './read-aloud/multilingual-first';
 import { createPositionSync, ACTIVE_TICK_MS, IDLE_TICK_MS, type PositionSync } from './read-aloud/position-sync';
-import { describePosition, READ_ALOUD_POSITIONS_PREF, readPositions, resumeTarget } from './read-aloud/read-aloud-position';
+import { createPositionStore, type PositionStore } from './read-aloud/position-store';
+import { describePosition, READ_ALOUD_POSITIONS_PREF, readPositions, resumeTarget, type PositionEntry } from './read-aloud/read-aloud-position';
 import { readMemory } from './read-aloud/read-aloud-memory';
 import { readReadAloudVoices } from './core/read-aloud-speed';
 import { listNamedCatalog, type CatalogEntry } from './read-aloud/catalog';
@@ -53,6 +54,10 @@ let readAloudShortcuts: ReadAloudShortcuts | null = null;
 let readerOpenedListener: ((event: any) => void) | null = null;
 let readAloudMemory: ReadAloudMemorySync | null = null;
 let positionSync: PositionSync | null = null;
+let positionStore: PositionStore | null = null;
+/** The raw `Zotero.DBConnection`, kept for diagnostics (path, row count). */
+let positionDB: any = null;
+let deleteNotifierID: string | null = null;
 let highlightStyling: HighlightStyling | null = null;
 let systemVoiceHiding: SystemVoiceHiding | null = null;
 let multilingualFirst: MultilingualFirst | null = null;
@@ -766,12 +771,48 @@ function stopReadAloudMemory(): void {
 //
 // Zotero keeps this itself but erases it as soon as the user scrolls away
 // (reader bundle ~84365); read-aloud/position-sync.ts keeps a copy nothing
-// erases. Everything here is a read — no reader internals are patched.
+// erases — one row per attachment in the plugin's own database,
+// `<data directory>/zotero-tts.sqlite` (position-store.ts, #16). Everything
+// read from a reader is a read — no reader internals are patched.
 
-function startPositionSync(): void {
-  stopPositionSync();
+/** Bounds the shutdown flush and the close: a wedged write degrades to a lost bookmark, never a hung quit. */
+const STORE_SHUTDOWN_TIMEOUT_MS = 3000;
+
+async function startPositionTracking(): Promise<void> {
+  await stopPositionTracking();
+  // The name form, not a path: it follows the configured data directory
+  // (dataDirectory.js:1023) and keeps _externalDB false, which is what buys
+  // Zotero's own robustness — WAL, corruption recovery, idle .bak backups —
+  // all switched off for absolute-path connections (xpcom/db.js:81-90)
+  const db = new Zotero.DBConnection('zotero-tts');
+  positionDB = db;
+  positionStore = createPositionStore({
+    db,
+    legacy: {
+      read: () => readPositions(prefs),
+      clear: () => prefs.clear?.(READ_ALOUD_POSITIONS_PREF),
+    },
+    // Synchronous map lookups: plugins start in initComplete, after
+    // Items._loadIDsAndKeys has run for every library (xpcom/zotero.js:746)
+    itemExists: (lib, key) => !!Zotero.Items.getIDFromLibraryAndKey(lib, key),
+    libraryExists: (lib) => !!Zotero.Libraries.exists(lib),
+    now: () => Date.now(),
+    error: (e) => Zotero.logError(e),
+  });
+  let initial: PositionEntry[] = [];
+  try {
+    initial = await positionStore.open();
+  } catch (e) {
+    // Fail loudly, keep going: the sampler runs against the in-memory map,
+    // so bookmarks still work for this session — they just do not persist
+    Zotero.logError(e);
+    Zotero.debug('[zotero-tts] position store failed to open; bookmarks stay in memory this session');
+    initial = readPositions(prefs);
+  }
   positionSync = createPositionSync({
-    prefs,
+    initial,
+    save: (entry) => positionStore?.save(entry),
+    retryWrites: () => positionStore?.retry(),
     readers: () => Zotero.Reader._readers ?? [],
     // The item key, not itemID: itemID is a local autoincrement, the key is
     // what identifies the attachment anywhere.
@@ -788,14 +829,87 @@ function startPositionSync(): void {
   });
   positionSync.start();
   startCloseTrace();
+  startDeletionObserver();
 }
 
-function stopPositionSync(): void {
+async function stopPositionTracking(): Promise<void> {
+  stopDeletionObserver();
   stopCloseTrace();
   unhookTabCloses();
   unhookPositionCaptures();
-  positionSync?.stop();
+  positionSync?.stop(); // the final reads become queued saves
   positionSync = null;
+  const store = positionStore;
+  positionStore = null;
+  positionDB = null;
+  if (!store) return;
+  // Drain, then close, each bounded: Sqlite.sys.mjs blocks
+  // profile-before-change on every open connection, so a leaked one turns
+  // quitting Zotero into a 60-second AsyncShutdown hang and a crash report.
+  // The close runs even when the drain fails or times out.
+  try {
+    await withTimeout(store.drain(), STORE_SHUTDOWN_TIMEOUT_MS, () => new Error('zotero-tts: position flush timed out at shutdown'));
+  } catch (e) {
+    Zotero.logError(e);
+  } finally {
+    try {
+      await withTimeout(store.close(), STORE_SHUTDOWN_TIMEOUT_MS, () => new Error('zotero-tts: position store close timed out'));
+    } catch (e) {
+      Zotero.logError(e);
+    }
+  }
+}
+
+/**
+ * Rows follow permanent deletion. Zotero queues `('delete', 'item', ids,
+ * extraData)` with `extraData[id] = { libraryID, key }` — exactly the
+ * store's primary key, put there because the object is gone by notification
+ * time (xpcom/data/dataObject.js:1446-1489). Erasing a parent item erases
+ * each child attachment through its own `erase()`, so children notify too
+ * (item.js:5573-5583); Empty Trash and sync-driven deletions take the same
+ * path. Trashing is a different event and clears nothing — a trashed item
+ * can be restored, and its bookmark must survive.
+ *
+ * `notify` stays synchronous: Zotero awaits every observer
+ * (xpcom/notifier.js:167), so the deletion goes into the store's write
+ * queue — the same serialized queue as saves, so a captureClose racing the
+ * deletion cannot resurrect the row.
+ */
+function startDeletionObserver(): void {
+  if (deleteNotifierID !== null) return;
+  try {
+    deleteNotifierID = Zotero.Notifier.registerObserver(
+      {
+        notify: (event: string, _type: string, ids: unknown[], extraData: any) => {
+          if (event !== 'delete') return;
+          for (const id of ids ?? []) {
+            try {
+              const gone = extraData?.[id as never];
+              const lib = gone?.libraryID;
+              const key = gone?.key;
+              if (typeof lib === 'number' && typeof key === 'string' && key) positionStore?.remove(lib, key);
+            } catch (e) {
+              Zotero.logError(e);
+            }
+          }
+        },
+      },
+      ['item'],
+      'zotero-tts-positions',
+    );
+  } catch (e) {
+    Zotero.logError(e);
+  }
+}
+
+function stopDeletionObserver(): void {
+  if (deleteNotifierID === null) return;
+  try {
+    Zotero.Notifier.unregisterObserver(deleteNotifierID);
+  } catch {
+    // Already gone at shutdown
+  }
+  deleteNotifierID = null;
 }
 
 // ---- Highlight colors -----------------------------------------------------
@@ -884,10 +998,17 @@ async function startup({ id, version, rootURI }: StartupParams): Promise<void> {
 
   try {
     startReadAloudMemory();
-    startPositionSync();
   } catch (e) {
     Zotero.logError(e);
     Zotero.debug('[zotero-tts] failed to install the Read Aloud memory');
+  }
+  try {
+    // Awaited: the database rows must be in memory before the sampler and
+    // the resume path run; open-failure is handled inside (in-memory mode)
+    await startPositionTracking();
+  } catch (e) {
+    Zotero.logError(e);
+    Zotero.debug('[zotero-tts] failed to start the reading-position store');
   }
   try {
     startHighlightStyling();
@@ -941,7 +1062,9 @@ async function shutdown(): Promise<void> {
   uninstallHijack?.();
   uninstallHijack = null;
   stopReadAloudShortcuts();
-  stopPositionSync();
+  // Awaited: the final bookmarks flush to the database and the connection
+  // closes before Zotero goes on shutting down (plugins.js awaits us)
+  await stopPositionTracking();
   stopReadAloudMemory();
   stopHighlightStyling();
   stopSpeechDaemon();
@@ -1075,7 +1198,7 @@ const diagnostics = {
    * `zoteroSaved` is Zotero's own copy — it goes null once the user scrolls
    * away, which is exactly what `stored` is here to survive.
    */
-  position: () => {
+  position: async () => {
     safe(() => positionSync?.sample());
     const readers = (Zotero.Reader._readers ?? []).map((r: any) => ({
       itemID: safe(() => r?.itemID),
@@ -1093,6 +1216,31 @@ const diagnostics = {
       // Ours is the normalized resume point — small enough to show whole
       stored: safe(() => positionSync?.lookup(r)),
     }));
+    // The file-level facts that verify a build by rows on disk (#16):
+    // read through the live connection, never through sqlite3 — WAL +
+    // exclusive locking keeps out-of-process readers out
+    let database: unknown;
+    try {
+      const db = positionDB;
+      if (!db) database = 'not started';
+      else {
+        const path = String(db.path ?? '');
+        let fileBytes: unknown = null;
+        try {
+          fileBytes = (await IOUtils.stat(path)).size;
+        } catch (e) {
+          fileBytes = String(e);
+        }
+        database = {
+          path,
+          userVersion: Number(await db.valueQueryAsync('PRAGMA user_version')),
+          rows: Number(await db.valueQueryAsync('SELECT COUNT(*) FROM positions')),
+          fileBytes,
+        };
+      }
+    } catch (e) {
+      database = String(e);
+    }
     return JSON.stringify(
       {
         sampling: !!positionSync,
@@ -1106,15 +1254,14 @@ const diagnostics = {
         // a wrap silently landed on an Xray wrapper
         live: safe(() => liveHookCounts()),
         trace: closeTrace.slice(-30),
-        // Count, bytes and shapes, never the store itself (#14, item 4)
-        stored: safe(() => {
+        // The queue and the import/sweep/load counters — never row contents
+        store: safe(() => positionStore?.stats() ?? 'not started'),
+        database,
+        // Gone after the first run of this version; entries here mean the
+        // import has not happened (or the pref was written by a 1.9.x again)
+        legacyPref: safe(() => {
           const raw = prefs.get(READ_ALOUD_POSITIONS_PREF);
-          const entries = readPositions(prefs);
-          return {
-            count: entries.length,
-            chars: typeof raw === 'string' ? raw.length : 0,
-            entries: entries.map((e) => ({ key: e.lib + '/' + e.key, ts: e.ts, ...describePosition(e.pos) })),
-          };
+          return typeof raw === 'string' ? { chars: raw.length, entries: readPositions(prefs).length } : null;
         }),
         readers,
       },

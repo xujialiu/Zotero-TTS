@@ -1,8 +1,7 @@
-import type { PrefsBackend } from '../core/settings';
-import { lookupPosition, normalizePosition, putPosition, readPositions, samePosition, writePositions, type PositionEntry } from './read-aloud-position';
+import { normalizePosition, samePosition, type PositionEntry } from './read-aloud-position';
 
 /**
- * Fills read-aloud-position.ts in from the open readers.
+ * Fills the reading-position store in from the open readers.
  *
  * The position is *read*, never patched in:
  * `reader._internalReader._state.readAloudState.savedPosition` is the value
@@ -18,16 +17,23 @@ import { lookupPosition, normalizePosition, putPosition, readPositions, samePosi
  * reader's window and dies with its tab, so every value is copied into our
  * own compartment on the way in (plainCopy).
  *
+ * The sampler stays synchronous; everything asynchronous lives in
+ * position-store.ts. A changed sentence becomes one `save(entry)` into the
+ * store's write queue — one row REPLACE, a fraction of a millisecond, so
+ * the throttle the pref rewrite needed is gone (Zotero itself persists its
+ * own copy on every change, reader.js:1037). The tick doubles as the
+ * store's retry heartbeat: `retryWrites()` every pass, so a failed write
+ * is retried once its window passes even when no sentence changes; the
+ * store gates the cadence.
+ *
  * The tick's interval changes with activity (ACTIVE_TICK_MS vs IDLE_TICK_MS),
  * so it is a recursive `setTimeout` rather than a fixed `setInterval` — which
  * the sandbox does provide, contrary to what this comment used to claim
  * (`plugins.js` assigns setInterval/clearInterval/requestIdleCallback;
- * verified again 2026-08-30 by reading the live sandbox global). Writes go
- * through a throttle: continuous listening moves the position every few
- * seconds and every pref write hits prefs.js.
+ * verified again 2026-08-30 by reading the live sandbox global).
  *
- * Recording is already sentence-triggered — an entry is only touched when
- * the sentence actually changes — so the tick is just how fast that change
+ * Recording is sentence-triggered — an entry is only touched when the
+ * sentence actually changes — so the tick is just how fast that change
  * is noticed. While a session is open it runs twice a second, well under
  * the length of any sentence; the rest of the time nothing can move and
  * the cheap interval is enough. The tick alone still loses the last
@@ -56,7 +62,6 @@ import { lookupPosition, normalizePosition, putPosition, readPositions, samePosi
 export const ACTIVE_TICK_MS = 500;
 /** Nothing is moving — a few property reads to notice when that changes. */
 export const IDLE_TICK_MS = 3000;
-export const WRITE_THROTTLE_MS = 10000;
 
 export interface Attachment {
   lib: number;
@@ -64,7 +69,12 @@ export interface Attachment {
 }
 
 export interface PositionSyncDeps {
-  prefs: PrefsBackend;
+  /** The rows the store loaded at startup — or the legacy pref, when the database could not open. */
+  initial: PositionEntry[];
+  /** One changed bookmark, into position-store's write queue. Synchronous, never awaited. */
+  save(entry: PositionEntry): void;
+  /** The tick's nudge: retry a failed store write once its window has passed. */
+  retryWrites(): void;
   /** `Zotero.Reader._readers`. */
   readers(): unknown[];
   /** The reader's attachment (`Zotero.Items.get(reader.itemID)`), or null when it has none. */
@@ -81,40 +91,30 @@ export interface PositionSyncDeps {
 
 export interface PositionSync {
   start(): void;
-  /** Clears the tick and writes anything still pending. */
+  /** Clears the tick, after one last read of every open reader — the final sentence must not ride on the tick. */
   stop(): void;
   /** One pass over the open readers. */
   sample(): void;
   /**
-   * One last read of a closing reader, written out at once — called from
-   * the `reader.uninit` wrap, while the state is still whole. Reads even a
-   * deactivated session (the popup was closed earlier; savedPosition is
-   * frozen), then freezes the attachment so nothing the lingering reader
-   * does during teardown can be copied over the captured value. Whatever
-   * was pending is flushed even if the final read fails.
+   * One last read of a closing reader, called from the `reader.uninit`
+   * wrap while the state is still whole. Reads even a deactivated session
+   * (the popup was closed earlier; savedPosition is frozen), then freezes
+   * the attachment so nothing the lingering reader does during teardown
+   * can be copied over the captured value.
    */
   captureClose(reader: unknown): void;
-  /** Write now, ignoring the throttle. */
-  flush(): void;
   /** The stored position for a reader's attachment, or null. */
   lookup(reader: unknown): unknown | null;
 }
 
 export function createPositionSync(deps: PositionSyncDeps): PositionSync {
-  let entries: PositionEntry[] = readPositions(deps.prefs);
-  let dirty = false;
-  // Entries written before normalization existed can carry the full rect
-  // list (#14: one was 106,938 chars). writePositions rewrites the whole
-  // array on every flush, so a fat entry left as it is would go out at full
-  // size each time until 50 newer documents push it off the end; normalized
-  // here and marked dirty, it is shed on the first flush instead, whether
-  // or not its document ever plays again.
-  {
-    const healed = entries.map((e) => ({ ...e, pos: normalizePosition(e.pos) }));
-    if (JSON.stringify(healed) !== JSON.stringify(entries)) dirty = true;
-    entries = healed;
+  /** The in-memory store, by `lib/key` — every lookup is one hash hit. */
+  const entries = new Map<string, PositionEntry>();
+  // Normalized on the way in: rows from the database already are, but the
+  // legacy-pref fallback can carry pre-#14 rect lists
+  for (const e of deps.initial) {
+    entries.set(e.lib + '/' + e.key, { ...e, pos: normalizePosition(e.pos) });
   }
-  let lastWrite = 0;
   let tick: unknown = null;
   let running = false;
   let anyActive = false;
@@ -125,9 +125,6 @@ export function createPositionSync(deps: PositionSyncDeps): PositionSync {
   // The last position seen per attachment, already serialized: an unchanged
   // sentence then costs one stringify and no parse.
   const lastSeen = new Map<string, string>();
-  // The attachments seen open on the previous pass, as `lib/key` strings —
-  // never reader references, which would be the very thing that dies.
-  let tracked = new Set<string>();
 
   // One broken reader must not stop the pass: a reader torn down mid-tick
   // throws on any property read.
@@ -154,10 +151,10 @@ export function createPositionSync(deps: PositionSyncDeps): PositionSync {
    * lives in the reader's compartment: holding that reference means holding
    * a pointer into a window that dies with its tab, and every later touch
    * then throws `TypeError: can't access dead object` — which is what
-   * silently broke resuming (2026-08-26: the pref on disk was correct, the
+   * silently broke resuming (2026-08-26: the row on disk was correct, the
    * copy in memory was a corpse, and cloneInto threw on it). So the position
    * is serialized on the way in; it has to survive as plain data anyway,
-   * since it goes into a pref.
+   * since it goes into a database row.
    */
   function record(reader: unknown, force = false): Seen | null {
     const attachment = guard(() => deps.attachmentOf(reader), null);
@@ -186,63 +183,33 @@ export function createPositionSync(deps: PositionSyncDeps): PositionSync {
     // reader's raw rect list for the same sentence read as equal — compared
     // raw, every restart would re-write every open document once
     const norm = normalizePosition(pos);
-    if (samePosition(lookupPosition(entries, attachment.lib, attachment.key), norm)) return seen;
-    entries = putPosition(entries, attachment.lib, attachment.key, norm, clock());
-    dirty = true;
+    if (samePosition(entries.get(id)?.pos, norm)) return seen;
+    const entry: PositionEntry = { lib: attachment.lib, key: attachment.key, pos: norm, ts: clock() };
+    entries.set(id, entry);
+    guard(() => deps.save(entry), undefined);
     return seen;
   }
 
-  function flush(): void {
-    if (!dirty) return;
-    // Retry cadence, not tick cadence: lastWrite advances even when the
-    // write throws, so a store that cannot persist says so once per
-    // throttle window, not twice a second on the active tick
-    lastWrite = clock();
-    try {
-      writePositions(deps.prefs, entries);
-      dirty = false;
-    } catch (e) {
-      // Zotero.Prefs.set logs and rethrows (xpcom/prefs.js); dirty stays
-      // set so the next window tries again — clearing it here was #14's
-      // silent-freeze bug: every bookmark after a failed write was lost
-      // with nothing ever retried
-      try {
-        deps.error(e);
-      } catch {
-        // Reporting must never be the thing that throws
-      }
-    }
-  }
-
   function sample(): void {
-    const open = new Set<string>();
     let sawActive = false;
     for (const reader of guard(() => deps.readers(), [] as unknown[])) {
       const seen = record(reader);
-      if (!seen) continue;
-      open.add(seen.lib + '/' + seen.key);
-      if (seen.active) sawActive = true;
+      if (seen?.active) sawActive = true;
     }
     anyActive = sawActive;
-    // A reader that was open and is not any more: its tab was closed, so put
-    // what we have on disk now rather than waiting out the throttle. The
-    // final value itself comes from captureClose on the iframe's unload;
-    // this is only the backstop for a close whose unload never reached us.
-    let closed = false;
-    for (const key of tracked) if (!open.has(key)) closed = true;
-    tracked = open;
-    if (closed || (dirty && clock() - lastWrite >= WRITE_THROTTLE_MS)) flush();
+    // The store retries a failed write on this heartbeat — gated there to
+    // one attempt per window, so an idle pass costs a size check
+    guard(() => deps.retryWrites(), undefined);
   }
 
   function captureClose(reader: unknown): void {
     // record() is guarded throughout: a reader half torn down at close
-    // costs the final read, never the flush of what is already in hand
+    // costs the final read, never what is already saved
     const seen = record(reader, true);
     // Freeze: the closed reader can linger in Zotero.Reader._readers while
     // teardown regresses its savedPosition — from here on, nothing short of
     // playing again may touch this attachment's entry
     if (seen) wasActive.delete(seen.lib + '/' + seen.key);
-    flush();
   }
 
   function arm(delay: number): void {
@@ -272,7 +239,6 @@ export function createPositionSync(deps: PositionSyncDeps): PositionSync {
   function start(): void {
     if (running) return;
     running = true;
-    lastWrite = clock();
     // Nothing observed yet, so start on the cheap interval
     arm(IDLE_TICK_MS);
   }
@@ -288,21 +254,19 @@ export function createPositionSync(deps: PositionSyncDeps): PositionSync {
     }
     running = false;
     anyActive = false;
-    tracked = new Set<string>();
     lastSeen.clear();
     wasActive.clear();
     if (tick !== null) {
       guard(() => deps.clearTimeout(tick), undefined);
       tick = null;
     }
-    flush();
   }
 
   function lookup(reader: unknown): unknown | null {
     const attachment = guard(() => deps.attachmentOf(reader), null);
     if (!attachment) return null;
-    return lookupPosition(entries, attachment.lib, attachment.key);
+    return entries.get(attachment.lib + '/' + attachment.key)?.pos ?? null;
   }
 
-  return { start, stop, sample, captureClose, flush, lookup };
+  return { start, stop, sample, captureClose, lookup };
 }

@@ -19,27 +19,17 @@ import { PREF_PREFIX, type PrefsBackend } from '../core/settings';
  * Zotero — except that a PDF position is stored in the normal form of
  * `normalizePosition` (the resume point, not the rect list; #14).
  *
- * Reading state, not a setting: like `readAloud.memory` this pref stays out
- * of DEFAULTS, so settings-backup.ts (which backs up exactly DEFAULTS) does
- * not carry bookmarks between machines.
+ * The store lives in the plugin's own database, one row per attachment
+ * (position-store.ts, #16) — every document the user has listened to keeps
+ * its bookmark, no count cap and no byte cap. The pref here is the legacy
+ * home: `readPositions` remains for the one-time import, which clears it
+ * (deleted in 2.0, #22). Reading state, not a setting: like
+ * `readAloud.memory` this store stays out of DEFAULTS, so
+ * settings-backup.ts (which backs up exactly DEFAULTS) does not carry
+ * bookmarks between machines.
  */
 
 export const READ_ALOUD_POSITIONS_PREF = PREF_PREFIX + 'readAloud.positions';
-
-/** Newest first; anything past this is dropped on write. */
-export const MAX_POSITIONS = 50;
-
-/**
- * Budget for the serialized store, in UTF-8 bytes. Gecko warns on every
- * pref write above 4 KiB (`MAX_ADVISABLE_PREF_LENGTH`, libpref) and throws
- * `NS_ERROR_ILLEGAL_VALUE` above 1 MiB — both measured in #14 — so oldest
- * entries are dropped until the store fits under the warning line. Interim
- * guard for as long as the store lives in a pref; #16 moves it into the
- * plugin's own database and deletes this cap along with MAX_POSITIONS.
- */
-export const MAX_POSITIONS_BYTES = 4096;
-
-const utf8 = new TextEncoder();
 
 const FORMAT_VERSION = 1;
 
@@ -68,6 +58,7 @@ function isEntry(value: unknown): value is PositionEntry {
   );
 }
 
+/** The legacy pref store, read for the import (and as the fallback when the database cannot open). */
 export function readPositions(prefs: PrefsBackend): PositionEntry[] {
   try {
     const raw = prefs.get(READ_ALOUD_POSITIONS_PREF);
@@ -78,35 +69,6 @@ export function readPositions(prefs: PrefsBackend): PositionEntry[] {
   } catch {
     return [];
   }
-}
-
-export function writePositions(prefs: PrefsBackend, entries: readonly PositionEntry[]): void {
-  let items = entries.slice(0, MAX_POSITIONS);
-  let json = JSON.stringify({ v: FORMAT_VERSION, items });
-  // Oldest out until the serialized store fits the byte budget. The newest
-  // entry is written even when it alone exceeds it: losing the freshest
-  // bookmark is worse than one oversized write.
-  while (items.length > 1 && utf8.encode(json).length > MAX_POSITIONS_BYTES) {
-    items = items.slice(0, -1);
-    json = JSON.stringify({ v: FORMAT_VERSION, items });
-  }
-  prefs.set(READ_ALOUD_POSITIONS_PREF, json);
-}
-
-export function lookupPosition(entries: readonly PositionEntry[], lib: number, key: string): unknown | null {
-  return entries.find((e) => e.lib === lib && e.key === key)?.pos ?? null;
-}
-
-/** Upsert, newest first, capped at MAX_POSITIONS. Returns a new array. */
-export function putPosition(
-  entries: readonly PositionEntry[],
-  lib: number,
-  key: string,
-  pos: unknown,
-  now: number,
-): PositionEntry[] {
-  const rest = entries.filter((e) => !(e.lib === lib && e.key === key));
-  return [{ lib, key, pos, ts: now }, ...rest].slice(0, MAX_POSITIONS);
 }
 
 /**

@@ -2,15 +2,10 @@ import { describe, expect, it } from 'vitest';
 import type { PrefsBackend } from '../../src/core/settings';
 import {
   describePosition,
-  lookupPosition,
-  MAX_POSITIONS,
-  MAX_POSITIONS_BYTES,
   normalizePosition,
-  putPosition,
   READ_ALOUD_POSITIONS_PREF,
   readPositions,
   samePosition,
-  writePositions,
   resumeTarget,
   type PositionEntry,
 } from '../../src/read-aloud/read-aloud-position';
@@ -26,12 +21,13 @@ const EPUB_POS = { value: 'epubcfi(/6/16!/4/4/12/1,:32,:168)' };
 
 const entry = (lib: number, key: string, pos: unknown, ts: number): PositionEntry => ({ lib, key, pos, ts });
 
-describe('readPositions / writePositions', () => {
-  it('round-trips through the plugin pref', () => {
-    const prefs = fakePrefs();
+// The pref is the store's legacy home: written by 1.9.x, read here once for
+// the import into the database (position-store.ts, #16; the read is deleted
+// in 2.0, #22).
+describe('readPositions', () => {
+  it('reads what 1.9.x wrote', () => {
     const entries = [entry(1, 'ABCD1234', PDF_POS, 1000), entry(1, 'EFGH5678', EPUB_POS, 900)];
-    writePositions(prefs, entries);
-    expect(typeof prefs.store[READ_ALOUD_POSITIONS_PREF]).toBe('string');
+    const prefs = fakePrefs({ [READ_ALOUD_POSITIONS_PREF]: JSON.stringify({ v: 1, items: entries }) });
     expect(readPositions(prefs)).toEqual(entries);
   });
 
@@ -59,63 +55,6 @@ describe('readPositions / writePositions', () => {
       ],
     });
     expect(readPositions(fakePrefs({ [READ_ALOUD_POSITIONS_PREF]: raw }))).toEqual([entry(1, 'ABCD1234', PDF_POS, 1000)]);
-  });
-
-  it('never writes more than MAX_POSITIONS entries', () => {
-    const prefs = fakePrefs();
-    const many = Array.from({ length: MAX_POSITIONS + 10 }, (_, i) => entry(1, `KEY${i}`, PDF_POS, 1000 - i));
-    writePositions(prefs, many);
-    expect(readPositions(prefs)).toHaveLength(MAX_POSITIONS);
-    expect(readPositions(prefs)[0].key).toBe('KEY0');
-  });
-});
-
-describe('putPosition', () => {
-  it('adds a new entry at the front', () => {
-    const before = [entry(1, 'OLD', EPUB_POS, 900)];
-    expect(putPosition(before, 1, 'NEW', PDF_POS, 1000)).toEqual([entry(1, 'NEW', PDF_POS, 1000), entry(1, 'OLD', EPUB_POS, 900)]);
-  });
-
-  it('replaces the entry for the same attachment and moves it to the front', () => {
-    const before = [entry(1, 'A', PDF_POS, 800), entry(1, 'B', EPUB_POS, 900)];
-    const after = putPosition(before, 1, 'A', EPUB_POS, 1000);
-    expect(after).toEqual([entry(1, 'A', EPUB_POS, 1000), entry(1, 'B', EPUB_POS, 900)]);
-  });
-
-  it('keeps the same key in another library', () => {
-    const before = [entry(2, 'A', PDF_POS, 900)];
-    const after = putPosition(before, 1, 'A', EPUB_POS, 1000);
-    expect(after).toEqual([entry(1, 'A', EPUB_POS, 1000), entry(2, 'A', PDF_POS, 900)]);
-  });
-
-  it('drops the oldest entry past MAX_POSITIONS', () => {
-    const before = Array.from({ length: MAX_POSITIONS }, (_, i) => entry(1, `KEY${i}`, PDF_POS, 1000 - i));
-    const after = putPosition(before, 1, 'FRESH', EPUB_POS, 2000);
-    expect(after).toHaveLength(MAX_POSITIONS);
-    expect(after[0].key).toBe('FRESH');
-    expect(after.some((e) => e.key === `KEY${MAX_POSITIONS - 1}`)).toBe(false);
-  });
-
-  it('does not mutate the array it is given', () => {
-    const before = [entry(1, 'A', PDF_POS, 900)];
-    putPosition(before, 1, 'A', EPUB_POS, 1000);
-    expect(before).toEqual([entry(1, 'A', PDF_POS, 900)]);
-  });
-});
-
-describe('lookupPosition', () => {
-  const entries = [entry(1, 'A', PDF_POS, 1000), entry(2, 'B', EPUB_POS, 900)];
-
-  it('finds by library and key', () => {
-    expect(lookupPosition(entries, 2, 'B')).toEqual(EPUB_POS);
-  });
-
-  it('misses when the key matches but the library does not', () => {
-    expect(lookupPosition(entries, 3, 'A')).toBeNull();
-  });
-
-  it('returns null for an unknown attachment', () => {
-    expect(lookupPosition(entries, 1, 'NOPE')).toBeNull();
   });
 });
 
@@ -238,46 +177,6 @@ describe('normalizePosition', () => {
     const nan = { pageIndex: 1, rects: [[1, 2, 3, Number.NaN]] };
     expect(normalizePosition(nan)).toBe(nan);
     expect(normalizePosition(null)).toBe(null);
-  });
-});
-
-describe('writePositions size cap', () => {
-  const utf8 = new TextEncoder();
-  const stored = (prefs: { store: Record<string, unknown> }): string => prefs.store[READ_ALOUD_POSITIONS_PREF] as string;
-
-  // Gecko warns above 4 KiB (MAX_ADVISABLE_PREF_LENGTH, libpref) and throws
-  // above 1 MiB; the count cap alone lets 50 entries reach either. Interim
-  // guard while the store lives in a pref — #16 moves it to SQLite and
-  // deletes both caps.
-  it('drops oldest entries until the serialized store fits the byte budget', () => {
-    const prefs = fakePrefs();
-    const many = Array.from({ length: MAX_POSITIONS }, (_, i) => entry(1, `KEY${i}`, { value: 'x'.repeat(150) }, 1000 - i));
-    writePositions(prefs, many);
-    const kept = readPositions(prefs);
-    expect(utf8.encode(stored(prefs)).length).toBeLessThanOrEqual(MAX_POSITIONS_BYTES);
-    expect(kept.length).toBeLessThan(MAX_POSITIONS);
-    expect(kept.length).toBeGreaterThan(0);
-    // Newest first, oldest dropped: what survives is a prefix
-    expect(kept.map((e) => e.key)).toEqual(many.slice(0, kept.length).map((e) => e.key));
-  });
-
-  it('still writes the newest entry even when it alone exceeds the budget', () => {
-    // Losing the freshest bookmark is worse than one oversized write
-    const prefs = fakePrefs();
-    const fat = entry(1, 'FAT', { value: 'y'.repeat(5000) }, 1000);
-    writePositions(prefs, [fat, entry(1, 'OLD', EPUB_POS, 900)]);
-    expect(readPositions(prefs)).toEqual([fat]);
-  });
-
-  it('measures the budget in UTF-8 bytes, not string length', () => {
-    // 60 CJK characters are 60 UTF-16 units but 180 UTF-8 bytes — the pref
-    // warning counts bytes
-    const prefs = fakePrefs();
-    const many = Array.from({ length: 30 }, (_, i) => entry(1, `KEY${i}`, { value: '汉'.repeat(60) }, 1000 - i));
-    writePositions(prefs, many);
-    expect(stored(prefs).length).toBeLessThan(MAX_POSITIONS_BYTES);
-    expect(utf8.encode(stored(prefs)).length).toBeLessThanOrEqual(MAX_POSITIONS_BYTES);
-    expect(readPositions(prefs).length).toBeLessThan(30);
   });
 });
 

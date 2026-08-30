@@ -176,8 +176,8 @@ looking at.
 - Zotero remembers a reading position of its own, but drops it as soon as
   you scroll a few pages away from it. This one is kept.
 - Reading resumes at the **start** of the sentence you were in the middle of.
-- The last 50 documents, **on this computer only** — not synced between
-  machines, and not part of the [settings backup](#backup).
+- Every document you have listened to, **on this computer only** — not
+  synced between machines, and not part of the [settings backup](#backup).
 - Nothing is drawn in the document and nothing is added to your annotations.
 
 </details>
