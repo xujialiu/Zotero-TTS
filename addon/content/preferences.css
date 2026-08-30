@@ -43,7 +43,8 @@ label.ztts-help[value]:hover {
   opacity: 1;
 }
 
-/* After a checkbox the ? follows text, not a border: a little more air */
-.ztts-pane checkbox + label.ztts-help[value] {
+/* After a checkbox or a plain line of text the ? follows text, not a border,
+   and neither ends in a margin of its own: a little more air */
+.ztts-pane :is(checkbox, description) + label.ztts-help[value] {
   margin-inline-start: 4px;
 }

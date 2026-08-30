@@ -126,4 +126,23 @@ describe('addon/content/preferences.xhtml', () => {
       expect(text, marker).toMatch(/CF-Access-Client-Id/);
     }
   });
+
+  // A `value` is white-space: nowrap in toolkit's xul.css
+  // (`:is(label, description)[value]`), whatever width the box is given, and
+  // nothing crops it either — so a sentence there runs out under whatever is
+  // laid out beside it. Text goes in as a child node (issue #18).
+  it('puts no text in a description value, which XUL never wraps', () => {
+    expect(xhtml).not.toMatch(/<description[^>]*\svalue=/);
+  });
+
+  it('says only the platform limit beside System voices, and the rest in the ?', () => {
+    const row = rowOf('id="ztts-system-note"');
+    expect(row).toContain('<description id="ztts-system-note">Windows only.</description>');
+    expect(row).not.toMatch(/max-width/);
+    const text = row.match(help)?.[1];
+    expect(text).toMatch(/macOS and Linux are not supported yet/);
+    expect(text).toMatch(/voice browser, samples, favorites, the cache and word highlighting/);
+    // What the plugin does behind the player is README and NOTES material
+    expect(text).not.toMatch(/browser engine|timings|drops/);
+  });
 });
