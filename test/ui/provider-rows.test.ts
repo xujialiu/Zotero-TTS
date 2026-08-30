@@ -10,6 +10,9 @@ function fakePrefs(initial: Record<string, unknown> = {}): PrefsBackend & { stor
 
 class FakeElement {
   disabled = false;
+  /** A password input's, as Gecko exposes it; a menulist has neither. */
+  type?: string;
+  revealPassword?: boolean;
   attrs = new Map<string, string>();
   listeners = new Map<string, Array<() => unknown>>();
   setAttribute(k: string, v: string) {
@@ -55,7 +58,10 @@ function setup(options: { prefs?: Record<string, unknown>; reading?: string[]; c
     els.set(ids.toggle, new FakeElement());
     els.set(ids.test, new FakeElement());
     els.set(ids.result, new FakeElement());
-    sections.set(ids.section, new FakeSection([new FakeElement(), new FakeElement()]));
+    const secret = new FakeElement();
+    secret.type = 'password';
+    secret.revealPassword = false;
+    sections.set(ids.section, new FakeSection([new FakeElement(), secret]));
   }
   const doc = { getElementById: (id: string) => els.get(id) ?? sections.get(id) ?? null };
   const prefs = fakePrefs(options.prefs);
@@ -73,6 +79,8 @@ function setup(options: { prefs?: Record<string, unknown>; reading?: string[]; c
       result: () => els.get(ids.result)!.attrs.get('value'),
       /** The fields' disabled flags: all true while the provider is on. */
       locked: () => sections.get(ids.section)!.fields.map((f) => f.disabled),
+      /** The section's masked field, revealed or not. */
+      secret: () => sections.get(ids.section)!.fields.find((f) => f.type === 'password')!,
       enabled: () => prefs.store[enabledPref(id)],
     };
   };
@@ -249,6 +257,40 @@ describe('initProviderRows', () => {
     expect(t.of('local').locked()).toEqual([true, true]);
     expect(t.of('openai').label()).toBe('Enable');
     expect(t.onVoicesChanged).not.toHaveBeenCalled();
+  });
+
+  // A masked field the user revealed with its own reveal button stays
+  // revealed once the section is locked, and that button is inert on a
+  // disabled input — so nothing could put it back. Enabling hides it (issue #19).
+  it('hides a revealed secret when the section locks', async () => {
+    const t = setup();
+    const secret = t.of('local').secret();
+    secret.revealPassword = true;
+    await t.of('local').toggle.fire('command');
+    expect(t.of('local').enabled()).toBe(true);
+    expect(secret.disabled).toBe(true);
+    expect(secret.revealPassword).toBe(false);
+  });
+
+  it('hides it on refresh too, as after a settings restore turns a provider on', () => {
+    const t = setup();
+    const secret = t.of('local').secret();
+    secret.revealPassword = true;
+    t.prefs.set(enabledPref('local'), true);
+    t.rows.refresh();
+    expect(secret.revealPassword).toBe(false);
+  });
+
+  // Unlocked is the state you are in because you are editing the field:
+  // its own reveal button works there, and nothing here interferes
+  it('leaves a revealed secret alone while the section is unlocked', async () => {
+    const t = setup({ prefs: { [enabledPref('local')]: true } });
+    const secret = t.of('local').secret();
+    await t.of('local').toggle.fire('command');
+    expect(t.of('local').enabled()).toBe(false);
+    secret.revealPassword = true;
+    t.rows.refresh();
+    expect(secret.revealPassword).toBe(true);
   });
 
   it('tolerates a pane without the sections', () => {

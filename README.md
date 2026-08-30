@@ -55,8 +55,11 @@ and only a check that passes switches the provider on. While a provider is
 on, its fields are locked — **Disable** to edit them. **Test connection**
 probes without switching anything on.
 
-API keys are stored in Zotero's preferences in plain text, like every
-plugin setting, and go into the settings backup file.
+API keys, gateway headers and the WebDAV password are masked in the
+settings pane. While a provider is on, its fields are locked and nothing
+reveals them; unlock the section to read one back. They are stored in
+Zotero's preferences in plain text, like every plugin setting, and go into
+the settings backup file.
 
 <details>
 <summary><b>OpenAI-compatible servers: the fields</b></summary>

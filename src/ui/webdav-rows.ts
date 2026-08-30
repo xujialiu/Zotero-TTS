@@ -77,7 +77,7 @@ export function initWebDAVRows(doc: RowsDocument, deps: WebDAVRowsDeps): void {
     const backup = createBackup(deps.prefs, { pluginVersion: deps.pluginVersion, exportedAt: deps.now?.() });
     await client.upload(BACKUP_FILENAME, serializeBackup(backup));
     const count = Object.keys(backup.settings).length;
-    return `Uploaded ${count} settings to ${client.url}${BACKUP_FILENAME}. The file contains your API keys — keep the folder private.`;
+    return `Uploaded ${count} settings to ${client.url}${BACKUP_FILENAME}. The file holds every setting, the API keys, gateway headers and WebDAV password included — keep the folder private.`;
   });
 
   button(WEBDAV_IDS.download, 'Download failed', 'Downloading…', async (client) => {

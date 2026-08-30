@@ -82,7 +82,14 @@ export function initProviderRows(doc: { getElementById(id: string): any }, deps:
     toggle?.setAttribute('label', on ? 'Disable' : 'Enable');
     if (toggle) toggle.disabled = false;
     if (test) test.disabled = false;
-    for (const field of fields(id)) field.disabled = on;
+    for (const field of fields(id)) {
+      field.disabled = on;
+      // A masked field the user revealed with its own reveal button stays
+      // revealed once it is disabled, and that button is inert on a disabled
+      // input — nothing could put it back (issue #19). So locking the section
+      // hides it: while a provider is on, its secrets cannot be read at all.
+      if (on && field.type === 'password' && 'revealPassword' in field) field.revealPassword = false;
+    }
     if (!on) deps.onUnlocked?.(id);
   }
 

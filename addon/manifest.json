@@ -1,7 +1,7 @@
 {
   "manifest_version": 2,
   "name": "Zotero-TTS",
-  "version": "1.9.4-beta2",
+  "version": "1.9.4-beta3",
   "author": "Xujia Liu",
   "description": "Enhances Read Aloud: more voices in its Local tier (Azure Speech, Kokoro-FastAPI, OpenAI-compatible servers), highlight colors, keyboard shortcuts",
   "applications": {

@@ -60,7 +60,7 @@ export function initBackupRows(doc: RowsDocument, deps: BackupRowsDeps): void {
       }
       const backup = createBackup(deps.prefs, { pluginVersion: deps.pluginVersion, exportedAt: deps.now?.() });
       await deps.writeFile(path, serializeBackup(backup));
-      message(`Saved to ${path}. The file contains your API keys — keep it private.`);
+      message(`Saved to ${path}. The file holds every setting, the API keys, gateway headers and WebDAV password included — keep it private.`);
     } catch (e) {
       message(`Backup failed: ${describe(e)}`);
     }

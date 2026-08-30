@@ -50,10 +50,14 @@
       <html:input id="ztts-openai-voices" type="text" placeholder="auto-detect" preference="extensions.zotero.zotero-tts.openai.voices"/>
     </hbox>
     <!-- For a gateway in front of a keyless server, e.g. a Cloudflare Access
-         service token: "CF-Access-Client-Id: ...; CF-Access-Client-Secret: ..." -->
+         service token: "CF-Access-Client-Id: ...; CF-Access-Client-Secret: ..."
+         Masked like the keys (issue #19): it is a credential, and a pane in a
+         screen share or a screenshot showed it in full. Gecko's own reveal
+         button reads it back while the section is unlocked for editing, and
+         is inert once the provider is on — which is when it should be. -->
     <hbox align="center">
       <label value="Extra headers" style="width: 8em"/>
-      <html:input id="ztts-openai-headers" type="text" placeholder="Name: value; Name: value" preference="extensions.zotero.zotero-tts.openai.headers"/>
+      <html:input id="ztts-openai-headers" type="password" placeholder="Name: value; Name: value" preference="extensions.zotero.zotero-tts.openai.headers"/>
       <label class="ztts-help" value="?" help="Only for a server reached remotely through Cloudflare Access: its service token as two headers, CF-Access-Client-Id: …; CF-Access-Client-Secret: … (see the Cloudflare tutorial in the README). Otherwise leave empty."/>
     </hbox>
     <hbox align="center">
@@ -89,11 +93,12 @@
       <label value="Address" style="width: 8em"/>
       <html:input type="text" preference="extensions.zotero.zotero-tts.local.baseURL"/>
     </hbox>
-    <!-- Same format as the OpenAI section's: for a gateway in front of the
-         server, e.g. a Cloudflare Access service token. -->
+    <!-- Same format as the OpenAI section's, and masked for the same
+         reason: for a gateway in front of the server, e.g. a Cloudflare
+         Access service token. -->
     <hbox align="center">
       <label value="Extra headers" style="width: 8em"/>
-      <html:input type="text" placeholder="Name: value; Name: value" preference="extensions.zotero.zotero-tts.local.headers"/>
+      <html:input type="password" placeholder="Name: value; Name: value" preference="extensions.zotero.zotero-tts.local.headers"/>
       <label class="ztts-help" value="?" help="Only for a server reached remotely through Cloudflare Access: its service token as two headers, CF-Access-Client-Id: …; CF-Access-Client-Secret: … (see the Cloudflare tutorial in the README). Otherwise leave empty."/>
     </hbox>
     <hbox align="center">
