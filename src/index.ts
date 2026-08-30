@@ -12,7 +12,7 @@ import { createHighlightStyling, type HighlightStyling } from './read-aloud/high
 import { createSystemVoiceHiding, type SystemVoiceHiding } from './read-aloud/system-voices';
 import { createMultilingualFirst, type MultilingualFirst } from './read-aloud/multilingual-first';
 import { createPositionSync, ACTIVE_TICK_MS, IDLE_TICK_MS, type PositionSync } from './read-aloud/position-sync';
-import { readPositions, resumeTarget } from './read-aloud/read-aloud-position';
+import { describePosition, READ_ALOUD_POSITIONS_PREF, readPositions, resumeTarget } from './read-aloud/read-aloud-position';
 import { readMemory } from './read-aloud/read-aloud-memory';
 import { readReadAloudVoices } from './core/read-aloud-speed';
 import { listNamedCatalog, type CatalogEntry } from './read-aloud/catalog';
@@ -1084,7 +1084,13 @@ const diagnostics = {
         return item ? item.libraryID + '/' + item.key : null;
       }),
       active: safe(() => !!r?._internalReader?._readAloudManager?.active),
-      zoteroSaved: safe(() => r?._internalReader?._state?.readAloudState?.savedPosition),
+      // Described, not dumped: Zotero's copy is the full merged-line rect
+      // list — one such object measured 100 KB (#14)
+      zoteroSaved: safe(() => {
+        const p = r?._internalReader?._state?.readAloudState?.savedPosition;
+        return p === null || p === undefined ? null : describePosition(p);
+      }),
+      // Ours is the normalized resume point — small enough to show whole
       stored: safe(() => positionSync?.lookup(r)),
     }));
     return JSON.stringify(
@@ -1100,7 +1106,16 @@ const diagnostics = {
         // a wrap silently landed on an Xray wrapper
         live: safe(() => liveHookCounts()),
         trace: closeTrace.slice(-30),
-        stored: safe(() => readPositions(prefs)),
+        // Count, bytes and shapes, never the store itself (#14, item 4)
+        stored: safe(() => {
+          const raw = prefs.get(READ_ALOUD_POSITIONS_PREF);
+          const entries = readPositions(prefs);
+          return {
+            count: entries.length,
+            chars: typeof raw === 'string' ? raw.length : 0,
+            entries: entries.map((e) => ({ key: e.lib + '/' + e.key, ts: e.ts, ...describePosition(e.pos) })),
+          };
+        }),
         readers,
       },
       null,

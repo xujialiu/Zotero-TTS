@@ -1,5 +1,5 @@
 import type { PrefsBackend } from '../core/settings';
-import { lookupPosition, putPosition, readPositions, samePosition, writePositions, type PositionEntry } from './read-aloud-position';
+import { lookupPosition, normalizePosition, putPosition, readPositions, samePosition, writePositions, type PositionEntry } from './read-aloud-position';
 
 /**
  * Fills read-aloud-position.ts in from the open readers.
@@ -103,6 +103,17 @@ export interface PositionSync {
 export function createPositionSync(deps: PositionSyncDeps): PositionSync {
   let entries: PositionEntry[] = readPositions(deps.prefs);
   let dirty = false;
+  // Entries written before normalization existed can carry the full rect
+  // list (#14: one was 106,938 chars). writePositions rewrites the whole
+  // array on every flush, so a fat entry left as it is would go out at full
+  // size each time until 50 newer documents push it off the end; normalized
+  // here and marked dirty, it is shed on the first flush instead, whether
+  // or not its document ever plays again.
+  {
+    const healed = entries.map((e) => ({ ...e, pos: normalizePosition(e.pos) }));
+    if (JSON.stringify(healed) !== JSON.stringify(entries)) dirty = true;
+    entries = healed;
+  }
   let lastWrite = 0;
   let tick: unknown = null;
   let running = false;
@@ -171,17 +182,36 @@ export function createPositionSync(deps: PositionSyncDeps): PositionSync {
     lastSeen.set(id, text);
     const pos = guard(() => JSON.parse(text) as unknown, null);
     if (pos === null) return seen;
-    if (samePosition(lookupPosition(entries, attachment.lib, attachment.key), pos)) return seen;
-    entries = putPosition(entries, attachment.lib, attachment.key, pos, clock());
+    // Normalized before the comparison, so the store's point and the
+    // reader's raw rect list for the same sentence read as equal — compared
+    // raw, every restart would re-write every open document once
+    const norm = normalizePosition(pos);
+    if (samePosition(lookupPosition(entries, attachment.lib, attachment.key), norm)) return seen;
+    entries = putPosition(entries, attachment.lib, attachment.key, norm, clock());
     dirty = true;
     return seen;
   }
 
   function flush(): void {
     if (!dirty) return;
-    guard(() => writePositions(deps.prefs, entries), undefined);
-    dirty = false;
+    // Retry cadence, not tick cadence: lastWrite advances even when the
+    // write throws, so a store that cannot persist says so once per
+    // throttle window, not twice a second on the active tick
     lastWrite = clock();
+    try {
+      writePositions(deps.prefs, entries);
+      dirty = false;
+    } catch (e) {
+      // Zotero.Prefs.set logs and rethrows (xpcom/prefs.js); dirty stays
+      // set so the next window tries again — clearing it here was #14's
+      // silent-freeze bug: every bookmark after a failed write was lost
+      // with nothing ever retried
+      try {
+        deps.error(e);
+      } catch {
+        // Reporting must never be the thing that throws
+      }
+    }
   }
 
   function sample(): void {

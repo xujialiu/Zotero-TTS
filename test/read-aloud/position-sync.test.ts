@@ -9,8 +9,13 @@ import {
 } from '../../src/read-aloud/position-sync';
 import { READ_ALOUD_POSITIONS_PREF, readPositions } from '../../src/read-aloud/read-aloud-position';
 
+// What the reader hands out (the full merged-line rect list) and what the
+// store keeps (the center of the first rect — the only part resume reads,
+// normalized on the way in per #14)
 const PDF_POS = { pageIndex: 12, rects: [[10, 20, 30, 40]] };
+const PDF_POINT = { pageIndex: 12, rects: [[20, 30, 20, 30]] };
 const LATER_POS = { pageIndex: 13, rects: [[10, 20, 30, 40]] };
+const LATER_POINT = { pageIndex: 13, rects: [[20, 30, 20, 30]] };
 
 /** A reader as the sampler sees it: an attachment, a manager, a saved position. */
 interface FakeReader {
@@ -30,8 +35,8 @@ const reader = (over: Partial<FakeReader> = {}): FakeReader => ({
   ...over,
 });
 
-function harness(readers: FakeReader[], over: Partial<PositionSyncDeps> = {}) {
-  const store: Record<string, unknown> = {};
+function harness(readers: FakeReader[], over: Partial<PositionSyncDeps> = {}, initial: Record<string, unknown> = {}) {
+  const store: Record<string, unknown> = { ...initial };
   const prefs: PrefsBackend = { get: (k) => store[k], set: (k, v) => void (store[k] = v) };
   const errors: unknown[] = [];
   let clock = 0;
@@ -81,11 +86,11 @@ function harness(readers: FakeReader[], over: Partial<PositionSyncDeps> = {}) {
 }
 
 describe('createPositionSync', () => {
-  it('records the saved position of an active reader', () => {
+  it('records the saved position of an active reader, normalized to the resume point', () => {
     const h = harness([reader()]);
     h.sync.sample();
     h.sync.flush();
-    expect(readPositions(h.prefs)).toEqual([{ lib: 1, key: 'ABCD1234', pos: PDF_POS, ts: 0 }]);
+    expect(readPositions(h.prefs)).toEqual([{ lib: 1, key: 'ABCD1234', pos: PDF_POINT, ts: 0 }]);
   });
 
   it('ignores a reader whose session is not active', () => {
@@ -119,7 +124,7 @@ describe('createPositionSync', () => {
     h.advance(ACTIVE_TICK_MS);
     expect(h.store[READ_ALOUD_POSITIONS_PREF]).toBeUndefined();
     h.advance(WRITE_THROTTLE_MS);
-    expect(readPositions(h.prefs)[0].pos).toEqual(LATER_POS);
+    expect(readPositions(h.prefs)[0].pos).toEqual(LATER_POINT);
   });
 
   it('flush() bypasses the throttle', () => {
@@ -174,7 +179,7 @@ describe('createPositionSync', () => {
     h.advance(IDLE_TICK_MS);
     readers[0].saved = LATER_POS;
     h.advance(ACTIVE_TICK_MS);
-    expect(h.sync.lookup(reader())).toEqual(LATER_POS);
+    expect(h.sync.lookup(reader())).toEqual(LATER_POINT);
   });
 
   it('reports a broken reader and keeps going', () => {
@@ -202,7 +207,7 @@ describe('createPositionSync', () => {
     expect(first).toBeTypeOf('string');
   });
 
-  it('starts from what the pref already holds', () => {
+  it('starts from what the pref already holds, normalized on the way in', () => {
     const store: Record<string, unknown> = {
       [READ_ALOUD_POSITIONS_PREF]: JSON.stringify({ v: 1, items: [{ lib: 1, key: 'OLD', pos: PDF_POS, ts: 5 }] }),
     };
@@ -217,7 +222,7 @@ describe('createPositionSync', () => {
       now: () => 0,
       error: () => {},
     });
-    expect(fresh.lookup({})).toEqual(PDF_POS);
+    expect(fresh.lookup({})).toEqual(PDF_POINT);
   });
 
   it('stores a copy, not the object it read from the reader', () => {
@@ -286,7 +291,7 @@ describe('createPositionSync', () => {
     // The sentence changed after the last tick — exactly the race
     readers[0].saved = LATER_POS;
     h.sync.captureClose(readers[0]);
-    expect(readPositions(h.prefs)[0].pos).toEqual(LATER_POS);
+    expect(readPositions(h.prefs)[0].pos).toEqual(LATER_POINT);
   });
 
   it('captureClose() writes what was already pending even if the final read fails', () => {
@@ -296,7 +301,7 @@ describe('createPositionSync', () => {
     h.advance(IDLE_TICK_MS);
     expect(h.store[READ_ALOUD_POSITIONS_PREF]).toBeUndefined();
     h.sync.captureClose({ dead: true });
-    expect(readPositions(h.prefs)[0].pos).toEqual(PDF_POS);
+    expect(readPositions(h.prefs)[0].pos).toEqual(PDF_POINT);
   });
 
   it('captureClose() on a reader that never played stores nothing', () => {
@@ -317,7 +322,7 @@ describe('createPositionSync', () => {
     readers[0].active = false;
     readers[0].saved = LATER_POS;
     h.advance(IDLE_TICK_MS * 3);
-    expect(h.sync.lookup(reader())).toEqual(PDF_POS);
+    expect(h.sync.lookup(reader())).toEqual(PDF_POINT);
   });
 
   // The popup was closed (savedPosition frozen at the final sentence) and
@@ -330,7 +335,7 @@ describe('createPositionSync', () => {
     readers[0].active = false;
     readers[0].saved = LATER_POS;
     h.sync.captureClose(readers[0]);
-    expect(readPositions(h.prefs)[0].pos).toEqual(LATER_POS);
+    expect(readPositions(h.prefs)[0].pos).toEqual(LATER_POINT);
   });
 
   // The incident: after the capture, the closed reader lingered in _readers
@@ -344,12 +349,12 @@ describe('createPositionSync', () => {
     h.sync.captureClose(readers[0]);
     readers[0].saved = LATER_POS; // teardown noise on the lingering reader
     h.advance(IDLE_TICK_MS * 3);
-    expect(h.sync.lookup(reader())).toEqual(PDF_POS);
+    expect(h.sync.lookup(reader())).toEqual(PDF_POINT);
     // Played again (the tab was reopened): recording resumes
     readers[0].active = true;
     readers[0].saved = LATER_POS;
     h.advance(IDLE_TICK_MS);
-    expect(h.sync.lookup(reader())).toEqual(LATER_POS);
+    expect(h.sync.lookup(reader())).toEqual(LATER_POINT);
   });
 
   it('still never imports from a reader that has not played this session', () => {
@@ -367,7 +372,7 @@ describe('createPositionSync', () => {
     h.advance(IDLE_TICK_MS);
     readers[0].saved = LATER_POS;
     h.sync.stop();
-    expect(readPositions(h.prefs)[0].pos).toEqual(LATER_POS);
+    expect(readPositions(h.prefs)[0].pos).toEqual(LATER_POINT);
   });
 
   it('stop() still reads a deactivated reader that played this session', () => {
@@ -378,13 +383,117 @@ describe('createPositionSync', () => {
     readers[0].active = false;
     readers[0].saved = LATER_POS;
     h.sync.stop();
-    expect(readPositions(h.prefs)[0].pos).toEqual(LATER_POS);
+    expect(readPositions(h.prefs)[0].pos).toEqual(LATER_POINT);
   });
 
   it('lookup() returns null for an attachment with nothing stored', () => {
     const h = harness([reader()]);
     h.sync.sample();
-    expect(h.sync.lookup(reader())).toEqual(PDF_POS);
+    expect(h.sync.lookup(reader())).toEqual(PDF_POINT);
     expect(h.sync.lookup(reader({ key: 'OTHER' }))).toBeNull();
+  });
+
+  // Entries written before normalization existed can carry the full rect
+  // list — one was 106,938 chars (#14). writePositions rewrites the whole
+  // array on every flush, so an entry left raw would be re-written at full
+  // size each time until 50 newer documents push it out; normalizing at
+  // load sheds it on the first flush instead, listening or not.
+  it('sheds a stored raw rect list on the first flush without the document playing', () => {
+    const fat = {
+      pageIndex: 7,
+      rects: Array.from({ length: 500 }, (_, i) => [i, i, i + 1, i + 1]),
+    };
+    const cfi = { type: 'FragmentSelector', value: 'epubcfi(/6/34!/4/2/4/2/4/1,:0,:94)' };
+    const h = harness([], {}, {
+      [READ_ALOUD_POSITIONS_PREF]: JSON.stringify({
+        v: 1,
+        items: [
+          { lib: 1, key: 'FATPDF00', pos: fat, ts: 5 },
+          { lib: 1, key: 'EPUB0000', pos: cfi, ts: 4 },
+        ],
+      }),
+    });
+    h.sync.start();
+    h.advance(WRITE_THROTTLE_MS + IDLE_TICK_MS);
+    expect(readPositions(h.prefs)).toEqual([
+      { lib: 1, key: 'FATPDF00', pos: { pageIndex: 7, rects: [[0.5, 0.5, 0.5, 0.5]] }, ts: 5 },
+      { lib: 1, key: 'EPUB0000', pos: cfi, ts: 4 },
+    ]);
+  });
+
+  it('writes nothing on startup when the store is already normal', () => {
+    const raw = JSON.stringify({
+      v: 1,
+      items: [{ lib: 1, key: 'DONE0000', pos: { pageIndex: 7, rects: [[0.5, 0.5, 0.5, 0.5]] }, ts: 5 }],
+    });
+    const h = harness([], {}, { [READ_ALOUD_POSITIONS_PREF]: raw });
+    h.sync.start();
+    h.advance(WRITE_THROTTLE_MS * 3);
+    expect(h.store[READ_ALOUD_POSITIONS_PREF]).toBe(raw);
+  });
+
+  // The samePosition comparison must see like against like: the store holds
+  // the normalized point, the reader hands out the raw rect list, and the
+  // same sentence must not look like a change (#14's "normalize before
+  // samePosition compares" trap)
+  it('does not rewrite when the raw position normalizes to what is stored', () => {
+    const raw = JSON.stringify({
+      v: 1,
+      items: [{ lib: 1, key: 'ABCD1234', pos: PDF_POINT, ts: 5 }],
+    });
+    const h = harness([reader()], {}, { [READ_ALOUD_POSITIONS_PREF]: raw });
+    h.sync.sample();
+    h.sync.flush();
+    expect(h.store[READ_ALOUD_POSITIONS_PREF]).toBe(raw);
+    expect(readPositions(h.prefs)[0].ts).toBe(5);
+  });
+
+  // Zotero.Prefs.set logs and rethrows (xpcom/prefs.js) — the store must
+  // not treat a failed write as done, and must not retry it on every
+  // 500 ms tick either: dirty stays, lastWrite advances, one retry per
+  // throttle window (#14, item 3 — the silent-freeze failure shape)
+  it('keeps a failed write dirty and retries once per throttle window', () => {
+    let failing = true;
+    const store: Record<string, unknown> = {};
+    const readers = [reader()];
+    const h = harness(readers, {
+      prefs: {
+        get: (k) => store[k],
+        set: (k, v) => {
+          if (failing) throw new Error("Error setting preference 'zotero-tts.readAloud.positions'");
+          store[k] = v;
+        },
+      },
+    });
+    h.sync.start();
+    h.advance(IDLE_TICK_MS); // recorded, dirty
+    h.advance(WRITE_THROTTLE_MS); // first attempt: throws
+    expect(h.errors.length).toBe(1);
+    expect(store[READ_ALOUD_POSITIONS_PREF]).toBeUndefined();
+    // Active ticks inside the window must not hammer the failing write
+    h.advance(ACTIVE_TICK_MS * 4);
+    expect(h.errors.length).toBe(1);
+    h.advance(WRITE_THROTTLE_MS); // second window: retried, still failing
+    expect(h.errors.length).toBe(2);
+    failing = false;
+    h.advance(WRITE_THROTTLE_MS); // third window: lands, dirty cleared
+    expect(h.errors.length).toBe(2);
+    expect(readPositions({ get: (k) => store[k], set: () => {} })[0].pos).toEqual(PDF_POINT);
+  });
+
+  it('stop() reports a write failure instead of throwing', () => {
+    const readers = [reader()];
+    const h = harness(readers, {
+      prefs: {
+        get: () => undefined,
+        set: () => {
+          throw new Error("Error setting preference 'zotero-tts.readAloud.positions'");
+        },
+      },
+    });
+    h.sync.start();
+    h.advance(IDLE_TICK_MS);
+    expect(() => h.sync.stop()).not.toThrow();
+    expect(h.errors.length).toBeGreaterThan(0);
   });
 });

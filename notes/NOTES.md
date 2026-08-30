@@ -231,3 +231,7 @@ cite `notes/NOTES.md` with a date or a section title resolve through this index.
 - The ? sat on the note because a XUL `value` never wraps (issue #18)
 - Gecko's password reveal button is on in Zotero, and the pref does not say so (issue #19)
 - A restored backup turned providers on without checking them (issue #21)
+
+### [2026-08-31](NOTES_2026-08-31.md)
+
+- The store keeps the resume point, and a center is noisier than its rect (issue #14)
