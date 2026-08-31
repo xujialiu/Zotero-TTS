@@ -240,3 +240,4 @@ cite `notes/NOTES.md` with a date or a section title resolve through this index.
 - The speed resolver was a looser mirror than Zotero's, and a fresh tab restores from the raw tag once (issue #26)
 - A startup step fails on its own now, and a diagnostic says which (issue #25)
 - A reload ran two instances at once, and the old one took the new one's global (issue #28)
+- A release is checked from chrome scope, and the gear menu installs rather than offers
