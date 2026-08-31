@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { SynthesisError } from '../../src/core/providers/errors';
 import type { TTSProvider } from '../../src/core/providers/types';
-import { engineLabel, rankModelsForSpeech, registerPrefsPane, testConnection } from '../../src/ui/prefs-pane';
+import { engineLabel, rankModelsForSpeech, registerPrefsPane, testConnection, unregisterPrefsPane } from '../../src/ui/prefs-pane';
 
 describe('engineLabel', () => {
   it('names the configured engine from the registry, falling back to the id', () => {
@@ -294,5 +294,31 @@ describe('registerPrefsPane', () => {
       stylesheets: ['jar:file:///zotero-tts.xpi!/content/preferences.css'],
     });
     expect(options).not.toHaveProperty('scripts');
+  });
+});
+
+// Zotero removes a plugin's panes on shutdown through an observer that runs
+// only after it has awaited the bootstrap's shutdown — later than the next
+// instance's register, on a reload (issue #28). So shutdown removes the
+// pane itself, and the observer then finds nothing to do.
+describe('unregisterPrefsPane', () => {
+  it('unregisters the pane by its id', () => {
+    const unregister = vi.fn();
+    (globalThis as any).Zotero = { PreferencePanes: { unregister } };
+    try {
+      unregisterPrefsPane();
+    } finally {
+      delete (globalThis as any).Zotero;
+    }
+    expect(unregister).toHaveBeenCalledWith('zotero-tts-pane');
+  });
+
+  it('is nothing to do on a Zotero without unregister', () => {
+    (globalThis as any).Zotero = { PreferencePanes: {} };
+    try {
+      expect(() => unregisterPrefsPane()).not.toThrow();
+    } finally {
+      delete (globalThis as any).Zotero;
+    }
   });
 });

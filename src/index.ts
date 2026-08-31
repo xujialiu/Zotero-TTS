@@ -28,7 +28,7 @@ import {
   type NativeRemoteInterface,
   type RemoteInterface,
 } from './read-aloud/remote-interface';
-import { onPaneLoad, registerPrefsPane, TEST_CONNECTION_TIMEOUT_MS, zoteroVoiceService } from './ui/prefs-pane';
+import { onPaneLoad, registerPrefsPane, TEST_CONNECTION_TIMEOUT_MS, unregisterPrefsPane, zoteroVoiceService } from './ui/prefs-pane';
 import {
   createReadAloudShortcuts,
   deepActiveElement,
@@ -1056,6 +1056,13 @@ async function startup({ id, version, rootURI }: StartupParams): Promise<void> {
 }
 
 async function shutdown(): Promise<void> {
+  // First: the pane goes with this instance, not with Zotero's observer,
+  // which runs too late for the next instance's register on a reload (#28)
+  try {
+    unregisterPrefsPane();
+  } catch (e) {
+    Zotero.logError(e);
+  }
   uninstallHijack?.();
   uninstallHijack = null;
   stopReadAloudShortcuts();

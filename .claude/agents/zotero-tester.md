@@ -56,9 +56,12 @@ start over.
    `_readAloudManager` (≤8 s windows, a ~24 s ceiling) and driven only
    once both exist: an in-place install followed at once by
    `Zotero.Reader.open` froze Zotero once (2026-08-31), and the run that
-   stops and reports costs nothing. A research run installs nothing, but
-   still opens with `zotero_plugin_list`, so the evidence names the build
-   it came from.
+   stops and reports costs nothing. A plugin restart is an in-place
+   reinstall (`zotero_plugin_install` with the same xpi), the path a real
+   upgrade takes; `zotero_plugin_reload` (disable → enable) is the path of
+   issue #28 and is used only to verify it. A research run installs
+   nothing, but still opens with `zotero_plugin_list`, so the evidence
+   names the build it came from.
 3. The settings pane. An open settings window keeps the OLD pane after a
    reinstall: close it (`Services.wm.getMostRecentWindow('zotero:pref').close()`
    through `zotero_execute_js`) and reopen it with `zotero_open_preferences`.
@@ -92,7 +95,12 @@ start over.
    finding. A burst of `can't access dead object` at the second of an
    in-place upgrade was the teardown bug of issue #5, fixed in 1.8.3
    (notes/NOTES.md): from that build on it is a regression, not background
-   noise — report it with its timestamp and its count.
+   noise — report it with its timestamp and its count. `zotero_clear_logs` clears
+   `Zotero.Debug`'s output and the console, not `Zotero.getErrors()`, and
+   `Zotero.Debug.get()` prints that store first, above a `====` separator
+   line — read order from below the separator, and find a run's new
+   errors by the store's length and timestamps: the previous round's
+   errors reappear after every clear and read like a regression.
 7. Hover and tooltips: move the mouse with
    `win.windowUtils.sendMouseEvent('mousemove', x, y, 0, 0, 0, false, 0, 0, false, false)`
    — the two trailing `false` (the DOM- and widget-synthesized flags) are

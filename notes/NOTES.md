@@ -239,3 +239,4 @@ cite `notes/NOTES.md` with a date or a section title resolve through this index.
 - Clean session: the zombie owned the patches, and imported hit 0 (issue #16)
 - The speed resolver was a looser mirror than Zotero's, and a fresh tab restores from the raw tag once (issue #26)
 - A startup step fails on its own now, and a diagnostic says which (issue #25)
+- A reload ran two instances at once, and the old one took the new one's global (issue #28)

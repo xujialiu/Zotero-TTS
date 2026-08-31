@@ -162,6 +162,17 @@ export async function registerPrefsPane(rootURI: string, pluginID: string, versi
   });
 }
 
+/**
+ * Zotero removes a plugin's panes on shutdown through an observer, but
+ * notifies it only after awaiting the bootstrap's shutdown — on a reload
+ * that is after the next instance's `register`, whose name check found the
+ * old pane still there (issue #28). Removing the pane here, inside the
+ * shutdown, leaves the observer nothing to do and the next register clear.
+ */
+export function unregisterPrefsPane(): void {
+  if (typeof Zotero.PreferencePanes?.unregister === 'function') Zotero.PreferencePanes.unregister('zotero-tts-pane');
+}
+
 /** File dialogs and file access for the Backup group, on Zotero's own helpers. */
 function backupFileIO(win: any): BackupFileIO {
   const pick = async (title: string, mode: 'open' | 'save', defaultName?: string): Promise<string | null> => {
