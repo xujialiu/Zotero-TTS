@@ -7,6 +7,7 @@ pref('extensions.zotero.zotero-tts.openai.voice', 'alloy');
 pref('extensions.zotero.zotero-tts.openai.voices', '');
 pref('extensions.zotero.zotero-tts.openai.headers', '');
 pref('extensions.zotero.zotero-tts.openai.server', '');
+pref('extensions.zotero.zotero-tts.openai.presetValues', '');
 pref('extensions.zotero.zotero-tts.azure.enabled', false);
 pref('extensions.zotero.zotero-tts.azure.apiKey', '');
 pref('extensions.zotero.zotero-tts.azure.region', 'eastasia');

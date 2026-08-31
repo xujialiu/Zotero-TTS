@@ -65,9 +65,10 @@ the settings backup file.
 <summary><b>OpenAI-compatible servers: the fields</b></summary>
 
 The **Server** dropdown names the server — *OpenAI*, *Chatterbox-TTS-Server*,
-or *Other OpenAI-compatible server* — and fills in the address and model,
-graying out the fields that server ignores. **Base URL** is the server, with
-or without `/v1`. **Model** is the name it expects; **Test connection**
+or *Other OpenAI-compatible server* — and fills in the address and model you
+last used with that server (its defaults the first time), graying out the
+fields that server ignores. **Base URL** is the server, with or without
+`/v1`. **Model** is the name it expects; **Test connection**
 fetches the server's model list and says whether yours is on it. Leave
 **Voices** empty to take the voices the server publishes on
 `/v1/audio/voices`, or list voice ids yourself, comma-separated. The API key

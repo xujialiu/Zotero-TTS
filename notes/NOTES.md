@@ -242,3 +242,4 @@ cite `notes/NOTES.md` with a date or a section title resolve through this index.
 - A reload ran two instances at once, and the old one took the new one's global (issue #28)
 - A release is checked from chrome scope, and the gear menu installs rather than offers
 - A bug hunt over the released 1.10.1, through the bridge: five runs, nine issues, and what Zotero showed
+- Every pick of the Server dropdown was a first pick, so each server now keeps its own address (issue #34)

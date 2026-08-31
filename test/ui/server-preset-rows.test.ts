@@ -96,6 +96,60 @@ describe('initServerPresetRows', () => {
     expect(t.disabled().apiKey).toBe(true);
   });
 
+  // Issue #34: every pick used to write the preset's defaults, so a look at
+  // another server and back replaced the user's own address with them.
+  it('switching away and back gives the user their own address and model back', () => {
+    const t = setup({ [key('server')]: 'chatterbox', [key('baseURL')]: 'https://h200-chatterbox.example', [key('model')]: 'tts-1' });
+    t.choose('openai');
+    // The first visit to a preset still fills in its defaults, as the README promises
+    expect(t.prefs.store[key('baseURL')]).toBe('https://api.openai.com');
+    expect(t.prefs.store[key('model')]).toBe('gpt-4o-mini-tts');
+    t.choose('chatterbox');
+    expect(t.prefs.store[key('server')]).toBe('chatterbox');
+    expect(t.prefs.store[key('baseURL')]).toBe('https://h200-chatterbox.example');
+    expect(t.prefs.store[key('model')]).toBe('tts-1');
+    // Both servers' values wait in the pref for the next visit
+    expect(JSON.parse(t.prefs.store[key('presetValues')] as string)).toEqual({
+      chatterbox: { baseURL: 'https://h200-chatterbox.example', model: 'tts-1' },
+      openai: { baseURL: 'https://api.openai.com', model: 'gpt-4o-mini-tts' },
+    });
+  });
+
+  it('"other" gets its own address back too, where nothing used to write it', () => {
+    const t = setup({ [key('server')]: 'other', [key('baseURL')]: 'https://api.groq.com/openai', [key('model')]: 'playai-tts' });
+    t.choose('openai');
+    expect(t.prefs.store[key('baseURL')]).toBe('https://api.openai.com');
+    t.choose('other');
+    expect(t.prefs.store[key('baseURL')]).toBe('https://api.groq.com/openai');
+    expect(t.prefs.store[key('model')]).toBe('playai-tts');
+  });
+
+  it('remembers in the prefs, so the memory survives the pane being reopened', () => {
+    const first = setup({ [key('server')]: 'chatterbox', [key('baseURL')]: 'http://nas:8004' });
+    first.choose('openai');
+    const reopened = setup({ ...first.prefs.store });
+    expect(reopened.menu.value).toBe('openai');
+    reopened.choose('chatterbox');
+    expect(reopened.prefs.store[key('baseURL')]).toBe('http://nas:8004');
+  });
+
+  it('re-picking the current preset keeps an edit made since the last visit', () => {
+    const t = setup({ [key('server')]: 'openai', [key('presetValues')]: JSON.stringify({ openai: { baseURL: 'https://api.openai.com', model: 'gpt-4o-mini-tts' } }) });
+    // Typed into the bound Base URL input since
+    t.prefs.store[key('baseURL')] = 'https://api.openai.com/v1';
+    t.choose('openai');
+    expect(t.prefs.store[key('baseURL')]).toBe('https://api.openai.com/v1');
+  });
+
+  it('files settings from before the dropdown under the preset guessed for them', () => {
+    // No stored choice: http://nas:8004 reads as "other" (core/server-presets.ts serverPreset)
+    const t = setup({ [key('baseURL')]: 'http://nas:8004' });
+    t.choose('chatterbox');
+    expect(t.prefs.store[key('baseURL')]).toBe('http://localhost:8004');
+    t.choose('other');
+    expect(t.prefs.store[key('baseURL')]).toBe('http://nas:8004');
+  });
+
   it('tolerates a pane that lacks the rows', () => {
     expect(() => initServerPresetRows({ getElementById: () => null }, fakePrefs())).not.toThrow();
   });

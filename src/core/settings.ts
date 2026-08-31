@@ -17,6 +17,8 @@ export interface Settings {
     headers: string;
     /** Which server the section talks to (core/server-presets.ts); empty means "guess from the address". */
     server: string;
+    /** The Base URL and Model last used with each server, a JSON object keyed by preset (core/server-presets.ts parsePresetValues): what the Server dropdown restores on a switch back. */
+    presetValues: string;
   };
   azure: { enabled: boolean; apiKey: string; region: string; voice: string };
   /** `headers`: extra request headers for a gateway in front of the server, same format as openai.headers. */
@@ -86,6 +88,7 @@ export const DEFAULTS: Settings = {
     voices: '',
     headers: '',
     server: '',
+    presetValues: '',
   },
   azure: { enabled: false, apiKey: '', region: 'eastasia', voice: 'zh-CN-XiaoxiaoNeural' },
   local: { enabled: false, engine: 'kokoro', baseURL: 'http://localhost:8880', voice: 'af_bella', headers: '' },
@@ -151,6 +154,7 @@ export function loadSettings(prefs: PrefsBackend): Settings {
       voices: str(prefs, 'openai.voices', DEFAULTS.openai.voices),
       headers: str(prefs, 'openai.headers', DEFAULTS.openai.headers),
       server: str(prefs, 'openai.server', DEFAULTS.openai.server),
+      presetValues: str(prefs, 'openai.presetValues', DEFAULTS.openai.presetValues),
     },
     azure: {
       enabled: bool(prefs, 'azure.enabled', DEFAULTS.azure.enabled),
