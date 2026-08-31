@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createSystemProvider, listSystemVoiceRecords } from '../../../../src/core/providers/system';
+import { createSystemProvider, listSystemVoiceRecords, systemUnavailableReason } from '../../../../src/core/providers/system';
 import type { Daemon } from '../../../../src/core/providers/system/daemon';
 import type { SystemRequestBody, SystemResponse } from '../../../../src/core/providers/system/protocol';
 
@@ -167,5 +167,27 @@ describe('listSystemVoiceRecords', () => {
       removeFile: async () => {},
     });
     expect(records.map((r) => r.desc)).toEqual(['Microsoft Mark - English (United States)', 'Microsoft Huihui Desktop - Chinese (Simplified)']);
+  });
+});
+
+// Issue #38: a tab upgraded over kept calling the stopped instance, whose
+// daemon was released — and daemonOf's default blamed the platform, on a
+// Windows that had run system voices a minute earlier. The reason the
+// wiring hands over must say which of the two actually happened.
+describe('systemUnavailableReason', () => {
+  it('says the instance stopped once a running daemon was shut down', () => {
+    expect(systemUnavailableReason({ stopped: true, platformReason: null })).toBe(
+      'System voices are unavailable: this plugin instance has been stopped, likely replaced by an update. Reopen the tab to use the new build.',
+    );
+    // A stop outranks a platform message: a daemon ran, so the platform was fine
+    expect(systemUnavailableReason({ stopped: true, platformReason: 'no helper on this platform' })).toMatch(/has been stopped/);
+  });
+
+  it('passes the platform reason through while nothing ever ran', () => {
+    expect(systemUnavailableReason({ stopped: false, platformReason: 'no helper on this platform' })).toBe('no helper on this platform');
+  });
+
+  it('is silent while a daemon is expected to be there', () => {
+    expect(systemUnavailableReason({ stopped: false, platformReason: null })).toBeUndefined();
   });
 });

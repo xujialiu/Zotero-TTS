@@ -2,11 +2,12 @@ import { getChromeWebSocket, newRequestId } from './core/providers/azure';
 import { createProvider } from './core/providers/factory';
 import { createDaemon, type Daemon, type DaemonProcess } from './core/providers/system/daemon';
 import { encodeCommand, WINDOWS_DAEMON_SCRIPT, WINDOWS_POWERSHELL, windowsCommandArguments } from './core/providers/system/daemon-script.win';
-import { listSystemVoiceRecords, type SystemProviderDeps } from './core/providers/system';
+import { listSystemVoiceRecords, systemUnavailableReason, type SystemProviderDeps } from './core/providers/system';
 import { zoteroVoiceId } from './core/providers/system/voices';
 import { createMemoryCache } from './core/memory-cache';
 import { audioCacheOn, createZoteroPrefs, loadSettings, migrateLegacyProviderPref } from './core/settings';
-import { installHijack } from './read-aloud';
+import { installHijack, nativeInterfaceOf } from './read-aloud';
+import { redeliverInterfaces, restoreInterfaces } from './read-aloud/interface-redelivery';
 import { createReadAloudMemorySync, type ReadAloudMemorySync } from './read-aloud/memory-sync';
 import { createHighlightStyling, type HighlightStyling } from './read-aloud/highlight-style';
 import { createSystemVoiceHiding, type SystemVoiceHiding } from './read-aloud/system-voices';
@@ -50,6 +51,16 @@ export interface StartupParams {
 }
 
 let uninstallHijack: (() => void) | null = null;
+/** Which open readers carry this instance's override — shared by the push hook and the redelivery walk, so one uninstall clears both (issue #38). */
+let hijackPatched = new WeakSet<object>();
+/**
+ * Stamped onto every interface this instance builds, under
+ * `__zoteroTTSInstance`. The slot never holds the object itself — Zotero
+ * clones its options into the reader iframe (xpcom/reader.js:648), and the
+ * walks clone the same way — so the `interfaces` diagnostic matches this
+ * stamp, which the clone carries and object identity does not (issue #38).
+ */
+const interfaceInstanceToken = 'instance-' + Math.random().toString(36).slice(2, 10);
 let pluginVersion = '0.0.0';
 let readAloudShortcuts: ReadAloudShortcuts | null = null;
 let readerOpenedListener: ((event: any) => void) | null = null;
@@ -92,6 +103,8 @@ const audioCache = createMemoryCache({ maxBytes: 64 * 1024 * 1024 });
 const SPEECH_TIMEOUT_MS = 20_000;
 
 let speechDaemon: Daemon | null = null;
+/** A daemon ran and was shut down: the platform is fine, this instance stopped — say that, not "platform" (issue #38). */
+let speechStopped = false;
 /** Distinguishes this Zotero's temp WAVs from another instance's, so a sweep never takes a live one. */
 const speechRunId = Math.random().toString(36).slice(2, 10);
 let speechFileSeq = 0;
@@ -141,6 +154,7 @@ async function spawnSpeechHelper(): Promise<DaemonProcess> {
 
 function startSpeechDaemon(): void {
   stopSpeechDaemon();
+  speechStopped = false;
   if (speechUnsupportedReason()) return;
   speechDaemon = createDaemon({
     spawn: spawnSpeechHelper,
@@ -151,7 +165,10 @@ function startSpeechDaemon(): void {
 }
 
 function stopSpeechDaemon(): void {
-  speechDaemon?.stop();
+  if (speechDaemon) {
+    speechDaemon.stop();
+    speechStopped = true;
+  }
   speechDaemon = null;
 }
 
@@ -187,7 +204,7 @@ const NEVER_ABORTS = {
 function speechDeps(): SystemProviderDeps {
   return {
     daemon: speechDaemon,
-    unsupportedReason: speechUnsupportedReason() ?? undefined,
+    unsupportedReason: systemUnavailableReason({ stopped: speechStopped, platformReason: speechUnsupportedReason() }),
     tempFile: async () => PathUtils.join(await PathUtils.tempDir, `zotero-tts-${speechRunId}-${speechFileSeq++}.wav`),
     readFile: (path) => IOUtils.read(path),
     removeFile: (path) => IOUtils.remove(path, { ignoreAbsent: true }),
@@ -251,13 +268,15 @@ function upcomingSegmentTexts(reader: any, text: string, count: number): string[
   }
 }
 
-function startHijack(): void {
-  uninstallHijack?.();
-  // makeInterface only runs when Zotero calls it; targetWindow is the
-  // reader iframe window it passes in — it doesn't exist yet at push
-  // time (see Task 13).
-  uninstallHijack = installHijack(Zotero.Reader._readers, (reader: any, targetWindow: any, native) =>
-    wrapForWindow(
+/**
+ * The composite interface for one reader, wrapped for its window: what the
+ * push hook hands Zotero when _open() asks, and what the redelivery walk
+ * writes into a tab that was already open (issue #38). Stamped with this
+ * instance's token so the `interfaces` diagnostic can prove whose interface
+ * a tab's slots hold — the slot always holds a clone, never this object.
+ */
+function buildReaderInterface(reader: any, targetWindow: any, native: () => unknown): unknown {
+  const iface = wrapForWindow(
       targetWindow,
       createRemoteInterface({
         // Zotero's own interface is kept: its Standard and Premium voices,
@@ -321,8 +340,89 @@ function startHijack(): void {
         // never retained.
         newAbortController: () => new reader._window.AbortController(),
       }),
-    ),
-  );
+    );
+  (iface as Record<string, unknown>).__zoteroTTSInstance = interfaceInstanceToken;
+  return iface;
+}
+
+function startHijack(): void {
+  uninstallHijack?.();
+  hijackPatched = new WeakSet();
+  // buildReaderInterface only runs when Zotero calls the method; targetWindow
+  // is the reader iframe window it passes in — it doesn't exist yet at push
+  // time (see Task 13).
+  uninstallHijack = installHijack(Zotero.Reader._readers, buildReaderInterface, hijackPatched);
+  // The readers already open read their interface from a previous instance
+  // at _open() and would keep calling it for the rest of the tab's life
+  // (issue #38): hand them this instance's, and rebuild the voice lists
+  // they already built.
+  redeliverInterfaces({ ...interfaceWalkIO(), patch: patchOpenReader, build: buildForOpenReader });
+}
+
+/**
+ * The two slots an open tab reads its interface from: loadVoices builds its
+ * provider from the manager's construction options on every call
+ * (reader.js:82024), and the props pass re-reads the internal reader's
+ * field (82832) — so writing both moves listing, audio and the credits UI
+ * to the written interface at the tab's next list build. Null while the
+ * reader has not finished opening.
+ */
+function interfaceSlots(reader: any): { options: any; internal: any } | null {
+  const internal = reader?._internalReader;
+  const options = internal?._readAloudManager?._options;
+  return internal && options ? { options, internal } : null;
+}
+
+/** The walks' reach into Zotero, shared by redelivery and restore (issue #38). */
+function interfaceWalkIO() {
+  return {
+    readers: () => (Zotero.Reader._readers ?? []) as unknown[],
+    isDead: (reader: unknown) => Components.utils.isDeadWrapper(reader),
+    isPatched: (reader: any) => hijackPatched.has(reader),
+    deliver: (reader: any, iface: unknown) => {
+      const slots = interfaceSlots(reader);
+      const win = reader?._iframeWindow;
+      if (!slots || !win) return false;
+      // Zotero hands the reader its options through Cu.cloneInto(...,
+      // { cloneFunctions: true }) (xpcom/reader.js:233-648); a raw object
+      // written into the slot is unreadable from the reader's compartment
+      // ("Security wrapper denied access"), which empties the voice list.
+      // Clone exactly as Zotero does; a cleared slot stays null.
+      const cloned = iface === null ? null : Components.utils.cloneInto(iface, win, { cloneFunctions: true });
+      slots.options.remoteInterface = cloned;
+      slots.internal._readAloudRemoteInterface = cloned;
+      return true;
+    },
+    hasVoices: (reader: any) => {
+      const voices = reader?._internalReader?._readAloudManager?._allVoices;
+      return Array.isArray(voices) && voices.length > 0;
+    },
+    // Unawaited, as Zotero's own _prepareReadAloud runs it; a rejection is
+    // logged rather than left floating
+    refreshVoices: (reader: any) => {
+      void Promise.resolve(reader._internalReader._readAloudManager.loadVoices(true)).catch((e: unknown) => Zotero.logError(e));
+    },
+    debug: (message: string) => Zotero.debug('[zotero-tts] ' + message),
+    error: (e: unknown) => Zotero.logError(e),
+  };
+}
+
+/** What the push hook does at push time, for a reader pushed before this instance installed it. */
+function patchOpenReader(reader: any): void {
+  reader._getReadAloudRemoteInterface = (targetWindow: unknown) => buildReaderInterface(reader, targetWindow, () => nativeInterfaceOf(reader, targetWindow));
+  hijackPatched.add(reader);
+}
+
+/** The composite interface for a tab that is already open, wrapped for the window it already has. */
+function buildForOpenReader(reader: any): unknown | null {
+  const win = reader?._iframeWindow;
+  return win ? buildReaderInterface(reader, win, () => nativeInterfaceOf(reader, win)) : null;
+}
+
+/** Zotero's own interface for a tab that is already open; null when there is no window or no prototype method — the slot is then cleared. */
+function nativeForOpenReader(reader: any): unknown | null {
+  const win = reader?._iframeWindow;
+  return win ? nativeInterfaceOf(reader, win) : null;
 }
 
 /**
@@ -1073,13 +1173,25 @@ async function startup({ id, version, rootURI }: StartupParams): Promise<void> {
   Zotero.debug(failed.length ? `[zotero-tts] started without the ${failed.join(', ')}` : '[zotero-tts] started');
 }
 
-async function shutdown(): Promise<void> {
+async function shutdown(reason?: number): Promise<void> {
   // First: the pane goes with this instance, not with Zotero's observer,
   // which runs too late for the next instance's register on a reload (#28)
   try {
     unregisterPrefsPane();
   } catch (e) {
     Zotero.logError(e);
+  }
+  // A disable or uninstall would strand every open tab on this stopped
+  // instance's interface (issue #38): hand them back to Zotero's own first.
+  // An upgrade or downgrade leaves them alone — the successor redelivers,
+  // and a voice-list rebuild from here would race the one it starts. At
+  // app shutdown the tabs are going down with Zotero.
+  if (reason === ADDON_DISABLE || reason === ADDON_UNINSTALL) {
+    try {
+      restoreInterfaces({ ...interfaceWalkIO(), buildNative: nativeForOpenReader });
+    } catch (e) {
+      Zotero.logError(e);
+    }
   }
   uninstallHijack?.();
   uninstallHijack = null;
@@ -1092,7 +1204,7 @@ async function shutdown(): Promise<void> {
   stopSpeechDaemon();
   stopSystemVoiceHiding();
   stopMultilingualFirst();
-  Zotero.debug('[zotero-tts] stopped');
+  Zotero.debug('[zotero-tts] stopped' + (reason !== undefined ? ` (reason ${reason})` : ''));
 }
 
 function onMainWindowLoad(win: any): void {
@@ -1163,6 +1275,23 @@ const diagnostics = {
         systemVoices: safe(() => systemVoiceHiding?.patchCounts()) ?? null,
         multilingualFirst: safe(() => multilingualFirst?.patchCounts()) ?? null,
         readAloudMemory: safe(() => readAloudMemory?.patchCounts()) ?? null,
+        // Which instance serves each tab (issue #38): `hijacked` — the
+        // reader carries this instance's own method; `slotsCurrent` — both
+        // stored slots hold a clone stamped by this instance. A tab
+        // upgraded over used to show hijacked: false while speaking with
+        // the stopped instance's voice.
+        interfaces: (Zotero.Reader._readers ?? []).map((r: any) => ({
+          itemID: safe(() => r?.itemID),
+          hijacked: safe(() => Object.prototype.hasOwnProperty.call(r, '_getReadAloudRemoteInterface')) === true,
+          slotsPresent: safe(() => !!interfaceSlots(r)) === true,
+          slotsCurrent:
+            safe(() => {
+              const slots = interfaceSlots(r);
+              if (!slots) return false;
+              const stamp = (o: any) => o?.__zoteroTTSInstance;
+              return stamp(slots.options.remoteInterface) === interfaceInstanceToken && stamp(slots.internal._readAloudRemoteInterface) === interfaceInstanceToken;
+            }) === true,
+        })),
       },
       null,
       1,

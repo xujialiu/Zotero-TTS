@@ -26,7 +26,9 @@ async function shutdown({ id, version, rootURI }, reason) {
   const instance = Zotero.ZoteroTTS;
   const pending = (async () => {
     try {
-      await instance?.shutdown();
+      // The reason travels: a disable hands the open tabs back to Zotero,
+      // an upgrade leaves them for the successor's redelivery (issue #38)
+      await instance?.shutdown(reason);
     } catch (e) {
       Zotero.logError(e);
     } finally {

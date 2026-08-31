@@ -8,8 +8,14 @@ export type ReaderLike = { _getReadAloudRemoteInterface?: unknown };
  */
 export type InterfaceFactory = (reader: ReaderLike, targetWindow: unknown, native: () => unknown) => unknown;
 
-/** Call the original prototype method with the reader as `this`, if there is one. */
-function callOriginal(reader: ReaderLike, targetWindow: unknown): unknown {
+/**
+ * Zotero's own interface for a reader: the prototype method, called with the
+ * reader as `this` — deliberately not the instance property, which is this
+ * plugin's override. Null when the prototype has none. The factory's
+ * `native` thunk is built on this, and the restore walk at disable uses it
+ * to hand an open tab back to Zotero (issue #38).
+ */
+export function nativeInterfaceOf(reader: ReaderLike, targetWindow: unknown): unknown {
   const original = (Object.getPrototypeOf(reader) as ReaderLike | null)?._getReadAloudRemoteInterface;
   return typeof original === 'function' ? original.call(reader, targetWindow) : null;
 }
@@ -36,19 +42,20 @@ function callOriginal(reader: ReaderLike, targetWindow: unknown): unknown {
  * an argument when it calls the method, and we pass it straight through
  * to the factory.
  */
-export function installHijack(readers: ReaderLike[], makeInterface: InterfaceFactory): () => void {
+export function installHijack(readers: ReaderLike[], makeInterface: InterfaceFactory, patched: WeakSet<ReaderLike> = new WeakSet()): () => void {
   const originalPush = readers.push;
-  // Which readers carry the override, without holding one: a strong list
-  // here would pin every reader ever opened for the rest of the session,
-  // and the only readers uninstall can still reach are the ones Zotero
-  // itself still lists (issue #5).
-  const patched = new WeakSet<ReaderLike>();
+  // `patched`: which readers carry the override, without holding one — a
+  // strong list here would pin every reader ever opened for the rest of the
+  // session, and the only readers uninstall can still reach are the ones
+  // Zotero itself still lists (issue #5). The caller may share the set: the
+  // redelivery walk adds the readers open before this install (issue #38),
+  // and uninstall then clears those overrides too.
   let installed = true;
 
   readers.push = function (this: ReaderLike[], ...items: ReaderLike[]): number {
     for (const reader of items) {
       reader._getReadAloudRemoteInterface = (targetWindow: unknown) =>
-        makeInterface(reader, targetWindow, () => callOriginal(reader, targetWindow));
+        makeInterface(reader, targetWindow, () => nativeInterfaceOf(reader, targetWindow));
       patched.add(reader);
     }
     return originalPush.apply(this, items);

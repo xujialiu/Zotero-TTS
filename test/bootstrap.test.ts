@@ -73,6 +73,10 @@ describe('addon/bootstrap.js', () => {
 
     await bootstrap.shutdown(params, 'ADDON_DISABLE');
     expect(instances[0].shutdown).toHaveBeenCalledTimes(1);
+    // The reason travels: shutdown behaves differently for a disable (hand
+    // the open tabs back to Zotero) than for an upgrade, where the successor
+    // redelivers the interface itself (issue #38)
+    expect(instances[0].shutdown).toHaveBeenCalledWith('ADDON_DISABLE');
     expect(Zotero.ZoteroTTS).toBeUndefined();
     expect(Zotero.ZoteroTTSPendingShutdown).toBeUndefined();
   });

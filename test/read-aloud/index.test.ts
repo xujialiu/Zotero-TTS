@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { installHijack } from '../../src/read-aloud';
+import { installHijack, nativeInterfaceOf } from '../../src/read-aloud';
 
 function fakeReaders() {
   // The real object is Zotero.Reader._readers, a plain array
@@ -182,5 +182,61 @@ describe("access to Zotero's original interface", () => {
     readers.push(reader);
     reader._getReadAloudRemoteInterface({});
     expect(native!()).toBeNull();
+  });
+});
+
+// The redelivery walk (issue #38) needs to know which readers carry this
+// instance's override and to give pre-existing readers one of their own, so
+// the set of patched readers is shared with the caller.
+describe('the shared patched set', () => {
+  it('records every pushed reader in the set the caller provides', () => {
+    const readers = fakeReaders();
+    const patched = new WeakSet<object>();
+    installHijack(readers, () => ({}), patched);
+
+    const reader: any = {};
+    readers.push(reader);
+
+    expect(patched.has(reader)).toBe(true);
+  });
+
+  it('cleans the override from a reader the caller marked patched itself', () => {
+    const readers = fakeReaders();
+    const existing: any = {};
+    readers.push(existing); // open before the hook was installed
+    const patched = new WeakSet<object>();
+    const uninstall = installHijack(readers, () => ({}), patched);
+
+    // What the redelivery walk does: its own override, the shared set
+    existing._getReadAloudRemoteInterface = () => ({});
+    patched.add(existing);
+
+    uninstall();
+    expect(Object.hasOwn(existing, '_getReadAloudRemoteInterface')).toBe(false);
+  });
+});
+
+describe('nativeInterfaceOf', () => {
+  class ReaderBase {
+    _getReadAloudRemoteInterface(win: unknown) {
+      return { native: true, self: this as unknown, win };
+    }
+  }
+
+  it('calls the prototype method with the reader as this and the window', () => {
+    const reader: any = new ReaderBase();
+    const win = { marker: 'iframe window' };
+    expect(nativeInterfaceOf(reader, win)).toEqual({ native: true, self: reader, win });
+  });
+
+  it('ignores an instance override: the prototype is what Zotero owns', () => {
+    const reader: any = new ReaderBase();
+    reader._getReadAloudRemoteInterface = () => ({ ours: true });
+    const win = {};
+    expect(nativeInterfaceOf(reader, win)).toEqual({ native: true, self: reader, win });
+  });
+
+  it('yields null when the prototype has no method', () => {
+    expect(nativeInterfaceOf({}, {})).toBeNull();
   });
 });

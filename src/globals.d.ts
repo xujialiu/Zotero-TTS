@@ -8,6 +8,12 @@ declare const ChromeUtils: any;
 declare const IOUtils: any;
 declare const PathUtils: any;
 
+// The bootstrap reason constants, copied into the sandbox scope by Zotero's
+// plugins.js (`for (let name in REASONS) scope[name] = ...`). Only the ones
+// shutdown() actually compares against are declared here.
+declare const ADDON_DISABLE: number;
+declare const ADDON_UNINSTALL: number;
+
 // Baked in by scripts/build.mjs (esbuild `define`): the date the xpi was
 // built, shown in the pane's Build section. Undefined outside a build.
 declare const __BUILD_DATE__: string | undefined;

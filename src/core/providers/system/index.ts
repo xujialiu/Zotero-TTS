@@ -61,6 +61,19 @@ function daemonOf(deps: SystemProviderDeps): Daemon {
 }
 
 /**
+ * The unsupported-reason the wiring should hand over when there is no
+ * daemon. A daemon that ran and was shut down means the instance stopped —
+ * an in-place upgrade does that under any open tab still calling it (issue
+ * #38) — and saying "platform" then blames the wrong thing entirely.
+ */
+export function systemUnavailableReason(state: { stopped: boolean; platformReason?: string | null }): string | undefined {
+  if (state.stopped) {
+    return 'System voices are unavailable: this plugin instance has been stopped, likely replaced by an update. Reopen the tab to use the new build.';
+  }
+  return state.platformReason ?? undefined;
+}
+
+/**
  * The installed voices as the helper reports them, descriptions and all.
  * Exported because the catalog entry (`toVoiceInfo`) drops the description,
  * and the settings pane needs it to recognize the same voice in Zotero's own
