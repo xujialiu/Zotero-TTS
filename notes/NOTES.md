@@ -238,3 +238,4 @@ cite `notes/NOTES.md` with a date or a section title resolve through this index.
 - The positions moved into zotero-tts.sqlite, and the pass ran against a zombie (issue #16)
 - Clean session: the zombie owned the patches, and imported hit 0 (issue #16)
 - The speed resolver was a looser mirror than Zotero's, and a fresh tab restores from the raw tag once (issue #26)
+- A startup step fails on its own now, and a diagnostic says which (issue #25)

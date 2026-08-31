@@ -47,8 +47,18 @@ start over.
 2. A verification run installs: `zotero_plugin_list` for the installed
    version, `zotero_plugin_install` with the xpi (it upgrades in place, no
    restart), `zotero_plugin_list` again — the version must be the
-   manifest's `-betaN`. A research run installs nothing, but still opens
-   with `zotero_plugin_list`, so the evidence names the build it came from.
+   manifest's `-betaN` — then, before anything else is driven,
+   `Zotero.ZoteroTTS.diagnostics.startup()`: every step `ok`, `failed`
+   empty. `Zotero.ZoteroTTS` existing proves only that the bundle was
+   evaluated, not that startup ran (issue #25); a failed step ends the run
+   there, reported together with `zotero_read_errors`. A reader opened
+   after an install is polled for `_internalReader` and
+   `_readAloudManager` (≤8 s windows, a ~24 s ceiling) and driven only
+   once both exist: an in-place install followed at once by
+   `Zotero.Reader.open` froze Zotero once (2026-08-31), and the run that
+   stops and reports costs nothing. A research run installs nothing, but
+   still opens with `zotero_plugin_list`, so the evidence names the build
+   it came from.
 3. The settings pane. An open settings window keeps the OLD pane after a
    reinstall: close it (`Services.wm.getMostRecentWindow('zotero:pref').close()`
    through `zotero_execute_js`) and reopen it with `zotero_open_preferences`.

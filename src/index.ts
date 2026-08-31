@@ -16,6 +16,7 @@ import { createPositionStore, type PositionStore } from './read-aloud/position-s
 import { describePosition, READ_ALOUD_POSITIONS_PREF, readPositions, resumeTarget, type PositionEntry } from './read-aloud/read-aloud-position';
 import { readMemory } from './read-aloud/read-aloud-memory';
 import { readReadAloudVoices, resolveVoiceLang } from './core/read-aloud-speed';
+import { runStartupSteps, type StartupReport } from './core/startup-steps';
 import { listNamedCatalog, type CatalogEntry } from './read-aloud/catalog';
 import { parseFavoriteVoices } from './read-aloud/favorites';
 import { dropdownLanguage, languageDisplayName } from './read-aloud/language-dropdown';
@@ -53,6 +54,8 @@ let pluginVersion = '0.0.0';
 let readAloudShortcuts: ReadAloudShortcuts | null = null;
 let readerOpenedListener: ((event: any) => void) | null = null;
 let readAloudMemory: ReadAloudMemorySync | null = null;
+/** What startup() installed and what it could not (core/startup-steps.ts); null until it has run. */
+let startupReport: StartupReport | null = null;
 let positionSync: PositionSync | null = null;
 let positionStore: PositionStore | null = null;
 /** The raw `Zotero.DBConnection`, kept for diagnostics (path, row count). */
@@ -1011,73 +1014,45 @@ function stopMultilingualFirst(): void {
 
 async function startup({ id, version, rootURI }: StartupParams): Promise<void> {
   pluginVersion = version;
-  try {
-    if (migrateLegacyProviderPref(prefs)) Zotero.debug('[zotero-tts] migrated the single-provider setting');
-  } catch (e) {
-    Zotero.logError(e);
-  }
-  await registerPrefsPane(rootURI, id, version);
-
-  try {
-    startReadAloudMemory();
-  } catch (e) {
-    Zotero.logError(e);
-    Zotero.debug('[zotero-tts] failed to install the Read Aloud memory');
-  }
-  try {
-    // Awaited: the database rows must be in memory before the sampler and
-    // the resume path run; open-failure is handled inside (in-memory mode)
-    await startPositionTracking();
-  } catch (e) {
-    Zotero.logError(e);
-    Zotero.debug('[zotero-tts] failed to start the reading-position store');
-  }
-  try {
-    startHighlightStyling();
-  } catch (e) {
-    Zotero.logError(e);
-    Zotero.debug('[zotero-tts] failed to install the highlight colors');
-  }
-  try {
-    startSpeechDaemon();
-    // Nothing waits on the sweep; a crash's leftovers are not urgent
-    void sweepSpeechFiles().catch((e) => Zotero.debug('[zotero-tts] temp sweep skipped: ' + e));
-  } catch (e) {
-    Zotero.logError(e);
-    Zotero.debug('[zotero-tts] failed to prepare the system speech helper');
-  }
-  try {
-    startSystemVoiceHiding();
-  } catch (e) {
-    Zotero.logError(e);
-    Zotero.debug('[zotero-tts] failed to install the system-voice hiding');
-  }
-  try {
-    startMultilingualFirst();
-  } catch (e) {
-    Zotero.logError(e);
-    Zotero.debug('[zotero-tts] failed to install the Multiple-languages-first ordering');
-  }
-  // Caught deliberately: if _readers or any other Zotero internal we
-  // reach into gets renamed or moved, it will throw here. Without
-  // catching it, startup() would reject with no indication at all — the
-  // preferences pane would already be registered and look fine, while
-  // read-aloud silently produces no voices. Better to have the hijack
-  // fail to install than to take down the rest of the plugin (at least
-  // the preferences pane) with it.
-  try {
-    startHijack();
-  } catch (e) {
-    Zotero.logError(e);
-    Zotero.debug('[zotero-tts] failed to install the Read Aloud hook');
-  }
-  try {
-    startReadAloudShortcuts(id);
-  } catch (e) {
-    Zotero.logError(e);
-    Zotero.debug('[zotero-tts] failed to install the Read Aloud shortcuts');
-  }
-  Zotero.debug('[zotero-tts] started');
+  // Each step on its own (core/startup-steps.ts): a Zotero internal that
+  // moved, a pane id already taken, a database that will not open — any of
+  // them costs what that step installs and nothing else, lands in the
+  // error console, and shows in diagnostics.startup() (issue #25: the pane
+  // was the one unguarded call, and its failure took everything down)
+  startupReport = await runStartupSteps(
+    [
+      [
+        'legacy provider setting',
+        () => {
+          if (migrateLegacyProviderPref(prefs)) Zotero.debug('[zotero-tts] migrated the single-provider setting');
+        },
+      ],
+      ['settings pane', () => registerPrefsPane(rootURI, id, version)],
+      ['Read Aloud memory', startReadAloudMemory],
+      // Awaited: the database rows must be in memory before the sampler and
+      // the resume path run; open-failure is handled inside (in-memory mode)
+      ['reading-position store', startPositionTracking],
+      ['highlight colors', startHighlightStyling],
+      [
+        'system speech helper',
+        () => {
+          startSpeechDaemon();
+          // Nothing waits on the sweep; a crash's leftovers are not urgent
+          void sweepSpeechFiles().catch((e) => Zotero.debug('[zotero-tts] temp sweep skipped: ' + e));
+        },
+      ],
+      ['system-voice hiding', startSystemVoiceHiding],
+      ['Multiple-languages-first ordering', startMultilingualFirst],
+      ['Read Aloud hook', startHijack],
+      ['Read Aloud shortcuts', () => startReadAloudShortcuts(id)],
+    ],
+    (name, e) => {
+      Zotero.logError(e);
+      Zotero.debug(`[zotero-tts] failed to install the ${name}: ${e}`);
+    },
+  );
+  const { failed } = startupReport;
+  Zotero.debug(failed.length ? `[zotero-tts] started without the ${failed.join(', ')}` : '[zotero-tts] started');
 }
 
 async function shutdown(): Promise<void> {
@@ -1126,6 +1101,13 @@ const appLanguageName = (code: string) => languageDisplayName(code, Zotero.local
 
 /** For Tools → Developer → Run JavaScript: `Zotero.ZoteroTTS.diagnostics.highlight()` etc. */
 const diagnostics = {
+  /**
+   * Whether this instance actually started: the outcome of every startup
+   * step (core/startup-steps.ts), `failed` empty when all of it is
+   * installed. `Zotero.ZoteroTTS` existing proves only that the bundle was
+   * evaluated — it is assigned below, before startup() ever runs (issue #25).
+   */
+  startup: () => JSON.stringify({ version: pluginVersion, ...(startupReport ?? { steps: null, failed: null }) }, null, 1),
   highlight: () => JSON.stringify((Zotero.Reader._readers ?? []).map((r: any) => highlightStyling?.inspect(r) ?? null), null, 1),
   systemVoices: () => JSON.stringify((Zotero.Reader._readers ?? []).map((r: any) => systemVoiceHiding?.inspect(r) ?? null), null, 1),
   /**
