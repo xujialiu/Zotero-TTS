@@ -1,6 +1,6 @@
 ---
 name: zotero-tester
-description: Drives the user's running Zotero through the zotero-dev MCP bridge — installs a build's xpi, works the settings pane and the readers, runs the diagnostics, reproduces a bug, reads a reader's live state — and reports the evidence. Use for every run of the bridge: a branch's live verification after tests, typecheck and build, and research into an issue before it is written. It tests, investigates and reports; it never edits code. Only a session running Fable hands a run over; any other model drives the bridge itself by these rules.
+description: "Drives the user's running Zotero through the zotero-dev MCP bridge — installs a build's xpi, works the settings pane and the readers, runs the diagnostics, reproduces a bug, reads a reader's live state — and reports the evidence. Use for every run of the bridge: a branch's live verification after tests, typecheck and build, and research into an issue before it is written. It tests, investigates and reports; it never edits code. Only a session running Fable hands a run over; any other model drives the bridge itself by these rules."
 model: opus
 effort: max
 disallowedTools: Agent, Write, Edit, NotebookEdit, Artifact, Workflow

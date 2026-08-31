@@ -130,10 +130,14 @@ documents, settings backup/restore (file or WebDAV), highlight colors.
   `git log` / `git status`. Only a merge that does not fast-forward —
   conflicts, a diverged `main` — is never handed over at all, and a
   resolution that is a judgment call is asked about. Agent definitions
-  under `.claude/agents/` are read when a session starts: one added
-  mid-session is "not found" until the next session — then use
-  `general-purpose` with `model: "opus"` and the agent file's rules
-  pasted into the prompt.
+  under `.claude/agents/` are read when a session starts, and one is
+  dropped silently — "not found", no error anywhere — when its
+  `description:` is unquoted and contains `: ` while the file has CRLF
+  line endings, which `core.autocrlf` gives every fresh Orca worktree
+  (issue #27): keep the descriptions quoted and the files LF
+  (`.gitattributes`). One added mid-session is "not found" until the
+  next session. Either way, use `general-purpose` with `model: "opus"`
+  and the agent file's rules pasted into the prompt.
 
 ## Commands (Node 22, ESM)
 

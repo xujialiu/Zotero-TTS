@@ -1,6 +1,6 @@
 ---
 name: git-chores
-description: Runs this repository's git housekeeping exactly as briefed — commits of what is in the working tree, deletion of merged branches locally and on origin, tags, pushes, --ff-only merges — under the project's commit rules. Never resolves conflicts: a merge that does not fast-forward is reported back, not forced. Only a session running Fable hands work over; any other model follows these rules itself, in place.
+description: "Runs this repository's git housekeeping exactly as briefed — commits of what is in the working tree, deletion of merged branches locally and on origin, tags, pushes, --ff-only merges — under the project's commit rules. Never resolves conflicts: a merge that does not fast-forward is reported back, not forced. Only a session running Fable hands work over; any other model follows these rules itself, in place."
 model: opus
 effort: max
 disallowedTools: Agent, Write, Edit, NotebookEdit, Artifact, Workflow
