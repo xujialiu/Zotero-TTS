@@ -65,10 +65,14 @@ documents, settings backup/restore (file or WebDAV), highlight colors.
   production incident, and NOTES.md still gets its entry. A feature gets
   one when it needs a design decision or spans more than one session
   (what used to be a README TODO step; issues have replaced it). Such an
-  issue is written **before** the fix and holds the problem and the
-  evidence — the Zotero internals dug out and cited by file and line
-  (`#6` is the shape); NOTES.md, afterwards, holds what was learned and
-  what broke, and names the issue number. Neither copies the other.
+  issue is written **before** the fix and holds the bug and its impact —
+  what goes wrong, when, and what it costs the user — plus the evidence,
+  the Zotero internals dug out and cited by file and line (`#6` is the
+  shape). **It proposes no solution**: the fix is not known yet when the
+  issue is written, and guessing at one there buries the problem under an
+  approach nobody has weighed. The plan comes later, as the comment
+  below. NOTES.md, afterwards, holds what was learned and what broke, and
+  names the issue number. Neither copies the other.
   Everything that leaves the plugin's behavior alone — docs, the settings
   pane's wording and layout, refactors, housekeeping — gets a `chore`
   issue instead, when the change is worth a public record: a couple of
