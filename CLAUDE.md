@@ -78,8 +78,19 @@ documents, settings backup/restore (file or WebDAV), highlight colors.
   issue instead, when the change is worth a public record: a couple of
   lines saying what and why, no evidence section, no NOTES.md entry. A
   one-line tweak still gets nothing. Labels are `bug`, `enhancement` and
-  `chore`, nothing else, no milestones. The commit that
-  finishes one closes it, with the number in the subject: `fix: … (#5)`.
+  `chore`, plus exactly one severity label on every `bug` (settled
+  2026-08-31): `severity: critical` — spends the user's money, loses
+  data they cannot get back, or takes Zotero down (a crash, a hang, the
+  plugin not starting); fixed before anything else and shipped as a
+  patch release. `severity: major` — a documented feature does not do
+  what it says in an ordinary setup, or a setting is silently changed;
+  the next release. `severity: minor` — cosmetic, an edge case few will
+  meet, or a diagnostic that reports wrongly; when convenient. It is
+  decided from the impact on the user when the issue is written, never
+  from the size of the fix, and moved when the evidence changes.
+  `enhancement` and `chore` carry none; no other labels, no milestones.
+  The commit that finishes one closes it, with the number in the
+  subject: `fix: … (#5)`.
   Open an issue because writing it clarifies the problem, not to defer
   it — on a public repo an issue left open is a promise to strangers, and
   a backlog of stale enhancements reads as an abandoned project.
