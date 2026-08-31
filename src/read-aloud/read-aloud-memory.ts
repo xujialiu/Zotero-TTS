@@ -160,27 +160,6 @@ export function sameChoice(a: VoiceChoice | null, b: VoiceChoice | null): boolea
 }
 
 /**
- * What to put in place before Zotero's `_syncPersistedVoicesToManager` runs
- * for a document whose language the manager has just learned. Everything
- * goes through Zotero's own pref and its own resolution, so its popup,
- * fallbacks and persistence keep working as they are. The remembered voice
- * goes to every document, whatever its language (the user's rule: one
- * voice everywhere, 2026-08-27): the manager is moved to the voice's own
- * lane — `mul` for a multilingual voice (isGlobalVoice), where the catalog
- * publishes it, else the language it was picked under — because Zotero
- * drops voices whose language does not match the manager's; and that
- * lane's entry is made to name the voice, with its tier pushed to the end
- * of `tierVoices`, where `_findFallbackVoice` looks first. `tier` is the
- * voice's tier as the manager lists it (`local` for the plugin's own is
- * known from the id); unknown, the entry's `voice` alone is set. `docLang`
- * is the document's language — what the manager is on, or was on before
- * memory-sync moved it — so with no voice remembered the manager goes back
- * there and Zotero restores its own choice for it. The entry is the one
- * Zotero's own resolution reads for `lang` (`resolveVoiceLang`, with
- * `preferred` as its `navigator.languages`) — created under the tag
- * verbatim when none resolves, as Zotero would (issue #26).
- */
-/**
  * What Read Aloud starts with when the remembered voice is not in the list
  * a reader received (issue #35) — a favorite that is not offered while only
  * favorites are, a provider switched off, a server that did not answer.
@@ -226,6 +205,27 @@ export function substitutionMessage(missing: string, instead: string | null, pai
   return `Zotero-TTS: ${missing} is not offered here, and no Local voice is. Zotero picks the voice${paidOffered ? '; it may use credits' : ''}.`;
 }
 
+/**
+ * What to put in place before Zotero's `_syncPersistedVoicesToManager` runs
+ * for a document whose language the manager has just learned. Everything
+ * goes through Zotero's own pref and its own resolution, so its popup,
+ * fallbacks and persistence keep working as they are. The remembered voice
+ * goes to every document, whatever its language (the user's rule: one
+ * voice everywhere, 2026-08-27): the manager is moved to the voice's own
+ * lane — `mul` for a multilingual voice (isGlobalVoice), where the catalog
+ * publishes it, else the language it was picked under — because Zotero
+ * drops voices whose language does not match the manager's; and that
+ * lane's entry is made to name the voice, with its tier pushed to the end
+ * of `tierVoices`, where `_findFallbackVoice` looks first. `tier` is the
+ * voice's tier as the manager lists it (`local` for the plugin's own is
+ * known from the id); unknown, the entry's `voice` alone is set. `docLang`
+ * is the document's language — what the manager is on, or was on before
+ * memory-sync moved it — so with no voice remembered the manager goes back
+ * there and Zotero restores its own choice for it. The entry is the one
+ * Zotero's own resolution reads for `lang` (`resolveVoiceLang`, with
+ * `preferred` as its `navigator.languages`) — created under the tag
+ * verbatim when none resolves, as Zotero would (issue #26).
+ */
 export function planSync(docLang: string | null, voices: VoicesMap, memory: ReadAloudMemory, tier: string | null = null, preferred: readonly string[] = []): SyncPlan {
   if (!docLang) return { lang: null, voices: null };
   const voice = memory.voice;
