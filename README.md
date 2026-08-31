@@ -29,7 +29,7 @@ things around the edges. Why it is built this way: [PHILOSOPHY.md](PHILOSOPHY.md
 - ✨ **Word *and* sentence highlighting at once**, in your own colors and opacities — for Zotero's voices too. [→ Highlight](#highlight)
 - ⌨️ **Keyboard shortcuts**: speed up, down, reset; jump by sentence or paragraph; read from the selection; bring the view back to what's being read; open the player's options panel. All rebindable. [→ Shortcuts](#keyboard-shortcuts)
 - 📌 **One voice and speed everywhere** — every document and every open tab, picked in any tab's player or in the voice browser — instead of Zotero's choice per language. [→ Reading](#reading)
-- 💾 **Settings backup** to a file or a WebDAV folder. [→ Backup](#backup)
+- 💾 **Settings backup** to a file or a WebDAV folder — which can also carry your reading positions between computers. [→ Backup](#backup)
 
 ## Install
 
@@ -177,8 +177,9 @@ looking at.
 - Zotero remembers a reading position of its own, but drops it as soon as
   you scroll a few pages away from it. This one is kept.
 - Reading resumes at the **start** of the sentence you were in the middle of.
-- Every document you have listened to, **on this computer only** — not
-  synced between machines, and not part of the [settings backup](#backup).
+- Every document you have listened to. Positions stay on this computer
+  unless *Sync reading positions between computers* is on (see
+  [Backup](#backup)); they are never part of the settings backup file.
 - Nothing is drawn in the document and nothing is added to your annotations.
 
 </details>
@@ -276,6 +277,16 @@ check **Enable** runs. One that does not work on this machine (a local
 server that is not running here, a key that has since been rotated) is left
 **off**, with the reason beside it, instead of looking enabled and playing
 nothing.
+
+**Sync reading positions between computers** (off by default) keeps
+[where you stopped](#resume-where-you-stopped) in the same WebDAV folder,
+as its own file: listen on one computer, press `Shift+Space` on another,
+and reading continues at that sentence. Positions merge — every computer
+contributes the documents it listened to, the newest position wins — so
+turning it on never erases anything. It works when both computers hold the
+same library (synced or copied over), and it stays separate from the
+settings file: restoring settings moves no reading positions, and reading
+positions carry no settings.
 
 <details>
 <summary><b>WebDAV URL examples</b></summary>

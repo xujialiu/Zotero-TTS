@@ -246,3 +246,9 @@ cite `notes/NOTES.md` with a date or a section title resolve through this index.
 - A remembered voice the list does not offer starts a substitute, staged before the list lands (issues #35, #36, #37)
 - An open tab's interface can be re-delivered — but only through Zotero's own clone (issue #38)
 - A release's update.json is cached for five minutes, and the first check after the push can say "no update"
+
+### [2026-09-01](NOTES_2026-09-01.md)
+
+- Positions travel as one shared WebDAV file, merged by recency (issue #40)
+- One tab close fires both close hooks, so anything riding a close must dedupe (issue #40)
+- The bridge's zotero_set_pref cannot write false to a bool pref

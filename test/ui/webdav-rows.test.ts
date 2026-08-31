@@ -72,7 +72,7 @@ describe('Upload to WebDAV', () => {
   it('uploads the same file the Backup button writes, built from the settings as they are now', async () => {
     const t = setup({ prefs: { [PREF_PREFIX + 'azure.apiKey']: 'secret' } });
     await t.el(WEBDAV_IDS.upload).fire('command');
-    expect(t.deps.createClient).toHaveBeenCalledWith({ url: 'https://dav.example.com/zotero-tts', username: 'ann', password: 'pw' });
+    expect(t.deps.createClient).toHaveBeenCalledWith({ url: 'https://dav.example.com/zotero-tts', username: 'ann', password: 'pw', syncPositions: false });
     expect(t.client.upload).toHaveBeenCalledOnce();
     const [name, text] = t.client.upload.mock.calls[0];
     expect(name).toBe(BACKUP_FILENAME);
@@ -89,7 +89,7 @@ describe('Upload to WebDAV', () => {
     t.prefs.set(PREF_PREFIX + 'webdav.url', 'https://other.example.com/dav');
     t.prefs.set(PREF_PREFIX + 'webdav.password', 'new');
     await t.el(WEBDAV_IDS.upload).fire('command');
-    expect(t.deps.createClient).toHaveBeenCalledWith({ url: 'https://other.example.com/dav', username: 'ann', password: 'new' });
+    expect(t.deps.createClient).toHaveBeenCalledWith({ url: 'https://other.example.com/dav', username: 'ann', password: 'new', syncPositions: false });
   });
 
   it('asks for a URL before doing anything', async () => {

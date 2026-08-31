@@ -316,6 +316,10 @@
       <html:input type="password" preference="extensions.zotero.zotero-tts.webdav.password"/>
     </hbox>
     <hbox align="center">
+      <checkbox id="ztts-webdav-sync-positions" label="Sync reading positions between computers" preference="extensions.zotero.zotero-tts.webdav.syncPositions"/>
+      <label class="ztts-help" value="?" help="Keeps where Read Aloud last stopped in each document in the WebDAV folder above, and picks up what your other computers left there — so play resumes at the same sentence anywhere. Off, reading positions stay on this computer."/>
+    </hbox>
+    <hbox align="center">
       <button id="ztts-webdav-upload" label="Upload to WebDAV"/>
       <button id="ztts-webdav-download" label="Download from WebDAV…"/>
       <button id="ztts-webdav-test" label="Test connection"/>

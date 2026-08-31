@@ -31,8 +31,14 @@ export interface Settings {
    * Windows only for now; elsewhere enabling it fails with a message.
    */
   system: { enabled: boolean };
-  /** The WebDAV folder holding the settings backup (core/webdav.ts, ui/webdav-rows.ts); the password is a plain pref like the API keys. */
-  webdav: { url: string; username: string; password: string };
+  /**
+   * The WebDAV folder holding the settings backup (core/webdav.ts,
+   * ui/webdav-rows.ts); the password is a plain pref like the API keys.
+   * `syncPositions` carries the reading positions through the same folder
+   * (read-aloud/position-transport.ts, #40) — a switch, so it lives here in
+   * DEFAULTS and rides settings backup; the position data itself never does.
+   */
+  webdav: { url: string; username: string; password: string; syncPositions: boolean };
   /** Warm the audio cache this many sentences ahead of playback (read-aloud/remote-interface.ts); `prefetchEnabled` is the switch. */
   prefetch: number;
   prefetchEnabled: boolean;
@@ -93,7 +99,7 @@ export const DEFAULTS: Settings = {
   azure: { enabled: false, apiKey: '', region: 'eastasia', voice: 'zh-CN-XiaoxiaoNeural' },
   local: { enabled: false, engine: 'kokoro', baseURL: 'http://localhost:8880', voice: 'af_bella', headers: '' },
   system: { enabled: false },
-  webdav: { url: '', username: '', password: '' },
+  webdav: { url: '', username: '', password: '', syncPositions: false },
   prefetch: 3,
   prefetchEnabled: true,
   cacheAudio: true,
@@ -176,6 +182,7 @@ export function loadSettings(prefs: PrefsBackend): Settings {
       url: str(prefs, 'webdav.url', DEFAULTS.webdav.url),
       username: str(prefs, 'webdav.username', DEFAULTS.webdav.username),
       password: str(prefs, 'webdav.password', DEFAULTS.webdav.password),
+      syncPositions: bool(prefs, 'webdav.syncPositions', DEFAULTS.webdav.syncPositions),
     },
     prefetch: num(prefs, 'prefetch', DEFAULTS.prefetch, 1, 10),
     prefetchEnabled: bool(prefs, 'prefetchEnabled', DEFAULTS.prefetchEnabled),

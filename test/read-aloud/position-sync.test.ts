@@ -394,3 +394,63 @@ describe('createPositionSync', () => {
     expect(h.sync.lookup(reader())).toEqual(PDF_POINT);
   });
 });
+
+// What the WebDAV transport reads and writes (position-transport.ts, #40)
+describe('list and adopt', () => {
+  it('list() returns everything held, initial entries included', () => {
+    const h = harness([reader()], {}, [{ lib: 2, key: 'INIT0001', pos: { value: 'cfi' }, ts: 5 }]);
+    h.sync.sample();
+    expect(h.sync.list()).toEqual([
+      { lib: 2, key: 'INIT0001', pos: { value: 'cfi' }, ts: 5 },
+      { lib: 1, key: 'ABCD1234', pos: PDF_POINT, ts: 0 },
+    ]);
+  });
+
+  it('adopt() takes a strictly newer entry, saves it, and resume sees it', () => {
+    const h = harness([], {}, [{ lib: 1, key: 'ABCD1234', pos: PDF_POINT, ts: 1000 }]);
+    expect(h.sync.adopt({ lib: 1, key: 'ABCD1234', pos: LATER_POS, ts: 2000 })).toBe(true);
+    // Normalized on the way in, like every stored position
+    expect(h.saved).toEqual([{ lib: 1, key: 'ABCD1234', pos: LATER_POINT, ts: 2000 }]);
+    expect(h.sync.lookup(reader())).toEqual(LATER_POINT);
+  });
+
+  it('adopt() refuses what is not strictly newer', () => {
+    const h = harness([], {}, [{ lib: 1, key: 'ABCD1234', pos: PDF_POINT, ts: 1000 }]);
+    expect(h.sync.adopt({ lib: 1, key: 'ABCD1234', pos: LATER_POS, ts: 1000 })).toBe(false);
+    expect(h.sync.adopt({ lib: 1, key: 'ABCD1234', pos: LATER_POS, ts: 999 })).toBe(false);
+    expect(h.saved).toEqual([]);
+    expect(h.sync.lookup(reader())).toEqual(PDF_POINT);
+  });
+
+  it('adopt() takes an attachment it has never seen', () => {
+    const h = harness([]);
+    expect(h.sync.adopt({ lib: 3, key: 'NEWDOC01', pos: { value: 'cfi' }, ts: 50 })).toBe(true);
+    expect(h.sync.list()).toEqual([{ lib: 3, key: 'NEWDOC01', pos: { value: 'cfi' }, ts: 50 }]);
+  });
+
+  it('an adopted entry survives an idle open reader whose sentence has not changed', () => {
+    const readers = [reader()];
+    const h = harness(readers);
+    h.sync.start();
+    h.advance(IDLE_TICK_MS); // samples PDF_POS once
+    h.sync.adopt({ lib: 1, key: 'ABCD1234', pos: LATER_POS, ts: 9999 });
+    // The tab just sits there: the unchanged raw position must not stomp the adopted one
+    h.advance(ACTIVE_TICK_MS * 4);
+    expect(h.sync.lookup(readers[0])).toEqual(LATER_POINT);
+  });
+
+  it('a real sentence change outbids even an adopted future timestamp', () => {
+    const readers = [reader()];
+    const h = harness(readers);
+    h.sync.start();
+    h.advance(IDLE_TICK_MS);
+    // A machine with a fast clock stamped far into the future
+    h.sync.adopt({ lib: 1, key: 'ABCD1234', pos: { value: 'remote' }, ts: 999999 });
+    readers[0].saved = LATER_POS;
+    h.advance(ACTIVE_TICK_MS);
+    const entry = h.sync.list().find((e) => e.key === 'ABCD1234')!;
+    expect(entry.pos).toEqual(LATER_POINT);
+    // Above the future stamp, so every other machine takes this one over it
+    expect(entry.ts).toBe(1000000);
+  });
+});

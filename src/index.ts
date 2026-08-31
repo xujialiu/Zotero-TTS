@@ -14,6 +14,8 @@ import { createSystemVoiceHiding, type SystemVoiceHiding } from './read-aloud/sy
 import { createMultilingualFirst, type MultilingualFirst } from './read-aloud/multilingual-first';
 import { createPositionSync, ACTIVE_TICK_MS, IDLE_TICK_MS, type PositionSync } from './read-aloud/position-sync';
 import { createPositionStore, type PositionStore } from './read-aloud/position-store';
+import { createPositionTransport, type PositionTransport } from './read-aloud/position-transport';
+import { createWebDAVClient } from './core/webdav';
 import { describePosition, READ_ALOUD_POSITIONS_PREF, readPositions, resumeTarget, type PositionEntry } from './read-aloud/read-aloud-position';
 import { readMemory } from './read-aloud/read-aloud-memory';
 import { readReadAloudVoices, resolveVoiceLang } from './core/read-aloud-speed';
@@ -69,6 +71,10 @@ let readAloudMemory: ReadAloudMemorySync | null = null;
 let startupReport: StartupReport | null = null;
 let positionSync: PositionSync | null = null;
 let positionStore: PositionStore | null = null;
+/** The WebDAV side of the bookmarks (#40); null while tracking is down. */
+let positionTransport: PositionTransport | null = null;
+/** The syncPositions checkbox's observer token, so flipping it on syncs at once. */
+let syncSwitchObserver: unknown = null;
 /** The raw `Zotero.DBConnection`, kept for diagnostics (path, row count). */
 let positionDB: any = null;
 let deleteNotifierID: string | null = null;
@@ -524,6 +530,9 @@ function watchReader(reader: any): void {
   }
   hookPositionCapture(reader);
   hookTabClose(reader);
+  // Another machine may have read further since the last sync; a burst of
+  // tabs at startup coalesces into one request (position-transport.ts)
+  positionTransport?.poke('reader-open');
 }
 
 /**
@@ -618,6 +627,16 @@ function stopCloseTrace(): void {
  */
 const tabCloseHooks = new Map<any, { original: any; wrapper: any }>();
 
+/**
+ * One close, one sync. Both close hooks fire for an ordinary tab close —
+ * tab.onClose first, reader.uninit later — and each capture is followed by
+ * a transport poke; unmarked, a healthy close cost two WebDAV round trips
+ * (measured live, 2026-09-01). The tab hook marks the reader; the uninit
+ * backstop pokes only for closes the tab hook never saw — separate reader
+ * windows, which have no tab.
+ */
+const closePoked = new WeakSet<object>();
+
 function hookTabClose(reader: any): void {
   try {
     const tabs = reader?._window?.Zotero_Tabs?._tabs;
@@ -636,6 +655,14 @@ function hookTabClose(reader: any): void {
       } catch (e) {
         Zotero.logError(e);
       }
+      // The capture above is synchronous, so the closing tab's final
+      // sentence is already in the sampler's map when this sync reads it
+      try {
+        closePoked.add(reader);
+      } catch {
+        // A primitive-ish reader cannot be marked; the uninit poke then runs
+      }
+      positionTransport?.poke('reader-close');
       return original?.call(tab);
     };
     tab.onClose = wrapper;
@@ -697,6 +724,7 @@ function hookPositionCapture(reader: any): void {
       } catch (e) {
         Zotero.logError(e);
       }
+      if (!closePoked.has(reader)) positionTransport?.poke('reader-close');
       try {
         target.uninit = original;
       } catch {
@@ -921,6 +949,9 @@ function stopReadAloudMemory(): void {
 /** Bounds the shutdown flush and the close: a wedged write degrades to a lost bookmark, never a hung quit. */
 const STORE_SHUTDOWN_TIMEOUT_MS = 3000;
 
+/** Bounds the shutdown push of the positions file: one GET and one PUT on a healthy network; on a dead one the push is lost and the next machine's sync carries on without it. */
+const SYNC_SHUTDOWN_TIMEOUT_MS = 8000;
+
 async function startPositionTracking(): Promise<void> {
   await stopPositionTracking();
   // The name form, not a path: it follows the configured data directory
@@ -952,7 +983,7 @@ async function startPositionTracking(): Promise<void> {
     Zotero.debug('[zotero-tts] position store failed to open; bookmarks stay in memory this session');
     initial = readPositions(prefs);
   }
-  positionSync = createPositionSync({
+  const sync = createPositionSync({
     initial,
     save: (entry) => positionStore?.save(entry),
     retryWrites: () => positionStore?.retry(),
@@ -970,7 +1001,34 @@ async function startPositionTracking(): Promise<void> {
     now: () => Date.now(),
     error: (e) => Zotero.logError(e),
   });
-  positionSync.start();
+  positionSync = sync;
+  sync.start();
+  // The WebDAV side (#40): every trigger funnels into one single-flight
+  // read-merge-write against the shared positions file; with the switch off
+  // it costs a boolean read. Deps close over this generation's sampler, so
+  // a shutdown flush still sees the final captures after the global clears.
+  positionTransport = createPositionTransport({
+    enabled: () => loadSettings(prefs).webdav.syncPositions,
+    client: () => createWebDAVClient(loadSettings(prefs).webdav, { fetch }),
+    local: () => sync.list(),
+    adopt: (entry) => sync.adopt(entry),
+    itemExists: (lib, key) => !!Zotero.Items.getIDFromLibraryAndKey(lib, key),
+    libraryExists: (lib) => !!Zotero.Libraries.exists(lib),
+    now: () => Date.now(),
+    error: (e) => Zotero.logError(e),
+    debug: (message) => Zotero.debug('[zotero-tts] ' + message),
+  });
+  positionTransport.poke('startup');
+  // Ticking the checkbox syncs right away — the user is at the pane,
+  // watching for exactly that; without this the first sync would wait for
+  // the next opened or closed tab
+  try {
+    syncSwitchObserver = Zotero.Prefs.registerObserver('zotero-tts.webdav.syncPositions', () => {
+      if (loadSettings(prefs).webdav.syncPositions) positionTransport?.poke('switch-on');
+    });
+  } catch (e) {
+    Zotero.logError(e);
+  }
   startCloseTrace();
   startDeletionObserver();
 }
@@ -982,6 +1040,26 @@ async function stopPositionTracking(): Promise<void> {
   unhookPositionCaptures();
   positionSync?.stop(); // the final reads become queued saves
   positionSync = null;
+  if (syncSwitchObserver !== null) {
+    try {
+      Zotero.Prefs.unregisterObserver(syncSwitchObserver);
+    } catch {
+      // Already gone at shutdown
+    }
+    syncSwitchObserver = null;
+  }
+  const transport = positionTransport;
+  positionTransport = null;
+  if (transport) {
+    // The session's final positions go up before the store closes; the
+    // transport's deps hold this generation's sampler, so the captures the
+    // stop() above just made are what it reads
+    try {
+      await withTimeout(transport.flush('shutdown'), SYNC_SHUTDOWN_TIMEOUT_MS, () => new Error('zotero-tts: position sync flush timed out at shutdown'));
+    } catch (e) {
+      Zotero.logError(e);
+    }
+  }
   const store = positionStore;
   positionStore = null;
   positionDB = null;
@@ -1434,6 +1512,26 @@ const diagnostics = {
           return typeof raw === 'string' ? { chars: raw.length, entries: readPositions(prefs).length } : null;
         }),
         readers,
+      },
+      null,
+      1,
+    );
+  },
+  /**
+   * The WebDAV side of the bookmarks (#40): whether the switch and the
+   * server are set, and what the last sync did — trigger, outcome, counts.
+   * `adopted` counts entries taken from other machines; `uploaded` says
+   * whether the merged union went back up. A build is proved by this report
+   * changing across a poke, never by the server's file looking right.
+   */
+  positionSync: () => {
+    const webdav = loadSettings(prefs).webdav;
+    return JSON.stringify(
+      {
+        enabled: webdav.syncPositions,
+        configured: !!webdav.url,
+        localEntries: safe(() => positionSync?.list().length ?? null),
+        transport: safe(() => positionTransport?.stats() ?? 'not started'),
       },
       null,
       1,

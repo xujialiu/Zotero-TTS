@@ -44,7 +44,8 @@ export interface PositionEntry {
   ts: number;
 }
 
-function isEntry(value: unknown): value is PositionEntry {
+/** A stored entry's shape — shared with the sync file's validation (position-file.ts). */
+export function isPositionEntry(value: unknown): value is PositionEntry {
   const e = value as PositionEntry | null;
   return (
     !!e &&
@@ -65,7 +66,7 @@ export function readPositions(prefs: PrefsBackend): PositionEntry[] {
     if (typeof raw !== 'string' || !raw) return [];
     const parsed = JSON.parse(raw) as { v?: unknown; items?: unknown };
     if (parsed?.v !== FORMAT_VERSION || !Array.isArray(parsed.items)) return [];
-    return parsed.items.filter(isEntry);
+    return parsed.items.filter(isPositionEntry);
   } catch {
     return [];
   }

@@ -105,6 +105,16 @@ export interface PositionSync {
   captureClose(reader: unknown): void;
   /** The stored position for a reader's attachment, or null. */
   lookup(reader: unknown): unknown | null;
+  /** Every entry held, for the WebDAV transport's merge (position-transport.ts). */
+  list(): PositionEntry[];
+  /**
+   * One entry from another machine (position-transport.ts): taken only when
+   * strictly newer than what this machine holds, written through the same
+   * store queue as the sampler's own saves. The reader itself is never
+   * touched — an open document picks the position up at its next resume,
+   * and an actively read one reclaims the entry with its next sentence.
+   */
+  adopt(entry: PositionEntry): boolean;
 }
 
 export function createPositionSync(deps: PositionSyncDeps): PositionSync {
@@ -183,8 +193,12 @@ export function createPositionSync(deps: PositionSyncDeps): PositionSync {
     // reader's raw rect list for the same sentence read as equal — compared
     // raw, every restart would re-write every open document once
     const norm = normalizePosition(pos);
-    if (samePosition(entries.get(id)?.pos, norm)) return seen;
-    const entry: PositionEntry = { lib: attachment.lib, key: attachment.key, pos: norm, ts: clock() };
+    const previous = entries.get(id);
+    if (samePosition(previous?.pos, norm)) return seen;
+    // Above whatever is held, clock or no clock: an entry adopted from a
+    // machine with a fast clock must not pin this attachment against real
+    // listening here — the write has to win the transport's merge too
+    const entry: PositionEntry = { lib: attachment.lib, key: attachment.key, pos: norm, ts: previous ? Math.max(clock(), previous.ts + 1) : clock() };
     entries.set(id, entry);
     guard(() => deps.save(entry), undefined);
     return seen;
@@ -268,5 +282,19 @@ export function createPositionSync(deps: PositionSyncDeps): PositionSync {
     return entries.get(attachment.lib + '/' + attachment.key)?.pos ?? null;
   }
 
-  return { start, stop, sample, captureClose, lookup };
+  function list(): PositionEntry[] {
+    return [...entries.values()];
+  }
+
+  function adopt(entry: PositionEntry): boolean {
+    const id = entry.lib + '/' + entry.key;
+    const existing = entries.get(id);
+    if (existing && existing.ts >= entry.ts) return false;
+    const taken: PositionEntry = { lib: entry.lib, key: entry.key, pos: normalizePosition(entry.pos), ts: entry.ts };
+    entries.set(id, taken);
+    guard(() => deps.save(taken), undefined);
+    return true;
+  }
+
+  return { start, stop, sample, captureClose, lookup, list, adopt };
 }
