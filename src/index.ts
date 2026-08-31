@@ -38,7 +38,7 @@ import {
   type ReadAloudShortcuts,
 } from './ui/read-aloud-shortcuts';
 import { findOptionsButton, hasPlayer, isOptionsPanelOpen } from './ui/player-options';
-import { removeSpeedToast, showSpeedToast } from './ui/speed-toast';
+import { removeSpeedToast, showSpeedToast, showToast } from './ui/speed-toast';
 import { browserVoices, createSamplePlayer, defaultVoiceLine, defaultVoiceRows, groupVoicesByTier, languageNameOf, startingSpeed } from './ui/voice-browser-rows';
 import { silentWav } from './core/silence';
 import { withTimeout } from './core/timeout';
@@ -270,6 +270,8 @@ function startHijack(): void {
         // and Zotero restores the remembered voice on the same tick.
         onVoicesRequested: () => {
           readAloudMemory?.attach(reader);
+          // A popup open begins here: what it has to say about a substitute voice starts afresh
+          readAloudMemory?.opening(reader);
           // The popup is open, so the document is rendered and its views exist
           highlightStyling?.attach(reader);
           // The manager exists and this very listing's _resolveVoice has not
@@ -279,6 +281,9 @@ function startHijack(): void {
           // so the label patch is in place for the first open too
           multilingualFirst?.attach(reader);
         },
+        // The list this reader is about to receive: the remembered voice is
+        // planned against it before Zotero resolves from it (issue #35)
+        onVoicesListed: (voices) => readAloudMemory?.reconcile(reader, voices),
         listCatalog,
         getFavoriteVoices: () => {
           const s = loadSettings(prefs);
@@ -781,11 +786,24 @@ function startReadAloudMemory(): void {
     // A prototype whose reader tab has closed: its compartment is nuked and
     // every assignment through it throws, so shutdown skips it (proto-patches.ts)
     isDead: (value) => Components.utils.isDeadWrapper(value),
+    // Every favorite, switch or no switch: what a substitute for a voice the list lacks prefers (issue #35)
+    favorites: () => parseFavoriteVoices(loadSettings(prefs).readAloud.favoriteVoices),
+    // Said where the speed's toast goes, long enough to be read
+    announce: (reader, message) => {
+      const doc = toastDoc(reader);
+      if (doc) showToast(doc, message, undefined, ANNOUNCEMENT_TOAST_MS);
+    },
+    // The entry staged as the manager's _persistedVoices is destructured by
+    // the reader's own code, which may not touch a sandbox object
+    cloneForReader: (reader: any, value) => (reader?._iframeWindow ? Components.utils.cloneInto(value, reader._iframeWindow) : value),
     error: (e) => Zotero.logError(e),
     debug: (message) => Zotero.debug('[zotero-tts] ' + message),
   });
   for (const reader of Zotero.Reader._readers ?? []) readAloudMemory.attach(reader);
 }
+
+/** How long the line about a substitute voice stays on screen: a sentence, not a "1.3×". */
+const ANNOUNCEMENT_TOAST_MS = 5000;
 
 function stopReadAloudMemory(): void {
   readAloudMemory?.dispose();
@@ -1508,8 +1526,12 @@ const diagnostics = {
    * does `selectedVoiceID` on every reader that was reading and could take
    * it. Per reader, `docLang` is the document's language as memory-sync
    * knows it (the language the manager was moved to Multiple languages
-   * from), and `listsDefault` whether the manager's voice list — loaded at
-   * its popup's last open — has the memory's voice at all.
+   * from), `listsDefault` whether the manager's voice list — loaded at
+   * its popup's last open — has the memory's voice at all, and
+   * `substitution` what the last sync did when it did not: the voice that
+   * was not offered and the Local voice put in its place for that open
+   * (`instead` null: none was offered, Zotero's own choice stands); null
+   * when the memory's voice was offered (issue #35).
    */
   readAloudMemory: () => {
     const zotero: Record<string, unknown> = {};
@@ -1533,7 +1555,9 @@ const diagnostics = {
         region: safe(() => manager()?.region ?? null),
         speed: safe(() => manager()?.speed ?? null),
         selectedVoiceID: safe(() => manager()?.selectedVoiceID ?? null),
+        selectedTier: safe(() => manager()?.selectedTier ?? null),
         listsDefault: safe(() => (remembered ? lists(remembered) : null)),
+        substitution: safe(() => readAloudMemory?.substitution(r) ?? null),
         active: safe(() => !!manager()?.active),
         paused: safe(() => !!manager()?.paused),
       };

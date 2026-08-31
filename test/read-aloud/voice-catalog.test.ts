@@ -5,6 +5,7 @@ import {
   compareVoiceLabels,
   decodeVoiceId,
   encodeVoiceId,
+  listVoicesResponse,
   PLUGIN_TIER,
   pluginVoiceLabel,
   tierForProvider,
@@ -189,5 +190,58 @@ describe('labels', () => {
       encodeVoiceId('azure', 'en-US-AvaNeural'),
       encodeVoiceId('local', 'af_bella'),
     ]);
+  });
+});
+
+// One parser for both halves of the list a reader receives: the format=2
+// shape buildVoicesResponse emits and the one Zotero's own getVoices
+// answers with (issue #35: memory-sync plans against that list)
+describe('listVoicesResponse', () => {
+  const ava = encodeVoiceId('azure', 'en-US-AvaMultilingualNeural');
+  const bella = encodeVoiceId('local', 'af_bella');
+  const own = buildVoicesResponse(
+    [
+      { provider: 'azure', voices: [{ id: 'en-US-AvaMultilingualNeural', label: 'Ava Multilingual', locale: MULTILINGUAL }] },
+      { provider: 'local', name: 'Kokoro', voices: [{ id: 'af_bella', label: 'af_bella', locale: 'en-US' }] },
+    ],
+    'v1',
+  );
+
+  it('lists the plugin’s own response voice by voice: id, the locale it is filed under, tier and label', () => {
+    expect(listVoicesResponse(own)).toEqual([
+      { id: ava, language: MULTILINGUAL, tier: PLUGIN_TIER, label: 'Azure-Ava Multilingual' },
+      { id: bella, language: 'en-US', tier: PLUGIN_TIER, label: 'Kokoro-af_bella' },
+    ]);
+  });
+
+  // Zotero's own response files several voices under one locale, in the
+  // plain array form or the { default, other } form its parser also takes;
+  // a voice under two locales is two entries, one per language
+  it("lists Zotero's own tiers in both locale forms, once per locale, in the order given", () => {
+    const theirs = {
+      standard: [
+        {
+          voices: { s1: { label: 'Standard Voice 1' }, s2: { label: 'Standard Voice 2' } },
+          locales: { 'en-US': ['s1', 's2'], 'en-GB': { default: ['s2'], other: [] } },
+        },
+      ],
+      premium: [{ voices: { p1: { label: 'Premium 1' } }, locales: { 'zh-CN': { default: ['p1'] } } }],
+    };
+    expect(listVoicesResponse(theirs)).toEqual([
+      { id: 's1', language: 'en-US', tier: 'standard', label: 'Standard Voice 1' },
+      { id: 's2', language: 'en-US', tier: 'standard', label: 'Standard Voice 2' },
+      { id: 's2', language: 'en-GB', tier: 'standard', label: 'Standard Voice 2' },
+      { id: 'p1', language: 'zh-CN', tier: 'premium', label: 'Premium 1' },
+    ]);
+  });
+
+  it('skips what is not a voice config and an id no config publishes, and names a voice without a label by its id', () => {
+    const noisy = {
+      standard: [null, 'x', { voices: { s1: {} }, locales: { 'en-US': ['s1', 'ghost'] } }],
+      premium: 'not an array',
+    } as any;
+    expect(listVoicesResponse(noisy)).toEqual([{ id: 's1', language: 'en-US', tier: 'standard', label: 's1' }]);
+    expect(listVoicesResponse(null)).toEqual([]);
+    expect(listVoicesResponse({})).toEqual([]);
   });
 });

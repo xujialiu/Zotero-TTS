@@ -70,6 +70,54 @@ export function compareVoiceLabels(a: string, b: string): number {
   return a < b ? -1 : a > b ? 1 : 0;
 }
 
+/** One voice as the list a reader receives has it — either half of it, the plugin's or Zotero's own. */
+export interface ListedVoice {
+  /** Zotero's voice id: `provider::id` for the plugin's, Zotero's own for Zotero's. */
+  id: string;
+  /** The locale it is filed under: `mul` for the multilingual group, else a locale (`en-US`) or a bare language. */
+  language: string;
+  /** `local` for the plugin's; `standard` / `premium` for Zotero's own. */
+  tier: string;
+  label: string;
+}
+
+/**
+ * The voices a format=2 response publishes, one entry per voice and locale,
+ * in the order given — the plugin's own response (buildVoicesResponse) and
+ * Zotero's own answer alike, which is what memory-sync plans the remembered
+ * voice against (issue #35). Both locale forms Zotero's parser takes are
+ * read (the plain array, and `{ default, other }`); an id no config
+ * publishes is dropped, as Zotero drops it; a voice without a label is
+ * named by its id. Never throws: the shape is what a server sent.
+ */
+export function listVoicesResponse(response: unknown): ListedVoice[] {
+  const isRecord = (value: unknown): value is Record<string, unknown> => !!value && typeof value === 'object';
+  if (!isRecord(response)) return [];
+  const out: ListedVoice[] = [];
+  for (const [tier, configs] of Object.entries(response)) {
+    if (!Array.isArray(configs)) continue;
+    for (const config of configs) {
+      if (!isRecord(config) || !isRecord(config.voices) || !isRecord(config.locales)) continue;
+      const published = config.voices;
+      for (const [language, entry] of Object.entries(config.locales)) {
+        const ids = Array.isArray(entry)
+          ? entry
+          : isRecord(entry)
+            ? [...(Array.isArray(entry.default) ? entry.default : []), ...(Array.isArray(entry.other) ? entry.other : [])]
+            : [];
+        for (const id of ids) {
+          if (typeof id !== 'string' || !id) continue;
+          const voice = published[id];
+          if (!isRecord(voice)) continue;
+          const label = typeof voice.label === 'string' && voice.label ? voice.label : id;
+          out.push({ id, language, tier, label });
+        }
+      }
+    }
+  }
+  return out;
+}
+
 /**
  * Build the format=2 structure that Zotero's parseVoicesResponse
  * (reader.js:40499) recognizes.

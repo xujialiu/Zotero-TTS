@@ -71,6 +71,43 @@ describe('getVoices', () => {
     expect(result.error).toBe('network');
     expect(result.voices).toBeUndefined();
   });
+
+  // Issue #35: memory-sync plans the remembered voice against the very list
+  // a reader is about to receive — trimmed as it is — and names a voice the
+  // favorites trimmed out from the untrimmed one beside it
+  it('hands the final list to onVoicesListed right before returning it, with the untrimmed list beside it', async () => {
+    const provider = fakeProvider({
+      listVoices: async () => [
+        { id: 'alloy', label: 'Alloy', locale: 'en-US' },
+        { id: 'echo', label: 'Echo', locale: 'en-US' },
+      ],
+    });
+    const alloy = encodeVoiceId('openai', 'alloy');
+    const echo = encodeVoiceId('openai', 'echo');
+    const onVoicesListed = vi.fn();
+    await createRemoteInterface({ ...deps(provider), getFavoriteVoices: () => [echo], onVoicesListed }).getVoices();
+    expect(onVoicesListed).toHaveBeenCalledTimes(1);
+    expect(onVoicesListed).toHaveBeenCalledWith({
+      offered: [{ id: echo, language: 'en-US', tier: 'local', label: 'OpenAI-Echo' }],
+      published: [
+        { id: alloy, language: 'en-US', tier: 'local', label: 'OpenAI-Alloy' },
+        { id: echo, language: 'en-US', tier: 'local', label: 'OpenAI-Echo' },
+      ],
+    });
+  });
+
+  it('logs a hook that throws and returns the list all the same', async () => {
+    const log = vi.fn();
+    const result = await createRemoteInterface({
+      ...deps(),
+      log,
+      onVoicesListed: () => {
+        throw new Error('boom');
+      },
+    }).getVoices();
+    expect(result.voices!.local).toHaveLength(1);
+    expect(log).toHaveBeenCalledWith(expect.any(Error));
+  });
 });
 
 describe('getAudio', () => {
@@ -465,6 +502,14 @@ describe("alongside Zotero's own interface", () => {
     expect(Object.keys(standard[0].voices)).toEqual(['s2']);
     expect(standard[0].locales).toEqual({ 'en-US': ['s2'] });
     expect(result.voices!.premium).toEqual([]);
+  });
+
+  it("hands Zotero's own voices to onVoicesListed with the plugin's, trimmed and untrimmed alike", async () => {
+    const onVoicesListed = vi.fn();
+    await withNative(twoTiers(), { getFavoriteVoices: () => ['s2'], onVoicesListed }).iface.getVoices();
+    const { offered, published } = onVoicesListed.mock.calls[0][0] as { offered: { id: string }[]; published: { id: string; tier: string }[] };
+    expect(offered).toEqual([{ id: 's2', language: 'en-US', tier: 'standard', label: 'Two' }]);
+    expect(published.map((v) => `${v.tier}:${v.id}`)).toEqual(['standard:s1', 'standard:s2', 'premium:s1', `local:${voice.id}`]);
   });
 
   // The same rule the other way round: a favorite of Zotero's leaves the

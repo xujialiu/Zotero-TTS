@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it, vi } from 'vitest';
 import { PREF_PREFIX, type PrefsBackend } from '../../src/core/settings';
 import { FAVORITES_ONLY_OBSERVER } from '../../src/read-aloud/favorites';
-import { initVoiceListSwitches, VOICE_LIST_SWITCHES } from '../../src/ui/voice-list-switches';
+import { initVoiceListSwitches, unmarkedDefaultMessage, VOICE_LIST_SWITCHES } from '../../src/ui/voice-list-switches';
 
 function fakePrefs(initial: Record<string, unknown> = {}): PrefsBackend & { store: Record<string, unknown> } {
   const store = { ...initial };
@@ -25,7 +25,7 @@ class FakeCheckbox {
 
 const FAVORITES = VOICE_LIST_SWITCHES.find((s) => s.pref === 'readAloud.favoritesOnly')!;
 
-function setup(options: { prefs?: Record<string, unknown>; reading?: string[]; watch?: boolean } = {}) {
+function setup(options: { prefs?: Record<string, unknown>; reading?: string[]; watch?: boolean; unmarkedDefault?: () => string | null } = {}) {
   const boxes = new Map(VOICE_LIST_SWITCHES.map((s) => [s.id, new FakeCheckbox()]));
   const doc = { getElementById: (id: string) => boxes.get(id) ?? null };
   const prefs = fakePrefs(options.prefs);
@@ -35,6 +35,7 @@ function setup(options: { prefs?: Record<string, unknown>; reading?: string[]; w
     prefs,
     readingTabs: () => options.reading ?? [],
     warn,
+    unmarkedDefault: options.unmarkedDefault,
     watch:
       options.watch === false
         ? undefined
@@ -95,6 +96,41 @@ describe('initVoiceListSwitches', () => {
     expect(off.value(FAVORITES.pref)).toBe(true);
     expect(off.box(FAVORITES.id).checked).toBe(true);
     expect(off.warn).toHaveBeenCalledWith(expect.stringContaining('Attention'));
+  });
+
+  // Issue #35: a default that is not a favorite is never offered while only
+  // favorites are, and Read Aloud falls back — in the reported case to
+  // Zotero's metered voice, silently. The switch does not go on over such a
+  // default; off narrows nothing and is never asked about.
+  it('refuses to go on while the default voice is not a favorite, naming the voice and what to do', () => {
+    const t = setup({ unmarkedDefault: () => 'Kokoro-am_puck' });
+    t.box(FAVORITES.id).click();
+    expect(t.value(FAVORITES.pref)).toBeUndefined();
+    expect(t.box(FAVORITES.id).checked).toBe(false);
+    expect(t.warn).toHaveBeenCalledWith(unmarkedDefaultMessage('Kokoro-am_puck'));
+    expect(unmarkedDefaultMessage('Kokoro-am_puck')).toBe(
+      'Kokoro-am_puck is the default voice but not a favorite.\n\nWhile only favorites are offered, Read Aloud could not start with it. Mark it ♥, or make a favorite the default, then switch this on.',
+    );
+  });
+
+  it('goes off whatever the default is, and on once the default is a favorite', () => {
+    const blocker = vi.fn<() => string | null>(() => 'Kokoro-am_puck');
+    const t = setup({ prefs: { [PREF_PREFIX + FAVORITES.pref]: true }, unmarkedDefault: blocker });
+    t.box(FAVORITES.id).click();
+    expect(t.value(FAVORITES.pref)).toBe(false);
+    expect(blocker).not.toHaveBeenCalled();
+    blocker.mockReturnValue(null);
+    t.box(FAVORITES.id).click();
+    expect(t.value(FAVORITES.pref)).toBe(true);
+    expect(t.warn).not.toHaveBeenCalled();
+  });
+
+  it('asks about the reading tabs first: a tab reading is the message, and the default is not looked at', () => {
+    const blocker = vi.fn<() => string | null>(() => 'Kokoro-am_puck');
+    const t = setup({ reading: ['Deep learning'], unmarkedDefault: blocker });
+    t.box(FAVORITES.id).click();
+    expect(t.warn).toHaveBeenCalledWith(expect.stringContaining('Deep learning'));
+    expect(blocker).not.toHaveBeenCalled();
   });
 
   it('says nothing and writes nothing when the box already holds the pref', () => {

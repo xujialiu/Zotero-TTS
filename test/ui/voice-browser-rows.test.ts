@@ -1398,3 +1398,17 @@ describe('createSamplePlayer', () => {
     expect(second).not.toHaveBeenCalled();
   });
 });
+
+// The pane's refusal of *Offer only favorite voices* over a default that is
+// not a favorite names the voice as the browser does (ui/voice-list-switches.ts,
+// issue #35); a voice not listed now is named by its id there, as the status line names it
+describe('labelOf', () => {
+  it('names a listed voice by its label, the plugin’s and Zotero’s own alike, and nothing for one not listed', async () => {
+    const t = setup();
+    expect(t.rows.labelOf('local::af_bella')).toBeNull();
+    await t.rows.load();
+    expect(t.rows.labelOf('local::af_bella')).toBe('Kokoro-af_bella');
+    expect(t.rows.labelOf('zotero-standard-ava')).toBe('Ava');
+    expect(t.rows.labelOf('local::gone')).toBeNull();
+  });
+});

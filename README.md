@@ -206,8 +206,9 @@ with, in every document. The **Speed** slider is the player's own (0.5×–3×).
   ones **in every tier** — a tier you marked nothing in comes up empty, and
   Zotero grays it out. With nothing marked at all, or when none of the
   marked voices is listed any more, everything is offered again. While the
-  switch is on, only a favorite can be the default. Favorites travel with
-  the settings backup.
+  switch is on, only a favorite can be the default, and the switch stays
+  off while the default is not one. Favorites travel with the settings
+  backup.
 - The status line names the default by tier, language and voice with the
   speed (`Default voice: Local | Chinese | Azure-晓晓 | 1.8×`); a click on
   the default row clears it, back to Zotero's own per-language choice. Pick
@@ -254,6 +255,13 @@ sentences split by English rules); multilingual voices (Azure's, OpenAI's)
 sit under the player's "Multiple languages" entry, which the plugin pins to
 the top of the language list. The settings pane names every voice the same
 way the player does.
+
+When the default voice is not offered in a document — its provider switched
+off or not answering, or only favorites offered and the default not among
+them — Read Aloud starts with the first Local voice it does offer, your
+favorites first, and a note in the reader says which. The default itself is
+kept and comes back as soon as it is offered again. With no Local voice
+offered at all, Zotero picks the voice, as it does without the plugin.
 
 </details>
 

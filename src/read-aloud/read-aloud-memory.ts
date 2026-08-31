@@ -1,7 +1,7 @@
 import { MULTILINGUAL } from '../core/providers/types';
 import { resolveVoiceLang, type VoiceEntry, type VoicesMap } from '../core/read-aloud-speed';
 import { PREF_PREFIX, type PrefsBackend } from '../core/settings';
-import { decodeVoiceId, PLUGIN_TIER } from './voice-catalog';
+import { compareVoiceLabels, decodeVoiceId, PLUGIN_TIER, type ListedVoice } from './voice-catalog';
 
 /**
  * Zotero remembers the Read Aloud voice and speed per document language
@@ -180,6 +180,52 @@ export function sameChoice(a: VoiceChoice | null, b: VoiceChoice | null): boolea
  * `preferred` as its `navigator.languages`) — created under the tag
  * verbatim when none resolves, as Zotero would (issue #26).
  */
+/**
+ * What Read Aloud starts with when the remembered voice is not in the list
+ * a reader received (issue #35) — a favorite that is not offered while only
+ * favorites are, a provider switched off, a server that did not answer.
+ * Zotero's own fallback (`_findFallbackVoice`) takes any voice for the
+ * language once the entry's is missing, a metered Standard one included,
+ * and says nothing. This takes the first **Local** voice the list offers —
+ * never a Standard or Premium one — favorites before the rest, the
+ * document's language before Multiple languages before other languages,
+ * and within a rank the voice browser's order. Null when the list has no
+ * Local voice at all, which leaves the choice to Zotero.
+ */
+export function pickSubstitute(listed: readonly ListedVoice[], favorites: readonly string[], docLang: string | null): ListedVoice | null {
+  const wanted = new Set(favorites);
+  const base = docLang ? memoryLangForLocale(docLang) : null;
+  const rank = (voice: ListedVoice): [number, number] => {
+    const language = memoryLangForLocale(voice.language);
+    return [wanted.has(voice.id) ? 0 : 1, base !== null && language === base ? 0 : language === MULTILINGUAL ? 1 : 2];
+  };
+  const compare = (a: ListedVoice, ra: [number, number], b: ListedVoice, rb: [number, number]): number =>
+    ra[0] - rb[0] || ra[1] - rb[1] || compareVoiceLabels(a.label, b.label) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+  let best: ListedVoice | null = null;
+  let bestRank: [number, number] = [0, 0];
+  for (const voice of listed) {
+    if (voice.tier !== PLUGIN_TIER) continue;
+    const r = rank(voice);
+    if (best === null || compare(voice, r, best, bestRank) < 0) {
+      best = voice;
+      bestRank = r;
+    }
+  }
+  return best;
+}
+
+/**
+ * The line the reader shows when Read Aloud does not start with the
+ * remembered voice: which voice is not offered, and what reads instead —
+ * the substitute, or Zotero's own choice when no Local voice is offered,
+ * with a word about credits when a Standard or Premium voice covers the
+ * document's language (`paidOffered`). The effect, never the mechanism.
+ */
+export function substitutionMessage(missing: string, instead: string | null, paidOffered: boolean): string {
+  if (instead) return `Zotero-TTS: ${missing} is not offered here. Reading with ${instead} instead.`;
+  return `Zotero-TTS: ${missing} is not offered here, and no Local voice is. Zotero picks the voice${paidOffered ? '; it may use credits' : ''}.`;
+}
+
 export function planSync(docLang: string | null, voices: VoicesMap, memory: ReadAloudMemory, tier: string | null = null, preferred: readonly string[] = []): SyncPlan {
   if (!docLang) return { lang: null, voices: null };
   const voice = memory.voice;

@@ -353,7 +353,7 @@ export function initVoiceBrowserRows(
     createElementNS(ns: string, tag: string): any;
   },
   deps: VoiceBrowserDeps,
-): { load(): Promise<void>; refresh(): void; dispose(): void } {
+): { load(): Promise<void>; refresh(): void; labelOf(id: string): string | null; dispose(): void } {
   const localeName = deps.localeName ?? languageDisplayName;
   const status = (text: string) => doc.getElementById(VOICE_BROWSER_IDS.status)?.setAttribute('value', text);
 
@@ -773,7 +773,10 @@ export function initVoiceBrowserRows(
     stopPlayback();
   }
 
-  return { load, refresh, dispose };
+  /** The label a listed voice is shown under, by the id Read Aloud knows it by; null until listed, or for a voice not listed now. */
+  const labelOf = (id: string): string | null => listed?.find((voice) => voice.encoded === id)?.label ?? null;
+
+  return { load, refresh, labelOf, dispose };
 }
 
 /**

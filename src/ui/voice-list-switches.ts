@@ -39,6 +39,22 @@ export interface VoiceListSwitchesDeps extends ReadingGuardDeps {
   prefs: PrefsBackend;
   /** `Zotero.Prefs.registerObserver` on one pref, returning its unregister. Omitted, the boxes only follow `refresh()`. */
   watch?(observer: string, onChange: () => void): () => void;
+  /**
+   * The default voice's name when it is not a favorite — the voice the
+   * player would not offer while only favorites are, so that Read Aloud
+   * would fall back instead of starting with it (issue #35) — else null.
+   * Asked before *Offer only favorite voices* goes on, after the reading
+   * guard; never for off, which narrows nothing.
+   */
+  unmarkedDefault?(): string | null;
+}
+
+/** The pref of the one switch a default that is not a favorite holds back. */
+const FAVORITES_ONLY_PREF = 'readAloud.favoritesOnly';
+
+/** What the user is told when the switch stays off over such a default: the voice, and the two ways out. */
+export function unmarkedDefaultMessage(name: string): string {
+  return `${name} is the default voice but not a favorite.\n\nWhile only favorites are offered, Read Aloud could not start with it. Mark it ♥, or make a favorite the default, then switch this on.`;
 }
 
 export function initVoiceListSwitches(
@@ -58,16 +74,24 @@ export function initVoiceListSwitches(
 
   /**
    * The box has flipped itself by the time `command` fires, so `checked` is
-   * what the user asked for and the pref is still what it was. Refused, the
-   * box goes back to the pref; nothing else moved.
+   * what the user asked for and the pref is still what it was. Refused —
+   * a tab reading, or only favorites asked for over a default that is not
+   * one — the box goes back to the pref; nothing else moved.
    */
   function onCommand(row: VoiceListSwitch): void {
     const box = doc.getElementById(row.id);
     const wanted = !!box?.checked;
     if (wanted === value(row)) return;
-    if (refuseWhileReading(deps)) {
+    const refuse = () => {
       if (box) box.checked = value(row);
-      return;
+    };
+    if (refuseWhileReading(deps)) return refuse();
+    if (wanted && row.pref === FAVORITES_ONLY_PREF) {
+      const name = deps.unmarkedDefault?.();
+      if (name) {
+        deps.warn(unmarkedDefaultMessage(name));
+        return refuse();
+      }
     }
     deps.prefs.set(key(row), wanted);
   }

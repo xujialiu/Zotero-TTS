@@ -7,7 +7,7 @@ import { SynthesisError } from '../core/providers/errors';
 import { withTimeout } from '../core/timeout';
 import { createWebDAVClient } from '../core/webdav';
 import { listNamedCatalog } from '../read-aloud/catalog';
-import { FAVORITES_ONLY_OBSERVER } from '../read-aloud/favorites';
+import { FAVORITES_ONLY_OBSERVER, parseFavoriteVoices } from '../read-aloud/favorites';
 import { languageDisplayName } from '../read-aloud/language-dropdown';
 import { readMemory, writeMemory, READ_ALOUD_MEMORY_OBSERVER, type VoiceChoice } from '../read-aloud/read-aloud-memory';
 import { readReadAloudVoices, READ_ALOUD_VOICES_PREF } from '../core/read-aloud-speed';
@@ -446,6 +446,17 @@ export function onPaneLoad(doc: Document, hooks: PaneHooks = {}): void {
     watch: (name, onChange) => {
       const token = Zotero.Prefs.registerObserver(name, onChange);
       return () => Zotero.Prefs.unregisterObserver(token);
+    },
+    // Only a favorite can be the default while the popup offers only
+    // favorites: the switch does not go on over a default that is not one
+    // (issue #35). Named as the browser names it when it is listed, by its
+    // id when it is not — the status line's own convention.
+    unmarkedDefault: () => {
+      const settings = loadSettings(prefs);
+      if (!settings.readAloud.sameForAllDocuments) return null;
+      const voice = readMemory(prefs).voice;
+      if (!voice || parseFavoriteVoices(settings.readAloud.favoriteVoices).includes(voice.id)) return null;
+      return voiceBrowserRows.labelOf(voice.id) ?? voice.id;
     },
   });
   const voiceBrowserRows = initVoiceBrowserRows(doc, {

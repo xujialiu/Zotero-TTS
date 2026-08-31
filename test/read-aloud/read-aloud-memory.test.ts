@@ -9,14 +9,17 @@ import {
   memoryFromVoices,
   memoryLangForLocale,
   noteVoicesChange,
+  pickSubstitute,
   planSync,
   READ_ALOUD_MEMORY_OBSERVER,
   READ_ALOUD_MEMORY_PREF,
   readMemory,
   sameChoice,
+  substitutionMessage,
   writeMemory,
   type ReadAloudMemory,
 } from '../../src/read-aloud/read-aloud-memory';
+import type { ListedVoice } from '../../src/read-aloud/voice-catalog';
 
 describe('READ_ALOUD_MEMORY_OBSERVER', () => {
   it('names the memory pref the way Zotero.Prefs.registerObserver wants it: relative to extensions.zotero.', () => {
@@ -250,5 +253,64 @@ describe('planSync on a non-canonical document tag', () => {
 
   it('follows Zotero’s language equivalents: a cmn document reads the zh entry', () => {
     expect(planSync('cmn', voices, speedOnly)).toEqual({ lang: 'cmn', voices: { ...voices, zh: { ...voices.zh, speed: 1.5 } } });
+  });
+});
+
+// What Read Aloud starts with when the remembered voice is not in the list
+// a reader received (issue #35): Zotero's own fallback would take any voice
+// for the language, a Standard one included, and say nothing
+describe('pickSubstitute', () => {
+  const local = (id: string, language: string, label: string): ListedVoice => ({ id, language, tier: 'local', label });
+  const STANDARD: ListedVoice = { id: 'bdd0dcc3-en-US', language: 'en-US', tier: 'standard', label: 'Standard Voice 1' };
+  const AVA = local('azure::en-US-AvaMultilingualNeural', MULTILINGUAL, 'Azure-Ava Multilingual');
+  const BRIAN = local('azure::en-US-BrianMultilingualNeural', MULTILINGUAL, 'Azure-Brian Multilingual');
+  const BELLA = local('local::af_bella', 'en-US', 'Kokoro-af_bella');
+  const PUCK = local('local::am_puck', 'en-US', 'Kokoro-am_puck');
+  const XIAOXIAO = local('azure::zh-CN-XiaoxiaoNeural', 'zh-CN', 'Azure-晓晓');
+
+  // Issue #35's list: Zotero's Standard voice is the only English one and
+  // the favorites are multilingual — the substitute is never a paid voice
+  it('takes the first Local voice the list offers, never a Standard or Premium one', () => {
+    expect(pickSubstitute([STANDARD, BRIAN, AVA], [], 'en')).toEqual(AVA);
+    expect(pickSubstitute([STANDARD], [], 'en')).toBeNull();
+    expect(pickSubstitute([], [], 'en')).toBeNull();
+  });
+
+  it('prefers a favorite, whatever its language', () => {
+    expect(pickSubstitute([BELLA, AVA], [AVA.id], 'en')).toEqual(AVA);
+    expect(pickSubstitute([BELLA, AVA], [BELLA.id, AVA.id], 'en')).toEqual(BELLA);
+  });
+
+  it('then the document’s language, then Multiple languages, then the rest', () => {
+    expect(pickSubstitute([XIAOXIAO, AVA, BELLA], [], 'en')).toEqual(BELLA);
+    expect(pickSubstitute([XIAOXIAO, AVA], [], 'en')).toEqual(AVA);
+    expect(pickSubstitute([XIAOXIAO], [], 'en')).toEqual(XIAOXIAO);
+    expect(pickSubstitute([BELLA, XIAOXIAO], [], 'zh')).toEqual(XIAOXIAO);
+    // A regional document language is matched on its base
+    expect(pickSubstitute([BELLA, XIAOXIAO], [], 'zh-TW')).toEqual(XIAOXIAO);
+    // No language known: Multiple languages first
+    expect(pickSubstitute([BELLA, AVA], [], null)).toEqual(AVA);
+  });
+
+  it('within a rank, the voice browser’s order: by label, then by id', () => {
+    expect(pickSubstitute([PUCK, BELLA], [], 'en')).toEqual(BELLA);
+    expect(pickSubstitute([BRIAN, AVA], [], 'en')).toEqual(AVA);
+  });
+});
+
+describe('substitutionMessage', () => {
+  it('names the voice that is not offered and the one reading instead', () => {
+    expect(substitutionMessage('Kokoro-am_puck', 'Azure-Ava Multilingual', false)).toBe(
+      'Zotero-TTS: Kokoro-am_puck is not offered here. Reading with Azure-Ava Multilingual instead.',
+    );
+  });
+
+  it('says when no Local voice is offered either, and warns of credits when a paid voice covers the language', () => {
+    expect(substitutionMessage('Kokoro-am_puck', null, true)).toBe(
+      'Zotero-TTS: Kokoro-am_puck is not offered here, and no Local voice is. Zotero picks the voice; it may use credits.',
+    );
+    expect(substitutionMessage('Kokoro-am_puck', null, false)).toBe(
+      'Zotero-TTS: Kokoro-am_puck is not offered here, and no Local voice is. Zotero picks the voice.',
+    );
   });
 });

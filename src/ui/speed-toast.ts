@@ -1,7 +1,9 @@
 /**
- * A short "1.3×" overlay confirming a speed change. Shown in whichever
- * document is visible: the reader iframe, or the chrome window when the
- * reader's tab is hidden behind another.
+ * A short "1.3×" overlay confirming a speed change — and, through
+ * `showToast`, the line that says Read Aloud is not starting with the
+ * default voice this time (read-aloud/memory-sync.ts, issue #35). Shown in
+ * whichever document is visible: the reader iframe, or the chrome window
+ * when the reader's tab is hidden behind another.
  */
 export const SPEED_TOAST_ID = 'ztts-speed-toast';
 
@@ -15,10 +17,13 @@ const STYLE = [
   'z-index:2147483647',
   'background:rgba(38,38,42,0.92)',
   'color:#fff',
-  'font:600 15px/1 system-ui,-apple-system,sans-serif',
+  'font:600 15px/1.3 system-ui,-apple-system,sans-serif',
   'padding:7px 14px',
   'border-radius:8px',
   'box-shadow:0 2px 8px rgba(0,0,0,0.3)',
+  // A sentence wraps inside the viewport instead of running off it; the speed stays one short line
+  'max-width:min(80vw, 640px)',
+  'text-align:center',
   'pointer-events:none',
   'opacity:0',
   'transition:opacity 120ms ease',

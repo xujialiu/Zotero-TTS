@@ -4,7 +4,7 @@ import type { ProviderId, SynthesisResult, Timestamp, TTSProvider, VoiceInfo } f
 import { withTimeout } from '../core/timeout';
 import { countVoicesResponse, filterCatalogToFavorites, filterVoicesResponseToFavorites } from './favorites';
 import { isInvisibleSegment } from './invisible-text';
-import { buildVoicesResponse, decodeVoiceId } from './voice-catalog';
+import { buildVoicesResponse, decodeVoiceId, listVoicesResponse, type ListedVoice } from './voice-catalog';
 
 export const SAMPLE_TEXT = 'The quick brown fox jumps over the lazy dog.';
 
@@ -120,6 +120,16 @@ export type RemoteInterfaceDeps = {
    * restore (read-aloud/memory-sync.ts) hooks in here.
    */
   onVoicesRequested?(): void;
+  /**
+   * Called with the final list right before it is returned to Zotero — both
+   * halves, trimmed to the favorites when they are — and the untrimmed one
+   * beside it. Zotero's loadVoices assigns the list and resolves the voice
+   * on the same tick it gets it, with no sync in between, so whatever must
+   * be planned against that very list (read-aloud/memory-sync.ts reconcile,
+   * issue #35) is planned here. A throw is logged; the list is returned all
+   * the same.
+   */
+  onVoicesListed?(voices: { offered: ListedVoice[]; published: ListedVoice[] }): void;
   /**
    * How long to wait for Zotero's side of getVoices. Its promises never
    * reject — an exception inside leaves them pending — so without a limit
@@ -371,8 +381,10 @@ export function createRemoteInterface(deps: RemoteInterfaceDeps): RemoteInterfac
       // they name (a provider switched off, a server gone, an account signed
       // out), and when nothing marked is listed anywhere, everything is
       // offered again rather than reading as "the plugin broke".
-      let catalog: PluginCatalog = 'catalog' in mine ? mine.catalog : [];
-      let theirVoices: Record<string, unknown[]> | null = theirs?.voices ?? null;
+      const fullCatalog: PluginCatalog = 'catalog' in mine ? mine.catalog : [];
+      const allTheirs: Record<string, unknown[]> | null = theirs?.voices ?? null;
+      let catalog = fullCatalog;
+      let theirVoices = allTheirs;
       const favorites = deps.getFavoriteVoices?.() ?? null;
       if (favorites?.length) {
         const trimmedCatalog = filterCatalogToFavorites(catalog, favorites);
@@ -384,10 +396,20 @@ export function createRemoteInterface(deps: RemoteInterfaceDeps): RemoteInterfac
         }
       }
 
-      const voices: Record<string, unknown[]> = { ...(theirVoices ?? {}) };
-      const ours = buildVoicesResponse(catalog, deps.cacheVersion());
-      for (const [tier, configs] of Object.entries(ours)) {
-        voices[tier] = [...(voices[tier] ?? []), ...configs];
+      const merge = (theirsHalf: Record<string, unknown[]> | null, ours: PluginCatalog): Record<string, unknown[]> => {
+        const out: Record<string, unknown[]> = { ...(theirsHalf ?? {}) };
+        for (const [tier, configs] of Object.entries(buildVoicesResponse(ours, deps.cacheVersion()))) {
+          out[tier] = [...(out[tier] ?? []), ...configs];
+        }
+        return out;
+      };
+      const voices = merge(theirVoices, catalog);
+      if (deps.onVoicesListed) {
+        try {
+          deps.onVoicesListed({ offered: listVoicesResponse(voices), published: listVoicesResponse(merge(allTheirs, fullCatalog)) });
+        } catch (e) {
+          log(e);
+        }
       }
       return {
         voices,
