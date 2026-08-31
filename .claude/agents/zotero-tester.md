@@ -48,7 +48,8 @@ start over.
    version, `zotero_plugin_install` with the xpi (it upgrades in place, no
    restart), `zotero_plugin_list` again — the version must be the
    manifest's `-betaN` — then, before anything else is driven,
-   `Zotero.ZoteroTTS.diagnostics.startup()`: every step `ok`, `failed`
+   `Zotero.ZoteroTTS.diagnostics.startup()` (synchronous — it returns
+   the JSON string itself, not a promise): every step `ok`, `failed`
    empty. `Zotero.ZoteroTTS` existing proves only that the bundle was
    evaluated, not that startup ran (issue #25); a failed step ends the run
    there, reported together with `zotero_read_errors`. A reader opened
@@ -72,13 +73,22 @@ start over.
    that window's `document`; the element ids are in
    `addon/content/preferences.xhtml` and `src/ui/*-rows.ts`.
    `button.click()` fires the XUL `command`. Wait for the voice browser's
-   status line to leave "Listing voices…" before reading the columns.
+   status line to leave "Listing voices…" before reading the columns. To
+   see that transient at all, open the window and poll in ONE script —
+   `Zotero.Utilities.Internal.openPreferences('zotero-tts@xujialiu.top')`,
+   then read the status line from 0 ms — since the bridge's round trip
+   outlasts the listing. `win.close()` is asynchronous: poll
+   `getMostRecentWindow('zotero:pref')` down to null before reopening,
+   or the next script lands in the dying window.
 4. Transient states (`Checking…`, `Testing…`, `Listing voices…`): one
    `zotero_execute_js` script that clicks, then polls the attributes every
    100 ms into a trace with timestamps, and returns the trace with the
    final state — never a click in one call and a read in the next.
 5. Diagnostics: `Zotero.ZoteroTTS.diagnostics.<name>()` (async, returns a
-   JSON string — parse it) run inside the plugin sandbox; `zotero_execute_js`
+   JSON string — parse it; `startup()` alone is synchronous) run inside
+   the plugin sandbox. `highlight()` logs one error per call on a reader
+   whose popup has never opened (issue #39) — run it on readers with a
+   session, or count its entries out of the errors. `zotero_execute_js`
    itself is chrome scope (`Zotero`, `Zotero.Reader._readers`,
    `reader._internalReader`; a pref: `Zotero.Prefs.get('zotero-tts.<pref>')`,
    relative to `extensions.zotero.`, or the full name with `true` —
@@ -86,7 +96,19 @@ start over.
    relative name with `true` reads `undefined`). The manager:
    `reader._internalReader._readAloudManager` — `active` means the session
    is open (paused counts), `paused`, `selectedVoiceID`, `_selectedTier`,
-   `languages`. Name readers by title:
+   `languages`. Driving the manager: `selectTier()` and `selectVoice()`
+   activate an idle manager and start synthesis even with the popup
+   closed; `_prepareReadAloud()` runs the restore path silently, and a
+   second call skips the SDT language block (reader.js:83987); at the
+   end of a document the controller rewinds to the run's start
+   (`_backwardStopIndex ?? 0`, reader.js:39498) with the manager still
+   `active`, so read every "before" inside the script that acts. An
+   options object built in chrome scope reads as empty over in the
+   reader compartment (`scrollTo({top, behavior})` does nothing):
+   `Cu.cloneInto` it, or use positional arguments. Smooth scrolling did
+   not animate in this window (2026-08-31), so Zotero's own Read Aloud
+   follow is invisible and "the view returns" is not testable here.
+   Name readers by title:
    `(Zotero.Items.get(r.itemID).parentItem ?? Zotero.Items.get(r.itemID)).getField('title')`.
 6. `zotero_screenshot` (target `window`, the id from `zotero_list_windows`)
    for layout checks. `zotero_read_errors` at the end: report anything from
@@ -100,7 +122,13 @@ start over.
    `Zotero.Debug.get()` prints that store first, above a `====` separator
    line — read order from below the separator, and find a run's new
    errors by the store's length and timestamps: the previous round's
-   errors reappear after every clear and read like a regression.
+   errors reappear after every clear and read like a regression. And
+   `Zotero.getErrors()` is a ring: it held 26 entries through five runs
+   of 2026-08-31 while its contents rotated completely, so a length that
+   does not move proves nothing — find a run's new errors by content and
+   timestamp, and take the debug store (`Zotero.Debug.setStore(true)`
+   for the run, the value restored at the end) as the record for
+   dead-object bursts and `[zotero-tts]` lines.
 7. Hover and tooltips: move the mouse with
    `win.windowUtils.sendMouseEvent('mousemove', x, y, 0, 0, 0, false, 0, 0, false, false)`
    — the two trailing `false` (the DOM- and widget-synthesized flags) are
@@ -136,12 +164,20 @@ start over.
    `tip.keydown(new win.KeyboardEvent('', { key, code, keyCode }))` /
    `tip.keyup(...)`, a modifier held as its own keydown/keyup pair around
    the key. `keydown()` returning 1 means a handler consumed the event —
-   that return value is the evidence a shortcut fired.
+   that return value is the evidence a shortcut fired, but it says only
+   that *someone* did: the reader takes the arrows itself when the
+   plugin declines them, so a negative check needs the page change as
+   its evidence. A trusted press also supplies the user activation the
+   autoplay gate wants, so a `Shift+Space` start needs no
+   `notifyUserGestureActivation()` of its own.
 10. A `zotero_execute_js` eval times out after ~8–9 s, and a timeout
     returns bare `undefined` — indistinguishable from the script throwing.
     Split any wait into ≤8 s polling windows across separate calls, give
     every step its own try/catch, and always return a JSON string, so
-    `undefined` can only ever mean the timeout.
+    `undefined` can only ever mean the timeout. Only a top-level `return`
+    is wrapped: an `await` inside a `try` or any nested block fails with
+    `SyntaxError: await is only valid in async functions` — make an
+    `(async () => { … })()` the last expression of every script.
 
 ## Rules
 
@@ -156,6 +192,13 @@ start over.
   — never a bare `manager.deactivate()`: the open popup re-activates the
   manager at once, and it has started playback. Never call `play()` or
   `togglePaused()` on the user's document.
+- Zotero's credits are the user's. With the memory naming a voice the
+  player does not offer (issue #35 — this profile's state since
+  2026-08-31), an English document falls back to Zotero's metered
+  Standard voice: before any popup opens or session starts, point
+  `readAloud.memory` at a listed free voice and restore it verbatim as
+  the last pref written; a session on an id without `::` is paused at
+  once and reported.
 - Checks that spend: Test connection and Enable on Azure and OpenAI
   synthesize a probe (Azure's free tier, Chatterbox is free). One run per
   check is fine unless the brief says otherwise; never in a loop.

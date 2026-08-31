@@ -241,3 +241,4 @@ cite `notes/NOTES.md` with a date or a section title resolve through this index.
 - A startup step fails on its own now, and a diagnostic says which (issue #25)
 - A reload ran two instances at once, and the old one took the new one's global (issue #28)
 - A release is checked from chrome scope, and the gear menu installs rather than offers
+- A bug hunt over the released 1.10.1, through the bridge: five runs, nine issues, and what Zotero showed
