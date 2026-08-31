@@ -245,3 +245,4 @@ cite `notes/NOTES.md` with a date or a section title resolve through this index.
 - Every pick of the Server dropdown was a first pick, so each server now keeps its own address (issue #34)
 - A remembered voice the list does not offer starts a substitute, staged before the list lands (issues #35, #36, #37)
 - An open tab's interface can be re-delivered — but only through Zotero's own clone (issue #38)
+- A release's update.json is cached for five minutes, and the first check after the push can say "no update"
