@@ -186,6 +186,22 @@ describe('handleKeyDown', () => {
     expect(voicesPref(prefs)).toEqual({ en: { speed: 1.6 } });
   });
 
+  // An idle manager on a tag no key resolves — an EPUB declaring en_US — is
+  // read by Zotero under that tag (issue #26): the speed goes into that entry,
+  // and the en entry, which every other English document reads, stays as it was
+  it('persists under the manager’s own tag when no entry resolves, leaving the base language alone', () => {
+    const preferredLanguages = vi.fn(() => ['en-US', 'en']);
+    const { shortcuts, manager, prefs, resolve } = setup({ preferredLanguages });
+    manager.active = false;
+    manager.lang = 'en_US';
+    manager.speed = 1;
+    prefs.set(READ_ALOUD_VOICES_PREF, JSON.stringify({ en: { speed: 1.7 } }));
+    shortcuts.handleKeyDown(keyEvent({ key: 'C', code: 'KeyC' }), resolve);
+    expect(manager.setSpeed).toHaveBeenCalledWith(1.1, false);
+    expect(voicesPref(prefs)).toEqual({ en: { speed: 1.7 }, en_US: { speed: 1.1 } });
+    expect(preferredLanguages).toHaveBeenCalled();
+  });
+
   it('falls back to the pref alone when the reader has no manager', () => {
     const { shortcuts, prefs, reader, showToast, resolve } = setup({ getManager: () => null });
     prefs.set(READ_ALOUD_VOICES_PREF, JSON.stringify({ en: { speed: 1.5 } }));

@@ -236,3 +236,19 @@ describe('planSync', () => {
     expect(planSync('zh', voices, learnedUnderEn)).toEqual({ lang: MULTILINGUAL, voices: null });
   });
 });
+
+// A document whose own tag no key resolves — en_US, EN, or cmn with no zh
+// entry — is read by Zotero under that tag exactly (issue #26): the memory
+// goes into that entry, never into the base language's
+describe('planSync on a non-canonical document tag', () => {
+  const speedOnly: ReadAloudMemory = { speed: 1.5, voice: null };
+
+  it('writes the remembered speed under the tag Zotero will read, not under the base language', () => {
+    expect(planSync('en_US', voices, speedOnly)).toEqual({ lang: 'en_US', voices: { ...voices, en_US: { speed: 1.5 } } });
+    expect(planSync('EN', voices, speedOnly)).toEqual({ lang: 'EN', voices: { ...voices, EN: { speed: 1.5 } } });
+  });
+
+  it('follows Zotero’s language equivalents: a cmn document reads the zh entry', () => {
+    expect(planSync('cmn', voices, speedOnly)).toEqual({ lang: 'cmn', voices: { ...voices, zh: { ...voices.zh, speed: 1.5 } } });
+  });
+});

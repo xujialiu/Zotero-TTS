@@ -175,13 +175,16 @@ export function sameChoice(a: VoiceChoice | null, b: VoiceChoice | null): boolea
  * known from the id); unknown, the entry's `voice` alone is set. `docLang`
  * is the document's language — what the manager is on, or was on before
  * memory-sync moved it — so with no voice remembered the manager goes back
- * there and Zotero restores its own choice for it.
+ * there and Zotero restores its own choice for it. The entry is the one
+ * Zotero's own resolution reads for `lang` (`resolveVoiceLang`, with
+ * `preferred` as its `navigator.languages`) — created under the tag
+ * verbatim when none resolves, as Zotero would (issue #26).
  */
-export function planSync(docLang: string | null, voices: VoicesMap, memory: ReadAloudMemory, tier: string | null = null): SyncPlan {
+export function planSync(docLang: string | null, voices: VoicesMap, memory: ReadAloudMemory, tier: string | null = null, preferred: readonly string[] = []): SyncPlan {
   if (!docLang) return { lang: null, voices: null };
   const voice = memory.voice;
   const lang = voice ? (isGlobalVoice(voice) ? MULTILINGUAL : voice.lang) : docLang;
-  const key = resolveVoiceLang(lang, Object.keys(voices)) ?? lang;
+  const key = resolveVoiceLang(lang, Object.keys(voices), preferred) ?? lang;
   const entry = voices[key] ?? {};
   let next = entry;
   if (memory.speed !== null && speedOf(entry) !== memory.speed) next = { ...next, speed: memory.speed };

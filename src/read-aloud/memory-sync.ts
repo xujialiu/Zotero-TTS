@@ -75,6 +75,8 @@ export interface ReadAloudMemoryDeps {
   sameVoice(): boolean;
   /** The "one speed everywhere" setting (`readAloud.globalSpeed`), read the same way; off, Zotero keeps a speed per document language. */
   globalSpeed(): boolean;
+  /** What Zotero's resolveLanguage reads as `navigator.languages` when it picks among regional entries: a reader window's, since the sandbox has none. Absent or empty, Zotero's default regions decide. */
+  preferredLanguages?(): readonly string[];
   registerObserver(name: string, handler: () => void): unknown;
   unregisterObserver(token: unknown): void;
   /** The readers currently open, so dispose() can restore what attach() patched. */
@@ -143,8 +145,8 @@ const describeMemory = (m: ReadAloudMemory) =>
 const managerLangOf = (manager: any): string | null => (typeof manager?.lang === 'string' && manager.lang ? manager.lang : null);
 
 /** The region Zotero's entry for `lang` stores — the voice's own, as `_persistCurrentVoice` writes it. */
-function entryRegion(voices: VoicesMap, lang: string): string | null {
-  const key = resolveVoiceLang(lang, Object.keys(voices)) ?? lang;
+function entryRegion(voices: VoicesMap, lang: string, preferred: readonly string[]): string | null {
+  const key = resolveVoiceLang(lang, Object.keys(voices), preferred) ?? lang;
   const region = voices[key]?.region;
   return typeof region === 'string' && region ? region : null;
 }
@@ -263,7 +265,8 @@ export function createReadAloudMemorySync(deps: ReadAloudMemoryDeps): ReadAloudM
     const before = readReadAloudVoices(deps.prefs);
     // The voice's tier as this manager lists it (a Zotero voice's is not in
     // its id); the list may still be loading at a popup's first sync
-    const plan = planSync(docLang, before, current, current.voice ? tierOf(manager, current.voice.id) : null);
+    const preferred = deps.preferredLanguages?.() ?? [];
+    const plan = planSync(docLang, before, current, current.voice ? tierOf(manager, current.voice.id) : null, preferred);
     if (plan.voices) whileApplying(() => deps.prefs.set(READ_ALOUD_VOICES_PREF, JSON.stringify(plan.voices)));
     if (plan.lang === null) return;
     let switching = plan.lang !== managerLang;
@@ -274,7 +277,7 @@ export function createReadAloudMemorySync(deps: ReadAloudMemoryDeps): ReadAloudM
     // Zotero's own inactive-manager path calls setLanguage(lang) with none.
     if (!switching && current.voice && current.voice.lang === plan.lang) {
       const region = typeof manager.region === 'string' && manager.region ? manager.region : null;
-      if (region && region !== entryRegion(plan.voices ?? before, plan.lang)) switching = true;
+      if (region && region !== entryRegion(plan.voices ?? before, plan.lang, preferred)) switching = true;
     }
     if (switching) manager.setLanguage(plan.lang);
     if (!switching) {

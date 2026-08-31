@@ -15,7 +15,7 @@ import { createPositionSync, ACTIVE_TICK_MS, IDLE_TICK_MS, type PositionSync } f
 import { createPositionStore, type PositionStore } from './read-aloud/position-store';
 import { describePosition, READ_ALOUD_POSITIONS_PREF, readPositions, resumeTarget, type PositionEntry } from './read-aloud/read-aloud-position';
 import { readMemory } from './read-aloud/read-aloud-memory';
-import { readReadAloudVoices } from './core/read-aloud-speed';
+import { readReadAloudVoices, resolveVoiceLang } from './core/read-aloud-speed';
 import { listNamedCatalog, type CatalogEntry } from './read-aloud/catalog';
 import { parseFavoriteVoices } from './read-aloud/favorites';
 import { dropdownLanguage, languageDisplayName } from './read-aloud/language-dropdown';
@@ -618,12 +618,33 @@ function unhookPositionCaptures(): void {
   positionCaptureHooks.clear();
 }
 
+/**
+ * What Zotero's resolveLanguage reads as `navigator.languages` when it
+ * picks among regional entries of its pref (core/read-aloud-speed.ts): the
+ * plugin sandbox has no navigator, so it is read off an open reader's
+ * window — the same value in every window, since Firefox derives it from
+ * intl.accept_languages. None open: empty, and Zotero's default regions
+ * decide, as they do for Zotero when no navigator language matches.
+ */
+function preferredLanguages(): string[] {
+  for (const reader of Zotero.Reader._readers ?? []) {
+    try {
+      const languages = (reader as any)?._iframeWindow?.navigator?.languages;
+      if (languages?.length) return Array.from(languages, String);
+    } catch {
+      // a window on its way out
+    }
+  }
+  return [];
+}
+
 function startReadAloudShortcuts(pluginID: string): void {
   stopReadAloudShortcuts();
   readAloudShortcuts = createReadAloudShortcuts({
     getBindings: () => loadSettings(prefs).shortcuts,
     prefs,
     getManager: readAloudManager,
+    preferredLanguages,
     showToast: toastFor,
     // After a skip, what the popup's own buttons do: the view follows the spoken position again
     lockPosition: (reader: any) => reader?._internalReader?._lockPositionToReadAloud?.(),
@@ -729,6 +750,7 @@ function startReadAloudMemory(): void {
     prefs,
     sameVoice: () => loadSettings(prefs).readAloud.sameForAllDocuments,
     globalSpeed: () => loadSettings(prefs).readAloud.globalSpeed,
+    preferredLanguages,
     registerObserver: (name, handler) => Zotero.Prefs.registerObserver(name, handler),
     unregisterObserver: (token) => Zotero.Prefs.unregisterObserver(token),
     readers: () => Zotero.Reader._readers ?? [],
@@ -1106,6 +1128,18 @@ const appLanguageName = (code: string) => languageDisplayName(code, Zotero.local
 const diagnostics = {
   highlight: () => JSON.stringify((Zotero.Reader._readers ?? []).map((r: any) => highlightStyling?.inspect(r) ?? null), null, 1),
   systemVoices: () => JSON.stringify((Zotero.Reader._readers ?? []).map((r: any) => systemVoiceHiding?.inspect(r) ?? null), null, 1),
+  /**
+   * The key of Zotero's reader.readAloudVoices pref a language resolves to,
+   * through the shipped resolver (Zotero's resolveLanguage ported, issue
+   * #26): `keys` default to the pref's own, `preferred` to what the reader
+   * window's navigator.languages says. Run beside Zotero's function over
+   * the same inputs, the two must agree.
+   */
+  resolveVoiceLang: (lang: string, keys?: string[], preferred?: string[]) => {
+    const k = keys ?? Object.keys(readReadAloudVoices(prefs));
+    const p = preferred ?? preferredLanguages();
+    return JSON.stringify({ lang, keys: k, preferred: p, key: resolveVoiceLang(lang, k, p) });
+  },
   multilingualFirst: () => JSON.stringify((Zotero.Reader._readers ?? []).map((r: any) => multilingualFirst?.inspect(r) ?? null), null, 1),
   /**
    * The undo logs of the four modules that shadow a reader-side prototype

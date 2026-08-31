@@ -69,6 +69,8 @@ export interface ReadAloudShortcutsDeps {
   /** Full-key pref access, for Zotero's reader.readAloudVoices pref. */
   prefs: PrefsBackend;
   getManager(reader: unknown): ReadAloudManagerLike | null;
+  /** What Zotero's resolveLanguage reads as `navigator.languages` when it picks among regional entries of the pref: a reader window's, since the sandbox has none. Absent or empty, Zotero's default regions decide. */
+  preferredLanguages?(): readonly string[];
   showToast?(reader: unknown, speed: number): void;
   /** After a skip, what the popup's own buttons do: lock the view to the spoken position, so it follows again. */
   lockPosition?(reader: unknown): void;
@@ -183,7 +185,8 @@ export function createReadAloudShortcuts(deps: ReadAloudShortcutsDeps): ReadAlou
     // A manager only learns the persisted speed once it knows its language
     // (reader._syncPersistedVoicesToManager); before that its `speed` is the
     // constructor default, not the user's setting, so start from the pref.
-    const current = lang && typeof manager?.speed === 'number' ? manager.speed : readPersistedSpeed(deps.prefs, lang);
+    const preferred = deps.preferredLanguages?.() ?? [];
+    const current = lang && typeof manager?.speed === 'number' ? manager.speed : readPersistedSpeed(deps.prefs, lang, preferred);
     const next = nextSpeed(current, action);
 
     // Let Zotero persist only while it is playing. Its persistence path
@@ -204,7 +207,7 @@ export function createReadAloudShortcuts(deps: ReadAloudShortcutsDeps): ReadAlou
     }
     // With no language known the pref is updated for every language: the
     // user asked for a speed, not for a speed in one language.
-    if (!persistedByZotero) persistSpeed(deps.prefs, lang, next);
+    if (!persistedByZotero) persistSpeed(deps.prefs, lang, next, preferred);
 
     deps.showToast?.(reader, next);
     return next;
