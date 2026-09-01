@@ -1,0 +1,82 @@
+%PDF-1.4
+%‚„œ”
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R /Lang (en-US) >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [6 0 R 8 0 R] /Count 2 >>
+endobj
+3 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>
+endobj
+4 0 obj
+<< /Title (Zotero-TTS fixture A) /Producer (make_fixtures.py) >>
+endobj
+5 0 obj
+<< /Length 1208 >>
+stream
+BT
+/F1 11 Tf
+72 720 Td
+15 TL
+(Zotero-TTS fixture A, page one. This document exists only to be read aloud by) Tj
+T* (a test. It has several paragraphs, and every paragraph has several sentences.) Tj
+T* (The first sentence of each paragraph is short. The later sentences are a) Tj
+T* (little longer, so that a word-level highlight has room to move across the) Tj
+T* (line.) Tj
+0 -12 Td
+T* (The second paragraph talks about nothing in particular. A reader that skips by) Tj
+T* (sentence should land on the start of this sentence, and then on the start of) Tj
+T* (the next one. A reader that skips by paragraph should land here, at the) Tj
+T* (beginning of the second paragraph, and then at the beginning of the third.) Tj
+T* (Speed is measured in multiples of the natural pace.) Tj
+0 -12 Td
+/F1 0 Tf
+T* (INVISIBLE MARKER ZULU seven nine this line must never be spoken or listed) Tj
+/F1 11 Tf
+0 -12 Td
+T* (The third paragraph is the last one on this page. It mentions the number) Tj
+T* (forty-two once, and the color of the sky twice: the sky is blue, and at night) Tj
+T* (the sky is dark. When the page ends, playback should continue on the next page) Tj
+T* (without a pause longer than a sentence break.) Tj
+ET
+endstream
+endobj
+6 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 5 0 R >>
+endobj
+7 0 obj
+<< /Length 404 >>
+stream
+BT
+/F1 11 Tf
+72 720 Td
+15 TL
+(Fixture A, page two. Resuming should bring the reader back to the sentence it) Tj
+T* (left off on, not to the top of the page. The stored position is a single) Tj
+T* (point, the center of the first rectangle of that sentence.) Tj
+0 -12 Td
+T* (This is the final paragraph of fixture A. It has three sentences. This is the) Tj
+T* (third one, and the document ends here.) Tj
+ET
+endstream
+endobj
+8 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 7 0 R >>
+endobj
+xref
+0 9
+0000000000 65535 f 
+0000000015 00000 n 
+0000000078 00000 n 
+0000000141 00000 n 
+0000000238 00000 n 
+0000000318 00000 n 
+0000001578 00000 n 
+0000001704 00000 n 
+0000002159 00000 n 
+trailer
+<< /Size 9 /Root 1 0 R /Info 4 0 R >>
+startxref
+2285
+%%EOF

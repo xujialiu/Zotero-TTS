@@ -223,6 +223,20 @@ before the issue is written.
   human can judge. Work the list until it is empty, then a last pass for
   whatever was fixed along the way. A failure stops the pass: fix, rebuild,
   reinstall, re-run from the first check.
+- **The list is `test/zotero-dev.md`** (settled 2026-09-01): the complete
+  live checklist, one section per area, every item a behavior, its check
+  (a diagnostic or an observation) and the expected output; the fixtures
+  it uses are `test/fixtures/`. **A feature adds its items there before
+  it merges** — the check that proves the new behavior by its mechanism,
+  what it may touch, what only a human can judge — and its verification
+  brief runs that section plus the baseline (section 0). A fix that
+  changes an expected output changes it there in the same commit. The
+  **whole file runs only when the user asks for it** — never on a
+  session's own initiative: not after a release, not after a Zotero
+  update, not because a batch of features landed, however much changed.
+  Those are the occasions the user may choose to ask on; the file exists
+  so that when they do, nothing is left out. The first full pass was the
+  1.10.1 bug hunt of 2026-08-31 (issues #31–#39), on request.
 - **The user takes over only** when a check needs a human — how a voice
   sounds, whether the word highlight keeps pace, how the popup behaves in
   motion (screenshots are static; nothing here records) — or when the
@@ -311,7 +325,8 @@ src/index.ts        bootstrap wiring; with core/settings.createZoteroPrefs and u
                     only code that touches Zotero globals (declared in src/globals.d.ts)
 addon/              manifest.json, bootstrap.js, prefs.js (defaults), content/preferences.xhtml,
                     content/preferences.css (the ? icons, registered with the pane)
-test/               mirrors src/; vitest
+test/               mirrors src/; vitest; zotero-dev.md — the live checklist the bridge
+                    runs (see Driving Zotero live); fixtures/ — its PDFs and their generator
 assets/             README media (the word-highlight GIF, popup and settings screenshots)
 ```
 

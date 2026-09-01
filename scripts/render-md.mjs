@@ -1,5 +1,5 @@
 // Render Markdown to a browser preview: `node scripts/render-md.mjs [files...]`
-// (default: README, PHILOSOPHY, tutorials/, notes/). Each file becomes
+// (default: README, PHILOSOPHY, test/zotero-dev.md, tutorials/, notes/). Each file becomes
 // docs/<same path>.html — the source tree mirrored under docs/, with relative
 // links rewritten so images and cross-links still resolve.
 // Needs pandoc on PATH. docs/ is gitignored.
@@ -103,7 +103,7 @@ ${body}</body>
 
 // The default set is every doc the README links to, so the preview navigates.
 function defaultFiles() {
-  const files = ['README.md', 'PHILOSOPHY.md'];
+  const files = ['README.md', 'PHILOSOPHY.md', join('test', 'zotero-dev.md')];
   for (const dir of ['tutorials', 'notes']) {
     for (const name of readdirSync(dir)) {
       if (name.endsWith('.md')) files.push(join(dir, name));
