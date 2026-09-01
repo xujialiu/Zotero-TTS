@@ -1,7 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
 import { PREF_PREFIX, type PrefsBackend } from '../../src/core/settings';
 import { BACKUP_FILENAME, BACKUP_FORMAT, createBackup, parseBackup, serializeBackup } from '../../src/core/settings-backup';
-import { initBackupRows, type BackupRowsDeps } from '../../src/ui/backup-rows';
+import { POSITIONS_FILENAME, serializePositions } from '../../src/read-aloud/position-file';
+import type { PositionEntry } from '../../src/read-aloud/read-aloud-position';
+import { initBackupRows, POSITIONS_IDS, type BackupRowsDeps } from '../../src/ui/backup-rows';
 
 function fakePrefs(initial: Record<string, unknown> = {}): PrefsBackend & { store: Record<string, unknown> } {
   const store = { ...initial };
@@ -24,7 +26,7 @@ class FakeElement {
   }
 }
 
-const IDS = ['ztts-backup', 'ztts-restore', 'ztts-backup-message'];
+const IDS = ['ztts-backup', 'ztts-restore', 'ztts-backup-message', POSITIONS_IDS.export, POSITIONS_IDS.import];
 
 function setup(
   options: {
@@ -34,6 +36,7 @@ function setup(
     confirm?: boolean;
     reading?: string[];
     verify?: () => Promise<string>;
+    positions?: PositionEntry[];
   } = {},
 ) {
   const els = new Map(IDS.map((id) => [id, new FakeElement()]));
@@ -54,6 +57,10 @@ function setup(
     onRestored: vi.fn(),
     readingTabs: vi.fn(() => options.reading ?? []),
     warn: vi.fn((_message: string) => {}),
+    positions: {
+      list: vi.fn(() => options.positions ?? []),
+      importEntries: vi.fn((entries: PositionEntry[]) => entries.length),
+    },
     ...(options.verify ? { verifyProviders: options.verify } : {}),
   } satisfies BackupRowsDeps;
   initBackupRows(doc, deps);
@@ -215,5 +222,52 @@ describe('initBackupRows', () => {
         readFile: async () => '',
       }),
     ).not.toThrow();
+  });
+});
+
+describe('Export reading positions', () => {
+  const entries: PositionEntry[] = [
+    { lib: 1, key: 'ABCD1234', pos: { pageIndex: 3, rects: [[20, 30, 20, 30]] }, ts: 1000 },
+    { lib: 1, key: 'EFGH5678', pos: { value: 'epubcfi(/6/4!/4/2)' }, ts: 2000 },
+  ];
+
+  it('writes the store as the sync file format and says how many', async () => {
+    const t = setup({ positions: entries });
+    await t.el(POSITIONS_IDS.export).fire('command');
+    expect(t.deps.pickSavePath).toHaveBeenCalledWith(POSITIONS_FILENAME);
+    expect(t.written).toEqual([{ path: 'C:\\backups\\tts.json', text: serializePositions(entries) }]);
+    expect(t.message()).toBe('Saved 2 reading positions to C:\\backups\\tts.json.');
+  });
+
+  it('does nothing when the dialog is cancelled', async () => {
+    const t = setup({ positions: entries, savePath: null });
+    await t.el(POSITIONS_IDS.export).fire('command');
+    expect(t.written).toEqual([]);
+    expect(t.message()).toBe('');
+  });
+});
+
+describe('Import reading positions', () => {
+  const entries: PositionEntry[] = [{ lib: 1, key: 'ABCD1234', pos: { pageIndex: 3, rects: [[20, 30, 20, 30]] }, ts: 1000 }];
+
+  it('merges the chosen file and says how many were newer', async () => {
+    const t = setup({ file: serializePositions(entries) });
+    await t.el(POSITIONS_IDS.import).fire('command');
+    expect(t.deps.positions.importEntries).toHaveBeenCalledWith(entries);
+    expect(t.message()).toBe('Merged 1 reading positions from C:\\backups\\tts.json; 1 were newer and were taken.');
+  });
+
+  it('refuses a file that is no positions file, touching nothing', async () => {
+    const t = setup({ file: '{"format":"zotero-tts-settings","version":1,"settings":{}}' });
+    await t.el(POSITIONS_IDS.import).fire('command');
+    expect(t.deps.positions.importEntries).not.toHaveBeenCalled();
+    expect(t.message()).toContain('Import failed:');
+  });
+
+  it('does nothing when the dialog is cancelled', async () => {
+    const t = setup({ file: null });
+    await t.el(POSITIONS_IDS.import).fire('command');
+    expect(t.deps.positions.importEntries).not.toHaveBeenCalled();
+    expect(t.message()).toBe('');
   });
 });

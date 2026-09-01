@@ -5,7 +5,10 @@ import { encodeCommand, WINDOWS_DAEMON_SCRIPT, WINDOWS_POWERSHELL, windowsComman
 import { listSystemVoiceRecords, systemUnavailableReason, type SystemProviderDeps } from './core/providers/system';
 import { zoteroVoiceId } from './core/providers/system/voices';
 import { createMemoryCache } from './core/memory-cache';
-import { audioCacheOn, createZoteroPrefs, loadSettings, migrateLegacyProviderPref } from './core/settings';
+import { audioCacheOn, createZoteroPrefs, DEFAULTS, loadSettings, migrateLegacyProviderPref } from './core/settings';
+import { createBackup, flattenSettings, machineSettingsFilename, serializeBackup, SETTINGS_FILE_PATTERN } from './core/settings-backup';
+import { createSettingsAutoUpload, type SettingsAutoUpload } from './core/settings-autoupload';
+import { machineId } from './core/machine-id';
 import { installHijack, nativeInterfaceOf } from './read-aloud';
 import { redeliverInterfaces, restoreInterfaces } from './read-aloud/interface-redelivery';
 import { createReadAloudMemorySync, type ReadAloudMemorySync } from './read-aloud/memory-sync';
@@ -15,6 +18,7 @@ import { createMultilingualFirst, type MultilingualFirst } from './read-aloud/mu
 import { createPositionSync, ACTIVE_TICK_MS, IDLE_TICK_MS, type PositionSync } from './read-aloud/position-sync';
 import { createPositionStore, type PositionStore } from './read-aloud/position-store';
 import { createPositionTransport, type PositionTransport } from './read-aloud/position-transport';
+import { POSITIONS_FILENAME } from './read-aloud/position-file';
 import { createWebDAVClient } from './core/webdav';
 import { describePosition, READ_ALOUD_POSITIONS_PREF, readPositions, resumeTarget, type PositionEntry } from './read-aloud/read-aloud-position';
 import { readMemory } from './read-aloud/read-aloud-memory';
@@ -31,7 +35,7 @@ import {
   type NativeRemoteInterface,
   type RemoteInterface,
 } from './read-aloud/remote-interface';
-import { onPaneLoad, registerPrefsPane, TEST_CONNECTION_TIMEOUT_MS, unregisterPrefsPane, zoteroVoiceService } from './ui/prefs-pane';
+import { defaultMachineName, onPaneLoad, registerPrefsPane, TEST_CONNECTION_TIMEOUT_MS, unregisterPrefsPane, zoteroVoiceService } from './ui/prefs-pane';
 import {
   createReadAloudShortcuts,
   deepActiveElement,
@@ -75,6 +79,8 @@ let positionStore: PositionStore | null = null;
 let positionTransport: PositionTransport | null = null;
 /** The syncPositions checkbox's observer token, so flipping it on syncs at once. */
 let syncSwitchObserver: unknown = null;
+/** Keeps this machine's settings file on the server fresh (#41, core/settings-autoupload.ts). */
+let settingsAutoUpload: SettingsAutoUpload | null = null;
 /** The raw `Zotero.DBConnection`, kept for diagnostics (path, row count). */
 let positionDB: any = null;
 let deleteNotifierID: string | null = null;
@@ -1133,6 +1139,43 @@ function stopDeletionObserver(): void {
   deleteNotifierID = null;
 }
 
+// ---- This machine's settings file, kept fresh on the server (#41) ----------
+//
+// Settings cannot merge, so every machine writes only its own
+// zotero-tts-settings_<id>.json (core/machine-id.ts) — upload only, the
+// debounce and gating in core/settings-autoupload.ts. Applying remote
+// settings stays a manual act in the pane (ui/webdav-rows.ts).
+
+function startSettingsAutoUpload(): void {
+  stopSettingsAutoUpload();
+  settingsAutoUpload = createSettingsAutoUpload({
+    enabled: () => loadSettings(prefs).webdav.autoUploadSettings,
+    // Every settings pref there is; the observer names are relative to extensions.zotero.
+    keys: Object.keys(flattenSettings(DEFAULTS)).map((key) => 'zotero-tts.' + key),
+    registerObserver: (name, handler) => Zotero.Prefs.registerObserver(name, handler),
+    unregisterObserver: (token) => Zotero.Prefs.unregisterObserver(token),
+    upload: async () => {
+      const id = machineId(prefs, defaultMachineName);
+      const name = machineSettingsFilename(id);
+      const backup = createBackup(prefs, { pluginVersion, exportedAt: new Date().toISOString(), machine: id });
+      const client = createWebDAVClient(loadSettings(prefs).webdav, { fetch });
+      await client.upload(name, serializeBackup(backup));
+      return { name, count: Object.keys(backup.settings).length };
+    },
+    setTimeout: (fn, ms) => setTimeout(fn, ms),
+    clearTimeout: (handle: any) => clearTimeout(handle),
+    now: () => Date.now(),
+    error: (e) => Zotero.logError(e),
+    debug: (message) => Zotero.debug('[zotero-tts] ' + message),
+  });
+  settingsAutoUpload.start();
+}
+
+function stopSettingsAutoUpload(): void {
+  settingsAutoUpload?.stop();
+  settingsAutoUpload = null;
+}
+
 // ---- Highlight colors -----------------------------------------------------
 //
 // Zotero's highlight colors are constants in its reader bundle; see
@@ -1228,6 +1271,7 @@ async function startup({ id, version, rootURI }: StartupParams): Promise<void> {
       // Awaited: the database rows must be in memory before the sampler and
       // the resume path run; open-failure is handled inside (in-memory mode)
       ['reading-position store', startPositionTracking],
+      ['settings auto-upload', startSettingsAutoUpload],
       ['highlight colors', startHighlightStyling],
       [
         'system speech helper',
@@ -1274,6 +1318,18 @@ async function shutdown(reason?: number): Promise<void> {
   uninstallHijack?.();
   uninstallHijack = null;
   stopReadAloudShortcuts();
+  // A settings change still inside its quiet period goes up now, bounded;
+  // then the observers come off
+  const auto = settingsAutoUpload;
+  settingsAutoUpload = null;
+  if (auto) {
+    try {
+      await withTimeout(auto.flush(), SYNC_SHUTDOWN_TIMEOUT_MS, () => new Error('zotero-tts: settings auto-upload flush timed out at shutdown'));
+    } catch (e) {
+      Zotero.logError(e);
+    }
+    auto.stop();
+  }
   // Awaited: the final bookmarks flush to the database and the connection
   // closes before Zotero goes on shutting down (plugins.js awaits us)
   await stopPositionTracking();
@@ -1536,6 +1592,42 @@ const diagnostics = {
       null,
       1,
     );
+  },
+  /**
+   * The settings side of the sync (#41): this machine's id and file name,
+   * and what the auto-upload last did — pending, outcome, count. A build is
+   * proved by `autoUpload.uploads` rising after a settings change with the
+   * switch on, never by the server's file looking fresh.
+   */
+  settingsUpload: () => {
+    const webdav = loadSettings(prefs).webdav;
+    const id = safe(() => machineId(prefs, defaultMachineName));
+    return JSON.stringify(
+      {
+        enabled: webdav.autoUploadSettings,
+        configured: !!webdav.url,
+        machine: id,
+        filename: typeof id === 'string' ? machineSettingsFilename(id) : null,
+        autoUpload: safe(() => settingsAutoUpload?.stats() ?? 'not started'),
+      },
+      null,
+      1,
+    );
+  },
+  /**
+   * What the server's folder holds of ours, through the same list the
+   * Restore button runs: every settings file with its machine id and date,
+   * and the positions file. The pull picker cannot be driven from here —
+   * it is a modal dialog — so this is how a listing is proved headlessly.
+   */
+  settingsFiles: async () => {
+    try {
+      const client = createWebDAVClient(loadSettings(prefs).webdav, { fetch });
+      const files = (await client.list()).filter((f) => SETTINGS_FILE_PATTERN.test(f.name) || f.name === POSITIONS_FILENAME);
+      return JSON.stringify({ url: client.url, files }, null, 1);
+    } catch (e) {
+      return JSON.stringify({ error: String(e) }, null, 1);
+    }
   },
   /**
    * What the voice browser sees of Zotero's own voices — through the very
@@ -1821,6 +1913,28 @@ Zotero.ZoteroTTS = {
         // The speech helper is one process for the whole of Zotero, so the
         // pane's samples and checks must use this session's, not one of their own
         providerDeps,
+        // The Backup group's positions pair (#41): the live sampler's map,
+        // and a merge in through the same adopt the WebDAV sync uses —
+        // existence-filtered, only the strictly newer taken
+        positionsIO: {
+          list: () => positionSync?.list() ?? [],
+          importEntries: (entries) => {
+            let taken = 0;
+            for (const entry of entries) {
+              try {
+                if (!Zotero.Libraries.exists(entry.lib) || !Zotero.Items.getIDFromLibraryAndKey(entry.lib, entry.key)) continue;
+              } catch {
+                continue;
+              }
+              if (positionSync?.adopt(entry)) taken++;
+            }
+            // What was just merged should reach the other machines too
+            positionTransport?.poke('import');
+            return taken;
+          },
+        },
+        // The machine-id rename should reach the server soon (#41)
+        settingsUploadSoon: () => settingsAutoUpload?.changed(),
       }),
   },
   diagnostics,

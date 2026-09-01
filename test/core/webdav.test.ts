@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { basicAuthHeader, createWebDAVClient, normalizeWebDAVURL, WebDAVError } from '../../src/core/webdav';
+import { basicAuthHeader, createWebDAVClient, normalizeWebDAVURL, parseMultistatus, WebDAVError } from '../../src/core/webdav';
 
 const cfg = { url: 'https://dav.example.com/zotero-tts', username: 'ann', password: 'pw' };
 
@@ -185,5 +185,84 @@ describe('createWebDAVClient', () => {
 
   it('exposes the normalized folder URL', () => {
     expect(client(vi.fn()).url).toBe('https://dav.example.com/zotero-tts/');
+  });
+});
+
+describe('parseMultistatus', () => {
+  it('reads a Nextcloud reply: d: prefixes, the folder itself skipped by its collection type', () => {
+    const xml = `<?xml version="1.0"?>
+<d:multistatus xmlns:d="DAV:" xmlns:s="http://sabredav.org/ns">
+ <d:response>
+  <d:href>/remote.php/dav/files/ann/zotero-tts/</d:href>
+  <d:propstat><d:prop><d:getlastmodified>Mon, 31 Aug 2026 22:01:02 GMT</d:getlastmodified><d:resourcetype><d:collection/></d:resourcetype></d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat>
+ </d:response>
+ <d:response>
+  <d:href>/remote.php/dav/files/ann/zotero-tts/zotero-tts-settings_office-pc.json</d:href>
+  <d:propstat><d:prop><d:getlastmodified>Mon, 31 Aug 2026 22:03:04 GMT</d:getlastmodified><d:resourcetype/></d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat>
+ </d:response>
+</d:multistatus>`;
+    expect(parseMultistatus(xml)).toEqual([{ name: 'zotero-tts-settings_office-pc.json', lastModified: 'Mon, 31 Aug 2026 22:03:04 GMT' }]);
+  });
+
+  it('reads an Apache reply: D: responses with lp1: props', () => {
+    const xml = `<D:multistatus xmlns:D="DAV:" xmlns:lp1="DAV:">
+ <D:response>
+  <D:href>/dav/zotero-tts/</D:href>
+  <D:propstat><D:prop><lp1:resourcetype><D:collection/></lp1:resourcetype></D:prop></D:propstat>
+ </D:response>
+ <D:response>
+  <D:href>/dav/zotero-tts/zotero-tts-positions.json</D:href>
+  <D:propstat><D:prop><lp1:resourcetype/><lp1:getlastmodified>Tue, 01 Sep 2026 00:00:00 GMT</lp1:getlastmodified></D:prop></D:propstat>
+ </D:response>
+</D:multistatus>`;
+    expect(parseMultistatus(xml)).toEqual([{ name: 'zotero-tts-positions.json', lastModified: 'Tue, 01 Sep 2026 00:00:00 GMT' }]);
+  });
+
+  it('reads unprefixed tags, absolute-URL hrefs, percent-encoded paths and XML entities', () => {
+    const xml = `<multistatus xmlns="DAV:">
+ <response>
+  <href>https://dav.example.com/%E6%9C%BA%E6%A2%B0%E7%A1%AC%E7%9B%98/zotero-tts/a&amp;b.json</href>
+  <propstat><prop><resourcetype/></prop></propstat>
+ </response>
+</multistatus>`;
+    expect(parseMultistatus(xml)).toEqual([{ name: 'a&b.json', lastModified: null }]);
+  });
+
+  it('skips collections by their trailing slash even without a resourcetype', () => {
+    const xml = `<multistatus xmlns="DAV:">
+ <response><href>/dav/zotero-tts/</href><propstat><prop/></propstat></response>
+ <response><href>/dav/zotero-tts/sub/</href><propstat><prop/></propstat></response>
+ <response><href>/dav/zotero-tts/file.json</href><propstat><prop/></propstat></response>
+</multistatus>`;
+    expect(parseMultistatus(xml)).toEqual([{ name: 'file.json', lastModified: null }]);
+  });
+
+  it('returns nothing for text that is no multistatus at all', () => {
+    expect(parseMultistatus('<html>maintenance</html>')).toEqual([]);
+    expect(parseMultistatus('')).toEqual([]);
+  });
+});
+
+describe('list', () => {
+  const multistatus = `<d:multistatus xmlns:d="DAV:">
+ <d:response><d:href>/zotero-tts/</d:href><d:propstat><d:prop><d:resourcetype><d:collection/></d:resourcetype></d:prop></d:propstat></d:response>
+ <d:response><d:href>/zotero-tts/zotero-tts-settings_a.json</d:href><d:propstat><d:prop><d:getlastmodified>Mon, 31 Aug 2026 10:00:00 GMT</d:getlastmodified></d:prop></d:propstat></d:response>
+</d:multistatus>`;
+
+  it('asks the folder with Depth 1 and returns its files', async () => {
+    const fetchImpl = vi.fn(async () => new Response(multistatus, { status: 207 }));
+    const files = await client(fetchImpl).list();
+    const { url, init } = call(fetchImpl);
+    expect(url).toBe('https://dav.example.com/zotero-tts/');
+    expect(init.method).toBe('PROPFIND');
+    expect(init.headers.Depth).toBe('1');
+    expect(init.headers.Authorization).toBe(basicAuthHeader('ann', 'pw'));
+    expect(files).toEqual([{ name: 'zotero-tts-settings_a.json', lastModified: 'Mon, 31 Aug 2026 10:00:00 GMT' }]);
+  });
+
+  it('reports a missing folder as not-found, and other failures by kind', async () => {
+    await expect(client(vi.fn(async () => status(404))).list()).rejects.toMatchObject({ kind: 'not-found' });
+    await expect(client(vi.fn(async () => status(401))).list()).rejects.toMatchObject({ kind: 'auth' });
+    await expect(client(vi.fn(async () => status(500))).list()).rejects.toMatchObject({ kind: 'http', status: 500 });
   });
 });

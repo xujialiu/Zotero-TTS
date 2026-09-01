@@ -32,13 +32,15 @@ export interface Settings {
    */
   system: { enabled: boolean };
   /**
-   * The WebDAV folder holding the settings backup (core/webdav.ts,
+   * The WebDAV folder the plugin syncs through (core/webdav.ts,
    * ui/webdav-rows.ts); the password is a plain pref like the API keys.
-   * `syncPositions` carries the reading positions through the same folder
-   * (read-aloud/position-transport.ts, #40) — a switch, so it lives here in
-   * DEFAULTS and rides settings backup; the position data itself never does.
+   * `syncPositions` carries the reading positions through the folder
+   * (read-aloud/position-transport.ts, #40); `autoUploadSettings` keeps
+   * this machine's settings file there fresh (core/settings-autoupload.ts,
+   * #41). Both are switches, so they live here in DEFAULTS and ride
+   * settings backup; the position data and the machine id never do.
    */
-  webdav: { url: string; username: string; password: string; syncPositions: boolean };
+  webdav: { url: string; username: string; password: string; syncPositions: boolean; autoUploadSettings: boolean };
   /** Warm the audio cache this many sentences ahead of playback (read-aloud/remote-interface.ts); `prefetchEnabled` is the switch. */
   prefetch: number;
   prefetchEnabled: boolean;
@@ -99,7 +101,7 @@ export const DEFAULTS: Settings = {
   azure: { enabled: false, apiKey: '', region: 'eastasia', voice: 'zh-CN-XiaoxiaoNeural' },
   local: { enabled: false, engine: 'kokoro', baseURL: 'http://localhost:8880', voice: 'af_bella', headers: '' },
   system: { enabled: false },
-  webdav: { url: '', username: '', password: '', syncPositions: false },
+  webdav: { url: '', username: '', password: '', syncPositions: false, autoUploadSettings: false },
   prefetch: 3,
   prefetchEnabled: true,
   cacheAudio: true,
@@ -183,6 +185,7 @@ export function loadSettings(prefs: PrefsBackend): Settings {
       username: str(prefs, 'webdav.username', DEFAULTS.webdav.username),
       password: str(prefs, 'webdav.password', DEFAULTS.webdav.password),
       syncPositions: bool(prefs, 'webdav.syncPositions', DEFAULTS.webdav.syncPositions),
+      autoUploadSettings: bool(prefs, 'webdav.autoUploadSettings', DEFAULTS.webdav.autoUploadSettings),
     },
     prefetch: num(prefs, 'prefetch', DEFAULTS.prefetch, 1, 10),
     prefetchEnabled: bool(prefs, 'prefetchEnabled', DEFAULTS.prefetchEnabled),

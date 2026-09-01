@@ -29,7 +29,7 @@ things around the edges. Why it is built this way: [PHILOSOPHY.md](PHILOSOPHY.md
 - ✨ **Word *and* sentence highlighting at once**, in your own colors and opacities — for Zotero's voices too. [→ Highlight](#highlight)
 - ⌨️ **Keyboard shortcuts**: speed up, down, reset; jump by sentence or paragraph; read from the selection; bring the view back to what's being read; open the player's options panel. All rebindable. [→ Shortcuts](#keyboard-shortcuts)
 - 📌 **One voice and speed everywhere** — every document and every open tab, picked in any tab's player or in the voice browser — instead of Zotero's choice per language. [→ Reading](#reading)
-- 💾 **Settings backup** to a file or a WebDAV folder — which can also carry your reading positions between computers. [→ Backup](#backup)
+- 💾 **Backup and sync** — settings and reading positions as files, or through your own WebDAV folder: bookmarks follow you between computers, and each computer's settings file keeps itself fresh on the server. [→ Backup](#backup)
 
 ## Install
 
@@ -268,25 +268,40 @@ offered at all, Zotero picks the voice, as it does without the plugin.
 
 ### Backup
 
-*Backup settings…* and *Restore settings…* use a JSON file; *Upload to
-WebDAV* and *Download from WebDAV* use the same file in a WebDAV folder, so
-settings follow you between machines.
+*Backup settings…* and *Restore settings…* keep every setting as one JSON
+file; *Export reading positions…* and *Import reading positions…* do the
+same for your bookmarks, as a second file. Restoring settings replaces the
+configuration; importing positions only merges — a position from the file
+is taken where it is newer than this computer's.
 
-Restoring ends by checking every provider the file switches on — the same
-check **Enable** runs. One that does not work on this machine (a local
-server that is not running here, a key that has since been rotated) is left
-**off**, with the reason beside it, instead of looking enabled and playing
-nothing.
+The **Sync** group connects the same data to a WebDAV folder of your own.
+Each computer writes its own settings file there, named by the **This
+computer** field, so no computer ever overwrites another's:
+
+- **Keep this computer's settings uploaded automatically** (off by
+  default): a few seconds after any setting changes, this computer's file
+  on the server is refreshed — nothing to remember before switching
+  machines. Upload only; nothing is ever applied by itself.
+- **Restore settings from server…** lists what the folder holds — every
+  computer's file, with its date — asks which to take, and restores it.
+- **Upload settings now** does one upload by hand, for whoever leaves the
+  automatic switch off.
+
+Restoring — from a file or from the server — ends by checking every
+provider it switches on, the same check **Enable** runs. One that does not
+work on this machine (a local server that is not running here, a key that
+has since been rotated) is left **off**, with the reason beside it,
+instead of looking enabled and playing nothing.
 
 **Sync reading positions between computers** (off by default) keeps
 [where you stopped](#resume-where-you-stopped) in the same WebDAV folder,
-as its own file: listen on one computer, press `Shift+Space` on another,
-and reading continues at that sentence. Positions merge — every computer
-contributes the documents it listened to, the newest position wins — so
-turning it on never erases anything. It works when both computers hold the
-same library (synced or copied over), and it stays separate from the
-settings file: restoring settings moves no reading positions, and reading
-positions carry no settings.
+as one shared file: listen on one computer, press `Shift+Space` on
+another, and reading continues at that sentence. Positions merge — every
+computer contributes the documents it listened to, the newest position
+wins — so turning it on never erases anything. It works when both
+computers hold the same library (synced or copied over), and it stays
+separate from the settings files: restoring settings moves no reading
+positions, and reading positions carry no settings.
 
 <details>
 <summary><b>WebDAV URL examples</b></summary>

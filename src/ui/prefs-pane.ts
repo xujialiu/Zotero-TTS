@@ -2,6 +2,7 @@ import type { ProviderId, TTSProvider } from '../core/providers/types';
 import { LOCAL_ENGINES } from '../core/providers/local/registry';
 import { createProvider, type ProviderDeps } from '../core/providers/factory';
 import { createZoteroPrefs, loadSettings, PREF_PREFIX, type PrefsBackend } from '../core/settings';
+import { machineId, renameMachineId } from '../core/machine-id';
 import { getChromeWebSocket, newRequestId } from '../core/providers/azure';
 import { SynthesisError } from '../core/providers/errors';
 import { withTimeout } from '../core/timeout';
@@ -10,6 +11,7 @@ import { listNamedCatalog } from '../read-aloud/catalog';
 import { FAVORITES_ONLY_OBSERVER, parseFavoriteVoices } from '../read-aloud/favorites';
 import { languageDisplayName } from '../read-aloud/language-dropdown';
 import { readMemory, writeMemory, READ_ALOUD_MEMORY_OBSERVER, type VoiceChoice } from '../read-aloud/read-aloud-memory';
+import type { PositionEntry } from '../read-aloud/read-aloud-position';
 import { readReadAloudVoices, READ_ALOUD_VOICES_PREF } from '../core/read-aloud-speed';
 import { migrateChoices } from '../read-aloud/system-voice-choices';
 import { listSystemVoiceRecords } from '../core/providers/system';
@@ -171,6 +173,27 @@ export async function registerPrefsPane(rootURI: string, pluginID: string, versi
  */
 export function unregisterPrefsPane(): void {
   if (typeof Zotero.PreferencePanes?.unregister === 'function') Zotero.PreferencePanes.unregister('zotero-tts-pane');
+}
+
+/**
+ * The default machine name (core/machine-id.ts): the hostname, however the
+ * platform spells it. Exported for src/index.ts, whose auto-upload names
+ * the same file the pane's rows do.
+ */
+export function defaultMachineName(): string {
+  try {
+    const name = (Services as { dns?: { myHostName?: unknown } }).dns?.myHostName;
+    if (typeof name === 'string' && name) return name;
+  } catch {
+    // No DNS service here; try the environment
+  }
+  try {
+    const name = (Services as { env?: { get?(name: string): unknown } }).env?.get?.('COMPUTERNAME');
+    if (typeof name === 'string' && name) return name;
+  } catch {
+    // The caller falls back to 'computer'
+  }
+  return '';
 }
 
 /** File dialogs and file access for the Backup group, on Zotero's own helpers. */
@@ -401,6 +424,13 @@ export interface PaneHooks {
   providerDeps?(): ProviderDeps;
   /** memory-sync's applySilently: a rewrite of Zotero's voices pref that is not a user's pick must not be learned as one. */
   applySilently?<T>(fn: () => T): T;
+  /** The live position store's view (src/index.ts): what Export writes, what Import merges into. */
+  positionsIO?: {
+    list(): PositionEntry[];
+    importEntries(entries: PositionEntry[]): number;
+  };
+  /** A prod at settings-autoupload (src/index.ts): the machine-id rename should reach the server soon. */
+  settingsUploadSoon?(): void;
 }
 
 export function onPaneLoad(doc: Document, hooks: PaneHooks = {}): void {
@@ -568,8 +598,21 @@ export function onPaneLoad(doc: Document, hooks: PaneHooks = {}): void {
     // failure beside it (ui/provider-rows.ts, issue #21)
     verifyProviders: () => providerRows.verifyEnabled(),
   };
-  initBackupRows(doc, { ...backupFileIO(win), ...restoreDeps });
+  initBackupRows(doc, { ...backupFileIO(win), ...restoreDeps, positions: hooks.positionsIO });
   // The sandbox's own fetch: Basic auth needs nothing from a window
-  initWebDAVRows(doc, { ...restoreDeps, createClient: (cfg) => createWebDAVClient(cfg, { fetch }) });
-
+  initWebDAVRows(doc, {
+    ...restoreDeps,
+    createClient: (cfg) => createWebDAVClient(cfg, { fetch }),
+    machineId: {
+      get: () => machineId(prefs, defaultMachineName),
+      set: (raw) => renameMachineId(prefs, raw, defaultMachineName),
+    },
+    // Services.prompt.select: a plain list dialog, the chosen index in out.value
+    select: (title, options) => {
+      const out = { value: -1 };
+      const ok = Services.prompt.select(win, 'Zotero-TTS', title, options, out);
+      return ok && out.value >= 0 ? out.value : null;
+    },
+    onMachineRenamed: () => hooks.settingsUploadSoon?.(),
+  });
 }

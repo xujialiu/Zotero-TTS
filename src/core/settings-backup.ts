@@ -15,6 +15,19 @@ export const BACKUP_FORMAT = 'zotero-tts-settings';
 export const BACKUP_VERSION = 1;
 export const BACKUP_FILENAME = 'zotero-tts-settings.json';
 
+/** This machine's settings file on the server (#41): one per machine, because settings cannot merge. */
+export function machineSettingsFilename(machineId: string): string {
+  return `zotero-tts-settings_${machineId}.json`;
+}
+
+/**
+ * Every settings file the pull flow lists: the per-machine files, and the
+ * unsuffixed one manual uploads wrote before 1.11. The capture is the
+ * machine id, undefined for the legacy file. The positions file does not
+ * match — different prefix.
+ */
+export const SETTINGS_FILE_PATTERN = /^zotero-tts-settings(?:_(.+))?\.json$/;
+
 export type SettingValue = string | number | boolean;
 /** `{ 'openai.apiKey': … }`: the pref names without their prefix, as in prefs.js. */
 export type FlatSettings = Record<string, SettingValue>;
@@ -24,6 +37,8 @@ export interface SettingsBackup {
   version: number;
   pluginVersion?: string;
   exportedAt?: string;
+  /** Which computer wrote it (core/machine-id.ts); absent in files from before 1.11 and in ones old builds write. */
+  machine?: string;
   settings: FlatSettings;
 }
 
@@ -43,7 +58,7 @@ export function flattenSettings(s: Settings): FlatSettings {
 /** Every setting this version knows, with the kind of value each holds. */
 const KNOWN = flattenSettings(DEFAULTS);
 
-export function createBackup(prefs: PrefsBackend, meta: { pluginVersion?: string; exportedAt?: string } = {}): SettingsBackup {
+export function createBackup(prefs: PrefsBackend, meta: { pluginVersion?: string; exportedAt?: string; machine?: string } = {}): SettingsBackup {
   return { format: BACKUP_FORMAT, version: BACKUP_VERSION, ...meta, settings: flattenSettings(loadSettings(prefs)) };
 }
 
@@ -59,6 +74,7 @@ export interface ParsedBackup {
   ignored: string[];
   pluginVersion?: string;
   exportedAt?: string;
+  machine?: string;
 }
 
 /** The value as the kind `like` is, when the reading is unambiguous; undefined otherwise. */
@@ -103,6 +119,7 @@ export function parseBackup(text: string): ParsedBackup {
     ignored,
     pluginVersion: typeof backup.pluginVersion === 'string' ? backup.pluginVersion : undefined,
     exportedAt: typeof backup.exportedAt === 'string' ? backup.exportedAt : undefined,
+    machine: typeof backup.machine === 'string' ? backup.machine : undefined,
   };
 }
 

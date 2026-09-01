@@ -1,9 +1,9 @@
 import { withTimeout } from './timeout';
 
 /**
- * A WebDAV client just large enough to keep one file on a server: the
- * settings backup (core/settings-backup.ts), uploaded from one machine and
- * downloaded on another. Plain fetch with Basic authentication, which every
+ * A WebDAV client just large enough to keep a few files in one folder: the
+ * settings backups — one per machine since #41 — and the shared reading
+ * positions (#40). Plain fetch with Basic authentication, which every
  * WebDAV host the plugin is likely to meet (Nextcloud, Synology, Jianguoyun,
  * Koofr, Apache or nginx with a password file) accepts over HTTPS; a server
  * that insists on Digest is not supported. Every request is bounded by a
@@ -54,15 +54,78 @@ export function basicAuthHeader(username: string, password: string): string {
   return `Basic ${btoa(binary)}`;
 }
 
+export interface WebDAVFile {
+  /** The file's name inside the folder, percent-decoding undone. */
+  name: string;
+  /** The server's getlastmodified for it, verbatim (RFC 1123), or null. */
+  lastModified: string | null;
+}
+
+const XML_ENTITIES: Record<string, string> = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'" };
+
+function decodeXML(text: string): string {
+  return text.replace(/&(#x?[0-9a-fA-F]+|[a-z]+);/g, (whole, body: string) => {
+    if (body[0] === '#') {
+      const code = body[1] === 'x' || body[1] === 'X' ? parseInt(body.slice(2), 16) : parseInt(body.slice(1), 10);
+      try {
+        return String.fromCodePoint(code);
+      } catch {
+        return whole;
+      }
+    }
+    return XML_ENTITIES[body] ?? whole;
+  });
+}
+
+/** One tag's text inside a block, whatever namespace prefix the server chose. */
+function tagText(block: string, local: string): string | null {
+  const m = block.match(new RegExp(`<(?:[\\w.-]+:)?${local}(?:\\s[^>]*)?>([\\s\\S]*?)</(?:[\\w.-]+:)?${local}>`, 'i'));
+  return m ? m[1].trim() : null;
+}
+
+/**
+ * The files of a PROPFIND Depth 1 multistatus, parsed without a DOM — the
+ * sandbox has DOMParser but the tests' Node does not, and multistatus is
+ * machine-written XML: one <response> per entry, href and getlastmodified
+ * as flat text. Namespace prefixes are not assumed (Nextcloud writes d:,
+ * Apache D: with lp1: on the props, others none). Collections — the
+ * folder's own entry included — are skipped by their trailing slash or a
+ * <collection/> resourcetype.
+ */
+export function parseMultistatus(xml: string): WebDAVFile[] {
+  const out: WebDAVFile[] = [];
+  for (const [, block] of xml.matchAll(/<(?:[\w.-]+:)?response[\s>]([\s\S]*?)<\/(?:[\w.-]+:)?response>/gi)) {
+    const href = tagText(block, 'href');
+    if (!href) continue;
+    const path = decodeXML(href);
+    if (path.endsWith('/') || /<(?:[\w.-]+:)?collection[\s/>]/i.test(block)) continue;
+    const segment = path.slice(path.lastIndexOf('/') + 1);
+    let name = segment;
+    try {
+      name = decodeURIComponent(segment);
+    } catch {
+      // A server that does not percent-encode leaves the segment as is
+    }
+    if (!name) continue;
+    out.push({ name, lastModified: tagText(block, 'getlastmodified') });
+  }
+  return out;
+}
+
+/** What list() asks the server for; allprop replies still parse, this just keeps them small. */
+const PROPFIND_BODY = '<?xml version="1.0" encoding="utf-8"?><propfind xmlns="DAV:"><prop><getlastmodified/><resourcetype/></prop></propfind>';
+
 export interface WebDAVClient {
-  /** The folder the file lives in, normalized. */
+  /** The folder the files live in, normalized. */
   readonly url: string;
   /** Proves the URL and the credentials: the folder answers a PROPFIND. */
   check(): Promise<void>;
-  /** Writes the file, creating the folder when the server says it is missing. */
+  /** Writes a file, creating the folder when the server says it is missing. */
   upload(name: string, text: string): Promise<void>;
-  /** Reads the file; `not-found` when the server has none. */
+  /** Reads a file; `not-found` when the server has none. */
   download(name: string): Promise<string>;
+  /** The folder's files with their last-modified dates; `not-found` when the folder itself is missing. */
+  list(): Promise<WebDAVFile[]>;
 }
 
 export function createWebDAVClient(cfg: WebDAVConfig, deps: { fetch: typeof fetch; timeoutMs?: number }): WebDAVClient {
@@ -122,6 +185,15 @@ export function createWebDAVClient(cfg: WebDAVConfig, deps: { fetch: typeof fetc
       if (response.status === 404) throw new WebDAVError('not-found', `No backup on the server yet (${target} not found).`, 404);
       if (!response.ok) throw failed('Download', response);
       return response.text();
+    },
+
+    async list() {
+      const response = await request('PROPFIND', url, { headers: { Depth: '1', 'Content-Type': 'application/xml' }, body: PROPFIND_BODY });
+      if (response.status === 404) {
+        throw new WebDAVError('not-found', `The folder ${url} does not exist. It is created on the first upload.`, 404);
+      }
+      if (!response.ok) throw failed('PROPFIND', response);
+      return parseMultistatus(await response.text());
     },
   };
 }

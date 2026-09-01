@@ -1,21 +1,33 @@
 import type { PrefsBackend } from '../core/settings';
 import { applyBackup, BACKUP_FILENAME, createBackup, parseBackup, serializeBackup } from '../core/settings-backup';
+import { parsePositions, POSITIONS_FILENAME, serializePositions } from '../read-aloud/position-file';
+import type { PositionEntry } from '../read-aloud/read-aloud-position';
 import { refuseWhileReading, type ReadingGuardDeps } from './reading-guard';
 
 /**
- * The Backup group of the preferences pane: two buttons and a message line.
- * File dialogs and file access are injected (prefs-pane.ts supplies
- * Zotero's FilePicker and Zotero.File), so the flow is testable without a
- * window. Settings bound with preference= redraw themselves after a
- * restore — Zotero observes every bound pref — and onRestored covers the
- * rows that are not bound.
+ * The Backup group of the preferences pane: the settings pair, the
+ * reading-positions pair (#41), and a message line. File dialogs and file
+ * access are injected (prefs-pane.ts supplies Zotero's FilePicker and
+ * IOUtils), so the flow is testable without a window. Settings bound with
+ * preference= redraw themselves after a restore — Zotero observes every
+ * bound pref — and onRestored covers the rows that are not bound.
  *
- * A restore is refused whole while a tab is reading (ui/reading-guard.ts,
- * issue #11): a backup is a full settings snapshot, so it writes the
- * provider switches, the favorites and the hiding switch at once, each of
- * which edits what the Read Aloud player lists. Half a backup would be
- * worse than none, so the check is one, immediately before the write.
+ * A settings restore is refused whole while a tab is reading
+ * (ui/reading-guard.ts, issue #11): a backup is a full settings snapshot,
+ * so it writes the provider switches, the favorites and the hiding switch
+ * at once, each of which edits what the Read Aloud player lists. Half a
+ * backup would be worse than none, so the check is one, immediately before
+ * the write. The positions import needs no guard and no confirm: it is a
+ * merge — an entry from the file is taken only where it is newer than this
+ * computer's (position-file.ts, the same merge the WebDAV sync runs) — so
+ * it can only ever advance bookmarks, and it touches nothing the player
+ * lists.
  */
+
+export const POSITIONS_IDS = {
+  export: 'ztts-positions-export',
+  import: 'ztts-positions-import',
+} as const;
 
 export interface BackupFileIO {
   /** Asks where to save; null when the user cancels. */
@@ -28,6 +40,12 @@ export interface BackupFileIO {
 
 export interface BackupRowsDeps extends BackupFileIO, Partial<ReadingGuardDeps> {
   prefs: PrefsBackend;
+  /** The live position store's view (src/index.ts): everything held, and the merge in. Absent, the positions pair does nothing. */
+  positions?: {
+    list(): PositionEntry[];
+    /** Merge these in — only the strictly newer are taken; returns how many were. */
+    importEntries(entries: PositionEntry[]): number;
+  };
   pluginVersion?: string;
   /** Timestamp written into the file; injected so tests are stable. */
   now?(): string;
@@ -122,6 +140,38 @@ export function initBackupRows(doc: RowsDocument, deps: BackupRowsDeps): void {
       message(verdict ? `${restored} ${verdict}` : restored);
     } catch (e) {
       message(`Restore failed: ${describe(e)}`);
+    }
+  });
+
+  doc.getElementById(POSITIONS_IDS.export)?.addEventListener('command', async () => {
+    try {
+      if (!deps.positions) return;
+      const entries = deps.positions.list();
+      const path = await deps.pickSavePath(POSITIONS_FILENAME);
+      if (!path) {
+        message('');
+        return;
+      }
+      await deps.writeFile(path, serializePositions(entries));
+      message(`Saved ${entries.length} reading positions to ${path}.`);
+    } catch (e) {
+      message(`Export failed: ${describe(e)}`);
+    }
+  });
+
+  doc.getElementById(POSITIONS_IDS.import)?.addEventListener('command', async () => {
+    try {
+      if (!deps.positions) return;
+      const path = await deps.pickOpenPath();
+      if (!path) {
+        message('');
+        return;
+      }
+      const entries = parsePositions(await deps.readFile(path));
+      const taken = deps.positions.importEntries(entries);
+      message(`Merged ${entries.length} reading positions from ${path}; ${taken} were newer and were taken.`);
+    } catch (e) {
+      message(`Import failed: ${describe(e)}`);
     }
   });
 }

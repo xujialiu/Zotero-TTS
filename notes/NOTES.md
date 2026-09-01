@@ -251,4 +251,6 @@ cite `notes/NOTES.md` with a date or a section title resolve through this index.
 
 - Positions travel as one shared WebDAV file, merged by recency (issue #40)
 - One tab close fires both close hooks, so anything riding a close must dedupe (issue #40)
+- Settings sync splits machine by machine, and a multistatus needs no DOM (issue #41)
+- Modal dialogs cannot be driven through the bridge
 - The bridge's zotero_set_pref cannot write false to a bool pref

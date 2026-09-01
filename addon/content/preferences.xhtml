@@ -294,15 +294,28 @@
     </hbox>
   </groupbox>
 
-  <!-- backup-rows.ts: every setting above as one JSON file, and back. -->
+  <!-- backup-rows.ts: manual snapshots as files — the settings as one JSON,
+       the reading positions as another. Restoring settings overwrites;
+       importing positions merges. -->
   <groupbox>
     <label><html:h2>Backup</html:h2></label>
     <hbox align="center">
       <button id="ztts-backup" label="Backup settings…"/>
       <button id="ztts-restore" label="Restore settings…"/>
     </hbox>
+    <hbox align="center">
+      <button id="ztts-positions-export" label="Export reading positions…"/>
+      <button id="ztts-positions-import" label="Import reading positions…"/>
+      <label class="ztts-help" value="?" help="Where Read Aloud last stopped in each document, as its own file. Importing merges: a position is taken only where the file's is newer than this computer's. Settings backups never contain reading positions."/>
+    </hbox>
     <description id="ztts-backup-message"/>
-    <!-- The same file, kept in a WebDAV folder so it travels between machines (webdav-rows.ts) -->
+  </groupbox>
+
+  <!-- webdav-rows.ts: the WebDAV folder both automatic transports use —
+       reading positions both ways (#40), this machine's settings file up
+       (#41, settings-autoupload.ts). -->
+  <groupbox>
+    <label><html:h2>Sync</html:h2></label>
     <hbox align="center">
       <label value="WebDAV URL" style="width: 8em"/>
       <html:input type="text" placeholder="https://dav.example.com/zotero-tts/" preference="extensions.zotero.zotero-tts.webdav.url"/>
@@ -316,12 +329,21 @@
       <html:input type="password" preference="extensions.zotero.zotero-tts.webdav.password"/>
     </hbox>
     <hbox align="center">
+      <label value="This computer" style="width: 8em"/>
+      <html:input id="ztts-webdav-machine-id" type="text"/>
+      <label class="ztts-help" value="?" help="The name this computer's settings file carries on the server, so each computer keeps its own and none overwrites another's. Renaming starts a fresh file under the new name."/>
+    </hbox>
+    <hbox align="center">
       <checkbox id="ztts-webdav-sync-positions" label="Sync reading positions between computers" preference="extensions.zotero.zotero-tts.webdav.syncPositions"/>
       <label class="ztts-help" value="?" help="Keeps where Read Aloud last stopped in each document in the WebDAV folder above, and picks up what your other computers left there — so play resumes at the same sentence anywhere. Off, reading positions stay on this computer."/>
     </hbox>
     <hbox align="center">
-      <button id="ztts-webdav-upload" label="Upload to WebDAV"/>
-      <button id="ztts-webdav-download" label="Download from WebDAV…"/>
+      <checkbox id="ztts-webdav-auto-upload" label="Keep this computer's settings uploaded automatically" preference="extensions.zotero.zotero-tts.webdav.autoUploadSettings"/>
+      <label class="ztts-help" value="?" help="A few seconds after any setting changes, this computer's file on the server is refreshed — nothing to remember before switching machines. Upload only: settings from another computer are never applied unless you restore them yourself."/>
+    </hbox>
+    <hbox align="center">
+      <button id="ztts-webdav-upload" label="Upload settings now"/>
+      <button id="ztts-webdav-download" label="Restore settings from server…"/>
       <button id="ztts-webdav-test" label="Test connection"/>
     </hbox>
     <description id="ztts-webdav-message"/>
