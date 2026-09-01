@@ -1,3 +1,7 @@
 # Claude Code drops an agent definition whose unquoted description holds ': '
 # when the file has CRLF line endings (issue #27); keep these LF everywhere.
 .claude/agents/*.md text eol=lf
+
+# The live checklist's fixture PDFs carry byte offsets (startxref): never
+# convert their line endings on checkout.
+test/fixtures/*.pdf binary
