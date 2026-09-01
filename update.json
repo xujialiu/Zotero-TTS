@@ -3,8 +3,8 @@
     "zotero-tts@xujialiu.top": {
       "updates": [
         {
-          "version": "1.10.3",
-          "update_link": "https://github.com/xujialiu/Zotero-TTS/releases/download/v1.10.3/zotero-tts.xpi",
+          "version": "1.10.4",
+          "update_link": "https://github.com/xujialiu/Zotero-TTS/releases/download/v1.10.4/zotero-tts.xpi",
           "applications": {
             "zotero": {
               "strict_min_version": "9.999",
