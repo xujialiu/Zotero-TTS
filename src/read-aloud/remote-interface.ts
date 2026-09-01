@@ -465,6 +465,25 @@ export function createRemoteInterface(deps: RemoteInterfaceDeps): RemoteInterfac
         const { result, cached } = await ensureAudio(decoded.provider, decoded.voiceId, text);
         if (segment !== 'sample') prefetchAfter(decoded.provider, decoded.voiceId, text);
 
+        // A clean answer with nothing in it: Azure ends the turn with zero
+        // audio frames for asterisk-only text (the "****" scene separators,
+        // issue #42). Zotero cannot decode an empty blob, and its decode
+        // failure sets no error state — reader.js handleError never writes
+        // _error or _failedIndices, only _fetchAudio does — so playback
+        // pauses silently, with no message and an inert Retry. Empty means
+        // unspeakable text, not a failure, so it plays as the same short
+        // pause a refused tiny segment gets, at any length. Applied on the
+        // way out, like the sentence fallback: the cache keeps the empty
+        // original, and an entry cached before this check existed heals
+        // here on its next hit.
+        if (result.audio.size === 0) {
+          deps.debug?.(
+            `${decoded.provider}: empty audio for ${text.length} chars${cached ? ' (cached)' : ''}; playing a ${SILENT_PAUSE_MS} ms pause instead`,
+          );
+          const pause = silentWav(SILENT_PAUSE_MS);
+          return { audio: deps.adoptAudio ? deps.adoptAudio(pause) : pause, timestamps: wholeSegmentTimestamp(text) };
+        }
+
         const words = result.timestamps?.length ?? 0;
         const why = !words && result.note ? ` (${result.note})` : '';
         deps.debug?.(

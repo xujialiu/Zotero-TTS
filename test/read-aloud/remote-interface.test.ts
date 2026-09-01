@@ -839,6 +839,67 @@ describe('tiny segments the server refuses', () => {
   });
 });
 
+// Issue #42: Azure ends the turn cleanly with zero audio frames for
+// asterisk-only scene separators ("****") — a success with nothing in it.
+// Zotero cannot decode an empty blob, and its decode-failure path sets no
+// error state, so playback pauses silently with no message and an inert
+// Retry. An empty answer therefore plays as the same short pause a refused
+// tiny segment gets.
+describe('audio the server answers empty', () => {
+  const empty = () => fakeProvider({ synthesize: async () => ({ audio: new Blob([], { type: 'audio/mpeg' }) }) });
+  const whole = (text: string) => [{ start: 0, end: WHOLE_SEGMENT_END_SECONDS, charStart: 0, charEnd: text.length }];
+  const pauseBytes = 44 + 2 * Math.round((8000 * SILENT_PAUSE_MS) / 1000);
+
+  it('plays a short pause instead of handing Zotero an undecodable blob', async () => {
+    const debug = vi.fn();
+    const result = await createRemoteInterface({ ...deps(empty()), debug }).getAudio({ text: '****' }, voice);
+    expect(result.error).toBeUndefined();
+    expect(result.audio).toBeInstanceOf(Blob);
+    expect(result.audio!.type).toBe('audio/wav');
+    expect(result.audio!.size).toBe(pauseBytes);
+    expect(result.timestamps).toEqual(whole('****'));
+    expect(debug).toHaveBeenCalledWith(expect.stringMatching(/empty audio for 4 chars/));
+  });
+
+  it('still caches what the provider produced, and heals a cached empty entry on the way out', async () => {
+    const put = vi.fn();
+    await createRemoteInterface({ ...deps(empty()), cache: () => ({ match: async () => null, put }) }).getAudio(
+      { text: '****' },
+      voice,
+    );
+    expect(put).toHaveBeenCalledOnce();
+    expect((put.mock.calls[0][1] as { audio: Blob }).audio.size).toBe(0);
+
+    const synthesize = vi.fn();
+    const debug = vi.fn();
+    const hit = createRemoteInterface({
+      ...deps(fakeProvider({ synthesize })),
+      debug,
+      cache: () => ({ match: async () => ({ audio: new Blob([], { type: 'audio/mpeg' }) }), put: vi.fn() }),
+    });
+    const result = await hit.getAudio({ text: '****' }, voice);
+    expect(synthesize).not.toHaveBeenCalled();
+    expect(result.audio!.size).toBe(pauseBytes);
+    expect(result.timestamps).toEqual(whole('****'));
+    expect(debug).toHaveBeenCalledWith(expect.stringMatching(/empty audio for 4 chars \(cached\)/));
+  });
+
+  it('substitutes at any length — an empty answer is unspeakable text, not a failure', async () => {
+    const text = '*'.repeat(TINY_SEGMENT_CHARS + 2);
+    const result = await createRemoteInterface(deps(empty())).getAudio({ text }, voice);
+    expect(result.error).toBeUndefined();
+    expect(result.audio!.size).toBe(pauseBytes);
+    expect(result.timestamps).toEqual(whole(text));
+  });
+
+  it('hands the pause through adoptAudio like any other audio', async () => {
+    const adoptAudio = vi.fn((blob: Blob) => blob);
+    const result = await createRemoteInterface({ ...deps(empty()), adoptAudio }).getAudio({ text: '****' }, voice);
+    expect(result.audio!.size).toBe(pauseBytes);
+    expect(adoptAudio.mock.calls.map(([blob]) => (blob as Blob).size)).toContain(pauseBytes);
+  });
+});
+
 function fakeCache() {
   const store = new Map<string, any>();
   return {

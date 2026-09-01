@@ -254,3 +254,4 @@ cite `notes/NOTES.md` with a date or a section title resolve through this index.
 - Settings sync splits machine by machine, and a multistatus needs no DOM (issue #41)
 - Modal dialogs cannot be driven through the bridge
 - The bridge's zotero_set_pref cannot write false to a bool pref
+- A decode failure is a silent stop: Zotero's error state belongs to the fetch, not the decode (issue #42)

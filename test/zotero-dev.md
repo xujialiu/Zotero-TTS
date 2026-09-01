@@ -189,19 +189,32 @@ it measured, updated for the fixes since where marked.
    log `skipping N chars that are not visible on the page; playing a
    400 ms pause instead` and no such segment spoken. Without that
    fixture: NOT TESTABLE, say so.
-6. **Prefetch and cache.** The log's `prefetch: <provider>: N chars
+6. **Empty audio becomes a pause** (issue #42). Azure answers
+   asterisk-only text (the `****` scene separators) with zero audio
+   frames — a success with nothing in it, which Zotero cannot decode
+   and pauses on silently, error state unset, Retry inert. With a
+   session open on an Azure voice, call the controller's own path,
+   `voice.provider.remote.getAudio({ text: '****' }, voice.impl)`,
+   twice: expected each time an `audio/wav` blob of 6444 bytes (the
+   400 ms pause) with timestamps `[{start: 0, end: 86400, charStart:
+   0, charEnd: 4}]`, the log `azure: empty audio for 4 chars; playing
+   a 400 ms pause instead` — the second call with `(cached)`, proving
+   a stored empty original heals on the way out. Playback across such
+   a separator continues into the next sentence after the pause; a
+   stop there with `_error: null` is the regression.
+7. **Prefetch and cache.** The log's `prefetch: <provider>: N chars
    ready ahead of playback` lines reach up to the setting plus Zotero's
    three ahead (measured 6 on a 17-segment fixture); after the first
    pass every replayed segment logs `(cached)`. A skip back is answered
    by Zotero's own `_audioBuffers` before the plugin's cache — not a
    check.
-7. **The reading guard** (issue #11), session active (paused counts):
+8. **The reading guard** (issue #11), session active (paused counts):
    Disable on a provider, the *Offer only favorite voices* checkbox, a
    ♥ while only favorites are offered — each opens `#ztts-notice` naming
    the tab (`Read Aloud is open in a tab: • <title>`), the pref
    unchanged, the checkbox snapped back; `dialog.close()` after reading
    it.
-8. **Teardown**: popup closed, tab closed, the item erased, `rows` back.
+9. **Teardown**: popup closed, tab closed, the item erased, `rows` back.
 
 ## 4. Shortcuts, the toast, the recorder, two tabs
 
