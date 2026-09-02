@@ -12,6 +12,8 @@ function fakePrefs(initial: Record<string, unknown> = {}): PrefsBackend & { stor
 
 class FakeElement {
   attrs = new Map<string, string>();
+  /** A description's text: the message line is one (issue #31). */
+  textContent = '';
   listeners = new Map<string, Array<() => unknown>>();
   setAttribute(k: string, v: string) {
     this.attrs.set(k, String(v));
@@ -69,7 +71,7 @@ function setup(
     deps,
     written,
     el: (id: string) => els.get(id)!,
-    message: () => els.get('ztts-backup-message')!.attrs.get('value'),
+    message: () => els.get('ztts-backup-message')!.textContent,
   };
 }
 
@@ -90,7 +92,7 @@ describe('Backup settings', () => {
 
   it('does nothing when the dialog is cancelled', async () => {
     const t = setup({ savePath: null });
-    t.el('ztts-backup-message').setAttribute('value', 'old');
+    t.el('ztts-backup-message').textContent = 'old';
     await t.el('ztts-backup').fire('command');
     expect(t.written).toHaveLength(0);
     expect(t.message()).toBe('');

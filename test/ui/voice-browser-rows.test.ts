@@ -178,7 +178,7 @@ function setup(
     watchers,
     favoritesOnlyWatchers,
     switchWatchers,
-    status: () => el(VOICE_BROWSER_IDS.status).attrs.get('value'),
+    status: () => el(VOICE_BROWSER_IDS.status).textContent,
     tierButtons: () => el(VOICE_BROWSER_IDS.tiers).children,
     tiers: () => texts(el(VOICE_BROWSER_IDS.tiers).children),
     localeButtons: () => el(VOICE_BROWSER_IDS.locales).children,
@@ -940,7 +940,7 @@ describe('the default voice', () => {
   it('leaves the status line alone on refresh before the voices are listed', () => {
     const t = setup({ prefs: remembered(xiaoxiao, 'zh') });
     t.rows.refresh();
-    expect(t.status()).toBeUndefined();
+    expect(t.status()).toBe('');
   });
 });
 

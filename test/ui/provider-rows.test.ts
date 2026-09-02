@@ -14,6 +14,8 @@ class FakeElement {
   type?: string;
   revealPassword?: boolean;
   attrs = new Map<string, string>();
+  /** A description's text: the message line is one (issue #31). */
+  textContent = '';
   listeners = new Map<string, Array<() => unknown>>();
   setAttribute(k: string, v: string) {
     this.attrs.set(k, String(v));
@@ -76,7 +78,7 @@ function setup(options: { prefs?: Record<string, unknown>; reading?: string[]; c
       toggle: els.get(ids.toggle)!,
       test: els.get(ids.test)!,
       label: () => els.get(ids.toggle)!.attrs.get('label'),
-      result: () => els.get(ids.result)!.attrs.get('value'),
+      result: () => els.get(ids.result)!.textContent,
       /** The fields' disabled flags: all true while the provider is on. */
       locked: () => sections.get(ids.section)!.fields.map((f) => f.disabled),
       /** The section's masked field, revealed or not. */

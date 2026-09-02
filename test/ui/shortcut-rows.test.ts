@@ -20,6 +20,8 @@ function fakePrefs(initial: Record<string, unknown> = {}): PrefsBackend & { stor
 
 class FakeElement {
   attrs = new Map<string, string>();
+  /** A description's text: the message line is one (issue #31). */
+  textContent = '';
   listeners = new Map<string, Array<(e: unknown) => void>>();
   classes = new Set<string>();
   classList = {
@@ -149,7 +151,7 @@ describe('initShortcutRows', () => {
     const { doc, prefs } = setup();
     doc.el('ztts-key-nextSentence').fire('command');
     doc.keydown({ key: 'n', code: 'KeyN' });
-    expect(doc.el('ztts-key-message').getAttribute('value')).toMatch(/arrow key/i);
+    expect(doc.el('ztts-key-message').textContent).toMatch(/arrow key/i);
     expect(prefs.store[key('nextSentence')]).toBeUndefined();
   });
 
@@ -181,7 +183,7 @@ describe('initShortcutRows', () => {
     doc.keydown({ key: 'X', code: 'KeyX', shiftKey: true });
     expect(prefs.store[key('speedUp')]).toBeUndefined();
     expect(doc.el('ztts-key-speedUp').label).toBe('Shift+C');
-    expect(doc.el('ztts-key-message').getAttribute('value')).toMatch(/already used/i);
+    expect(doc.el('ztts-key-message').textContent).toMatch(/already used/i);
     expect(doc.recording).toBe(0);
   });
 
@@ -189,7 +191,7 @@ describe('initShortcutRows', () => {
     const { doc } = setup();
     doc.el('ztts-key-speedUp').fire('command');
     doc.keydown({ key: 'k', code: 'KeyK' });
-    expect(doc.el('ztts-key-message').getAttribute('value')).toMatch(/modifier/i);
+    expect(doc.el('ztts-key-message').textContent).toMatch(/modifier/i);
   });
 
   it('cancels on Escape, or on clicking the same row again', () => {

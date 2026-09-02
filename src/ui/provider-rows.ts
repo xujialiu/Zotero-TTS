@@ -75,7 +75,11 @@ export function initProviderRows(
       result: doc.getElementById(ids.result),
     };
   };
-  const say = (id: ProviderId, text: string) => elements(id).result?.setAttribute('value', text);
+  /** The line beside the buttons, written as text: a description's `value` never wraps (issue #31). */
+  const say = (id: ProviderId, text: string) => {
+    const line = elements(id).result;
+    if (line) line.textContent = text;
+  };
   const fields = (id: ProviderId): any[] => Array.from(elements(id).section?.querySelectorAll?.(FIELDS_SELECTOR) ?? []);
 
   /** The switch and the fields as the pref says: on is "Disable" with the fields locked, off is "Enable" with them open for editing. */

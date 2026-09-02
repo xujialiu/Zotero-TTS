@@ -355,7 +355,11 @@ export function initVoiceBrowserRows(
   deps: VoiceBrowserDeps,
 ): { load(): Promise<void>; refresh(): void; labelOf(id: string): string | null; dispose(): void } {
   const localeName = deps.localeName ?? languageDisplayName;
-  const status = (text: string) => doc.getElementById(VOICE_BROWSER_IDS.status)?.setAttribute('value', text);
+  /** The line under the columns, written as text: a description's `value` never wraps, and this line grows past the window (issue #31). */
+  const status = (text: string) => {
+    const line = doc.getElementById(VOICE_BROWSER_IDS.status);
+    if (line) line.textContent = text;
+  };
 
   let tiers: TierGroup[] = [];
   /** Every voice of the last listing, flat; null until one has arrived. */

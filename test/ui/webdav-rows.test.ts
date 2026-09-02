@@ -11,6 +11,8 @@ function fakePrefs(initial: Record<string, unknown> = {}): PrefsBackend & { stor
 
 class FakeElement {
   attrs = new Map<string, string>();
+  /** A description's text: the message line is one (issue #31). */
+  textContent = '';
   listeners = new Map<string, Array<() => unknown>>();
   value?: string;
   setAttribute(k: string, v: string) {
@@ -79,7 +81,7 @@ function setup(
     deps,
     client,
     el: (id: string) => els.get(id)!,
-    message: () => els.get(WEBDAV_IDS.message)!.attrs.get('value'),
+    message: () => els.get(WEBDAV_IDS.message)!.textContent,
   };
 }
 

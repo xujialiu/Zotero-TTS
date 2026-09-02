@@ -65,6 +65,8 @@ export interface BackupRowsDeps extends BackupFileIO, Partial<ReadingGuardDeps> 
 interface ElementLike {
   addEventListener(type: string, fn: () => void): void;
   setAttribute(name: string, value: string): void;
+  /** The message line's text (issue #31). */
+  textContent: string;
 }
 
 interface RowsDocument {
@@ -91,7 +93,11 @@ export async function verifyRestoredProviders(deps: { verifyProviders?(): Promis
 }
 
 export function initBackupRows(doc: RowsDocument, deps: BackupRowsDeps): void {
-  const message = (text: string) => doc.getElementById('ztts-backup-message')?.setAttribute('value', text);
+  /** Written as text: a description's `value` never wraps (issue #31). */
+  const message = (text: string) => {
+    const line = doc.getElementById('ztts-backup-message');
+    if (line) line.textContent = text;
+  };
 
   doc.getElementById('ztts-backup')?.addEventListener('command', async () => {
     try {

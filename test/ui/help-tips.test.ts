@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { describe, expect, it, vi } from 'vitest';
 import { HELP_ATTRIBUTE, HELP_ICON_SELECTOR, HELP_POPUPSET_ID, HELP_TIP_ID, initHelpTips } from '../../src/ui/help-tips';
 
@@ -133,6 +133,16 @@ describe('addon/content/preferences.xhtml', () => {
   // laid out beside it. Text goes in as a child node (issue #18).
   it('puts no text in a description value, which XUL never wraps', () => {
     expect(xhtml).not.toMatch(/<description[^>]*\svalue=/);
+  });
+
+  // The same rule for the lines the code writes into a description — the
+  // voice browser's status line, the provider results, the backup, WebDAV
+  // and shortcut messages: as text, never as a value (issue #31)
+  it('and the code writes its message lines as text, never as a value', () => {
+    const dir = new URL('../../src/ui/', import.meta.url);
+    for (const name of readdirSync(dir)) {
+      expect(readFileSync(new URL(name, dir), 'utf8'), name).not.toMatch(/setAttribute\(\s*['"]value['"]/);
+    }
   });
 
   it('says only the platform limit beside System voices, and the rest in the ?', () => {

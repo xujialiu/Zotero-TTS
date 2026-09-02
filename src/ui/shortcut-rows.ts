@@ -5,6 +5,8 @@ import { recorderOutcome, shortcutLabel } from './shortcut-recorder';
 
 interface ElementLike {
   setAttribute(name: string, value: string): void;
+  /** The message line's text (issue #31). */
+  textContent: string;
   addEventListener(type: string, listener: (event: any) => void): void;
   classList: { toggle(name: string, force?: boolean): boolean };
 }
@@ -42,7 +44,11 @@ export function initShortcutRows(doc: RowsDocument, prefs: PrefsBackend, metaLab
   const button = (action: ShortcutAction) => doc.getElementById(`ztts-key-${action}`);
   let recording: { action: ShortcutAction; handler: (event: RecorderEvent) => void } | null = null;
 
-  const setMessage = (text: string) => doc.getElementById('ztts-key-message')?.setAttribute('value', text);
+  /** Written as text: a description's `value` never wraps (issue #31). */
+  const setMessage = (text: string) => {
+    const line = doc.getElementById('ztts-key-message');
+    if (line) line.textContent = text;
+  };
 
   const refresh = () => {
     const bindings = loadSettings(prefs).shortcuts;

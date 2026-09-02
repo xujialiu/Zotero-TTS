@@ -55,6 +55,8 @@ interface ElementLike {
   setAttribute(name: string, value: string): void;
   /** The machine-id input's live text; buttons and labels have none. */
   value?: string;
+  /** The message line's text (issue #31). */
+  textContent: string;
 }
 
 interface RowsDocument {
@@ -75,7 +77,11 @@ export function settingsFileLabel(file: WebDAVFile): string {
 }
 
 export function initWebDAVRows(doc: RowsDocument, deps: WebDAVRowsDeps): void {
-  const message = (text: string) => doc.getElementById(WEBDAV_IDS.message)?.setAttribute('value', text);
+  /** Written as text: a description's `value` never wraps (issue #31). */
+  const message = (text: string) => {
+    const line = doc.getElementById(WEBDAV_IDS.message);
+    if (line) line.textContent = text;
+  };
   // One request at a time: a second click while the first is still talking
   // to the server would only produce a second dialog or a second upload
   let busy = false;

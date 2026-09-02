@@ -70,8 +70,12 @@ it measured, updated for the fixes since where marked.
    Reading, Highlight, Keyboard shortcuts, Backup, Sync, Build. No
    clipped or overlapping text, no empty label; every `?` on its line;
    the Build row `Version <build> · Date <date> · Author Xujia Liu`
-   (`src/ui/build-rows.ts`). The one known clip is the voice browser's
-   status line at the window's default width (issue #31).
+   (`src/ui/build-rows.ts`). The message lines wrap instead of running
+   past the window (issue #31): with the not-a-favorite warning on it
+   (2.5), `#ztts-voices-status` measures `scrollWidth <= clientWidth`,
+   its computed `white-space` is `normal`, its `textContent` ends in
+   `cannot start with it`, and its `clientHeight` is more than one
+   line's.
 3. **Locked sections, masked fields.** Every enabled provider: inputs
    `disabled`, button `Disable`; the two API keys, both Extra headers
    and the WebDAV password `type="password"` (issue #19); report `type`,
