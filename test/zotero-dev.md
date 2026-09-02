@@ -124,8 +124,17 @@ it measured, updated for the fixes since where marked.
 2. **Where it opens, how the default is marked.** `diagnostics.defaultVoice()`
    → `memory`, the default's `rows`, `opensOn`; the pane's selected tier
    and language, the default row painted with `ROW_DEFAULT_STYLE` and
-   the `DEFAULT_ROW_TITLE` tooltip. Known: neither column scrolls to the
-   selection (issue #33). The diagnostic's `status` is the pane's line:
+   the `DEFAULT_ROW_TITLE` tooltip. Both columns open scrolled to the
+   selection (issue #33): for `#ztts-voices-locales` with its selected
+   entry and `#ztts-voices-list` with the default row, the entry's
+   `offsetTop` lies within `[scrollTop, scrollTop + clientHeight]`, and
+   `scrollTop` is above 0 where the default sits deep in its language
+   (the Kokoro default under English (United States) does). A visible
+   row clicked leaves its column's `scrollTop` as it was. A language
+   clicked opens the voice list anew: `scrollTop` 0 for a language
+   without the default, whatever the previous list's scroll, and the
+   default row centered again on the click back to its language. The
+   diagnostic's `status` is the pane's line:
    equal, byte for byte, to `#ztts-voices-status`'s `textContent` read in
    the same script — with the not-a-favorite warning on it (2.5), and
    with a provider's listing trouble after the dash when one fails;

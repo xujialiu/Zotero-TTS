@@ -147,13 +147,15 @@
       <html:input type="range" id="ztts-voices-speed" min="0.5" max="3" step="0.1" style="width: 14em; margin: 0 6px;"/>
       <html:span id="ztts-voices-speed-value" style="min-width: 3em;">1.0×</html:span>
     </hbox>
+    <!-- Each column is position: relative — the offsetParent of its entries —
+         so ui/voice-browser-rows.ts can scroll it to the selection (issue #33) -->
     <html:div id="ztts-voices-browser" style="display: flex; gap: 8px; margin-top: 4px; max-width: 54em;">
       <html:div id="ztts-voices-tiers"
-                style="width: 9em; flex-shrink: 0; height: 16em; overflow-y: auto; border: 1px solid rgba(128, 128, 128, 0.4); border-radius: 4px; padding: 2px;"/>
+                style="position: relative; width: 9em; flex-shrink: 0; height: 16em; overflow-y: auto; border: 1px solid rgba(128, 128, 128, 0.4); border-radius: 4px; padding: 2px;"/>
       <html:div id="ztts-voices-locales"
-                style="width: 15em; flex-shrink: 0; height: 16em; overflow-y: auto; border: 1px solid rgba(128, 128, 128, 0.4); border-radius: 4px; padding: 2px;"/>
+                style="position: relative; width: 15em; flex-shrink: 0; height: 16em; overflow-y: auto; border: 1px solid rgba(128, 128, 128, 0.4); border-radius: 4px; padding: 2px;"/>
       <html:div id="ztts-voices-list"
-                style="flex: 1; min-width: 0; height: 16em; overflow-y: auto; border: 1px solid rgba(128, 128, 128, 0.4); border-radius: 4px; padding: 2px;"/>
+                style="position: relative; flex: 1; min-width: 0; height: 16em; overflow-y: auto; border: 1px solid rgba(128, 128, 128, 0.4); border-radius: 4px; padding: 2px;"/>
     </html:div>
     <hbox align="center">
       <description id="ztts-voices-status"/>

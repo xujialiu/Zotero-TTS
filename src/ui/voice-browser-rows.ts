@@ -47,7 +47,8 @@ import { refuseWhileReading } from './reading-guard';
  * The voice Read Aloud starts with — the one remembered across documents
  * (read-aloud/read-aloud-memory.ts), which is the popup's last pick — is
  * shown: the browser opens on its tier and language, its row is painted
- * like a selected column entry, and the status line names it by tier,
+ * like a selected column entry, both columns scrolled to the selection
+ * (issue #33), and the status line names it by tier,
  * language and label with the speed (`Default voice: Local | English
  * (United States) | Azure-Brandon | 1.7×`); a pick in any tab's popup while
  * the pane is open moves the highlight there (the pane observes the memory
@@ -403,6 +404,21 @@ export function statusLine({ voices, problems, choice, home, tiers, speed, sameV
   return defaultVoiceLine(choice, home, tiers, speed, sameVoice) + warning + trouble;
 }
 
+/**
+ * The scrollTop that shows `entry` in `view` — a column's viewport and one
+ * of its entries, in the column's own coordinates (`offsetTop` from the
+ * column, which is `position: relative` for that): the current one when
+ * the entry is inside the viewport already, else the one that centers it,
+ * no further up than the top. The column alone moves — `scrollIntoView`
+ * would scroll the pane around it too, and the settings window would jump
+ * to the browser as it opens (issue #33).
+ */
+export function scrollTopToReveal(view: { scrollTop: number; clientHeight: number }, entry: { offsetTop: number; offsetHeight: number }): number {
+  const inView = entry.offsetTop >= view.scrollTop && entry.offsetTop + entry.offsetHeight <= view.scrollTop + view.clientHeight;
+  if (inView) return view.scrollTop;
+  return Math.max(0, entry.offsetTop + entry.offsetHeight / 2 - view.clientHeight / 2);
+}
+
 export function initVoiceBrowserRows(
   doc: {
     getElementById(id: string): any;
@@ -433,6 +449,9 @@ export function initVoiceBrowserRows(
   /** The remembered voice and the listed rows that are it (defaultVoiceRows); the first row is where the browser opens. */
   let choice = readMemory(deps.prefs).voice;
   let defaults: BrowserVoice[] = [];
+  /** The language column's selected entry and the default voice's row, as last rendered: what revealSelection scrolls to (issue #33). */
+  let selectedLanguageEntry: any = null;
+  let defaultRow: any = null;
   const samples = new Map<string, Blob>();
   const playButtons = new Map<string, any>();
 
@@ -581,7 +600,7 @@ export function initVoiceBrowserRows(
             // Standard and Premium mostly speak the same languages: staying
             // on the current one makes comparing two tiers a single click.
             if (!group.languages.some((l) => l.language === selectedLanguage)) selectedLanguage = group.languages[0]?.language ?? null;
-            render();
+            browse();
           },
         ),
       ),
@@ -591,14 +610,18 @@ export function initVoiceBrowserRows(
   function renderLanguages(): void {
     const column = doc.getElementById(VOICE_BROWSER_IDS.locales);
     if (!column) return;
+    selectedLanguageEntry = null;
     column.replaceChildren(
-      ...(tierGroup()?.languages ?? []).map((group) =>
-        columnEntry(`${group.name} (${group.voices.length})`, group.language === selectedLanguage ? 'selected' : 'normal', () => {
+      ...(tierGroup()?.languages ?? []).map((group) => {
+        const selected = group.language === selectedLanguage;
+        const entry = columnEntry(`${group.name} (${group.voices.length})`, selected ? 'selected' : 'normal', () => {
           selectedLanguage = group.language;
           renderLanguages();
-          renderVoices();
-        }),
-      ),
+          openVoices();
+        });
+        if (selected) selectedLanguageEntry = entry;
+        return entry;
+      }),
     );
   }
 
@@ -606,6 +629,7 @@ export function initVoiceBrowserRows(
     const column = doc.getElementById(VOICE_BROWSER_IDS.voices);
     if (!column) return;
     playButtons.clear();
+    defaultRow = null;
     const favorites = readFavorites();
     const onlyFavorites = favoritesOnly();
     column.replaceChildren(
@@ -613,6 +637,7 @@ export function initVoiceBrowserRows(
         const isDefault = defaults.includes(voice);
         const row = doc.createElementNS(XHTML, 'div');
         row.setAttribute('style', isDefault ? ROW_DEFAULT_STYLE : ROW_STYLE);
+        if (isDefault && !defaultRow) defaultRow = row;
 
         const play = doc.createElementNS(XHTML, 'button');
         play.textContent = busy === voice.encoded ? GLYPHS.loading : playing === voice.encoded ? GLYPHS.stop : GLYPHS.play;
@@ -735,10 +760,54 @@ export function initVoiceBrowserRows(
     }
   }
 
+  /** Scrolls a column to one of its entries unless it is in view already (scrollTopToReveal); a column not laid out measures 0 everywhere and stays. */
+  function reveal(columnId: string, entry: any): void {
+    const column = doc.getElementById(columnId);
+    if (column && entry) column.scrollTop = scrollTopToReveal(column, entry);
+  }
+
+  /**
+   * The selection in view (issue #33): the language column's selected
+   * entry and the default voice's row, each scrolled to only when it is
+   * outside its column. By render() — the first listing, a default that
+   * moved elsewhere, a settings restore — never by the partial repaints:
+   * a heart toggled or the favorites switch flipped must not scroll the
+   * user away. A row clicked to become the default is in view, so its
+   * list does not move under the pointer. The tier and language clicks
+   * go through browse() and openVoices() instead: the language column
+   * keeps its entry in view the same way, the voice column is a new list.
+   */
+  function revealSelection(): void {
+    reveal(VOICE_BROWSER_IDS.locales, selectedLanguageEntry);
+    reveal(VOICE_BROWSER_IDS.voices, defaultRow);
+  }
+
+  /**
+   * The voice column as a new list — a tier or language just clicked: it
+   * opens at its top, or centered on the default's row when the list holds
+   * it (issue #33). The navigation clicks alone come here; the repaints in
+   * place — a heart, the favorites switch, a row made the default — leave
+   * the column where the user has it (renderVoices, revealSelection).
+   */
+  function openVoices(): void {
+    renderVoices();
+    const column = doc.getElementById(VOICE_BROWSER_IDS.voices);
+    if (column) column.scrollTop = defaultRow ? scrollTopToReveal({ scrollTop: 0, clientHeight: column.clientHeight }, defaultRow) : 0;
+  }
+
+  /** A tier clicked: the tier column repainted, the language column keeping its selected entry in view, the voice column a new list. */
+  function browse(): void {
+    renderTiers();
+    renderLanguages();
+    reveal(VOICE_BROWSER_IDS.locales, selectedLanguageEntry);
+    openVoices();
+  }
+
   function render(): void {
     renderTiers();
     renderLanguages();
     renderVoices();
+    revealSelection();
   }
 
   /**

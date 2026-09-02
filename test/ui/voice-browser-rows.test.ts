@@ -18,6 +18,7 @@ import {
   groupVoicesByTier,
   initVoiceBrowserRows,
   listBrowserVoices,
+  scrollTopToReveal,
   statusLine,
   VOICE_BROWSER_IDS,
   type StatusInput,
@@ -35,10 +36,18 @@ function fakePrefs(initial: Record<string, unknown> = {}): PrefsBackend & { stor
   return { store, get: (k) => store[k], set: (k, v) => void (store[k] = v) };
 }
 
+/** A column shows four rows of this height: the fake's layout (issue #33). */
+const ROW = 25;
+
 class FakeElement {
   attrs = new Map<string, string>();
   listeners = new Map<string, Array<() => unknown>>();
   children: FakeElement[] = [];
+  /** The column's viewport, and an entry's place in its column — laid out by replaceChildren, ROW per entry. */
+  scrollTop = 0;
+  clientHeight = 0;
+  offsetTop = 0;
+  offsetHeight = 0;
   textContent = '';
   /** An <input>'s value; the slider is one. */
   value = '';
@@ -59,6 +68,10 @@ class FakeElement {
   }
   replaceChildren(...nodes: FakeElement[]) {
     this.children = nodes;
+    nodes.forEach((node, i) => {
+      node.offsetTop = i * ROW;
+      node.offsetHeight = ROW;
+    });
   }
   async fire(type: string) {
     await Promise.all((this.listeners.get(type) ?? []).map((fn) => fn()));
@@ -115,6 +128,7 @@ function setup(
   } = {},
 ) {
   const els = new Map((Object.values(VOICE_BROWSER_IDS) as string[]).map((id) => [id, new FakeElement()]));
+  for (const id of [VOICE_BROWSER_IDS.locales, VOICE_BROWSER_IDS.voices]) els.get(id)!.clientHeight = 4 * ROW;
   const doc = {
     getElementById: (id: string) => els.get(id) ?? null,
     createElementNS: (_ns: string, tag: string) => new FakeElement(tag),
@@ -1490,5 +1504,122 @@ describe('listBrowserVoices', () => {
     const { voices, problems } = await listBrowserVoices({ listCatalog: async () => CATALOG });
     expect(voices.every((v) => v.tier === 'local')).toBe(true);
     expect(problems).toEqual([]);
+  });
+});
+
+// The columns open on the default in view (issue #33): each scrolled just
+// enough — an entry already inside its column's viewport leaves the column
+// where it is, one outside is centered — and only the column, so the pane
+// around it does not jump.
+describe('scrollTopToReveal', () => {
+  const view = { scrollTop: 100, clientHeight: 100 };
+
+  it('leaves the scroll alone when the entry is in view', () => {
+    expect(scrollTopToReveal(view, { offsetTop: 100, offsetHeight: 25 })).toBe(100);
+    expect(scrollTopToReveal(view, { offsetTop: 175, offsetHeight: 25 })).toBe(100);
+  });
+
+  it('centers an entry below the viewport', () => {
+    expect(scrollTopToReveal(view, { offsetTop: 500, offsetHeight: 25 })).toBe(462.5);
+  });
+
+  it('centers an entry above the viewport, no further up than the top', () => {
+    expect(scrollTopToReveal(view, { offsetTop: 50, offsetHeight: 25 })).toBe(12.5);
+    expect(scrollTopToReveal(view, { offsetTop: 0, offsetHeight: 25 })).toBe(0);
+  });
+
+  // A column that is not displayed measures everything as 0
+  it('does nothing for a column that is not laid out', () => {
+    expect(scrollTopToReveal({ scrollTop: 0, clientHeight: 0 }, { offsetTop: 0, offsetHeight: 0 })).toBe(0);
+  });
+});
+
+describe('the columns open on the default in view', () => {
+  // Twelve languages of one voice each, and twelve voices under two of
+  // them: more than the four rows a column shows
+  const LANGUAGES = ['aa', 'ab', 'ae', 'af', 'ak', 'am', 'an', 'ar', 'as', 'av', 'ay', 'az'];
+  const eleven = (code: string) => Array.from({ length: 11 }, (_, i) => `${code}_${String(i + 1).padStart(2, '0')}`).map((id) => ({ id, label: id, locale: code }));
+  const wide: CatalogEntry[] = [
+    {
+      provider: 'local',
+      name: 'Kokoro',
+      voices: [...LANGUAGES.map((code) => ({ id: `v_${code}`, label: `v_${code}`, locale: code })), ...eleven('as'), ...eleven('av')],
+    },
+  ];
+  const remembered = (id: string, lang: string) => ({ [READ_ALOUD_MEMORY_PREF]: JSON.stringify({ speed: null, voice: { id, lang } }) });
+  // 'as' is the ninth language (index 8); its voices sort as_01 … as_11 then v_as, so as_10 is the tenth row (index 9)
+  const deep = encodeVoiceId('local', 'as_10');
+  const centered = (index: number) => index * ROW + ROW / 2 - (4 * ROW) / 2;
+
+  it('scrolls both columns to the selection when it is out of view, centered', async () => {
+    const t = setup({ catalog: wide, zotero: [], prefs: remembered(deep, 'as') });
+    await t.rows.load();
+    expect(t.selectedLocale()).toBe('as (12)');
+    expect(t.highlighted()).toEqual(['Kokoro-as_10']);
+    expect(t.el(VOICE_BROWSER_IDS.locales).scrollTop).toBe(centered(8));
+    expect(t.el(VOICE_BROWSER_IDS.voices).scrollTop).toBe(centered(9));
+  });
+
+  it('leaves a column alone when the selection is in view already', async () => {
+    const t = setup({ catalog: wide, zotero: [], prefs: remembered(deep, 'as') });
+    await t.rows.load();
+    const before = t.el(VOICE_BROWSER_IDS.voices).scrollTop;
+    // A row inside the viewport clicked: the default moves there, and the list does not move under the pointer
+    await t.label(10).fire('click');
+    expect(t.highlighted()).toEqual(['Kokoro-as_11']);
+    expect(t.el(VOICE_BROWSER_IDS.voices).scrollTop).toBe(before);
+    expect(t.el(VOICE_BROWSER_IDS.locales).scrollTop).toBe(centered(8));
+  });
+
+  it('does not move the language column on a language click', async () => {
+    const t = setup({ catalog: wide, zotero: [], prefs: remembered(deep, 'as') });
+    await t.rows.load();
+    const locales = t.el(VOICE_BROWSER_IDS.locales);
+    // The user scrolled back to the top and clicks an entry there
+    locales.scrollTop = 0;
+    await t.pickLocale('aa');
+    expect(t.selectedLocale()).toBe('aa (1)');
+    expect(locales.scrollTop).toBe(0);
+  });
+
+  // The voice column on a tier or language click is a new list, and nothing
+  // is under the pointer there: it opens at its top, or on the default row
+  it('opens the voice list at its top for a language without the default, wherever the last list was scrolled', async () => {
+    const t = setup({ catalog: wide, zotero: [], prefs: remembered(deep, 'as') });
+    await t.rows.load();
+    expect(t.el(VOICE_BROWSER_IDS.voices).scrollTop).toBe(centered(9));
+    await t.pickLocale('av');
+    expect(t.selectedLocale()).toBe('av (12)');
+    expect(t.highlighted()).toEqual([]);
+    expect(t.el(VOICE_BROWSER_IDS.voices).scrollTop).toBe(0);
+  });
+
+  it('opens the voice list on the default row when a language click returns to its language', async () => {
+    const t = setup({ catalog: wide, zotero: [], prefs: remembered(deep, 'as') });
+    await t.rows.load();
+    await t.pickLocale('av');
+    await t.pickLocale('as');
+    expect(t.highlighted()).toEqual(['Kokoro-as_10']);
+    expect(t.el(VOICE_BROWSER_IDS.voices).scrollTop).toBe(centered(9));
+    // The language column stayed where it was: its entry was in view
+    expect(t.el(VOICE_BROWSER_IDS.locales).scrollTop).toBe(centered(8));
+  });
+
+  it('opens the voice list at its top when the default row is within the first rows', async () => {
+    const t = setup({ catalog: wide, zotero: [], prefs: remembered(encodeVoiceId('local', 'as_02'), 'as') });
+    await t.rows.load();
+    await t.pickLocale('av');
+    await t.pickLocale('as');
+    expect(t.highlighted()).toEqual(['Kokoro-as_02']);
+    expect(t.el(VOICE_BROWSER_IDS.voices).scrollTop).toBe(0);
+  });
+
+  it('scrolls to a default picked elsewhere that is off screen', async () => {
+    const t = setup({ catalog: wide, zotero: [], prefs: remembered(encodeVoiceId('local', 'as_01'), 'as') });
+    await t.rows.load();
+    expect(t.el(VOICE_BROWSER_IDS.voices).scrollTop).toBe(0);
+    t.prefs.set(READ_ALOUD_MEMORY_PREF, JSON.stringify({ speed: null, voice: { id: deep, lang: 'as' } }));
+    expect(t.highlighted()).toEqual(['Kokoro-as_10']);
+    expect(t.el(VOICE_BROWSER_IDS.voices).scrollTop).toBe(centered(9));
   });
 });

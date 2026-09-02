@@ -66,8 +66,9 @@ start over.
 3. The settings pane. An open settings window keeps the OLD pane after a
    reinstall: close it (`Services.wm.getMostRecentWindow('zotero:pref').close()`
    through `zotero_execute_js`) and reopen it with `zotero_open_preferences`.
-   That opens the window on the General pane whatever paneId it is given:
-   then `await win.Zotero_Preferences.navigateToPane('zotero-tts-pane')`
+   That opens the window on the pane it last showed — the General pane on
+   a fresh profile — whatever paneId it is given, so navigate regardless:
+   `await win.Zotero_Preferences.navigateToPane('zotero-tts-pane')`
    on `win = Services.wm.getMostRecentWindow('zotero:pref')` and wait until
    `win.document.getElementById('ztts-openai-server')` exists. The pane is
    that window's `document`; the element ids are in
