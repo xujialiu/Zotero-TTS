@@ -347,6 +347,62 @@ const BLOCKED_ROW_TITLE = 'Only a favorite can be the default while “Offer onl
 /** Appended to the status line while the default is not a favorite and only favorites are offered. */
 const NOT_A_FAVORITE = ' — not a favorite, while only favorites are offered: Read Aloud cannot start with it';
 
+/**
+ * Both catalogs, each failing on its own: a provider that cannot list must
+ * not hide Zotero's voices, and Zotero being unreachable (offline, no
+ * account) must not hide the plugin's. What failed is reported beside what
+ * did arrive, never instead of it — `problems`, worded as the status line
+ * shows it. The pane lists through this, and so does
+ * `diagnostics.defaultVoice()`, so the two see one listing (issue #32).
+ */
+export async function listBrowserVoices(deps: Pick<VoiceBrowserDeps, 'listCatalog' | 'listZoteroVoices'>): Promise<{ voices: BrowserVoice[]; problems: string[] }> {
+  const problems: string[] = [];
+  const failed = (what: string) => (e: unknown) => {
+    problems.push(what ? `${what}: ${describeError(e)}` : describeError(e));
+    return [];
+  };
+  const [catalog, zoteroVoices] = await Promise.all([
+    deps.listCatalog().catch(failed('the plugin’s voices')),
+    // Zotero's own failures already name Zotero (read-aloud/zotero-voices.ts)
+    deps.listZoteroVoices?.().catch(failed('')) ?? Promise.resolve([]),
+  ]);
+  return { voices: browserVoices(catalog, zoteroVoices), problems };
+}
+
+/** What the status line is made of, as the pane holds it at a repaint. */
+export interface StatusInput {
+  /** The listing, and what failed to list (listBrowserVoices). */
+  voices: readonly BrowserVoice[];
+  problems: readonly string[];
+  /** The remembered voice, and the listed row that is it (`defaultVoiceRows(…)[0]`), null for none. */
+  choice: VoiceChoice | null;
+  home: BrowserVoice | null;
+  tiers: readonly TierGroup[];
+  /** The speed Read Aloud starts with; null while "one speed everywhere" is off. */
+  speed: number | null;
+  /** The "one voice everywhere" switch. */
+  sameVoice: boolean;
+  /** The "offer only favorite voices" switch, and the favorites' ids. */
+  favoritesOnly: boolean;
+  favorites: readonly string[];
+}
+
+/**
+ * The status line once voices are listed: the default voice and the speed
+ * (defaultVoiceLine), with the not-a-favorite warning — a default that is
+ * not a favorite is not offered while the switch is on, so Read Aloud
+ * cannot start with it; about the voice the line names, so not while the
+ * voice switch is off and it names none — and what failed to list beside
+ * it, never instead of it. Nothing listed says why. The pane paints this,
+ * and `diagnostics.defaultVoice()` reports it (issue #32).
+ */
+export function statusLine({ voices, problems, choice, home, tiers, speed, sameVoice, favoritesOnly, favorites }: StatusInput): string {
+  if (!voices.length) return problems.length ? `Listing voices failed: ${problems.join('; ')}` : 'No voices. Enable a provider above.';
+  const trouble = problems.length ? ` — ${problems.join('; ')}` : '';
+  const warning = sameVoice && choice && favoritesOnly && !favorites.includes(choice.id) ? NOT_A_FAVORITE : '';
+  return defaultVoiceLine(choice, home, tiers, speed, sameVoice) + warning + trouble;
+}
+
 export function initVoiceBrowserRows(
   doc: {
     getElementById(id: string): any;
@@ -594,28 +650,27 @@ export function initVoiceBrowserRows(
   }
 
   /**
-   * The status line once voices are listed: the default voice and the speed
-   * (defaultVoiceLine) — the slider's value, which is the default while
-   * "one speed everywhere" is on; both switches are read here and observed
-   * (watchSwitches), so a checkbox flipped repaints at once — with what
-   * failed to list beside it, never instead of it. Nothing listed says
-   * why. Until the first listing the line is load()'s own message, so this
-   * leaves it alone.
+   * The status line once voices are listed (statusLine): the speed is the
+   * slider's value, which is the default while "one speed everywhere" is
+   * on; the switches are read here and observed (watchSwitches,
+   * watchFavoritesOnly), so a checkbox flipped repaints at once. Until the
+   * first listing the line is load()'s own message, so this leaves it alone.
    */
   function paintStatus(): void {
     if (!listed) return;
-    if (!listed.length) {
-      status(problems.length ? `Listing voices failed: ${problems.join('; ')}` : 'No voices. Enable a provider above.');
-      return;
-    }
-    const trouble = problems.length ? ` — ${problems.join('; ')}` : '';
-    const defaultSpeed = (deps.globalSpeed?.() ?? true) ? speed : null;
-    const sameVoice = deps.sameVoice?.() ?? true;
-    // A default that is not a favorite is not offered while the switch is
-    // on: the line warns at every repaint — about the voice it names, so
-    // not while the voice switch is off and it names none
-    const warning = sameVoice && choice && favoritesOnly() && !readFavorites().includes(choice.id) ? NOT_A_FAVORITE : '';
-    status(defaultVoiceLine(choice, defaults[0] ?? null, tiers, defaultSpeed, sameVoice) + warning + trouble);
+    status(
+      statusLine({
+        voices: listed,
+        problems,
+        choice,
+        home: defaults[0] ?? null,
+        tiers,
+        speed: (deps.globalSpeed?.() ?? true) ? speed : null,
+        sameVoice: deps.sameVoice?.() ?? true,
+        favoritesOnly: favoritesOnly(),
+        favorites: readFavorites(),
+      }),
+    );
   }
 
   /** The "offer only favorite voices" switch flipped: which rows can be picked changed, and so may the warning. */
@@ -720,12 +775,10 @@ export function initVoiceBrowserRows(
   let again = false;
 
   /**
-   * Both catalogs, each failing on its own: a provider that cannot list must
-   * not hide Zotero's voices, and Zotero being unreachable (offline, no
-   * account) must not hide the plugin's. What failed is reported beside what
-   * did arrive, never instead of it. Called on load, and by the pane
-   * whenever a provider switch is used (ui/provider-rows.ts) or the settings
-   * are restored — the only times the plugin's voices change.
+   * The listing (listBrowserVoices): both catalogs, what failed beside what
+   * arrived. Called on load, and by the pane whenever a provider switch is
+   * used (ui/provider-rows.ts) or the settings are restored — the only
+   * times the plugin's voices change.
    */
   async function load(): Promise<void> {
     if (loading) {
@@ -734,19 +787,10 @@ export function initVoiceBrowserRows(
     }
     loading = true;
     status('Listing voices…');
-    const failures: string[] = [];
-    const failed = (what: string) => (e: unknown) => {
-      failures.push(what ? `${what}: ${describeError(e)}` : describeError(e));
-      return [];
-    };
     try {
-      const [catalog, zoteroVoices] = await Promise.all([
-        deps.listCatalog().catch(failed('the plugin’s voices')),
-        // Zotero's own failures already name Zotero (read-aloud/zotero-voices.ts)
-        deps.listZoteroVoices?.().catch(failed('')) ?? Promise.resolve([]),
-      ]);
-      listed = browserVoices(catalog, zoteroVoices);
-      problems = failures;
+      const listing = await listBrowserVoices(deps);
+      listed = listing.voices;
+      problems = listing.problems;
       tiers = groupVoicesByTier(listed, localeName);
       defaults = defaultVoiceRows(listed, choice);
       reselect();

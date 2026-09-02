@@ -125,8 +125,12 @@ it measured, updated for the fixes since where marked.
    → `memory`, the default's `rows`, `opensOn`; the pane's selected tier
    and language, the default row painted with `ROW_DEFAULT_STYLE` and
    the `DEFAULT_ROW_TITLE` tooltip. Known: neither column scrolls to the
-   selection (issue #33). Known: the diagnostic's `status` lacks the
-   pane's warning tail (issue #32).
+   selection (issue #33). The diagnostic's `status` is the pane's line:
+   equal, byte for byte, to `#ztts-voices-status`'s `textContent` read in
+   the same script — with the not-a-favorite warning on it (2.5), and
+   with a provider's listing trouble after the dash when one fails;
+   `problems` is that trouble, `favorite` whether the default is marked
+   (issue #32).
 3. **Only a favorite can be the default** while only favorites are
    offered: a non-favorite row is refused silently (grayed, `BLOCKED_ROW_TITLE`),
    the memory unchanged; a favorite row makes the default (memory

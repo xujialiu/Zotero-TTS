@@ -46,7 +46,7 @@ import {
 } from './ui/read-aloud-shortcuts';
 import { findOptionsButton, hasPlayer, isOptionsPanelOpen } from './ui/player-options';
 import { removeSpeedToast, showSpeedToast, showToast } from './ui/speed-toast';
-import { browserVoices, createSamplePlayer, defaultVoiceLine, defaultVoiceRows, groupVoicesByTier, languageNameOf, startingSpeed } from './ui/voice-browser-rows';
+import { browserVoices, createSamplePlayer, defaultVoiceRows, groupVoicesByTier, languageNameOf, listBrowserVoices, startingSpeed, statusLine } from './ui/voice-browser-rows';
 import { silentWav } from './core/silence';
 import { withTimeout } from './core/timeout';
 
@@ -1670,38 +1670,40 @@ const diagnostics = {
    * sandbox: the memory, the rows it names in the very listing the pane
    * gets (the plugin's catalog and Zotero's own voices, each failing on
    * its own), the tier and language the browser opens on, and the status
-   * line it paints — so a pane that marks the wrong row can be told apart
-   * from a memory that names the wrong voice.
+   * line it paints — the very line, listed and composed by the pane's own
+   * functions (issue #32) — so a pane that marks the wrong row can be told
+   * apart from a memory that names the wrong voice.
    */
   defaultVoice: async () => {
     try {
       const memory = readMemory(prefs);
-      let zotero: ZoteroVoice[] = [];
-      let zoteroError: string | null = null;
-      try {
-        zotero = await zoteroVoiceService().listVoices();
-      } catch (e) {
-        zoteroError = String(e);
-      }
-      // Bounded as the pane bounds its listing: a server that never answers must end in an error, not a hang
-      const catalog = await withTimeout(listCatalog(), TEST_CONNECTION_TIMEOUT_MS, () => new Error('No voice list within 15 s'));
-      const voices = browserVoices(catalog, zotero);
+      const { readAloud } = loadSettings(prefs);
+      const { globalSpeed, sameForAllDocuments: sameVoice, favoritesOnly } = readAloud;
+      const favorites = parseFavoriteVoices(readAloud.favoriteVoices);
+      // The pane's listing (ui/voice-browser-rows.ts listBrowserVoices): both catalogs, each failing on its own, the catalog bounded as the pane bounds it — a server that never answers must end in a problem, not a hang
+      const { voices, problems } = await listBrowserVoices({
+        listCatalog: () => withTimeout(listCatalog(), TEST_CONNECTION_TIMEOUT_MS, () => new Error('No voice list within 15 s')),
+        listZoteroVoices: () => zoteroVoiceService().listVoices(),
+      });
       const rows = defaultVoiceRows(voices, memory.voice);
       const home = rows[0] ?? null;
       const tiers = groupVoicesByTier(voices, appLanguageName);
-      const { globalSpeed, sameForAllDocuments: sameVoice } = loadSettings(prefs).readAloud;
       return JSON.stringify(
         {
           memory,
           globalSpeed,
           sameVoice,
+          favoritesOnly,
+          // Whether the remembered voice is marked: while only favorites are offered, one that is not cannot start Read Aloud
+          favorite: memory.voice ? favorites.includes(memory.voice.id) : null,
           listed: voices.length,
-          zoteroError,
+          // What failed to list, in the status line's own words
+          problems,
           rows: rows.map((r) => ({ tier: r.tier, locale: r.locale, label: r.label, id: r.encoded })),
           // The language entry the row sits under, named as the popup's dropdown names it
           opensOn: home ? { tier: home.tier, language: dropdownLanguage(home.locale), name: languageNameOf(tiers, home) } : 'the usual tier (no listed row is the default)',
-          // The pane's line as it opens: the slider starts at startingSpeed; each half of the line answers to its "everywhere" switch
-          status: defaultVoiceLine(memory.voice, home, tiers, globalSpeed ? startingSpeed(prefs) : null, sameVoice),
+          // The pane's line as it opens (statusLine): the slider starts at startingSpeed, each half answers to its "everywhere" switch, then the not-a-favorite warning and the listing trouble
+          status: statusLine({ voices, problems, choice: memory.voice, home, tiers, speed: globalSpeed ? startingSpeed(prefs) : null, sameVoice, favoritesOnly, favorites }),
         },
         null,
         1,

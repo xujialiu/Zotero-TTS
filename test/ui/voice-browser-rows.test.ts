@@ -11,10 +11,16 @@ import { encodeVoiceId } from '../../src/read-aloud/voice-catalog';
 import type { ZoteroVoice } from '../../src/read-aloud/zotero-voices';
 import {
   blobToDataURL,
+  browserVoices,
   createSamplePlayer,
+  defaultVoiceRows,
   GLYPHS,
+  groupVoicesByTier,
   initVoiceBrowserRows,
+  listBrowserVoices,
+  statusLine,
   VOICE_BROWSER_IDS,
+  type StatusInput,
   type VoiceBrowserDeps,
 } from '../../src/ui/voice-browser-rows';
 
@@ -1410,5 +1416,79 @@ describe('labelOf', () => {
     expect(t.rows.labelOf('local::af_bella')).toBe('Kokoro-af_bella');
     expect(t.rows.labelOf('zotero-standard-ava')).toBe('Ava');
     expect(t.rows.labelOf('local::gone')).toBeNull();
+  });
+});
+
+// The line the pane paints and the line diagnostics.defaultVoice() reports
+// are one function (issue #32): the default voice and the speed, the
+// not-a-favorite warning, and what failed to list — or, with nothing
+// listed, why.
+describe('statusLine', () => {
+  const voices = browserVoices(CATALOG, ZOTERO_VOICES);
+  const tiers = groupVoicesByTier(voices, (code) => LOCALE_NAMES[code] ?? code);
+  const bella = encodeVoiceId('local', 'af_bella');
+  const choice = { id: bella, lang: 'en' };
+  const home = defaultVoiceRows(voices, choice)[0];
+  const line = (over: Partial<StatusInput> = {}) =>
+    statusLine({ voices, problems: [], choice, home, tiers, speed: 1.7, sameVoice: true, favoritesOnly: false, favorites: [], ...over });
+
+  it('names the default voice and the speed', () => {
+    expect(line()).toBe('Default voice: Local | English | Kokoro-af_bella | 1.7×');
+  });
+
+  it('warns when the default is not a favorite while only favorites are offered', () => {
+    expect(line({ favoritesOnly: true })).toBe(
+      'Default voice: Local | English | Kokoro-af_bella | 1.7× — not a favorite, while only favorites are offered: Read Aloud cannot start with it',
+    );
+    expect(line({ favoritesOnly: true, favorites: [bella] })).toBe('Default voice: Local | English | Kokoro-af_bella | 1.7×');
+    // With "one voice everywhere" off the line names no voice, so there is nothing to warn about
+    expect(line({ favoritesOnly: true, sameVoice: false })).toBe('Default speed: 1.7×');
+  });
+
+  it('appends what failed to list, after the warning', () => {
+    expect(line({ problems: ['the plugin’s voices: boom'] })).toBe(
+      'Default voice: Local | English | Kokoro-af_bella | 1.7× — the plugin’s voices: boom',
+    );
+    expect(line({ favoritesOnly: true, problems: ['a', 'b'] })).toMatch(/cannot start with it — a; b$/);
+  });
+
+  it('says why when nothing is listed', () => {
+    expect(line({ voices: [], home: null, problems: ['a', 'b'] })).toBe('Listing voices failed: a; b');
+    expect(line({ voices: [], home: null })).toBe('No voices. Enable a provider above.');
+  });
+});
+
+// The pane's own listing, for the diagnostic to share: both catalogs, each
+// failing on its own, the failure worded as the status line words it.
+describe('listBrowserVoices', () => {
+  it('lists both catalogs into one flat list', async () => {
+    const { voices, problems } = await listBrowserVoices({ listCatalog: async () => CATALOG, listZoteroVoices: async () => ZOTERO_VOICES });
+    expect(voices).toHaveLength(CATALOG.reduce((n, e) => n + e.voices.length, 0) + ZOTERO_VOICES.length);
+    expect(problems).toEqual([]);
+  });
+
+  it('reports each catalog’s failure in the status line’s words, keeping the other', async () => {
+    const plugin = await listBrowserVoices({
+      listCatalog: async () => {
+        throw new Error('boom');
+      },
+      listZoteroVoices: async () => ZOTERO_VOICES,
+    });
+    expect(plugin.voices.map((v) => v.tier)).not.toContain('local');
+    expect(plugin.problems).toEqual(['the plugin’s voices: boom']);
+    const zotero = await listBrowserVoices({
+      listCatalog: async () => CATALOG,
+      listZoteroVoices: async () => {
+        throw new Error('Zotero cannot list its voices: offline');
+      },
+    });
+    expect(zotero.voices.every((v) => v.tier === 'local')).toBe(true);
+    expect(zotero.problems).toEqual(['Zotero cannot list its voices: offline']);
+  });
+
+  it('works without Zotero to ask', async () => {
+    const { voices, problems } = await listBrowserVoices({ listCatalog: async () => CATALOG });
+    expect(voices.every((v) => v.tier === 'local')).toBe(true);
+    expect(problems).toEqual([]);
   });
 });
