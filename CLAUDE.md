@@ -149,16 +149,19 @@ documents, settings backup/restore (file or WebDAV), highlight colors.
   Never echo an API key into the conversation or a file. Zotero's
   `prefs.js` holds the user's keys in plaintext — grep it only for the exact
   pref you need, never print whole lines.
-- **Only a Fable session delegates** (settled 2026-08-28, gated
-  2026-08-28, widened 2026-08-30): the `git-chores` and `zotero-tester`
-  agents run Opus at maximum reasoning effort, which is worth a round trip
-  only to a session running Fable — and a Fable session hands their work
-  over always, not only when it looks heavy: every git chore, every run of
-  the zotero-dev bridge. Every other model — this one included — does that
-  work itself, here, in place: no subagent, the whole run in view. The
-  agent files stay the rule book either way; read
-  `.claude/agents/git-chores.md` / `.claude/agents/zotero-tester.md`
-  before doing their work by hand.
+- **Delegation is decided per agent** (settled 2026-08-28, gated
+  2026-08-28, widened 2026-08-30, split 2026-09-04): the `git-chores` and
+  `zotero-tester` agents run Opus at maximum reasoning effort, and who
+  hands work to them is decided agent by agent. **Every run of the
+  zotero-dev bridge goes to `zotero-tester`**, from a session running
+  Fable *or* Opus, research as much as verification — a bridge run floods
+  a context with traces, DOM dumps and unpacked Zotero source whatever
+  model is reading them, and that context is where the issue and the fix
+  are then written. `git-chores` is handed over by a Fable session only;
+  every other model — this one included — commits, tags and merges itself,
+  here, in place: no subagent, the whole run in view. The agent files stay
+  the rule book either way; read `.claude/agents/git-chores.md` /
+  `.claude/agents/zotero-tester.md` before doing their work by hand.
 - **Git housekeeping** (settled 2026-08-28): committing what is in the
   working tree, deleting merged branches locally and on origin, tagging,
   pushing, and `--ff-only` merges follow `.claude/agents/git-chores.md`.
@@ -226,21 +229,22 @@ reading a reader's live state, digging an issue's evidence out of Zotero
 before the issue is written.
 
 - **The driving rules are `.claude/agents/zotero-tester.md`** (the
-  bridge's tools, how to drive them, what to report). A Fable session
-  hands **every** run to `Agent` with `subagent_type: "zotero-tester"` —
-  research as much as verification, since research is what floods a
-  context with traces, DOM dumps and unpacked Zotero source — and
-  confirms the reported evidence (traces, pref values, screenshots) field
-  by field, which keeps its tokens for the work. A **verification brief**
-  names the xpi path, the behaviors to verify, the diagnostics with their
-  expected output, and what state it may touch; a **research brief** names
-  the question to settle and what state it may touch, and leaves the
-  expected output to the agent. Follow-ups go to that same agent through
-  `SendMessage`, never a fresh `Agent` call: research is look → guess →
-  look again, and a new agent has lost the thread. What comes back is
-  evidence — the issue, the fix and the commit stay in the main session.
-  Any other model drives the bridge here, by those same rules, and budgets
-  for the traces and screenshots landing in this context.
+  bridge's tools, how to drive them, what to report). A session running
+  Fable or Opus hands **every** run to `Agent` with `subagent_type:
+  "zotero-tester"` — research as much as verification, since research is
+  what floods a context with traces, DOM dumps and unpacked Zotero
+  source — and confirms the reported evidence (traces, pref values,
+  screenshots) field by field, which keeps its tokens for the work. A
+  **verification brief** names the xpi path, the behaviors to verify, the
+  diagnostics with their expected output, and what state it may touch; a
+  **research brief** names the question to settle and what state it may
+  touch, and leaves the expected output to the agent. Follow-ups go to
+  that same agent through `SendMessage`, never a fresh `Agent` call:
+  research is look → guess → look again, and a new agent has lost the
+  thread. What comes back is evidence — the issue, the fix and the commit
+  stay in the main session. A smaller model drives the bridge here, by
+  those same rules, and budgets for the traces and screenshots landing in
+  this context.
 - **Plan first.** List every new behavior on the branch and the check that
   covers it — for research, every question and the observation that would
   settle it; name what only unit tests can cover and why, and what only a
