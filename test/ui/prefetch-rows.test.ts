@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { PREF_PREFIX, type PrefsBackend } from '../../src/core/settings';
 import { CACHE_AUDIO_CHECKBOX_ID, initPrefetchRows, PREFETCH_ENABLED_OBSERVER } from '../../src/ui/prefetch-rows';
+import { englishAttribute } from '../setup';
 
 const CACHE = `${PREF_PREFIX}cacheAudio`;
 const PREFETCH = `${PREF_PREFIX}prefetchEnabled`;
@@ -127,13 +128,15 @@ describe('addon/content/preferences.xhtml', () => {
     expect(row).toContain(`id="${CACHE_AUDIO_CHECKBOX_ID}"`);
   });
 
+  // The ? icon's text is its message's .help (addon/locale, issue #30)
   it('explains both settings with a ?, and says they are one feature', () => {
-    const prefetch = rowOf(`preference="${PREFETCH}"`);
-    expect(prefetch).toMatch(/help="[^"]*3 ahead on its own[^"]*"/);
-    expect(prefetch).toMatch(/help="[^"]*stays on while this is on[^"]*"/);
+    const helpOf = (row: string) => englishAttribute(row.match(/<label class="ztts-help"[^>]*data-l10n-id="([^"]+)"/)?.[1] ?? '', 'help') ?? '';
+    const prefetch = helpOf(rowOf(`preference="${PREFETCH}"`));
+    expect(prefetch).toMatch(/3 ahead on its own/);
+    expect(prefetch).toMatch(/stays on while this is on/);
 
-    const cache = rowOf(`preference="${CACHE}"`);
-    expect(cache).toMatch(/help="[^"]*emptied when Zotero restarts[^"]*"/);
-    expect(cache).toMatch(/help="[^"]*cannot be turned off while prefetch is on[^"]*"/);
+    const cache = helpOf(rowOf(`preference="${CACHE}"`));
+    expect(cache).toMatch(/emptied when Zotero restarts/);
+    expect(cache).toMatch(/cannot be turned off while prefetch is on/);
   });
 });

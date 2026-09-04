@@ -138,7 +138,9 @@ start over.
    element, nudge by a pixel, then poll. The pane's ? icons open their
    own `<tooltip id="ztts-help-tip">` at once (ui/help-tips.ts, from the
    icon's `help` attribute): its `state` and `label` are the evidence, and
-   Zotero's default tooltip must stay closed. That default tooltip
+   Zotero's default tooltip must stay closed. `state` is a property of the
+   popup (`tip.state`), not an attribute — `getAttribute('state')` is
+   `null` while it is open (2026-09-04). That default tooltip
    (`tooltiptext` elements) is native anonymous content, not in the DOM:
    `Array.from(InspectorUtils.getChildrenForNode(doc.documentElement, true, false)).find(c => c.localName === 'tooltip')`
    — its `state` (`showing` → `open`, `closed` once the mouse leaves) and

@@ -1,3 +1,4 @@
+import { t } from '../core/l10n';
 import type { ProviderId } from '../core/providers/types';
 import { PREF_PREFIX, PROVIDER_IDS, type PrefsBackend } from '../core/settings';
 import { refuseWhileReading, type ReadingGuardDeps } from './reading-guard';
@@ -86,7 +87,7 @@ export function initProviderRows(
   function paint(id: ProviderId): void {
     const { toggle, test } = elements(id);
     const on = enabled(id);
-    toggle?.setAttribute('label', on ? 'Disable' : 'Enable');
+    toggle?.setAttribute('label', on ? t('ztts-switch-disable') : t('ztts-switch-enable'));
     if (toggle) toggle.disabled = false;
     if (test) test.disabled = false;
     for (const field of fields(id)) {
@@ -131,8 +132,8 @@ export function initProviderRows(
     }
     if (refuseWhileReading(deps)) return;
     hold(id);
-    elements(id).toggle?.setAttribute('label', 'Checking…');
-    say(id, 'Checking…');
+    elements(id).toggle?.setAttribute('label', t('ztts-switch-checking'));
+    say(id, t('ztts-switch-checking'));
     const outcome = await run(id);
     // Asked again, because the write is what the guard is about and the
     // check has had a quarter of a minute in which a player could open. The
@@ -152,7 +153,7 @@ export function initProviderRows(
   async function onTest(id: ProviderId): Promise<void> {
     if (busy.has(id)) return;
     hold(id);
-    say(id, 'Testing…');
+    say(id, t('ztts-switch-testing'));
     const outcome = await run(id);
     say(id, outcome.message);
     busy.delete(id);
@@ -190,8 +191,8 @@ export function initProviderRows(
     if (!wanted.length) return '';
     for (const id of wanted) {
       hold(id);
-      elements(id).toggle?.setAttribute('label', 'Checking…');
-      say(id, 'Checking…');
+      elements(id).toggle?.setAttribute('label', t('ztts-switch-checking'));
+      say(id, t('ztts-switch-checking'));
     }
     const turnedOff: ProviderId[] = [];
     await Promise.all(

@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { buildDateString } from '../../scripts/build-date.mjs';
 import { BUILD_LINE_ID, PLUGIN_AUTHOR, buildLine, initBuildRows } from '../../src/ui/build-rows';
+import { englishValue } from '../setup';
 
 describe('buildLine', () => {
   it('names the version, the build date and the author on one line', () => {
@@ -55,7 +56,8 @@ describe('addon/', () => {
   it('carries the row the Build line is written into, last in the pane', () => {
     expect(xhtml).toContain(`id="${BUILD_LINE_ID}"`);
     expect(xhtml.lastIndexOf('<groupbox>')).toBeLessThan(xhtml.indexOf(`id="${BUILD_LINE_ID}"`));
-    expect(xhtml.indexOf('<html:h2>Build</html:h2>')).toBeGreaterThan(xhtml.indexOf('<html:h2>Backup</html:h2>'));
+    expect(xhtml.indexOf('data-l10n-id="ztts-heading-build"')).toBeGreaterThan(xhtml.indexOf('data-l10n-id="ztts-heading-backup"'));
+    expect(englishValue('ztts-heading-build')).toBe('Build');
   });
 
   // The pane and Tools → Plugins name the same author

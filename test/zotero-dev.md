@@ -109,7 +109,42 @@ it measured, updated for the fixes since where marked.
 9. **Zotero's own voices from the sandbox.** `diagnostics.zoteroVoices()`
    → `voices` > 0 with `tiers` counts matching the browser's columns,
    the `favorites` split, `sample.bytes` > 0.
-10. **Errors at the end**, by content.
+10. **The strings resolve in the sandbox** (issue #30). `startup()` has
+    the `strings` step `ok`; `diagnostics.l10n()` → `source: true`,
+    `appLocales` beginning with `zoteroLocale`, `sample` the Voice browser
+    heading in the app's language (derive from
+    `addon/locale/<locale>/zotero-tts.ftl`: `Voice browser` under en-US,
+    `语音浏览器` under zh-CN), `fallback: "ztts-no-such-message"` — the id
+    itself, never blank, never a throw.
+11. **The pane is translated by Zotero, not by the plugin.** With the
+    settings window open on the pane, `diagnostics.l10n().pane` →
+    `elements` the count of `data-l10n-id` in `preferences.xhtml` (derive),
+    `blank: []`, `questionless: []`. By DOM: every `.ztts-help` has `value`
+    `?` and `help` its message's text; the *Offer only favorite voices…*
+    checkbox has its bold run (`.checkbox-label b`) reading the message's
+    `.bold`; the highlight preview's four painted spans keep their ids
+    (`#ztts-highlight-preview-sentence`, `-word-before`, `-word`,
+    `-word-after`) with the message's text in them; the four provider
+    switches read `Enable` or `Disable` (the `ztts-switch-*` messages
+    through `t()`), none blank. Screenshots of every group in the app's
+    language.
+12. **Chinese without a restart.** Snapshot `intl.locale.requested`, then
+    `Services.locale.requestedLocales = ['zh-CN']`: `diagnostics.l10n().sample`
+    becomes `语音浏览器`, and the open pane retranslates itself — the
+    Voice browser heading reads `语音浏览器`, `blank` and `questionless`
+    stay empty, the `?` icons keep their `?`; a screenshot. `Zotero.locale`
+    does not move (computed at startup) and is not expected to. What
+    TypeScript painted stays as it was until the pane is reopened — the
+    provider switches' `Enable`/`Disable` and the bold run of *Offer only
+    favorite voices* (`.checkbox-label b` is gone, the label plain) — and
+    a close and reopen shows them in the new language (`停用`, the run
+    `收藏的语音`): a user is asked to restart on a language change, so
+    this is by design, not a FAIL (measured 2026-09-04: the pane
+    retranslated in 172 ms). Each switch logs one Zotero-own `uncaught
+    exception: undefined`, reproduced with no settings window open. Then
+    the pref back verbatim (an empty snapshot means `requestedLocales = []`)
+    and `appLocalesAsBCP47` equal to the baseline's.
+13. **Errors at the end**, by content.
 
 ## 2. The voice browser, favorites, the default voice
 
@@ -385,6 +420,9 @@ screen, the complete Run JavaScript code, the expected output.
   audio (Azure, Kokoro, System) and the sentence highlight with OpenAI.
 - Shift+Enter bringing the view back to the spoken sentence; the popup
   in motion; the speed toast's fade.
+- The pane in a Chinese Zotero after a restart (issue #30): how the
+  wording reads, whether the labels fit their 8em / 12em columns, the
+  `?` tooltips' text; and the English pane unchanged from before.
 
 ## 9. Not covered, and why
 

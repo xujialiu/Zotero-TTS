@@ -6,6 +6,7 @@ import { NAVIGATION_ACTIONS, SHORTCUT_ACTIONS } from '../../src/core/shortcut-ac
 import { SPEED_ACTIONS } from '../../src/core/read-aloud-speed';
 import { DEFAULTS, PREF_PREFIX, type PrefsBackend } from '../../src/core/settings';
 import { initShortcutRows } from '../../src/ui/shortcut-rows';
+import { englishAttribute } from '../setup';
 
 function fakePrefs(initial: Record<string, unknown> = {}): PrefsBackend & { store: Record<string, unknown> } {
   const store = { ...initial };
@@ -275,11 +276,13 @@ describe('addon/content/preferences.xhtml', () => {
       const at = xhtml.indexOf(`id="ztts-key-${action}"`);
       return xhtml.slice(xhtml.lastIndexOf('<hbox', at), xhtml.indexOf('</hbox>', at));
     };
-    const help = /<label class="ztts-help" value="\?" help="([^"]+)"\/>/;
+    // The icon's text is its message's .help (addon/locale, issue #30)
+    const help = /<label class="ztts-help" value="\?" data-l10n-id="([^"]+)" data-l10n-attrs="help"\/>/;
+    const helpOf = (action: string) => englishAttribute(rowOf(action).match(help)?.[1] ?? '', 'help');
     for (const action of [...NAVIGATION_ACTIONS, 'returnToSpoken', 'toggleOptions']) {
-      expect(rowOf(action).match(help)?.[1], action).toMatch(/only while Read Aloud is open/);
+      expect(helpOf(action), action).toMatch(/only while Read Aloud is open/);
     }
-    expect(rowOf('startFromSelection').match(help)?.[1]).toMatch(/every state/);
+    expect(helpOf('startFromSelection')).toMatch(/every state/);
     for (const action of SPEED_ACTIONS) expect(rowOf(action), action).not.toMatch(help);
     expect(xhtml).not.toContain('<description>Sentence, paragraph');
   });

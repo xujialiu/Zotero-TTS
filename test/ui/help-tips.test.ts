@@ -1,6 +1,7 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { describe, expect, it, vi } from 'vitest';
 import { HELP_ATTRIBUTE, HELP_ICON_SELECTOR, HELP_POPUPSET_ID, HELP_TIP_ID, initHelpTips } from '../../src/ui/help-tips';
+import { englishAttribute, englishValue } from '../setup';
 
 class FakeIcon {
   attrs = new Map<string, string>();
@@ -94,7 +95,13 @@ describe('addon/content/preferences.xhtml', () => {
     expect(at, marker).toBeGreaterThan(-1);
     return xhtml.slice(xhtml.lastIndexOf('<hbox', at), xhtml.indexOf('</hbox>', at));
   };
-  const help = /<label class="ztts-help" value="\?" help="([^"]+)"\/>/;
+  // A ? icon's text is its message's .help (addon/locale, issue #30); the
+  // markup names the attribute so Fluent writes it, and keeps the ? itself
+  const help = /<label class="ztts-help" value="\?" data-l10n-id="([^"]+)" data-l10n-attrs="help"\/>/;
+  const helpTextOf = (row: string) => {
+    const id = row.match(help)?.[1];
+    return id ? englishAttribute(id, HELP_ATTRIBUTE) : undefined;
+  };
 
   it('has the popupset the tooltip goes into, no tooltip of its own, and a class on the root for the stylesheet', () => {
     expect(xhtml).toContain(`<popupset id="${HELP_POPUPSET_ID}"/>`);
@@ -108,20 +115,21 @@ describe('addon/content/preferences.xhtml', () => {
   });
 
   it('explains the Reading switches with a ? instead of a parenthesis in the label', () => {
-    const rows: Array<[string, RegExp, RegExp]> = [
-      ['preference="extensions.zotero.zotero-tts.readAloud.sameForAllDocuments"', /label="Use one voice everywhere"/, /one voice per document language/],
-      ['preference="extensions.zotero.zotero-tts.readAloud.globalSpeed"', /label="Use one speed everywhere"/, /one speed per document language/],
+    const rows: Array<[string, string, string, RegExp]> = [
+      ['preference="extensions.zotero.zotero-tts.readAloud.sameForAllDocuments"', 'ztts-one-voice', 'Use one voice everywhere', /one voice per document language/],
+      ['preference="extensions.zotero.zotero-tts.readAloud.globalSpeed"', 'ztts-one-speed', 'Use one speed everywhere', /one speed per document language/],
     ];
-    for (const [marker, label, text] of rows) {
+    for (const [marker, id, label, text] of rows) {
       const row = rowOf(marker);
-      expect(row, marker).toMatch(label);
-      expect(row.match(help)?.[1], marker).toMatch(text);
+      expect(row, marker).toContain(`data-l10n-id="${id}"`);
+      expect(englishAttribute(id, 'label'), marker).toBe(label);
+      expect(helpTextOf(row), marker).toMatch(text);
     }
   });
 
   it('explains Extra headers, in the OpenAI and the local group alike', () => {
     for (const marker of ['id="ztts-openai-headers"', 'preference="extensions.zotero.zotero-tts.local.headers"']) {
-      const text = rowOf(marker).match(help)?.[1];
+      const text = helpTextOf(rowOf(marker));
       expect(text, marker).toMatch(/Cloudflare Access/);
       expect(text, marker).toMatch(/CF-Access-Client-Id/);
     }
@@ -147,9 +155,10 @@ describe('addon/content/preferences.xhtml', () => {
 
   it('says only the platform limit beside System voices, and the rest in the ?', () => {
     const row = rowOf('id="ztts-system-note"');
-    expect(row).toContain('<description id="ztts-system-note">Windows only.</description>');
+    expect(row).toContain('<description id="ztts-system-note" data-l10n-id="ztts-system-note"/>');
+    expect(englishValue('ztts-system-note')).toBe('Windows only.');
     expect(row).not.toMatch(/max-width/);
-    const text = row.match(help)?.[1];
+    const text = helpTextOf(row);
     expect(text).toMatch(/macOS and Linux are not supported yet/);
     expect(text).toMatch(/voice browser, samples, favorites, the cache and word highlighting/);
     // What the plugin does behind the player is README and NOTES material

@@ -83,6 +83,16 @@ describe('build', () => {
     expect(names).toContain('content/preferences.css');
   });
 
+  // Zotero registers a plugin's Fluent files from `locale/<locale>/` in the
+  // xpi itself (xpcom/plugins.js registerLocales), and the pane's every
+  // string is in them: an xpi without them is a pane of blank labels (issue #30)
+  it('packages the Fluent file of every locale', () => {
+    execFileSync('node', ['scripts/build.mjs'], { cwd: root, stdio: 'pipe' });
+    const names = new AdmZip(xpi).getEntries().map((e) => e.entryName);
+    expect(names).toContain('locale/en-US/zotero-tts.ftl');
+    expect(names).toContain('locale/zh-CN/zotero-tts.ftl');
+  });
+
   // The date the pane's Build section shows exists nowhere else: esbuild's
   // `define` is what puts it into the bundle, and a define that stops being
   // applied would leave the identifier standing and the row on a dash.

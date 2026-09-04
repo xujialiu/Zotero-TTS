@@ -324,7 +324,9 @@ src/ui/             prefs pane (prefs-pane, shortcut-rows, backup-rows, webdav-r
 src/index.ts        bootstrap wiring; with core/settings.createZoteroPrefs and ui/prefs-pane the
                     only code that touches Zotero globals (declared in src/globals.d.ts)
 addon/              manifest.json, bootstrap.js, prefs.js (defaults), content/preferences.xhtml,
-                    content/preferences.css (the ? icons, registered with the pane)
+                    content/preferences.css (the ? icons, registered with the pane),
+                    locale/<locale>/zotero-tts.ftl (every string the pane and the UI show; en-US is
+                    the source, test/l10n.test.ts pins the other locales to it)
 test/               mirrors src/; vitest; zotero-dev.md — the live checklist the bridge
                     runs (see Driving Zotero live); fixtures/ — its PDFs and their generator
 assets/             README media (the word-highlight GIF, popup and settings screenshots)
@@ -357,9 +359,11 @@ assets/             README media (the word-highlight GIF, popup and settings scr
 
 - **Sandbox whitelist**: the plugin scope has no `WebSocket`, `AbortController`
   or `caches`; take them from `reader._window`. It does get `Zotero`,
-  `Services`, `ChromeUtils`, `IOUtils`, `PathUtils`, `setTimeout`, `fetch`,
-  `atob`/`btoa`, `TextEncoder`/`TextDecoder`, `URL`, `DOMParser`, `crypto`,
-  `XMLHttpRequest` (the list: `wantGlobalProperties` in `xpcom/plugins.js`).
+  `Services`, `ChromeUtils`, `IOUtils`, `PathUtils`, `Localization` (the
+  Fluent constructor; `core/l10n.ts` formats through a sync instance of it),
+  `setTimeout`, `fetch`, `atob`/`btoa`, `TextEncoder`/`TextDecoder`, `URL`,
+  `DOMParser`, `crypto`, `XMLHttpRequest` (the list: `wantGlobalProperties`
+  and the `Object.assign` after it in `xpcom/plugins.js` `_loadScope`).
 - **Compartments**: the reader iframe may not call a bare sandbox function
   (export it with `Components.utils.exportFunction`) nor read a sandbox object
   ("Permission denied to access property …"). Hand reader code primitives

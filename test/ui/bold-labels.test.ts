@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { BOLD_ATTRIBUTE, BOLD_SELECTOR, CHECKBOX_LABEL_SELECTOR, initBoldLabels } from '../../src/ui/bold-labels';
+import { englishAttribute } from '../setup';
 
 const HTML_NS = 'http://www.w3.org/1999/xhtml';
 
@@ -96,19 +97,25 @@ describe('addon/content/preferences.xhtml', () => {
   const xhtml = readFileSync(new URL('../../addon/content/preferences.xhtml', import.meta.url), 'utf8');
   const checkboxes = [...xhtml.matchAll(/<checkbox\b[^>]*>/g)].map((match) => match[0]);
 
+  // The words are the message's (addon/locale, issue #30); the markup names
+  // the run's attribute so Fluent writes it beside the label
   it('bolds the favorite voices of the voice browser switch, in the Read Aloud player', () => {
     const box = checkboxes.find((markup) => markup.includes('id="ztts-favorites-only"'));
     expect(box).toBeDefined();
-    expect(box).toContain('label="Offer only favorite voices in the Read Aloud player"');
-    expect(box).toContain(`${BOLD_ATTRIBUTE}="favorite voices"`);
+    expect(box).toContain('data-l10n-id="ztts-favorites-only"');
+    expect(box).toContain(`data-l10n-attrs="${BOLD_ATTRIBUTE}"`);
+    expect(englishAttribute('ztts-favorites-only', 'label')).toBe('Offer only favorite voices in the Read Aloud player');
+    expect(englishAttribute('ztts-favorites-only', BOLD_ATTRIBUTE)).toBe('favorite voices');
   });
 
-  // A run that is not in the label would silently stay unbolded
+  // A run that is not in the label would silently stay unbolded; here for
+  // en-US, and for every locale in test/l10n.test.ts
   it('names a run its own label holds on every checkbox that asks for bold', () => {
     for (const markup of checkboxes) {
-      const run = markup.match(new RegExp(`\\s${BOLD_ATTRIBUTE}="([^"]*)"`))?.[1];
-      if (run === undefined) continue;
-      expect(markup.match(/\slabel="([^"]*)"/)?.[1], markup).toContain(run);
+      if (!markup.includes(`data-l10n-attrs="${BOLD_ATTRIBUTE}"`)) continue;
+      const id = markup.match(/data-l10n-id="([^"]+)"/)?.[1];
+      expect(id, markup).toBeDefined();
+      expect(englishAttribute(id!, 'label'), markup).toContain(englishAttribute(id!, BOLD_ATTRIBUTE));
     }
   });
 });

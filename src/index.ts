@@ -4,6 +4,7 @@ import { createDaemon, type Daemon, type DaemonProcess } from './core/providers/
 import { encodeCommand, WINDOWS_DAEMON_SCRIPT, WINDOWS_POWERSHELL, windowsCommandArguments } from './core/providers/system/daemon-script.win';
 import { listSystemVoiceRecords, systemUnavailableReason, type SystemProviderDeps } from './core/providers/system';
 import { zoteroVoiceId } from './core/providers/system/voices';
+import { FTL_FILE, hasMessageSource, setMessageSource, t } from './core/l10n';
 import { createMemoryCache } from './core/memory-cache';
 import { audioCacheOn, createZoteroPrefs, DEFAULTS, loadSettings, migrateLegacyProviderPref } from './core/settings';
 import { createBackup, flattenSettings, machineSettingsFilename, serializeBackup, SETTINGS_FILE_PATTERN } from './core/settings-backup';
@@ -1260,6 +1261,10 @@ async function startup({ id, version, rootURI }: StartupParams): Promise<void> {
   // was the one unguarded call, and its failure took everything down)
   startupReport = await runStartupSteps(
     [
+      // First, so every later step's strings resolve: a sync Localization
+      // over the plugin's own Fluent file, which Zotero registered before
+      // calling startup (core/l10n.ts, issue #30). Without it t() shows ids.
+      ['strings', () => setMessageSource(new Localization([FTL_FILE], true))],
       [
         'legacy provider setting',
         () => {
@@ -1338,6 +1343,8 @@ async function shutdown(reason?: number): Promise<void> {
   stopSpeechDaemon();
   stopSystemVoiceHiding();
   stopMultilingualFirst();
+  // Last: the stop line above is the one string that never goes through t()
+  setMessageSource(null);
   Zotero.debug('[zotero-tts] stopped' + (reason !== undefined ? ` (reason ${reason})` : ''));
 }
 
@@ -1379,6 +1386,53 @@ const diagnostics = {
    * evaluated — it is assigned below, before startup() ever runs (issue #25).
    */
   startup: () => JSON.stringify({ version: pluginVersion, ...(startupReport ?? { steps: null, failed: null }) }, null, 1),
+  /**
+   * The strings' state (issue #30): Zotero's locale and the app locales
+   * Fluent negotiates from it; whether the sandbox formats a message of the
+   * plugin's file (`sample`, in the app's language) and hands back the id
+   * for one the file lacks (`fallback`); and, while the settings window is
+   * open with the pane loaded, the pane's data-l10n-id elements that
+   * Fluent left blank and the ? icons left without their ? — both empty.
+   */
+  l10n: () => {
+    const probe = 'ztts-no-such-message';
+    // The window itself, not through safe(): that copies through JSON
+    let pane: any = null;
+    try {
+      pane = Services.wm.getMostRecentWindow('zotero:pref')?.document?.querySelector('.ztts-pane') ?? null;
+    } catch {
+      pane = null;
+    }
+    let paneReport: { elements: number; blank: string[]; questionless: string[] } | null = null;
+    if (pane) {
+      const blank: string[] = [];
+      const questionless: string[] = [];
+      const elements: any[] = Array.from(pane.querySelectorAll('[data-l10n-id]'));
+      for (const el of elements) {
+        const attr = (name: string) => el.getAttribute(name) ?? '';
+        const value = attr('value');
+        const filled = (el.textContent ?? '').trim() || attr('label') || attr('placeholder') || attr('tooltiptext') || attr('help') || (value && value !== '?');
+        if (!filled) blank.push(attr('data-l10n-id'));
+      }
+      for (const el of Array.from(pane.querySelectorAll('.ztts-help')) as any[]) {
+        if (el.getAttribute('value') !== '?') questionless.push(el.getAttribute('data-l10n-id') || el.id || '?');
+      }
+      paneReport = { elements: elements.length, blank, questionless };
+    }
+    return JSON.stringify(
+      {
+        zoteroLocale: Zotero.locale ?? null,
+        appLocales: safe(() => Array.from(Services.locale.appLocalesAsBCP47)) ?? null,
+        requestedLocales: safe(() => Array.from(Services.locale.requestedLocales)) ?? null,
+        source: hasMessageSource(),
+        sample: t('ztts-heading-voice-browser'),
+        fallback: t(probe),
+        pane: paneReport,
+      },
+      null,
+      1,
+    );
+  },
   highlight: () => JSON.stringify((Zotero.Reader._readers ?? []).map((r: any) => highlightStyling?.inspect(r) ?? null), null, 1),
   systemVoices: () => JSON.stringify((Zotero.Reader._readers ?? []).map((r: any) => systemVoiceHiding?.inspect(r) ?? null), null, 1),
   /**

@@ -75,6 +75,18 @@ Verified by reading the unpacked `omni.ja` of both `10.0-beta.26` and
   and proves nothing about the sandbox.
 - `manifest.json` → `applications.zotero` needs `id`, `update_url`,
   `strict_max_version`, or Zotero refuses the install with a generic message.
+- **Fluent for plugins** (issue #30, [2026-09-04](NOTES_2026-09-04.md)):
+  Zotero registers `[plugin root]/locale/<locale>/*.ftl` itself, before
+  `startup`, into one source shared by every plugin — the file name and
+  the message ids are global (`zotero-tts.ftl`, `ztts-…`); a locale it
+  lacks falls back per file to the closest, then `en*`. A plugin pane
+  (parsed as XUL) is translated by Zotero's own `translateFragment` pass
+  when its markup carries `<linkset><html:link rel="localization" …/></linkset>`.
+  Fluent strips every localizable attribute a message leaves out — a
+  `<label value="?">` needs `.value = ?` — and writes custom attributes
+  only when `data-l10n-attrs` names them. The sandbox is handed
+  `Localization`; a sync instance formats without a window and follows a
+  live locale change.
 
 ---
 
@@ -255,3 +267,7 @@ cite `notes/NOTES.md` with a date or a section title resolve through this index.
 - Modal dialogs cannot be driven through the bridge
 - The bridge's zotero_set_pref cannot write false to a bool pref
 - A decode failure is a silent stop: Zotero's error state belongs to the fetch, not the decode (issue #42)
+
+### [2026-09-04](NOTES_2026-09-04.md)
+
+- The pane speaks Zotero's language: Fluent files Zotero registers and translates itself (issue #30)

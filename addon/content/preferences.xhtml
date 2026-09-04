@@ -4,6 +4,17 @@
      and only afterwards dispatches a `load` event to the fragment's root.
      A script would find none of these elements. -->
 <vbox class="ztts-pane" onload="Zotero.ZoteroTTS.prefsPane.onPaneLoad(document)">
+  <!-- The pane's every string is in locale/<locale>/zotero-tts.ftl (issue
+       #30): Zotero registers a plugin's Fluent files at startup, this link
+       adds ours to the settings window, and Zotero translates every
+       data-l10n-id below before it dispatches the load event above — so the
+       markup carries no text of its own. An attribute of ours (help, bold)
+       is translated only when data-l10n-attrs names it; a ? label keeps
+       its ? because its message says .value = ? (Fluent drops the
+       localizable attributes a message leaves out). -->
+  <linkset>
+    <html:link rel="localization" href="zotero-tts.ftl"/>
+  </linkset>
   <!-- ui/help-tips.ts appends the tooltip the ? icons open here: an icon's
        text is its `help` attribute, shown the moment the mouse is on it —
        Zotero's own tooltips wait ui.tooltip.delay_ms. The class scopes
@@ -12,7 +23,9 @@
   <!-- One groupbox per provider, wired by ui/provider-rows.ts: Enable runs
        the connection check and switches the provider on only when it
        passes, locking the fields; Disable unlocks them. Test connection
-       probes without switching. Both write to the description beside them. -->
+       probes without switching. Both write to the description beside them.
+       The switch's label is painted by provider-rows on load (Enable or
+       Disable, by the pref), so it carries none here. -->
   <groupbox id="ztts-provider-openai">
     <label><html:h2>OpenAI</html:h2></label>
     <!-- Not bound with preference=: server-preset-rows.ts writes the choice
@@ -20,49 +33,50 @@
          and puts the preset's note into the ? beside the dropdown (its
          `help` attribute). The ? icons are styled by preferences.css. -->
     <hbox align="center">
-      <label value="Server" style="width: 8em"/>
+      <label data-l10n-id="ztts-field-server" style="width: 8em"/>
       <menulist id="ztts-openai-server">
         <menupopup>
           <menuitem value="openai" label="OpenAI"/>
           <menuitem value="chatterbox" label="Chatterbox-TTS-Server"/>
-          <menuitem value="other" label="Other OpenAI-compatible server"/>
+          <menuitem value="other" data-l10n-id="ztts-server-other"/>
         </menupopup>
       </menulist>
       <label id="ztts-openai-server-help" class="ztts-help" value="?"/>
     </hbox>
     <hbox align="center">
-      <label value="API key" style="width: 8em"/>
+      <label data-l10n-id="ztts-field-api-key" style="width: 8em"/>
       <html:input id="ztts-openai-apiKey" type="password" preference="extensions.zotero.zotero-tts.openai.apiKey"/>
     </hbox>
     <hbox align="center">
-      <label value="Base URL" style="width: 8em"/>
+      <label data-l10n-id="ztts-field-base-url" style="width: 8em"/>
       <html:input id="ztts-openai-baseURL" type="text" preference="extensions.zotero.zotero-tts.openai.baseURL"/>
     </hbox>
     <!-- Free text: any OpenAI-compatible server names its models as it
          likes. Test connection fills the datalist with the server's list. -->
     <hbox align="center">
-      <label value="Model" style="width: 8em"/>
+      <label data-l10n-id="ztts-field-model" style="width: 8em"/>
       <html:input id="ztts-openai-model" type="text" list="ztts-openai-models" preference="extensions.zotero.zotero-tts.openai.model"/>
       <html:datalist id="ztts-openai-models"/>
     </hbox>
     <hbox align="center">
-      <label value="Voices" style="width: 8em"/>
-      <html:input id="ztts-openai-voices" type="text" placeholder="auto-detect" preference="extensions.zotero.zotero-tts.openai.voices"/>
+      <label data-l10n-id="ztts-field-voices" style="width: 8em"/>
+      <html:input id="ztts-openai-voices" type="text" data-l10n-id="ztts-openai-voices-input" preference="extensions.zotero.zotero-tts.openai.voices"/>
     </hbox>
     <!-- For a gateway in front of a keyless server, e.g. a Cloudflare Access
          service token: "CF-Access-Client-Id: ...; CF-Access-Client-Secret: ..."
          Masked like the keys (issue #19): it is a credential, and a pane in a
          screen share or a screenshot showed it in full. Gecko's own reveal
          button reads it back while the section is unlocked for editing, and
-         is inert once the provider is on — which is when it should be. -->
+         is inert once the provider is on — which is when it should be. The
+         placeholder is the format, the same in every language. -->
     <hbox align="center">
-      <label value="Extra headers" style="width: 8em"/>
+      <label data-l10n-id="ztts-field-extra-headers" style="width: 8em"/>
       <html:input id="ztts-openai-headers" type="password" placeholder="Name: value; Name: value" preference="extensions.zotero.zotero-tts.openai.headers"/>
-      <label class="ztts-help" value="?" help="Only for a server reached remotely through Cloudflare Access: its service token as two headers, CF-Access-Client-Id: …; CF-Access-Client-Secret: … (see the Cloudflare tutorial in the README). Otherwise leave empty."/>
+      <label class="ztts-help" value="?" data-l10n-id="ztts-help-extra-headers" data-l10n-attrs="help"/>
     </hbox>
     <hbox align="center">
-      <button id="ztts-enable-openai" label="Enable"/>
-      <button id="ztts-test-openai" label="Test connection"/>
+      <button id="ztts-enable-openai"/>
+      <button id="ztts-test-openai" data-l10n-id="ztts-test-connection"/>
       <description id="ztts-test-result-openai"/>
     </hbox>
   </groupbox>
@@ -70,16 +84,16 @@
   <groupbox id="ztts-provider-azure">
     <label><html:h2>Azure</html:h2></label>
     <hbox align="center">
-      <label value="API key" style="width: 8em"/>
+      <label data-l10n-id="ztts-field-api-key" style="width: 8em"/>
       <html:input type="password" preference="extensions.zotero.zotero-tts.azure.apiKey"/>
     </hbox>
     <hbox align="center">
-      <label value="Region" style="width: 8em"/>
+      <label data-l10n-id="ztts-field-region" style="width: 8em"/>
       <html:input type="text" preference="extensions.zotero.zotero-tts.azure.region"/>
     </hbox>
     <hbox align="center">
-      <button id="ztts-enable-azure" label="Enable"/>
-      <button id="ztts-test-azure" label="Test connection"/>
+      <button id="ztts-enable-azure"/>
+      <button id="ztts-test-azure" data-l10n-id="ztts-test-connection"/>
       <description id="ztts-test-result-azure"/>
     </hbox>
   </groupbox>
@@ -88,22 +102,22 @@
     <!-- One block per engine: its own switch and address. Only Kokoro
          exists today; the heading is filled from the engine registry in
          onPaneLoad. -->
-    <label><html:h2 id="ztts-local-heading">Local engine</html:h2></label>
+    <label><html:h2 id="ztts-local-heading"/></label>
     <hbox align="center">
-      <label value="Address" style="width: 8em"/>
+      <label data-l10n-id="ztts-field-address" style="width: 8em"/>
       <html:input type="text" preference="extensions.zotero.zotero-tts.local.baseURL"/>
     </hbox>
     <!-- Same format as the OpenAI section's, and masked for the same
          reason: for a gateway in front of the server, e.g. a Cloudflare
          Access service token. -->
     <hbox align="center">
-      <label value="Extra headers" style="width: 8em"/>
+      <label data-l10n-id="ztts-field-extra-headers" style="width: 8em"/>
       <html:input type="password" placeholder="Name: value; Name: value" preference="extensions.zotero.zotero-tts.local.headers"/>
-      <label class="ztts-help" value="?" help="Only for a server reached remotely through Cloudflare Access: its service token as two headers, CF-Access-Client-Id: …; CF-Access-Client-Secret: … (see the Cloudflare tutorial in the README). Otherwise leave empty."/>
+      <label class="ztts-help" value="?" data-l10n-id="ztts-help-extra-headers" data-l10n-attrs="help"/>
     </hbox>
     <hbox align="center">
-      <button id="ztts-enable-local" label="Enable"/>
-      <button id="ztts-test-local" label="Test connection"/>
+      <button id="ztts-enable-local"/>
+      <button id="ztts-test-local" data-l10n-id="ztts-test-connection"/>
       <description id="ztts-test-result-local"/>
     </hbox>
   </groupbox>
@@ -114,14 +128,14 @@
        voices are never listed beside these: the reader drops them either way
        (read-aloud/system-voices.ts, issue #17). -->
   <groupbox id="ztts-provider-system">
-    <label><html:h2>System voices</html:h2></label>
+    <label><html:h2 data-l10n-id="ztts-heading-system-voices"/></label>
     <hbox align="center">
-      <description id="ztts-system-note">Windows only.</description>
-      <label class="ztts-help" value="?" help="Windows only for now — macOS and Linux are not supported yet. The plugin takes over the voices Windows itself installs, so they come with the voice browser, samples, favorites, the cache and word highlighting, like every other provider's."/>
+      <description id="ztts-system-note" data-l10n-id="ztts-system-note"/>
+      <label class="ztts-help" value="?" data-l10n-id="ztts-help-system-voices" data-l10n-attrs="help"/>
     </hbox>
     <hbox align="center">
-      <button id="ztts-enable-system" label="Enable"/>
-      <button id="ztts-test-system" label="Test connection"/>
+      <button id="ztts-enable-system"/>
+      <button id="ztts-test-system" data-l10n-id="ztts-test-connection"/>
       <description id="ztts-test-result-system"/>
     </hbox>
   </groupbox>
@@ -130,20 +144,19 @@
        sample player and favorites; wired by ui/voice-browser-rows.ts. Listed
        on load and again whenever a provider switch above is used. -->
   <groupbox>
-    <label><html:h2>Voice browser</html:h2></label>
+    <label><html:h2 data-l10n-id="ztts-heading-voice-browser"/></label>
     <hbox align="center">
       <!-- Unbound, and written by ui/voice-list-switches.ts: a bound
-           checkbox writes the pref before any listener can refuse it -->
-      <checkbox id="ztts-favorites-only"
-                label="Offer only favorite voices in the Read Aloud player"
-                bold="favorite voices"/>
+           checkbox writes the pref before any listener can refuse it. The
+           message's .bold names the run of its .label drawn in bold
+           (ui/bold-labels.ts). -->
+      <checkbox id="ztts-favorites-only" data-l10n-id="ztts-favorites-only" data-l10n-attrs="bold"/>
     </hbox>
     <!-- The Read Aloud popup's own speed slider (0.5–3.0 by 0.1): the samples
          play at this speed, and releasing it makes it the speed Read Aloud
          starts with (read-aloud/default-speed.ts) -->
     <hbox align="center">
-      <label value="Speed" control="ztts-voices-speed"
-             tooltiptext="Samples play at this speed; with “Use one speed everywhere” on, releasing the slider makes it the speed Read Aloud starts with"/>
+      <label data-l10n-id="ztts-voices-speed" control="ztts-voices-speed"/>
       <html:input type="range" id="ztts-voices-speed" min="0.5" max="3" step="0.1" style="width: 14em; margin: 0 6px;"/>
       <html:span id="ztts-voices-speed-value" style="min-width: 3em;">1.0×</html:span>
     </hbox>
@@ -163,67 +176,69 @@
   </groupbox>
 
   <groupbox>
-    <label><html:h2>Reading</html:h2></label>
+    <label><html:h2 data-l10n-id="ztts-heading-reading"/></label>
     <!-- The pref keeps its old name (settings backups carry it); off, Zotero
          keeps a voice per document language (read-aloud/memory-sync.ts) -->
     <hbox align="center">
-      <checkbox label="Use one voice everywhere"
+      <checkbox data-l10n-id="ztts-one-voice"
                 preference="extensions.zotero.zotero-tts.readAloud.sameForAllDocuments"/>
-      <label class="ztts-help" value="?" help="One voice for every document and every open tab. Off: Zotero keeps one voice per document language."/>
+      <label class="ztts-help" value="?" data-l10n-id="ztts-help-one-voice" data-l10n-attrs="help"/>
     </hbox>
     <!-- Off, Zotero keeps a speed per document language and the voice
          browser's slider drives the samples only (read-aloud/default-speed.ts) -->
     <hbox align="center">
-      <checkbox label="Use one speed everywhere"
+      <checkbox data-l10n-id="ztts-one-speed"
                 preference="extensions.zotero.zotero-tts.readAloud.globalSpeed"/>
-      <label class="ztts-help" value="?" help="One speed for every document and every open tab. Off: Zotero keeps one speed per document language."/>
+      <label class="ztts-help" value="?" data-l10n-id="ztts-help-one-speed" data-l10n-attrs="help"/>
     </hbox>
     <!-- The switch locks the cache below on: without it the warmer has
          nowhere to put what it synthesizes (ui/prefetch-rows.ts) -->
     <hbox align="center">
-      <checkbox label="Prefetch upcoming sentences" preference="extensions.zotero.zotero-tts.prefetchEnabled"/>
+      <checkbox data-l10n-id="ztts-prefetch" preference="extensions.zotero.zotero-tts.prefetchEnabled"/>
       <html:input type="number" min="1" max="10" step="1"
                   preference="extensions.zotero.zotero-tts.prefetch"/>
-      <label value="ahead"/>
-      <label class="ztts-help" value="?" help="Synthesizes the sentences ahead while the current one plays, so playback never waits for the server. Zotero already fetches 3 ahead on its own, so what is ready runs from your number to your number plus 3. The audio waits in the cache below, which stays on while this is on. On a paid provider, sentences you skip past are synthesized and billed anyway."/>
+      <label data-l10n-id="ztts-prefetch-ahead"/>
+      <label class="ztts-help" value="?" data-l10n-id="ztts-help-prefetch" data-l10n-attrs="help"/>
     </hbox>
     <hbox align="center">
-      <checkbox id="ztts-cache-audio" label="Cache synthesized audio" preference="extensions.zotero.zotero-tts.cacheAudio"/>
-      <label class="ztts-help" value="?" help="Keeps synthesized sentences in memory — 64 MB, emptied when Zotero restarts — so reading a passage again is instant and, on a paid provider, free. Prefetch stores its audio here, so it cannot be turned off while prefetch is on."/>
+      <checkbox id="ztts-cache-audio" data-l10n-id="ztts-cache-audio" preference="extensions.zotero.zotero-tts.cacheAudio"/>
+      <label class="ztts-help" value="?" data-l10n-id="ztts-help-cache-audio" data-l10n-attrs="help"/>
     </hbox>
   </groupbox>
 
   <!-- Zotero's Read Aloud highlight colors, applied per reader by read-aloud/highlight-style.ts;
        the preview and the Restore button are wired by ui/highlight-rows.ts -->
   <groupbox>
-    <label><html:h2>Highlight</html:h2></label>
+    <label><html:h2 data-l10n-id="ztts-heading-highlight"/></label>
     <hbox align="center">
-      <label value="Word" style="width: 8em"/>
+      <label data-l10n-id="ztts-highlight-word" style="width: 8em"/>
       <html:input id="ztts-highlight-wordColor" type="color" preference="extensions.zotero.zotero-tts.highlight.wordColor"/>
-      <label value="Opacity (%)" style="margin-inline-start: 1em"/>
+      <label data-l10n-id="ztts-highlight-opacity" style="margin-inline-start: 1em"/>
       <html:input id="ztts-highlight-wordAlpha" type="number" min="0" max="100" step="5" style="width: 5em"
                   preference="extensions.zotero.zotero-tts.highlight.wordAlpha"/>
     </hbox>
     <hbox align="center">
-      <label value="Sentence" style="width: 8em"/>
+      <label data-l10n-id="ztts-highlight-sentence" style="width: 8em"/>
       <html:input id="ztts-highlight-sentenceColor" type="color" preference="extensions.zotero.zotero-tts.highlight.sentenceColor"/>
-      <label value="Opacity (%)" style="margin-inline-start: 1em"/>
+      <label data-l10n-id="ztts-highlight-opacity" style="margin-inline-start: 1em"/>
       <html:input id="ztts-highlight-sentenceAlpha" type="number" min="0" max="100" step="5" style="width: 5em"
                   preference="extensions.zotero.zotero-tts.highlight.sentenceAlpha"/>
     </hbox>
     <hbox align="center">
-      <checkbox id="ztts-highlight-sentenceUnderWord" label="While highlighting words, keep the sentence highlighted too"
+      <checkbox id="ztts-highlight-sentenceUnderWord" data-l10n-id="ztts-sentence-under-word"
                 preference="extensions.zotero.zotero-tts.highlight.sentenceUnderWord"/>
     </hbox>
     <!-- A sample page in the reader's current theme, blended as the reader blends its highlights;
-         highlight-rows.ts paints it, this style is the fallback until it does -->
+         highlight-rows.ts paints it, this style is the fallback until it does. Each line's text is
+         one message whose spans are these elements, matched by data-l10n-name, so the ids the
+         painter looks up survive the translation. -->
     <html:div id="ztts-highlight-preview"
               style="background: #fff; color: #121212; border: 1px solid rgba(128, 128, 128, 0.4); border-radius: 4px; padding: 8px 12px; margin: 6px 0; max-width: 40em; font-family: Georgia, 'Times New Roman', serif; font-size: 13px; line-height: 1.7;">
-      <html:div><html:span style="color: #888; font-family: sans-serif; font-size: 11px; margin-inline-end: 0.6em;">Sentence mode</html:span>The first sentence has been read. <html:span id="ztts-highlight-preview-sentence">Read Aloud is now on this sentence.</html:span> The next one follows.</html:div>
-      <html:div><html:span style="color: #888; font-family: sans-serif; font-size: 11px; margin-inline-end: 0.6em;">Word mode</html:span>The first sentence has been read. <html:span id="ztts-highlight-preview-word-before">Read Aloud is now on </html:span><html:span id="ztts-highlight-preview-word">this</html:span><html:span id="ztts-highlight-preview-word-after"> word.</html:span> The next one follows.</html:div>
+      <html:div data-l10n-id="ztts-preview-sentence-line"><html:span data-l10n-name="tag" style="color: #888; font-family: sans-serif; font-size: 11px; margin-inline-end: 0.6em;"/><html:span id="ztts-highlight-preview-sentence" data-l10n-name="active"/></html:div>
+      <html:div data-l10n-id="ztts-preview-word-line"><html:span data-l10n-name="tag" style="color: #888; font-family: sans-serif; font-size: 11px; margin-inline-end: 0.6em;"/><html:span id="ztts-highlight-preview-word-before" data-l10n-name="before"/><html:span id="ztts-highlight-preview-word" data-l10n-name="word"/><html:span id="ztts-highlight-preview-word-after" data-l10n-name="after"/></html:div>
     </html:div>
     <hbox>
-      <button id="ztts-highlight-defaults" label="Restore default colors"/>
+      <button id="ztts-highlight-defaults" data-l10n-id="ztts-restore-colors"/>
     </hbox>
   </groupbox>
 
@@ -232,67 +247,67 @@
        says what the key does outside a Read Aloud session (hover); the
        speed keys work in every state and have none. -->
   <groupbox>
-    <label><html:h2>Keyboard shortcuts</html:h2></label>
+    <label><html:h2 data-l10n-id="ztts-heading-shortcuts"/></label>
     <hbox align="center">
-      <label value="Reset speed to 1.0×" style="width: 12em"/>
+      <label data-l10n-id="ztts-key-speed-reset" style="width: 12em"/>
       <button id="ztts-key-speedReset" style="min-width: 10em"/>
-      <button id="ztts-key-clear-speedReset" label="Clear"/>
+      <button id="ztts-key-clear-speedReset" data-l10n-id="ztts-clear"/>
     </hbox>
     <hbox align="center">
-      <label value="Slower (−0.1×)" style="width: 12em"/>
+      <label data-l10n-id="ztts-key-slower" style="width: 12em"/>
       <button id="ztts-key-speedDown" style="min-width: 10em"/>
-      <button id="ztts-key-clear-speedDown" label="Clear"/>
+      <button id="ztts-key-clear-speedDown" data-l10n-id="ztts-clear"/>
     </hbox>
     <hbox align="center">
-      <label value="Faster (+0.1×)" style="width: 12em"/>
+      <label data-l10n-id="ztts-key-faster" style="width: 12em"/>
       <button id="ztts-key-speedUp" style="min-width: 10em"/>
-      <button id="ztts-key-clear-speedUp" label="Clear"/>
+      <button id="ztts-key-clear-speedUp" data-l10n-id="ztts-clear"/>
     </hbox>
     <hbox align="center">
-      <label value="Previous sentence" style="width: 12em"/>
+      <label data-l10n-id="ztts-key-previous-sentence" style="width: 12em"/>
       <button id="ztts-key-previousSentence" style="min-width: 10em"/>
-      <button id="ztts-key-clear-previousSentence" label="Clear"/>
-      <label class="ztts-help" value="?" help="Acts only while Read Aloud is open; otherwise the key pages and scrolls the reader as usual."/>
+      <button id="ztts-key-clear-previousSentence" data-l10n-id="ztts-clear"/>
+      <label class="ztts-help" value="?" data-l10n-id="ztts-help-key-skip" data-l10n-attrs="help"/>
     </hbox>
     <hbox align="center">
-      <label value="Next sentence" style="width: 12em"/>
+      <label data-l10n-id="ztts-key-next-sentence" style="width: 12em"/>
       <button id="ztts-key-nextSentence" style="min-width: 10em"/>
-      <button id="ztts-key-clear-nextSentence" label="Clear"/>
-      <label class="ztts-help" value="?" help="Acts only while Read Aloud is open; otherwise the key pages and scrolls the reader as usual."/>
+      <button id="ztts-key-clear-nextSentence" data-l10n-id="ztts-clear"/>
+      <label class="ztts-help" value="?" data-l10n-id="ztts-help-key-skip" data-l10n-attrs="help"/>
     </hbox>
     <hbox align="center">
-      <label value="Previous paragraph" style="width: 12em"/>
+      <label data-l10n-id="ztts-key-previous-paragraph" style="width: 12em"/>
       <button id="ztts-key-previousParagraph" style="min-width: 10em"/>
-      <button id="ztts-key-clear-previousParagraph" label="Clear"/>
-      <label class="ztts-help" value="?" help="Acts only while Read Aloud is open; otherwise the key pages and scrolls the reader as usual."/>
+      <button id="ztts-key-clear-previousParagraph" data-l10n-id="ztts-clear"/>
+      <label class="ztts-help" value="?" data-l10n-id="ztts-help-key-skip" data-l10n-attrs="help"/>
     </hbox>
     <hbox align="center">
-      <label value="Next paragraph" style="width: 12em"/>
+      <label data-l10n-id="ztts-key-next-paragraph" style="width: 12em"/>
       <button id="ztts-key-nextParagraph" style="min-width: 10em"/>
-      <button id="ztts-key-clear-nextParagraph" label="Clear"/>
-      <label class="ztts-help" value="?" help="Acts only while Read Aloud is open; otherwise the key pages and scrolls the reader as usual."/>
+      <button id="ztts-key-clear-nextParagraph" data-l10n-id="ztts-clear"/>
+      <label class="ztts-help" value="?" data-l10n-id="ztts-help-key-skip" data-l10n-attrs="help"/>
     </hbox>
     <hbox align="center">
-      <label value="Play / pause / resume" style="width: 12em"/>
+      <label data-l10n-id="ztts-key-play" style="width: 12em"/>
       <button id="ztts-key-startFromSelection" style="min-width: 10em"/>
-      <button id="ztts-key-clear-startFromSelection" label="Clear"/>
-      <label class="ztts-help" value="?" help="Works in every state: pauses or resumes an open session, and otherwise starts reading — from the selected text, where you last stopped, or from the visible page."/>
+      <button id="ztts-key-clear-startFromSelection" data-l10n-id="ztts-clear"/>
+      <label class="ztts-help" value="?" data-l10n-id="ztts-help-key-play" data-l10n-attrs="help"/>
     </hbox>
     <hbox align="center">
-      <label value="Go to reading position" style="width: 12em"/>
+      <label data-l10n-id="ztts-key-return" style="width: 12em"/>
       <button id="ztts-key-returnToSpoken" style="min-width: 10em"/>
-      <button id="ztts-key-clear-returnToSpoken" label="Clear"/>
-      <label class="ztts-help" value="?" help="Acts only while Read Aloud is open; otherwise the key keeps its usual meaning in the reader."/>
+      <button id="ztts-key-clear-returnToSpoken" data-l10n-id="ztts-clear"/>
+      <label class="ztts-help" value="?" data-l10n-id="ztts-help-key-return" data-l10n-attrs="help"/>
     </hbox>
     <hbox align="center">
-      <label value="Player options" style="width: 12em"/>
+      <label data-l10n-id="ztts-key-options" style="width: 12em"/>
       <button id="ztts-key-toggleOptions" style="min-width: 10em"/>
-      <button id="ztts-key-clear-toggleOptions" label="Clear"/>
-      <label class="ztts-help" value="?" help="Opens and closes the player's options panel — the speed slider, the tier, the language and the voice. Acts only while Read Aloud is open; otherwise the key keeps its usual meaning in the reader."/>
+      <button id="ztts-key-clear-toggleOptions" data-l10n-id="ztts-clear"/>
+      <label class="ztts-help" value="?" data-l10n-id="ztts-help-key-options" data-l10n-attrs="help"/>
     </hbox>
     <description id="ztts-key-message"/>
     <hbox>
-      <button id="ztts-key-defaults" label="Restore default shortcuts"/>
+      <button id="ztts-key-defaults" data-l10n-id="ztts-restore-shortcuts"/>
     </hbox>
   </groupbox>
 
@@ -300,53 +315,54 @@
        the reading positions as another. Restoring settings overwrites;
        importing positions merges. -->
   <groupbox>
-    <label><html:h2>Backup</html:h2></label>
+    <label><html:h2 data-l10n-id="ztts-heading-backup"/></label>
     <hbox align="center">
-      <button id="ztts-backup" label="Backup settings…"/>
-      <button id="ztts-restore" label="Restore settings…"/>
+      <button id="ztts-backup" data-l10n-id="ztts-backup-settings"/>
+      <button id="ztts-restore" data-l10n-id="ztts-restore-settings"/>
     </hbox>
     <hbox align="center">
-      <button id="ztts-positions-export" label="Export reading positions…"/>
-      <button id="ztts-positions-import" label="Import reading positions…"/>
-      <label class="ztts-help" value="?" help="Where Read Aloud last stopped in each document, as its own file. Importing merges: a position is taken only where the file's is newer than this computer's. Settings backups never contain reading positions."/>
+      <button id="ztts-positions-export" data-l10n-id="ztts-export-positions"/>
+      <button id="ztts-positions-import" data-l10n-id="ztts-import-positions"/>
+      <label class="ztts-help" value="?" data-l10n-id="ztts-help-positions" data-l10n-attrs="help"/>
     </hbox>
     <description id="ztts-backup-message"/>
   </groupbox>
 
   <!-- webdav-rows.ts: the WebDAV folder both automatic transports use —
        reading positions both ways (#40), this machine's settings file up
-       (#41, settings-autoupload.ts). -->
+       (#41, settings-autoupload.ts). The URL's placeholder is an example
+       address, the same in every language. -->
   <groupbox>
-    <label><html:h2>Sync</html:h2></label>
+    <label><html:h2 data-l10n-id="ztts-heading-sync"/></label>
     <hbox align="center">
-      <label value="WebDAV URL" style="width: 8em"/>
+      <label data-l10n-id="ztts-field-webdav-url" style="width: 8em"/>
       <html:input type="text" placeholder="https://dav.example.com/zotero-tts/" preference="extensions.zotero.zotero-tts.webdav.url"/>
     </hbox>
     <hbox align="center">
-      <label value="Username" style="width: 8em"/>
+      <label data-l10n-id="ztts-field-username" style="width: 8em"/>
       <html:input type="text" preference="extensions.zotero.zotero-tts.webdav.username"/>
     </hbox>
     <hbox align="center">
-      <label value="Password" style="width: 8em"/>
+      <label data-l10n-id="ztts-field-password" style="width: 8em"/>
       <html:input type="password" preference="extensions.zotero.zotero-tts.webdav.password"/>
     </hbox>
     <hbox align="center">
-      <label value="This computer" style="width: 8em"/>
+      <label data-l10n-id="ztts-field-this-computer" style="width: 8em"/>
       <html:input id="ztts-webdav-machine-id" type="text"/>
-      <label class="ztts-help" value="?" help="The name this computer's settings file carries on the server, so each computer keeps its own and none overwrites another's. Renaming starts a fresh file under the new name."/>
+      <label class="ztts-help" value="?" data-l10n-id="ztts-help-this-computer" data-l10n-attrs="help"/>
     </hbox>
     <hbox align="center">
-      <checkbox id="ztts-webdav-sync-positions" label="Sync reading positions between computers" preference="extensions.zotero.zotero-tts.webdav.syncPositions"/>
-      <label class="ztts-help" value="?" help="Keeps where Read Aloud last stopped in each document in the WebDAV folder above, and picks up what your other computers left there — so play resumes at the same sentence anywhere. Off, reading positions stay on this computer."/>
+      <checkbox id="ztts-webdav-sync-positions" data-l10n-id="ztts-sync-positions" preference="extensions.zotero.zotero-tts.webdav.syncPositions"/>
+      <label class="ztts-help" value="?" data-l10n-id="ztts-help-sync-positions" data-l10n-attrs="help"/>
     </hbox>
     <hbox align="center">
-      <checkbox id="ztts-webdav-auto-upload" label="Keep this computer's settings uploaded automatically" preference="extensions.zotero.zotero-tts.webdav.autoUploadSettings"/>
-      <label class="ztts-help" value="?" help="A few seconds after any setting changes, this computer's file on the server is refreshed — nothing to remember before switching machines. Upload only: settings from another computer are never applied unless you restore them yourself."/>
+      <checkbox id="ztts-webdav-auto-upload" data-l10n-id="ztts-auto-upload" preference="extensions.zotero.zotero-tts.webdav.autoUploadSettings"/>
+      <label class="ztts-help" value="?" data-l10n-id="ztts-help-auto-upload" data-l10n-attrs="help"/>
     </hbox>
     <hbox align="center">
-      <button id="ztts-webdav-upload" label="Upload settings now"/>
-      <button id="ztts-webdav-download" label="Restore settings from server…"/>
-      <button id="ztts-webdav-test" label="Test connection"/>
+      <button id="ztts-webdav-upload" data-l10n-id="ztts-upload-now"/>
+      <button id="ztts-webdav-download" data-l10n-id="ztts-restore-from-server"/>
+      <button id="ztts-webdav-test" data-l10n-id="ztts-test-connection"/>
     </hbox>
     <description id="ztts-webdav-message"/>
   </groupbox>
@@ -355,7 +371,7 @@
        the version startup handed the plugin, the date the xpi was built
        (baked in by scripts/build.mjs), and who wrote it. -->
   <groupbox>
-    <label><html:h2>Build</html:h2></label>
+    <label><html:h2 data-l10n-id="ztts-heading-build"/></label>
     <hbox align="center">
       <label id="ztts-build-line"/>
     </hbox>

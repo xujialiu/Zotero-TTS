@@ -7,6 +7,10 @@ declare const Components: any;
 declare const ChromeUtils: any;
 declare const IOUtils: any;
 declare const PathUtils: any;
+// Fluent's Localization constructor, handed into the sandbox beside the
+// whitelist (xpcom/plugins.js _loadScope); core/l10n.ts formats through a
+// sync instance of it over the plugin's own file
+declare const Localization: any;
 
 // The bootstrap reason constants, copied into the sandbox scope by Zotero's
 // plugins.js (`for (let name in REASONS) scope[name] = ...`). Only the ones
