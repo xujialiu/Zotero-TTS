@@ -1,9 +1,9 @@
-<!-- translated-from: kokoro-fastapi.md sha256:b248e832fd8e -->
+<!-- translated-from: kokoro-fastapi.md sha256:1b6a5993a339 -->
 # 用 Docker 跑 Kokoro-FastAPI
 
 [English](kokoro-fastapi.md) · **简体中文**
 
-[Kokoro-FastAPI](https://github.com/remsky/Kokoro-FastAPI) 就是插件里的*本地引擎*：一个又小又快的模型，68 个语音，覆盖英语、中文、日语、法语、西班牙语、意大利语、葡萄牙语和印地语，而且是唯一会报词级时间戳的本地引擎——所以朗读能逐词高亮。它整个跑在你自己的机器上；插件在 `http://localhost:8880` 上跟它说话（*本地引擎*那一节的**地址**字段）。
+[Kokoro-FastAPI](https://github.com/remsky/Kokoro-FastAPI) 就是插件的本地引擎：一个又小又快的模型，68 个语音，覆盖英语、中文、日语、法语、西班牙语、意大利语、葡萄牙语和印地语，而且是唯一会报词级时间戳的本地引擎——所以朗读能逐词高亮。它整个跑在你自己的机器上；插件在 `http://localhost:8880` 上跟它说话（设置里 **Kokoro-FastAPI** 那一节的**地址**字段）。
 
 官方 Docker 镜像把模型、CUDA 和 espeak-ng 都打包进去了，所以装好 Docker 之后一条命令就够。
 
@@ -58,7 +58,7 @@ Mac 上的 Docker 用不了 GPU：GPU 镜像只支持 CUDA，而苹果的 Metal 
 
 ## 检查一下
 
-在 Zotero 里，*设置 → Zotero-TTS → 本地引擎*，勾上**启用 Kokoro-FastAPI**，按**测试连接**；它应该回答 `Connected. 68 voices available.`。然后打开朗读，语音模式选本地，挑一个 `Kokoro-…` 的语音（`af_bella` 和 `af_heart` 是不错的英语语音；`zf_xiaobei` / `zm_yunxi` 说中文）。要逐词高亮，把*设置 → 常规 → 朗读 → 高亮当前*设成**单词**。
+在 Zotero 里，*设置 → Zotero-TTS → Kokoro-FastAPI*，按**测试连接**；它应该回答 `Connected. 68 voices available.`，再按**启用**把这个服务商打开。然后打开朗读，语音模式选本地，挑一个 `Kokoro-…` 的语音（`af_bella` 和 `af_heart` 是不错的英语语音；`zf_xiaobei` / `zm_yunxi` 说中文）。要逐词高亮，把*设置 → 常规 → 朗读 → 高亮当前*设成**单词**。
 
 ## 日常使用
 
@@ -82,4 +82,4 @@ docker run -d --name kokoro --restart unless-stopped --gpus all -p 8880:8880 ghc
 - **`port is already allocated`**：8880 被别的东西占了。要么把它停掉，要么用 `-p 8881:8880` 启动容器，并把插件的地址改成 `http://localhost:8881`。
 - **找不到 GPU**（`could not select device driver "" with capabilities: [[gpu]]`）：升级 NVIDIA 驱动（Linux 上装 NVIDIA Container Toolkit），再跑一遍上面的 `nvidia-smi -L` 检查；或者改用 CPU 镜像。
 - **语音在读，但没有逐词高亮**：把*设置 → 常规 → 朗读 → 高亮当前*设成**单词**。
-- **从另一台机器上用它**：见[用 Cloudflare 在任何地方访问你的 TTS 服务器](remote-access-cloudflare.zh.md)。本地引擎那一节有自己的**额外请求头**字段可以放 Access 服务令牌，所以逐词高亮不会因为绕了一圈就没了。
+- **从另一台机器上用它**：见[用 Cloudflare 在任何地方访问你的 TTS 服务器](remote-access-cloudflare.zh.md)。Kokoro-FastAPI 那一节有自己的**额外请求头**字段可以放 Access 服务令牌，所以逐词高亮不会因为绕了一圈就没了。

@@ -76,8 +76,8 @@ fetches the server's model list and says whether yours is on it. Leave
 **Voices** empty to take the voices the server publishes on
 `/v1/audio/voices`, or list voice ids yourself, comma-separated. The API key
 may stay empty for servers that have none; only api.openai.com insists on
-one. For Kokoro use the *Local engine* section instead: that is what gets
-you word-level highlighting.
+one. For Kokoro use the **Kokoro-FastAPI** section instead: that is what
+gets you word-level highlighting.
 
 </details>
 
@@ -85,8 +85,8 @@ you word-level highlighting.
 <summary><b>Behind a gateway (Cloudflare Tunnel, reverse proxy)</b></summary>
 
 Put the gateway's headers in **Extra headers** — of the OpenAI section, or
-of the Local engine section for Kokoro — as `Name: value` pairs separated
-by `;`, for example `CF-Access-Client-Id: …; CF-Access-Client-Secret: …`.
+of the **Kokoro-FastAPI** one — as `Name: value` pairs separated by `;`,
+for example `CF-Access-Client-Id: …; CF-Access-Client-Secret: …`.
 They go out with every request. [Tutorial](tutorials/remote-access-cloudflare.md).
 
 </details>

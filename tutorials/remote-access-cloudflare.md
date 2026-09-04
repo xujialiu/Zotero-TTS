@@ -23,7 +23,7 @@ Everything here is on Cloudflare's free plan. Time: about twenty minutes.
   Chatterbox-TTS-Server on port 8004; Kokoro-FastAPI is on 8880 (see the
   note at the end before exposing it).
 - The plugin, 1.1.2 or newer, on the machine that will read aloud — it needs
-  the **Extra headers** field (OpenAI section since 1.1.0, Local engine
+  the **Extra headers** field (OpenAI section since 1.1.0, Kokoro-FastAPI
   section since 1.1.2).
 
 ## 1. Create the tunnel
@@ -151,7 +151,7 @@ new one and update the policy) and the old values stop working at once.
   highlighting. Give it its own public hostname on the tunnel
   (`kokoro.example.com` → `localhost:8880`, or `host.docker.internal:8880`
   for the Docker connector) and its own Access application — the same
-  service token may be used in its policy. In the plugin, *Local engine*:
+  service token may be used in its policy. In the plugin, *Kokoro-FastAPI*:
   Address `https://kokoro.example.com`, Extra headers the same
   `CF-Access-Client-Id: …; CF-Access-Client-Secret: …` pair. A missing or
   wrong token shows up as "The server rejected the API key", not as the

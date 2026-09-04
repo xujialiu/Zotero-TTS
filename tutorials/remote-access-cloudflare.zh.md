@@ -1,4 +1,4 @@
-<!-- translated-from: remote-access-cloudflare.md sha256:3c5e9854e7ff -->
+<!-- translated-from: remote-access-cloudflare.md sha256:7623f06a26b5 -->
 # 用 Cloudflare 在任何地方访问你的 TTS 服务器
 
 [English](remote-access-cloudflare.md) · **简体中文**
@@ -16,7 +16,7 @@
 - 一个 DNS 托管在 Cloudflare 上的域名（下文写作 `example.com`；示例用的是 `tts-windows.example.com`）。
 - 一个 Cloudflare Zero Trust 账号（免费层）——https://one.dash.cloudflare.com
 - 家里那台机器上跑着 TTS 服务器。教程假定是 8004 端口上的 Chatterbox-TTS-Server；Kokoro-FastAPI 在 8880（把它暴露出去之前先看文末的说明）。
-- 用来朗读的那台机器上，插件是 1.1.2 或更新的版本——它需要**额外请求头**字段（OpenAI 那一节从 1.1.0 起有，本地引擎那一节从 1.1.2 起有）。
+- 用来朗读的那台机器上，插件是 1.1.2 或更新的版本——它需要**额外请求头**字段（OpenAI 那一节从 1.1.0 起有，Kokoro-FastAPI 那一节从 1.1.2 起有）。
 
 > **国内网络**——cloudflared 是从你家里的机器往外拨的，一般连得上；不确定的是笔记本这一端到 Cloudflare 边缘节点的线路，时好时坏，赶上差的时候长句可能撞上 Cloudflare 100 秒的请求上限（见疑难解答）。域名不必在国内注册，但 NS 必须改到 Cloudflare。如果两台机器都是你自己的，文末「其他做法」里的 Tailscale / WARP 私有网络往往更稳，也省掉令牌这一套。
 
@@ -120,5 +120,5 @@ Zotero → 设置 → Zotero-TTS → **OpenAI** 那一节：
 
 ## 说明
 
-- **Kokoro-FastAPI** 同样这么做，而且逐词高亮不会丢。在隧道上给它一个自己的公开主机名（`kokoro.example.com` → `localhost:8880`，用 Docker 连接器就是 `host.docker.internal:8880`），再给它一个自己的 Access 应用——策略里可以用同一个服务令牌。插件这边，在*本地引擎*里：地址填 `https://kokoro.example.com`，额外请求头同样填 `CF-Access-Client-Id: …; CF-Access-Client-Secret: …`。令牌漏了或填错，表现是「服务器拒绝了 API 密钥」，而不是服务器没起来。
+- **Kokoro-FastAPI** 同样这么做，而且逐词高亮不会丢。在隧道上给它一个自己的公开主机名（`kokoro.example.com` → `localhost:8880`，用 Docker 连接器就是 `host.docker.internal:8880`），再给它一个自己的 Access 应用——策略里可以用同一个服务令牌。插件这边，在 **Kokoro-FastAPI** 那一节里：地址填 `https://kokoro.example.com`，额外请求头同样填 `CF-Access-Client-Id: …; CF-Access-Client-Secret: …`。令牌漏了或填错，表现是「服务器拒绝了 API 密钥」，而不是服务器没起来。
 - **其他做法**。如果另一台机器也是你自己的，用私有网络就完全不需要令牌：Cloudflare WARP（Zero Trust → 私有网络走同一条隧道，笔记本上装 WARP 客户端）或者 Tailscale；插件直接用服务器的内网地址即可。在家里放一个检查 `Authorization: Bearer <key>` 的反向代理（Caddy、nginx）也能配合插件的 API 密钥字段用，区别是没通过认证的请求会先进到你的网络里才被拒。

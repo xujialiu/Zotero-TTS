@@ -1,4 +1,4 @@
-<!-- translated-from: README.md sha256:f1cf0d7f95b0 -->
+<!-- translated-from: README.md sha256:31a562728afb -->
 <h1 align="center">Zotero-TTS</h1>
 
 <p align="center"><em>Zotero 10 朗读功能的增强插件：本地语音模式里更多语音、按你的颜色逐词与逐句高亮、键盘快捷键。</em></p>
@@ -53,14 +53,14 @@ API 密钥、网关请求头和 WebDAV 密码在设置面板里都是掩码显�
 <details>
 <summary><b>OpenAI 兼容服务器：各个字段</b></summary>
 
-**服务器**下拉框写明是哪一种服务器——*OpenAI*、*Chatterbox-TTS-Server* 或*其他 OpenAI 兼容服务器*——并自动填上你上次配这种服务器时用的地址和模型（第一次则用它的默认值），这种服务器用不上的字段会置灰。**API 地址**填服务器地址，带不带 `/v1` 都行。**模型**填它认的名字；**测试连接**会取回服务器的模型列表，告诉你你填的那个在不在里面。**语音**留空就用服务器在 `/v1/audio/voices` 上公布的语音，也可以自己用逗号分隔列出语音 id。有些服务器没有 API 密钥，那就留空；只有 api.openai.com 一定要。Kokoro 请改用*本地引擎*那一节：逐词高亮是那条路才有的。
+**服务器**下拉框写明是哪一种服务器——*OpenAI*、*Chatterbox-TTS-Server* 或*其他 OpenAI 兼容服务器*——并自动填上你上次配这种服务器时用的地址和模型（第一次则用它的默认值），这种服务器用不上的字段会置灰。**API 地址**填服务器地址，带不带 `/v1` 都行。**模型**填它认的名字；**测试连接**会取回服务器的模型列表，告诉你你填的那个在不在里面。**语音**留空就用服务器在 `/v1/audio/voices` 上公布的语音，也可以自己用逗号分隔列出语音 id。有些服务器没有 API 密钥，那就留空；只有 api.openai.com 一定要。Kokoro 请改用 **Kokoro-FastAPI** 那一节：逐词高亮是那条路才有的。
 
 </details>
 
 <details>
 <summary><b>服务器在网关后面（Cloudflare Tunnel、反向代理）</b></summary>
 
-把网关要的请求头填进**额外请求头**——OpenAI 那一节的，或者 Kokoro 就用*本地引擎*那一节的——写成 `名称: 值`，多个之间用 `;` 分隔，例如 `CF-Access-Client-Id: …; CF-Access-Client-Secret: …`。每个请求都会带上它们。[教程](tutorials/remote-access-cloudflare.zh.md)。
+把网关要的请求头填进**额外请求头**——OpenAI 那一节的，或者 Kokoro 就用 **Kokoro-FastAPI** 那一节的——写成 `名称: 值`，多个之间用 `;` 分隔，例如 `CF-Access-Client-Id: …; CF-Access-Client-Secret: …`。每个请求都会带上它们。[教程](tutorials/remote-access-cloudflare.zh.md)。
 
 </details>
 

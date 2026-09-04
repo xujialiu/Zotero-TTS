@@ -3,11 +3,12 @@
 **English** · [简体中文](kokoro-fastapi.zh.md)
 
 [Kokoro-FastAPI](https://github.com/remsky/Kokoro-FastAPI) is the plugin's
-*Local engine*: a small, fast model with 68 voices in English, Chinese,
+local engine: a small, fast model with 68 voices in English, Chinese,
 Japanese, French, Spanish, Italian, Portuguese and Hindi, and the only local
 engine that reports word timings — so Read Aloud highlights word by word.
 It runs entirely on your machine; the plugin talks to it at
-`http://localhost:8880` (the **Address** field under *Local engine*).
+`http://localhost:8880` (the **Address** field in the **Kokoro-FastAPI**
+section of the settings).
 
 The official Docker image bundles the model, CUDA and espeak-ng, so with
 Docker installed it is one command.
@@ -72,10 +73,10 @@ The first run downloads a few GB; later starts take seconds.
 
 ## Check it
 
-In Zotero, *Settings → Zotero-TTS → Local engine*, tick **Enable
-Kokoro-FastAPI** and press **Test connection**; it should say `Connected. 68
-voices available.` Then open Read Aloud, choose the Local tier, and pick a
-`Kokoro-…` voice (`af_bella` and `af_heart` are good English voices;
+In Zotero, *Settings → Zotero-TTS → Kokoro-FastAPI*, press **Test
+connection**; it should say `Connected. 68 voices available.` **Enable**
+then switches the provider on. Open Read Aloud, choose the Local tier, and
+pick a `Kokoro-…` voice (`af_bella` and `af_heart` are good English voices;
 `zf_xiaobei` / `zm_yunxi` speak Chinese). For word-by-word highlighting set
 *Settings → General → Read Aloud → Highlight current* to **Word**.
 
@@ -109,6 +110,6 @@ docker run -d --name kokoro --restart unless-stopped --gpus all -p 8880:8880 ghc
 - **Voices play but nothing is highlighted word by word**: set *Settings →
   General → Read Aloud → Highlight current* to **Word**.
 - **Using it from another machine**: see [Reaching your TTS server from
-  anywhere with Cloudflare](remote-access-cloudflare.md). The Local engine
+  anywhere with Cloudflare](remote-access-cloudflare.md). The Kokoro-FastAPI
   section has its own **Extra headers** field for the Access service token,
   so word-level highlighting survives the trip.
