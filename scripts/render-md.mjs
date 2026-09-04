@@ -80,12 +80,13 @@ function render(src) {
       return `${attr}="${back}${hash}"`;
     });
   const title = basename(src).replace(/\.md$/i, '');
+  const lang = title.endsWith('.zh') ? 'zh-CN' : 'en';
   const out = join(outDir, `${title}.html`);
   mkdirSync(outDir, { recursive: true });
   writeFileSync(
     out,
     `<!doctype html>
-<html lang="en">
+<html lang="${lang}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -103,7 +104,7 @@ ${body}</body>
 
 // The default set is every doc the README links to, so the preview navigates.
 function defaultFiles() {
-  const files = ['README.md', 'PHILOSOPHY.md', join('test', 'zotero-dev.md')];
+  const files = ['README.md', 'README.zh.md', 'PHILOSOPHY.md', join('test', 'zotero-dev.md')];
   for (const dir of ['tutorials', 'notes']) {
     for (const name of readdirSync(dir)) {
       if (name.endsWith('.md')) files.push(join(dir, name));

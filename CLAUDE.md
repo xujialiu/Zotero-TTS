@@ -19,6 +19,29 @@ documents, settings backup/restore (file or WebDAV), highlight colors.
   `tutorials/` — Azure's free tier, Kokoro-FastAPI and Chatterbox-TTS-Server
   in Docker, remote access through Cloudflare. Provider and server how-tos
   go there, not into the README.
+- **The Chinese pages** (issue #29): `README.zh.md` and
+  `tutorials/<name>.zh.md`, siblings of the English files, with a switcher
+  line at the top of both. They are one-to-one translations — the same
+  sections, the same `<details>` blocks, the same tables — and the only thing
+  they add is a `> **国内网络**` blockquote in a tutorial where the English
+  would mislead a reader in China (a Docker Hub or Hugging Face mirror, the
+  global-vs-世纪互联 Azure split). Settings and player wording is quoted from
+  the plugin's own `addon/locale/zh-CN/zotero-tts.ftl` and from Zotero's zh-CN
+  files in `omni.ja` — 朗读, 语音模式, 本地 / 标准 / 高级 — never freshly
+  translated; product names, voice ids, pref keys, file names and code blocks
+  stay English. **A Chinese page is never hard-wrapped**: a line break between
+  two CJK characters renders as a space in Chrome and Safari (measured
+  2026-09-04: 164.45px wrapped, exactly the width with an explicit space,
+  against 160px on one line), so one paragraph is one line, however long —
+  the opposite of the English files. For the same reason a space next to
+  `**`, `*` or `[` is dropped when both sides are CJK, and kept around inline
+  code and Latin.
+  **The translation ships in the commit that changes the English page.**
+  Every `.zh.md` opens with `<!-- translated-from: X.md sha256:… -->` and
+  `test/docs-translation.test.ts` fails when that hash has moved or a page has
+  no translation at all; `npm run docs:pin` records the new hashes once the
+  translation is up to date. A stale Chinese page therefore cannot be built
+  or released.
 - `notes/NOTES.md` — the standing reference: what the plugin is, the Zotero
   internals verified by reading its source, what is still open, and an index
   of the log. **Read it before touching Read Aloud internals.** The log itself
@@ -161,6 +184,7 @@ npm test              # vitest, ~340 tests, includes test/build.test.ts which ru
 npm run typecheck     # tsc --noEmit
 npm run build         # esbuild → addon/content/zotero-tts.js, zip → build/zotero-tts.xpi
 npm run docs          # pandoc → docs/*.html, the Markdown rendered for the browser
+npm run docs:pin      # record which English revision each .zh.md follows
 ```
 
 After any change: tests, typecheck, build — then the xpi goes into the

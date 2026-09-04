@@ -1,5 +1,7 @@
 # Chatterbox-TTS-Server in Docker (NVIDIA GPU)
 
+**English** · [简体中文](chatterbox-tts-server.zh.md)
+
 [Chatterbox-TTS-Server](https://github.com/devnen/Chatterbox-TTS-Server)
 wraps Resemble AI's Chatterbox models in a web UI and an OpenAI-compatible
 API. Compared with Kokoro the voices are far more natural and expressive —

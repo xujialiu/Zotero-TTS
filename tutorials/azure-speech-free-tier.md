@@ -1,5 +1,7 @@
 # Azure Speech on the free tier
 
+**English** · [简体中文](azure-speech-free-tier.zh.md)
+
 Azure AI Speech is the plugin's **Azure** provider: several hundred neural
 voices in over a hundred languages, multilingual voices that read a mixed
 document in one go, and word timings — so Read Aloud highlights word by

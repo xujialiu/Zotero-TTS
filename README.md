@@ -10,6 +10,8 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-AGPL--3.0-blue?style=flat-square" alt="License"></a>
 </p>
 
+<p align="center"><b>English</b> · <a href="README.zh.md">简体中文</a></p>
+
 <p align="center"><img src="assets/word-highlight.gif" width="720" alt="Read Aloud reading a paragraph: the word being read in blue, its sentence in yellow"></p>
 
 ## What is this?

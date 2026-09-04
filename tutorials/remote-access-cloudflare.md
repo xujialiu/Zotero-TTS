@@ -1,5 +1,7 @@
 # Reaching your TTS server from anywhere with Cloudflare
 
+**English** · [简体中文](remote-access-cloudflare.zh.md)
+
 You run Chatterbox-TTS-Server (or another OpenAI-compatible server) on a
 machine with a GPU at home, and you want to use it from Zotero on your laptop
 somewhere else. This tutorial puts the server behind a **Cloudflare Tunnel**

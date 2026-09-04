@@ -1,5 +1,7 @@
 # Kokoro-FastAPI in Docker
 
+**English** · [简体中文](kokoro-fastapi.zh.md)
+
 [Kokoro-FastAPI](https://github.com/remsky/Kokoro-FastAPI) is the plugin's
 *Local engine*: a small, fast model with 68 voices in English, Chinese,
 Japanese, French, Spanish, Italian, Portuguese and Hindi, and the only local
