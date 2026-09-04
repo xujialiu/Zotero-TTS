@@ -191,6 +191,27 @@
                 preference="extensions.zotero.zotero-tts.readAloud.globalSpeed"/>
       <label class="ztts-help" value="?" data-l10n-id="ztts-help-one-speed" data-l10n-attrs="help"/>
     </hbox>
+    <!-- The gap before the next sentence, for every voice in the player, at
+         1× speed; the paragraph row is added on top where a paragraph begins
+         (read-aloud/pauses.ts, issue #44). A switch off leaves that part to
+         Zotero. Both bound: the settings never edit the voice list, so no
+         reading guard (issue #11) -->
+    <hbox align="center">
+      <checkbox data-l10n-id="ztts-sentence-pause"
+                preference="extensions.zotero.zotero-tts.readAloud.sentenceDelayEnabled"/>
+      <html:input type="number" min="0" max="5000" step="50" style="width: 5em"
+                  preference="extensions.zotero.zotero-tts.readAloud.sentenceDelayMs"/>
+      <label data-l10n-id="ztts-pause-ms"/>
+      <label class="ztts-help" value="?" data-l10n-id="ztts-help-sentence-pause" data-l10n-attrs="help"/>
+    </hbox>
+    <hbox align="center">
+      <checkbox data-l10n-id="ztts-paragraph-pause"
+                preference="extensions.zotero.zotero-tts.readAloud.paragraphDelayEnabled"/>
+      <html:input type="number" min="0" max="5000" step="50" style="width: 5em"
+                  preference="extensions.zotero.zotero-tts.readAloud.paragraphDelayMs"/>
+      <label data-l10n-id="ztts-pause-ms"/>
+      <label class="ztts-help" value="?" data-l10n-id="ztts-help-paragraph-pause" data-l10n-attrs="help"/>
+    </hbox>
     <!-- The switch locks the cache below on: without it the warmer has
          nowhere to put what it synthesizes (ui/prefetch-rows.ts) -->
     <hbox align="center">

@@ -16,6 +16,7 @@ import { createReadAloudMemorySync, type ReadAloudMemorySync } from './read-alou
 import { createHighlightStyling, type HighlightStyling } from './read-aloud/highlight-style';
 import { createSystemVoiceHiding, type SystemVoiceHiding } from './read-aloud/system-voices';
 import { createMultilingualFirst, type MultilingualFirst } from './read-aloud/multilingual-first';
+import { createPauses, pauseSettingsOf, type Pauses } from './read-aloud/pauses';
 import { createPositionSync, ACTIVE_TICK_MS, IDLE_TICK_MS, type PositionSync } from './read-aloud/position-sync';
 import { createPositionStore, type PositionStore } from './read-aloud/position-store';
 import { createPositionTransport, type PositionTransport } from './read-aloud/position-transport';
@@ -88,6 +89,8 @@ let deleteNotifierID: string | null = null;
 let highlightStyling: HighlightStyling | null = null;
 let systemVoiceHiding: SystemVoiceHiding | null = null;
 let multilingualFirst: MultilingualFirst | null = null;
+/** The pauses between sentences and before paragraphs, for every voice (read-aloud/pauses.ts, issue #44). */
+let pauses: Pauses | null = null;
 
 const prefs = createZoteroPrefs();
 
@@ -312,6 +315,9 @@ function buildReaderInterface(reader: any, targetWindow: any, native: () => unkn
           // The popup renders its language options after the voices arrive,
           // so the label patch is in place for the first open too
           multilingualFirst?.attach(reader);
+          // The manager's controller is built after the voices land, so its
+          // prototype is patched from the first one this session builds
+          pauses?.attach(reader);
         },
         // The list this reader is about to receive: the remembered voice is
         // planned against it before Zotero resolves from it (issue #35)
@@ -529,6 +535,7 @@ function watchReader(reader: any): void {
   highlightStyling?.attach(reader);
   systemVoiceHiding?.attach(reader);
   multilingualFirst?.attach(reader);
+  pauses?.attach(reader);
   const iframe = reader._iframeWindow;
   if (iframe) {
     readAloudShortcuts.listen(iframe, () => reader, {
@@ -1252,6 +1259,31 @@ function stopMultilingualFirst(): void {
   multilingualFirst = null;
 }
 
+// ---- The pauses between sentences and before paragraphs ------------------
+//
+// Zotero's per-voice sentenceDelay and its paragraph extra, replaced by the
+// pane's two settings for every voice; see read-aloud/pauses.ts for the
+// scheduling hook.
+
+function startPauses(): void {
+  stopPauses();
+  pauses = createPauses({
+    // Read on every sentence boundary, never cached: the pane applies at once
+    getSettings: () => pauseSettingsOf(loadSettings(prefs).readAloud),
+    exportFunction: (fn, target) => Components.utils.exportFunction(fn, target),
+    waiveXrays: (value) => ((value && typeof value === 'object') || typeof value === 'function' ? Components.utils.waiveXrays(value) : value),
+    isDead: (value) => Components.utils.isDeadWrapper(value),
+    error: (e) => Zotero.logError(e),
+    debug: (message) => Zotero.debug('[zotero-tts] ' + message),
+  });
+  for (const reader of Zotero.Reader._readers ?? []) pauses.attach(reader);
+}
+
+function stopPauses(): void {
+  pauses?.dispose();
+  pauses = null;
+}
+
 async function startup({ id, version, rootURI }: StartupParams): Promise<void> {
   pluginVersion = version;
   // Each step on its own (core/startup-steps.ts): a Zotero internal that
@@ -1288,6 +1320,7 @@ async function startup({ id, version, rootURI }: StartupParams): Promise<void> {
       ],
       ['system-voice hiding', startSystemVoiceHiding],
       ['Multiple-languages-first ordering', startMultilingualFirst],
+      ['sentence and paragraph pauses', startPauses],
       ['Read Aloud hook', startHijack],
       ['Read Aloud shortcuts', () => startReadAloudShortcuts(id)],
     ],
@@ -1343,6 +1376,7 @@ async function shutdown(reason?: number): Promise<void> {
   stopSpeechDaemon();
   stopSystemVoiceHiding();
   stopMultilingualFirst();
+  stopPauses();
   // Last: the stop line above is the one string that never goes through t()
   setMessageSource(null);
   Zotero.debug('[zotero-tts] stopped' + (reason !== undefined ? ` (reason ${reason})` : ''));
@@ -1449,7 +1483,16 @@ const diagnostics = {
   },
   multilingualFirst: () => JSON.stringify((Zotero.Reader._readers ?? []).map((r: any) => multilingualFirst?.inspect(r) ?? null), null, 1),
   /**
-   * The undo logs of the four modules that shadow a reader-side prototype
+   * The pauses (issue #44), per open reader: whether the manager and its
+   * running controller are patched, the two settings, the speed, the
+   * selected voice's own `sentenceDelay`, the gaps a sentence boundary and
+   * a paragraph boundary would get right now, and `last` — the number
+   * Zotero's timer actually received at the latest boundary, with `count`.
+   * `last` advancing while a session plays is what proves the hook ran.
+   */
+  pauses: () => JSON.stringify((Zotero.Reader._readers ?? []).map((r: any) => pauses?.inspect(r) ?? null), null, 1),
+  /**
+   * The undo logs of the five modules that shadow a reader-side prototype
    * (read-aloud/proto-patches.ts): `total` entries held, `live` of them
    * belonging to a tab that is still open. They used to drift apart by one
    * tab's worth of entries per closed tab, and shutdown logged a dead
@@ -1463,6 +1506,7 @@ const diagnostics = {
         systemVoices: safe(() => systemVoiceHiding?.patchCounts()) ?? null,
         multilingualFirst: safe(() => multilingualFirst?.patchCounts()) ?? null,
         readAloudMemory: safe(() => readAloudMemory?.patchCounts()) ?? null,
+        pauses: safe(() => pauses?.patchCounts()) ?? null,
         // Which instance serves each tab (issue #38): `hijacked` — the
         // reader carries this instance's own method; `slotsCurrent` — both
         // stored slots hold a clone stamped by this instance. A tab

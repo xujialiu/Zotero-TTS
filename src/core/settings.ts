@@ -65,6 +65,18 @@ export interface Settings {
     favoriteVoices: string;
     /** Publish only the favorites; with none marked (or none listed), everything is offered. */
     favoritesOnly: boolean;
+    /**
+     * The pause before the next sentence, for every voice in the player
+     * whatever its tier (read-aloud/pauses.ts, issue #44): `sentenceDelayMs`
+     * is the pause at 1× speed and shrinks with the speed. Off, each voice
+     * pauses as Zotero's catalog says — 300 ms on a few Premium voices,
+     * none elsewhere — and that value does not follow the speed.
+     */
+    sentenceDelayEnabled: boolean;
+    sentenceDelayMs: number;
+    /** Added on top where the next sentence begins a paragraph; off, Zotero's own 200 ms, for every voice alike. */
+    paragraphDelayEnabled: boolean;
+    paragraphDelayMs: number;
   };
   /** The colors of Zotero's Read Aloud highlights (read-aloud/highlight-style.ts); opacities in percent. */
   highlight: {
@@ -85,6 +97,9 @@ export interface PrefsBackend {
 }
 
 export const PREF_PREFIX = 'extensions.zotero.zotero-tts.';
+
+/** The longest pause the pane accepts, in milliseconds; both pause settings are clamped to 0..this. */
+export const MAX_PAUSE_MS = 5000;
 
 export const DEFAULTS: Settings = {
   openai: {
@@ -128,6 +143,14 @@ export const DEFAULTS: Settings = {
     globalSpeed: true,
     favoriteVoices: '',
     favoritesOnly: false,
+    // On at 0 by the owner's decision (issue #44): every voice runs sentence
+    // to sentence, the Premium voices' 300 ms included; Zotero's own pacing
+    // is the off state. The paragraph default equals Zotero's own 200 ms at
+    // 1× and, unlike Zotero's, shrinks with the speed.
+    sentenceDelayEnabled: true,
+    sentenceDelayMs: 0,
+    paragraphDelayEnabled: true,
+    paragraphDelayMs: 200,
   },
   // A blue word (near Zotero's own #4072e5) on a yellow sentence, both at 70%, the sentence
   // kept under the word; the reader still draws them at its own 0.4 (light) / 0.3 (dark).
@@ -207,6 +230,10 @@ export function loadSettings(prefs: PrefsBackend): Settings {
       globalSpeed: bool(prefs, 'readAloud.globalSpeed', DEFAULTS.readAloud.globalSpeed),
       favoriteVoices: str(prefs, 'readAloud.favoriteVoices', DEFAULTS.readAloud.favoriteVoices),
       favoritesOnly: bool(prefs, 'readAloud.favoritesOnly', DEFAULTS.readAloud.favoritesOnly),
+      sentenceDelayEnabled: bool(prefs, 'readAloud.sentenceDelayEnabled', DEFAULTS.readAloud.sentenceDelayEnabled),
+      sentenceDelayMs: num(prefs, 'readAloud.sentenceDelayMs', DEFAULTS.readAloud.sentenceDelayMs, 0, MAX_PAUSE_MS),
+      paragraphDelayEnabled: bool(prefs, 'readAloud.paragraphDelayEnabled', DEFAULTS.readAloud.paragraphDelayEnabled),
+      paragraphDelayMs: num(prefs, 'readAloud.paragraphDelayMs', DEFAULTS.readAloud.paragraphDelayMs, 0, MAX_PAUSE_MS),
     },
     highlight: {
       wordColor: str(prefs, 'highlight.wordColor', DEFAULTS.highlight.wordColor),

@@ -271,3 +271,4 @@ cite `notes/NOTES.md` with a date or a section title resolve through this index.
 ### [2026-09-04](NOTES_2026-09-04.md)
 
 - The pane speaks Zotero's language: Fluent files Zotero registers and translates itself (issue #30)
+- The pause between sentences is catalog data, and the gap is one number handed to a timer (issue #44)

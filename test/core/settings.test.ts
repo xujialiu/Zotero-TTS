@@ -4,6 +4,7 @@ import {
   DEFAULTS,
   enabledProviders,
   loadSettings,
+  MAX_PAUSE_MS,
   migrateLegacyProviderPref,
   PREF_PREFIX,
   PROVIDER_IDS,
@@ -182,6 +183,52 @@ describe('readAloud.sameForAllDocuments', () => {
     const prefs = fakePrefs();
     saveSettings(prefs, { ...DEFAULTS, readAloud: { ...DEFAULTS.readAloud, sameForAllDocuments: false } });
     expect(prefs.store[PREF_PREFIX + 'readAloud.sameForAllDocuments']).toBe(false);
+  });
+});
+
+// Issue #44: the pauses are on by default — the sentence one at 0, so every
+// voice runs sentence to sentence; the paragraph one at Zotero's own 200 —
+// and each is an integer of milliseconds, clamped, so an int pref holds it.
+describe('readAloud pauses', () => {
+  const key = (name: string) => PREF_PREFIX + name;
+
+  it('default to on, 0 ms between sentences and 200 ms more at a paragraph', () => {
+    const s = loadSettings(fakePrefs()).readAloud;
+    expect(s.sentenceDelayEnabled).toBe(true);
+    expect(s.sentenceDelayMs).toBe(0);
+    expect(s.paragraphDelayEnabled).toBe(true);
+    expect(s.paragraphDelayMs).toBe(200);
+  });
+
+  it('read the stored switches and numbers', () => {
+    const s = loadSettings(
+      fakePrefs({
+        [key('readAloud.sentenceDelayEnabled')]: false,
+        [key('readAloud.sentenceDelayMs')]: 350,
+        [key('readAloud.paragraphDelayEnabled')]: false,
+        [key('readAloud.paragraphDelayMs')]: 0,
+      }),
+    ).readAloud;
+    expect(s.sentenceDelayEnabled).toBe(false);
+    expect(s.sentenceDelayMs).toBe(350);
+    expect(s.paragraphDelayEnabled).toBe(false);
+    expect(s.paragraphDelayMs).toBe(0);
+  });
+
+  it('clamp the numbers into 0..MAX_PAUSE_MS and fall back on a value of the wrong kind', () => {
+    expect(loadSettings(fakePrefs({ [key('readAloud.sentenceDelayMs')]: 99_999 })).readAloud.sentenceDelayMs).toBe(MAX_PAUSE_MS);
+    expect(loadSettings(fakePrefs({ [key('readAloud.paragraphDelayMs')]: -5 })).readAloud.paragraphDelayMs).toBe(0);
+    expect(loadSettings(fakePrefs({ [key('readAloud.sentenceDelayMs')]: '300' })).readAloud.sentenceDelayMs).toBe(0);
+    expect(loadSettings(fakePrefs({ [key('readAloud.paragraphDelayMs')]: NaN })).readAloud.paragraphDelayMs).toBe(200);
+  });
+
+  it('are written back by saveSettings', () => {
+    const prefs = fakePrefs();
+    saveSettings(prefs, { ...DEFAULTS, readAloud: { ...DEFAULTS.readAloud, sentenceDelayEnabled: false, sentenceDelayMs: 120, paragraphDelayMs: 40 } });
+    expect(prefs.store[key('readAloud.sentenceDelayEnabled')]).toBe(false);
+    expect(prefs.store[key('readAloud.sentenceDelayMs')]).toBe(120);
+    expect(prefs.store[key('readAloud.paragraphDelayEnabled')]).toBe(true);
+    expect(prefs.store[key('readAloud.paragraphDelayMs')]).toBe(40);
   });
 });
 

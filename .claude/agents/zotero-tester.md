@@ -109,6 +109,18 @@ start over.
    `Cu.cloneInto` it, or use positional arguments. Smooth scrolling did
    not animate in this window (2026-08-31), so Zotero's own Read Aloud
    follow is invisible and "the view returns" is not testable here.
+   A Zotero-tier voice needs `selectTier('premium')` (or `'standard'`)
+   before `selectVoice(id)`: the manager's `voices` are filtered by the
+   selected tier (reader.js:81994-81996) and `_applyVoice` drops an id
+   outside it — `_voice` null, controller destroyed, no error
+   (2026-09-04). Resuming after a voice change needs a fresh
+   `notifyUserGestureActivation()`. While the selected id has no `::`
+   (a metered voice), resume, poll and pause go in the SAME script —
+   every bridge round trip is billed audio, and a check capped at four
+   sentences ran thirteen once. Walking reader-compartment arrays from
+   chrome: `Array.prototype.filter` returns `[]` (an index loop over
+   the same `_allVoices` counted 1452 premium voices); a voice's fields
+   are prototype getters, so `Object.keys(voice)` is `impl, provider`.
    Name readers by title:
    `(Zotero.Items.get(r.itemID).parentItem ?? Zotero.Items.get(r.itemID)).getField('title')`.
 6. `zotero_screenshot` (target `window`, the id from `zotero_list_windows`)

@@ -29,6 +29,7 @@ things around the edges. Why it is built this way: [PHILOSOPHY.md](PHILOSOPHY.md
 - ✨ **Word *and* sentence highlighting at once**, in your own colors and opacities — for Zotero's voices too. [→ Highlight](#highlight)
 - ⌨️ **Keyboard shortcuts**: speed up, down, reset; jump by sentence or paragraph; read from the selection; bring the view back to what's being read; open the player's options panel. All rebindable. [→ Shortcuts](#keyboard-shortcuts)
 - 📌 **One voice and speed everywhere** — every document and every open tab, picked in any tab's player or in the voice browser — instead of Zotero's choice per language. [→ Reading](#reading)
+- ⏱️ **The pauses are yours** — how long every voice waits between sentences and before a paragraph, for Zotero's voices too, and shorter as you read faster. [→ Reading](#reading)
 - 💾 **Backup and sync** — settings and reading positions as files, or through your own WebDAV folder: bookmarks follow you between computers, and each computer's settings file keeps itself fresh on the server. [→ Backup](#backup)
 
 ## Install
@@ -238,6 +239,15 @@ with, in every document. The **Speed** slider is the player's own (0.5×–3×).
 - *Use one speed everywhere* — one speed for every document and every open
   tab, set from the player's slider, the shortcuts or the settings slider.
   Off, Zotero keeps a speed per document language.
+- *Pause between sentences* — how long every voice waits before the next
+  sentence, whatever its tier, at 1× speed; reading faster shortens it in
+  step. On at 0 by default, so every voice runs sentence to sentence. Off,
+  each voice pauses as Zotero sets it: about 300 ms on a few of Zotero's
+  Premium voices, none elsewhere, and never shorter at speed.
+- *Extra pause between paragraphs* — added on top where a paragraph
+  begins, at 1× speed, shortened in step with the speed. On at 200 ms by
+  default, which is what Zotero itself adds. Off, Zotero's 200 ms, the
+  same at every speed.
 - *Prefetch upcoming sentences* — the ones ahead are synthesized while the
   current one plays, so playback never waits for the server. Zotero fetches
   3 ahead by itself and your number adds to those. It keeps the cache below
