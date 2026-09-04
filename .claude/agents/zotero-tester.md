@@ -109,6 +109,16 @@ start over.
    `Cu.cloneInto` it, or use positional arguments. Smooth scrolling did
    not animate in this window (2026-08-31), so Zotero's own Read Aloud
    follow is invisible and "the view returns" is not testable here.
+   `toggleReadAloudPopup(true)` on a document whose memory names a
+   listed voice **starts playback at once** (`active`, `paused: false`)
+   — open it and pause it in the SAME script, and check the voice is
+   one of ours before opening at all; the voice dropdown is behind the
+   player's Options button and is not in the DOM until that is clicked.
+   `selectTier` **persists**: it runs `_persistCurrentVoice`
+   (reader.js:82072-82112) and rewrites
+   `extensions.zotero.reader.readAloudVoices` — snapshot that pref
+   before a tier switch and write it back after the tab is closed, or a
+   reader observer re-persists over the restore.
    A Zotero-tier voice needs `selectTier('premium')` (or `'standard'`)
    before `selectVoice(id)`: the manager's `voices` are filtered by the
    selected tier (reader.js:81994-81996) and `_applyVoice` drops an id
