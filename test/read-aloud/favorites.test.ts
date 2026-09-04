@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { PREF_PREFIX } from '../../src/core/settings';
 import {
   countVoicesResponse,
+  FAVORITES_OBSERVER,
   FAVORITES_ONLY_OBSERVER,
   filterCatalogToFavorites,
   filterVoicesResponseToFavorites,
@@ -17,6 +18,12 @@ const alloy = encodeVoiceId('openai', 'alloy');
 describe('FAVORITES_ONLY_OBSERVER', () => {
   it('names the switch the way Zotero.Prefs.registerObserver wants it: relative to extensions.zotero.', () => {
     expect('extensions.zotero.' + FAVORITES_ONLY_OBSERVER).toBe(PREF_PREFIX + 'readAloud.favoritesOnly');
+  });
+});
+
+describe('FAVORITES_OBSERVER', () => {
+  it('names the favorites the same way, so the marks in the player can follow them', () => {
+    expect('extensions.zotero.' + FAVORITES_OBSERVER).toBe(PREF_PREFIX + 'readAloud.favoriteVoices');
   });
 });
 

@@ -16,6 +16,7 @@ import { createReadAloudMemorySync, type ReadAloudMemorySync } from './read-alou
 import { createHighlightStyling, type HighlightStyling } from './read-aloud/highlight-style';
 import { createSystemVoiceHiding, type SystemVoiceHiding } from './read-aloud/system-voices';
 import { createMultilingualFirst, type MultilingualFirst } from './read-aloud/multilingual-first';
+import { createFavoriteMarks, type FavoriteMarks } from './read-aloud/favorite-marks';
 import { createPauses, pauseSettingsOf, type Pauses } from './read-aloud/pauses';
 import { createPositionSync, ACTIVE_TICK_MS, IDLE_TICK_MS, type PositionSync } from './read-aloud/position-sync';
 import { createPositionStore, type PositionStore } from './read-aloud/position-store';
@@ -27,7 +28,7 @@ import { readMemory } from './read-aloud/read-aloud-memory';
 import { readReadAloudVoices, resolveVoiceLang } from './core/read-aloud-speed';
 import { runStartupSteps, type StartupReport } from './core/startup-steps';
 import { listNamedCatalog, type CatalogEntry } from './read-aloud/catalog';
-import { parseFavoriteVoices } from './read-aloud/favorites';
+import { FAVORITES_OBSERVER, FAVORITES_ONLY_OBSERVER, parseFavoriteVoices } from './read-aloud/favorites';
 import { dropdownLanguage, languageDisplayName } from './read-aloud/language-dropdown';
 import { decodeVoiceId } from './read-aloud/voice-catalog';
 import { isInvisibleSegment } from './read-aloud/invisible-text';
@@ -89,6 +90,9 @@ let deleteNotifierID: string | null = null;
 let highlightStyling: HighlightStyling | null = null;
 let systemVoiceHiding: SystemVoiceHiding | null = null;
 let multilingualFirst: MultilingualFirst | null = null;
+let favoriteMarks: FavoriteMarks | null = null;
+/** The two prefs the marks follow, unregistered at shutdown. */
+let favoriteMarkObservers: unknown[] = [];
 /** The pauses between sentences and before paragraphs, for every voice (read-aloud/pauses.ts, issue #44). */
 let pauses: Pauses | null = null;
 
@@ -315,6 +319,9 @@ function buildReaderInterface(reader: any, targetWindow: any, native: () => unkn
           // The popup renders its language options after the voices arrive,
           // so the label patch is in place for the first open too
           multilingualFirst?.attach(reader);
+          // The dropdown is drawn from this very listing; the stylesheet has
+          // to be in the document before it opens (issue #45)
+          favoriteMarks?.attach(reader);
           // The manager's controller is built after the voices land, so its
           // prototype is patched from the first one this session builds
           pauses?.attach(reader);
@@ -535,6 +542,7 @@ function watchReader(reader: any): void {
   highlightStyling?.attach(reader);
   systemVoiceHiding?.attach(reader);
   multilingualFirst?.attach(reader);
+  favoriteMarks?.attach(reader);
   pauses?.attach(reader);
   const iframe = reader._iframeWindow;
   if (iframe) {
@@ -1259,6 +1267,45 @@ function stopMultilingualFirst(): void {
   multilingualFirst = null;
 }
 
+// ---- The ♥ on the favorites in the player's voice list ---------------------
+//
+// A stylesheet in the reader's document, marking rows by the voice id in
+// their DOM id; see read-aloud/favorite-marks.ts for why the label is left
+// alone. Unlike everything else that edits the player's list, a heart may be
+// toggled while a tab reads: the ids never change, so ui/reading-guard.ts
+// has nothing to protect here, and an open dropdown repaints on the spot.
+
+function startFavoriteMarks(): void {
+  stopFavoriteMarks();
+  favoriteMarks = createFavoriteMarks({
+    marks: () => {
+      const s = loadSettings(prefs).readAloud;
+      return { favorites: parseFavoriteVoices(s.favoriteVoices), favoritesOnly: s.favoritesOnly };
+    },
+    documentOf: (reader: any) => reader?._iframeWindow?.document ?? null,
+    isDead: (value) => Components.utils.isDeadWrapper(value),
+    error: (e) => Zotero.logError(e),
+    debug: (message) => Zotero.debug('[zotero-tts] ' + message),
+  });
+  favoriteMarkObservers = [FAVORITES_OBSERVER, FAVORITES_ONLY_OBSERVER].map((name) =>
+    Zotero.Prefs.registerObserver(name, () => favoriteMarks?.refresh()),
+  );
+  for (const reader of Zotero.Reader._readers ?? []) favoriteMarks.attach(reader);
+}
+
+function stopFavoriteMarks(): void {
+  for (const token of favoriteMarkObservers) {
+    try {
+      Zotero.Prefs.unregisterObserver(token);
+    } catch (e) {
+      Zotero.logError(e);
+    }
+  }
+  favoriteMarkObservers = [];
+  favoriteMarks?.dispose();
+  favoriteMarks = null;
+}
+
 // ---- The pauses between sentences and before paragraphs ------------------
 //
 // Zotero's per-voice sentenceDelay and its paragraph extra, replaced by the
@@ -1320,6 +1367,7 @@ async function startup({ id, version, rootURI }: StartupParams): Promise<void> {
       ],
       ['system-voice hiding', startSystemVoiceHiding],
       ['Multiple-languages-first ordering', startMultilingualFirst],
+      ['favorite marks in the player', startFavoriteMarks],
       ['sentence and paragraph pauses', startPauses],
       ['Read Aloud hook', startHijack],
       ['Read Aloud shortcuts', () => startReadAloudShortcuts(id)],
@@ -1376,6 +1424,7 @@ async function shutdown(reason?: number): Promise<void> {
   stopSpeechDaemon();
   stopSystemVoiceHiding();
   stopMultilingualFirst();
+  stopFavoriteMarks();
   stopPauses();
   // Last: the stop line above is the one string that never goes through t()
   setMessageSource(null);
@@ -1482,6 +1531,15 @@ const diagnostics = {
     return JSON.stringify({ lang, keys: k, preferred: p, key: resolveVoiceLang(lang, k, p) });
   },
   multilingualFirst: () => JSON.stringify((Zotero.Reader._readers ?? []).map((r: any) => multilingualFirst?.inspect(r) ?? null), null, 1),
+  /**
+   * The ♥ marks (issue #45), per open reader: whether the stylesheet is in
+   * that reader's document, how many voices it marks, and — the mechanism,
+   * not the effect — how many rows of the dropdown those rules match right
+   * now. `options` is 0 while the dropdown is closed, since Zotero renders
+   * the list only then; with it open, `matched` is what proves the rules
+   * found their rows.
+   */
+  favoriteMarks: () => JSON.stringify((Zotero.Reader._readers ?? []).map((r: any) => favoriteMarks?.inspect(r) ?? null), null, 1),
   /**
    * The pauses (issue #44), per open reader: whether the manager and its
    * running controller are patched, the two settings, the speed, the

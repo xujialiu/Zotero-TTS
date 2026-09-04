@@ -272,3 +272,4 @@ cite `notes/NOTES.md` with a date or a section title resolve through this index.
 
 - The pane speaks Zotero's language: Fluent files Zotero registers and translates itself (issue #30)
 - The pause between sentences is catalog data, and the gap is one number handed to a timer (issue #44)
+- The player's voice list has a second per-voice channel: the option row's DOM id (issue #45)

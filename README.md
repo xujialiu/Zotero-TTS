@@ -213,6 +213,11 @@ with, in every document. The **Speed** slider is the player's own (0.5×–3×).
   switch is on, only a favorite can be the default, and the switch stays
   off while the default is not one. Favorites travel with the settings
   backup.
+- The hearts show in the player's own voice list too: with *Offer only
+  favorite voices* off, a marked voice carries a ♥ in the dropdown and the
+  rest do not, so a favorite is findable without giving up every other
+  voice. A marker, not a button — hearts are set here — and it is gone
+  while the switch is on, where every listed voice is one.
 - The status line names the default by tier, language and voice with the
   speed (`Default voice: Local | Chinese | Azure-晓晓 | 1.8×`); a click on
   the default row clears it, back to Zotero's own per-language choice. Pick

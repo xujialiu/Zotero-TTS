@@ -198,6 +198,39 @@ it measured, updated for the fixes since where marked.
    commits: memory `speed`, every `reader.readAloudVoices.<lang>.speed`,
    the status line's `N×` — and back, byte-identical after the round
    trip.
+8. **The ♥ in the player's own list** (issue #45, 1.10.9). With *Offer
+   only favorite voices* **off** and at least one voice under the
+   reading language marked: one `style#ztts-favorite-marks` in the
+   reader document's `head` — put there when the reader opens, before
+   any popup — holding one 38 px gutter rule plus one rule per
+   favorite. Open the popup, open the voice dropdown (behind the
+   player's **Options** button), and read
+   `getComputedStyle(row, '::after').content`: `"♥"` at
+   `rgb(224, 36, 94)` on a marked row, `none` on an unmarked one, and
+   the marked row's `.label` `textContent` the plain `Provider-voice`
+   label — the mark is CSS, never the label. Zotero's own ✓ is
+   `::before` at `inset-inline-start: 5px` on the same row and the two
+   do not collide. `diagnostics.favoriteMarks()` for that reader:
+   `present` true, `rules` the number of favorites, `options` the rows
+   the open dropdown holds, `matched` the favorites **among those
+   rows** — not `rules`, since a favorite under another language is not
+   listed (measured: 14 of 18, the four multilingual ones sitting under
+   *Multiple languages*). `matched` 0 with `options` above 0 is the id
+   scheme having moved, which is the one way this fails silently; 0
+   with the dropdown closed is expected, Zotero renders the list only
+   while it is open. Then, with the dropdown still open, write a ♥ away
+   and back: the row's `::after` follows **inside `Zotero.Prefs.set`**,
+   same node, same id, same label, no popup reopen and no reading guard
+   — the only setting that may be changed while a tab reads, since the
+   ids Zotero holds do not move. The switch **on**: the stylesheet's
+   text is empty, `rules` 0, the element still in place, the rows back
+   to Zotero's 22 px. Once per Zotero update the run has to see a
+   **Zotero-tier** favorite marked (their ids carry no `::`; reach the
+   tier with `selectTier('standard')` and never `selectVoice` it) and
+   to re-measure the gutter: with the stylesheet emptied and restored,
+   row height, dropdown width, `scrollWidth` and `scrollHeight` were
+   identical (24 / 284 / 282 / 874) and no label was clipped, so the
+   16 px cost nothing but the indent.
 
 ## 3. The Read Aloud integration on a fixture
 
