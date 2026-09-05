@@ -8,6 +8,7 @@ describe('serverPreset', () => {
   it('is the stored choice when there is one', () => {
     expect(serverPreset(openai({ server: 'chatterbox', baseURL: 'https://api.openai.com' }))).toBe('chatterbox');
     expect(serverPreset(openai({ server: 'other', baseURL: 'https://api.openai.com' }))).toBe('other');
+    expect(serverPreset(openai({ server: 'mimo', baseURL: 'https://api.xiaomimimo.com' }))).toBe('mimo');
   });
 
   it('guesses from the address for settings saved before there was a choice', () => {
@@ -115,5 +116,44 @@ describe('switchPreset', () => {
     const remembered = { openai: official };
     switchPreset(remembered, 'openai', 'chatterbox', own);
     expect(remembered).toEqual({ openai: official });
+  });
+});
+
+// Xiaomi MiMo (issue #50): an OpenAI-shaped server whose speech comes through
+// the chat completions route, with no voice list to ask for.
+describe('the Xiaomi MiMo preset', () => {
+  const MIMO_VOICES = ['mimo_default', '冰糖', '茉莉', '苏打', '白桦', 'Mia', 'Chloe', 'Milo', 'Dean'];
+  const others = SERVER_PRESETS.filter((p) => p !== 'mimo');
+
+  it('sits in the dropdown between the known servers and "other"', () => {
+    expect(SERVER_PRESETS).toEqual(['openai', 'chatterbox', 'mimo', 'other']);
+  });
+
+  it('fills in the platform address and the TTS model, and disables nothing', () => {
+    expect(PRESETS.mimo.label).toBe('Xiaomi MiMo');
+    expect(PRESETS.mimo.defaults).toEqual({ baseURL: 'https://api.xiaomimimo.com', model: 'mimo-v2.5-tts' });
+    expect(Object.values(PRESETS.mimo.uses).every(Boolean)).toBe(true);
+    const mimo = openai({ server: 'mimo', apiKey: 'sk-mimo', voices: '冰糖', headers: 'X: y' });
+    expect(applyPreset(mimo)).toEqual(mimo);
+  });
+
+  it('synthesizes through the chat completions route, where every other preset uses the speech route', () => {
+    expect(PRESETS.mimo.synthesis).toBe('chat');
+    for (const id of others) expect(PRESETS[id].synthesis, id).toBe('speech');
+  });
+
+  it("carries the server's documented voices, since it publishes no list, and its own name for the player", () => {
+    expect(PRESETS.mimo.voices).toEqual(MIMO_VOICES);
+    expect(PRESETS.mimo.voiceName).toBe('MiMo');
+    for (const id of others) {
+      expect(PRESETS[id].voices, id).toBeUndefined();
+      expect(PRESETS[id].voiceName, id).toBeUndefined();
+    }
+  });
+
+  it('is remembered like the others', () => {
+    const values = { baseURL: 'https://api.xiaomimimo.com', model: 'mimo-v2.5-tts' };
+    expect(parsePresetValues(JSON.stringify({ mimo: values }))).toEqual({ mimo: values });
+    expect(switchPreset({}, 'openai', 'mimo', { baseURL: 'https://api.openai.com', model: 'gpt-4o-mini-tts' }).values).toEqual(PRESETS.mimo.defaults);
   });
 });

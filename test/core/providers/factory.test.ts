@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createProvider } from '../../../src/core/providers/factory';
 import { SynthesisError } from '../../../src/core/providers/errors';
+import { PRESETS } from '../../../src/core/server-presets';
 import { DEFAULTS } from '../../../src/core/settings';
 
 const deps = {
@@ -80,5 +81,22 @@ describe('Local engine extra headers', () => {
     const settings = { ...DEFAULTS, local: { ...DEFAULTS.local, headers: 'CF-Access-Client-Id: id' } };
     await createProvider('local', settings, { ...deps, fetch: fetchImpl as unknown as typeof fetch }).listVoices();
     expect((fetchImpl as any).mock.calls[0][1].headers).toMatchObject({ 'CF-Access-Client-Id': 'id' });
+  });
+});
+
+// Xiaomi MiMo (issue #50): the preset's route and its documented voices reach the provider
+describe('the Xiaomi MiMo preset', () => {
+  it('hands the provider the chat completions route and the documented voices', async () => {
+    const fetchImpl = vi.fn(async (url: string) =>
+      url.endsWith('/v1/chat/completions')
+        ? new Response(JSON.stringify({ choices: [{ message: { audio: { data: btoa('mp3') } } }] }), { status: 200 })
+        : new Response('', { status: 404 }),
+    );
+    const settings = { ...DEFAULTS, openai: { ...DEFAULTS.openai, ...PRESETS.mimo.defaults, server: 'mimo', apiKey: 'k' } };
+    const p = createProvider('openai', settings, { ...deps, fetch: fetchImpl as unknown as typeof fetch });
+    const result = await p.synthesize('Hello', { voice: '冰糖', signal: new AbortController().signal });
+    expect((fetchImpl as any).mock.calls[0][0]).toBe('https://api.xiaomimimo.com/v1/chat/completions');
+    expect(await result.audio.text()).toBe('mp3');
+    expect((await p.listVoices()).map((v) => v.id)).toEqual([...PRESETS.mimo.voices!]);
   });
 });

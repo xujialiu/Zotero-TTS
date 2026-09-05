@@ -11,7 +11,7 @@ export interface Settings {
     baseURL: string;
     model: string;
     voice: string;
-    /** Comma-separated voice ids to offer; empty means "ask the server, else OpenAI's defaults". */
+    /** Comma-separated voice ids to offer; empty means "ask the server, else the voices its preset documents, else OpenAI's own". */
     voices: string;
     /** Extra request headers, `Name: value` pairs separated by `;` or newlines (core/headers.ts). */
     headers: string;

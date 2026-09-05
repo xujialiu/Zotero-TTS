@@ -12,8 +12,17 @@ import type { Settings } from './settings';
  * on a guess, since a wrongly disabled field locks a whole class of
  * servers out.
  */
-export type ServerPreset = 'openai' | 'chatterbox' | 'other';
-export const SERVER_PRESETS: readonly ServerPreset[] = ['openai', 'chatterbox', 'other'];
+export type ServerPreset = 'openai' | 'chatterbox' | 'mimo' | 'other';
+export const SERVER_PRESETS: readonly ServerPreset[] = ['openai', 'chatterbox', 'mimo', 'other'];
+
+/**
+ * How a server synthesizes: OpenAI's `/v1/audio/speech`, which answers with
+ * the audio bytes, or a chat completion with an `audio` object, which
+ * answers with base64 audio inside the JSON — the shape OpenAI gave its
+ * audio chat models, and the only one Xiaomi MiMo's TTS has (issue #50:
+ * its `/v1/audio/speech` is a 404 at the gateway).
+ */
+export type SynthesisRoute = 'speech' | 'chat';
 
 export type OpenAIField = 'apiKey' | 'baseURL' | 'model' | 'voices' | 'headers';
 
@@ -30,6 +39,12 @@ export interface PresetSpec {
   uses: Record<OpenAIField, boolean>;
   /** The tooltip of the ? beside the dropdown. */
   note: string;
+  /** The route the server synthesizes on (core/providers/openai.ts). */
+  synthesis: SynthesisRoute;
+  /** The voices the server documents, for one that publishes no list on /v1/audio/voices; absent, OpenAI's own list is the last resort. */
+  voices?: readonly string[];
+  /** The name in front of this server's voices in the player and the voice browser ("MiMo-冰糖"); the section's "OpenAI" when absent. */
+  voiceName?: string;
 }
 
 export const PRESETS: Record<ServerPreset, PresetSpec> = {
@@ -39,6 +54,7 @@ export const PRESETS: Record<ServerPreset, PresetSpec> = {
     defaults: { baseURL: 'https://api.openai.com', model: 'gpt-4o-mini-tts' },
     uses: { apiKey: true, baseURL: true, model: true, voices: true, headers: false },
     note: "Key and model from platform.openai.com; Voices may stay empty (OpenAI's own) or list newer ones. Extra headers are not needed for api.openai.com.",
+    synthesis: 'speech',
   },
   chatterbox: {
     id: 'chatterbox',
@@ -46,6 +62,19 @@ export const PRESETS: Record<ServerPreset, PresetSpec> = {
     defaults: { baseURL: 'http://localhost:8004', model: 'tts-1' },
     uses: { apiKey: false, baseURL: true, model: false, voices: false, headers: true },
     note: 'Chatterbox has no key, ignores the model and publishes its own voices: only the address matters, plus Extra headers behind a gateway.',
+    synthesis: 'speech',
+  },
+  mimo: {
+    id: 'mimo',
+    label: 'Xiaomi MiMo',
+    defaults: { baseURL: 'https://api.xiaomimimo.com', model: 'mimo-v2.5-tts' },
+    uses: { apiKey: true, baseURL: true, model: true, voices: true, headers: true },
+    note: "Key from platform.xiaomimimo.com; free for now. Voices may stay empty for MiMo's built-in voices (Chinese and English) or list your own. Sentences are highlighted, not words: MiMo reports no word timings.",
+    synthesis: 'chat',
+    // The built-in voices of mimo-v2.5-tts, from the platform's documentation
+    // (verified live 2026-09-06); the server has no /v1/audio/voices.
+    voices: ['mimo_default', '冰糖', '茉莉', '苏打', '白桦', 'Mia', 'Chloe', 'Milo', 'Dean'],
+    voiceName: 'MiMo',
   },
   other: {
     id: 'other',
@@ -53,6 +82,7 @@ export const PRESETS: Record<ServerPreset, PresetSpec> = {
     defaults: {},
     uses: { apiKey: true, baseURL: true, model: true, voices: true, headers: true },
     note: 'Fill in what the server wants; Test connection says which of these it uses.',
+    synthesis: 'speech',
   },
 };
 
@@ -72,6 +102,11 @@ const isOpenAIHost = (baseURL: string): boolean => {
 export function serverPreset(openai: Pick<Settings['openai'], 'server' | 'baseURL'>): ServerPreset {
   if ((SERVER_PRESETS as readonly string[]).includes(openai.server)) return openai.server as ServerPreset;
   return isOpenAIHost(openai.baseURL) ? 'openai' : 'other';
+}
+
+/** The spec of the preset in force. */
+export function presetSpec(openai: Pick<Settings['openai'], 'server' | 'baseURL'>): PresetSpec {
+  return PRESETS[serverPreset(openai)];
 }
 
 /**

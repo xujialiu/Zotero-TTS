@@ -1,4 +1,4 @@
-<!-- translated-from: README.md sha256:d28d3dd3346f -->
+<!-- translated-from: README.md sha256:5793dbfb79ad -->
 <h1 align="center">Zotero-TTS</h1>
 
 <p align="center"><em>Zotero 10 朗读功能的增强插件：本地语音模式里更多语音、按你的颜色逐词与逐句高亮、键盘快捷键。</em></p>
@@ -44,6 +44,7 @@ Zotero 10 自己就会朗读（Read Aloud）文档。本插件不取代它，而
 | **Azure Speech** | 语音资源的密钥和区域 · [教程](tutorials/azure-speech-free-tier.zh.md) | 免费额度：每月 50 万字符 | 逐词 |
 | **Kokoro-FastAPI** | 一台跑在本机或局域网里的服务器 · [教程](tutorials/kokoro-fastapi.zh.md) | 免费；CPU 也能跑，有 GPU 更快 | 逐词 |
 | **OpenAI 兼容服务器** | API 地址和模型；服务器若要密钥再加一个 | OpenAI 按字符计费；自建的服务器，例如 [Chatterbox](tutorials/chatterbox-tts-server.zh.md)，不花钱 | 逐句 |
+| **Xiaomi MiMo** | 一个 platform.xiaomimimo.com 的 API 密钥，在 OpenAI 那一节的**服务器**下拉框里选 | 限时免费 | 逐句 |
 | **系统语音** | 什么都不用——目前仅限 Windows | 免费、离线 | 逐词 |
 
 每个服务商那一节的末尾都有**启用**：它会先跑一次连接检查，只有检查通过才真的把服务商打开。服务商开着时，这一节的字段是锁住的——要改先按**停用**。**测试连接**只探测，不改变任何开关。
@@ -53,7 +54,7 @@ API 密钥、网关请求头和 WebDAV 密码在设置面板里都是掩码显�
 <details>
 <summary><b>OpenAI 兼容服务器：各个字段</b></summary>
 
-**服务器**下拉框写明是哪一种服务器——*OpenAI*、*Chatterbox-TTS-Server* 或*其他 OpenAI 兼容服务器*——并自动填上你上次配这种服务器时用的地址和模型（第一次则用它的默认值），这种服务器用不上的字段会置灰。**API 地址**填服务器地址，带不带 `/v1` 都行。**模型**填它认的名字；**测试连接**会取回服务器的模型列表，告诉你你填的那个在不在里面。**语音**留空就用服务器在 `/v1/audio/voices` 上公布的语音，也可以自己用逗号分隔列出语音 id。有些服务器没有 API 密钥，那就留空；只有 api.openai.com 一定要。Kokoro 请改用 **Kokoro-FastAPI** 那一节：逐词高亮是那条路才有的。
+**服务器**下拉框写明是哪一种服务器——*OpenAI*、*Chatterbox-TTS-Server*、*Xiaomi MiMo* 或*其他 OpenAI 兼容服务器*——并自动填上你上次配这种服务器时用的地址和模型（第一次则用它的默认值），这种服务器用不上的字段会置灰。**API 地址**填服务器地址，带不带 `/v1` 都行。**模型**填它认的名字；**测试连接**会取回服务器的模型列表，告诉你你填的那个在不在里面。**语音**留空就用服务器在 `/v1/audio/voices` 上公布的语音，也可以自己用逗号分隔列出语音 id。有些服务器没有 API 密钥，那就留空；只有 api.openai.com 一定要。Kokoro 请改用 **Kokoro-FastAPI** 那一节：逐词高亮是那条路才有的。*Xiaomi MiMo* 用 platform.xiaomimimo.com 的密钥，**语音**留空时提供 MiMo 内置的中英文语音；它的语音不带逐词时间，所以按句高亮。
 
 </details>
 

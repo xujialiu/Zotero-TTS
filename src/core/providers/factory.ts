@@ -5,7 +5,7 @@ import { getLocalEngine } from './local/registry';
 import { createOpenAIProvider } from './openai';
 import { createSystemProvider, type SystemProviderDeps } from './system';
 import { parseHeaderList } from '../headers';
-import { applyPreset } from '../server-presets';
+import { applyPreset, presetSpec } from '../server-presets';
 import type { ProviderId, TTSProvider } from './types';
 
 export type ProviderDeps = {
@@ -28,9 +28,14 @@ export function createProvider(id: ProviderId, settings: Settings, deps: Provide
   switch (id) {
     case 'openai': {
       // The preset blanks what the chosen server does not read, so a key or
-      // voice list left over from another server is never sent.
+      // voice list left over from another server is never sent; it also
+      // says how the server synthesizes and which voices it documents.
       const openai = applyPreset(settings.openai);
-      return createOpenAIProvider({ ...openai, headers: parseHeaderList(openai.headers) }, { fetch: deps.fetch });
+      const preset = presetSpec(settings.openai);
+      return createOpenAIProvider(
+        { ...openai, headers: parseHeaderList(openai.headers), synthesis: preset.synthesis, defaultVoices: preset.voices },
+        { fetch: deps.fetch },
+      );
     }
 
     case 'azure':

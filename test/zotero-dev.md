@@ -102,6 +102,34 @@ it measured, updated for the fixes since where marked.
    remembers each server's values; before that the preset's defaults
    overwrote them); the `?` beside the dropdown carries the preset's
    note. Enable again at the end.
+   **Xiaomi MiMo** (1.10.10, issue #50; needs a MiMo key in
+   `openai.apiKey` — free at platform.xiaomimimo.com — and is NOT
+   TESTABLE without one, said so): Disable → the dropdown to *Xiaomi
+   MiMo* → Base URL `https://api.xiaomimimo.com` and Model
+   `mimo-v2.5-tts` written, no field grayed, the `?` carrying the
+   preset's note (derive from `PRESETS.mimo.note`), Voices empty. Test
+   connection → `Connected. Model mimo-v2.5-tts available. 9 voices
+   available. Synthesis works.` — the probe is one two-character chat
+   completion, and the model list also names `mimo-v2.5-tts-voiceclone`
+   and `-voicedesign`, ranked first among the Model field's suggestions.
+   Enable → the pref true, the section locked. In the voice browser and
+   in a fixture's player the nine voices read `MiMo-mimo_default`,
+   `MiMo-冰糖`, `MiMo-茉莉`, `MiMo-苏打`, `MiMo-白桦`, `MiMo-Mia`,
+   `MiMo-Chloe`, `MiMo-Milo`, `MiMo-Dean` under Multiple languages, none
+   of them `OpenAI-…`. One sentence of `fixture-b.pdf` read with
+   `MiMo-冰糖` (`selectVoice`, paused in the same script) logs
+   `[zotero-tts] openai: no word timestamps for N chars (audio through
+   /v1/chat/completions), highlighting the sentence` — the note is the
+   proof the chat route answered, since the speech route is a 404 on
+   this server. A wrong voice id is told by the server's own words:
+   Disable, Voices `alloy`, Test connection → `Connected, but synthesis
+   failed: chat/completions audio: HTTP 400 — Unknown voice: alloy.
+   Available voices: [mimo_default, 冰糖, 茉莉, 苏打, 白桦, Mia, Chloe,
+   Milo, Dean]` (`serverReason` in `src/core/providers/openai.ts` quotes
+   the longer of the error body's `message` and `param`); Voices back to
+   empty. Then the dropdown back to the server it had (its address and
+   model return through `presetValues`), Enable; the key is the user's
+   to clear.
 8. **System voices** (Windows): `diagnostics.systemProvider()` →
    `enabled`, `platform: "win"`, `unsupported: null`, the daemon
    `running`, voices with `id`/`name`/`lang`/`zoteroId`; then with the

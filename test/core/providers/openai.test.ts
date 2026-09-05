@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { SynthesisError } from '../../../src/core/providers/errors';
 import {
   createOpenAIProvider,
+  type OpenAIConfig,
   OPENAI_DEFAULT_VOICES,
   parseModelList,
   parseVoiceIds,
@@ -15,7 +16,7 @@ const cfg = {
   model: 'gpt-4o-mini-tts',
 };
 
-function provider(fetchImpl: unknown, over: Partial<typeof cfg & { voices: string }> = {}) {
+function provider(fetchImpl: unknown, over: Partial<OpenAIConfig> = {}) {
   return createOpenAIProvider({ ...cfg, ...over }, { fetch: fetchImpl as typeof fetch });
 }
 
@@ -283,5 +284,154 @@ describe('extra headers and keyless servers', () => {
       kind: 'no-key',
     });
     expect(fetchImpl).not.toHaveBeenCalled();
+  });
+});
+
+// Xiaomi MiMo (issue #50) has no /v1/audio/speech: its speech is a chat
+// completion with an `audio` object, the mp3 coming back as base64 inside
+// the JSON reply.
+describe('the chat completions route', () => {
+  const chat = { synthesis: 'chat' as const, model: 'mimo-v2.5-tts', baseURL: 'https://api.xiaomimimo.com/v1' };
+  const audioReply = (bytes: string) =>
+    new Response(
+      JSON.stringify({ choices: [{ message: { role: 'assistant', content: '', audio: { id: 'a1', data: btoa(bytes), transcript: null } } }] }),
+      { status: 200, headers: { 'Content-Type': 'application/json' } },
+    );
+  const textReply = () => new Response(JSON.stringify({ choices: [{ message: { role: 'assistant', content: 'Hello!' } }] }), { status: 200 });
+
+  it('posts the text as an assistant message with the audio object, and decodes the base64 mp3', async () => {
+    const fetchImpl = vi.fn(async () => audioReply('mp3-bytes'));
+    const result = await provider(fetchImpl, chat).synthesize('Hello there', { ...opts, voice: '冰糖' });
+
+    expect(fetchImpl).toHaveBeenCalledOnce();
+    const [url, init] = (fetchImpl as any).mock.calls[0];
+    expect(url).toBe('https://api.xiaomimimo.com/v1/chat/completions');
+    expect(init.method).toBe('POST');
+    expect(init.headers.Authorization).toBe('Bearer sk-test');
+    expect(init.headers['Content-Type']).toBe('application/json');
+    expect(init.signal).toBe(opts.signal);
+    expect(JSON.parse(init.body)).toEqual({
+      model: 'mimo-v2.5-tts',
+      messages: [{ role: 'assistant', content: 'Hello there' }],
+      audio: { format: 'mp3', voice: '冰糖' },
+    });
+    expect(result.audio.type).toBe('audio/mpeg');
+    expect(await result.audio.text()).toBe('mp3-bytes');
+    expect(result.timestamps).toBeUndefined();
+    expect(result.note).toMatch(/chat\/completions/);
+  });
+
+  it('decodes binary audio faithfully', async () => {
+    const bytes = Uint8Array.from([0xff, 0xfb, 0x90, 0x00, 0x00, 0x7f, 0x80, 0xfe]);
+    const fetchImpl = vi.fn(async () => audioReply(String.fromCharCode(...bytes)));
+    const result = await provider(fetchImpl, chat).synthesize('Hi', opts);
+    expect(new Uint8Array(await result.audio.arrayBuffer())).toEqual(bytes);
+  });
+
+  it('reports a reply without audio instead of handing Zotero an empty blob', async () => {
+    await expect(provider(vi.fn(async () => textReply()), chat).synthesize('Hello', opts)).rejects.toMatchObject({
+      kind: 'unknown',
+      message: expect.stringMatching(/no audio/i),
+    });
+  });
+
+  it('reports a reply that is not JSON', async () => {
+    const fetchImpl = vi.fn(async () => new Response('<html>not json</html>', { status: 200 }));
+    await expect(provider(fetchImpl, chat).synthesize('Hello', opts)).rejects.toMatchObject({ kind: 'unknown' });
+  });
+
+  it('maps failures to typed errors, naming the route', async () => {
+    const status = (code: number) => vi.fn(async () => new Response('', { status: code }));
+    await expect(provider(status(401), chat).synthesize('x', opts)).rejects.toMatchObject({ kind: 'auth' });
+    await expect(provider(status(429), chat).synthesize('x', opts)).rejects.toMatchObject({ kind: 'rate-limit' });
+    await expect(provider(status(404), chat).synthesize('x', opts)).rejects.toMatchObject({
+      kind: 'unknown',
+      message: expect.stringMatching(/chat\/completions.*404/),
+    });
+    const offline = vi.fn(async () => {
+      throw new TypeError('offline');
+    });
+    await expect(provider(offline, chat).synthesize('x', opts)).rejects.toMatchObject({ kind: 'network' });
+  });
+
+  it('goes keyless on a server that is not api.openai.com, and still insists on a key there', async () => {
+    const fetchImpl = vi.fn(async () => audioReply('x'));
+    await provider(fetchImpl, { ...chat, apiKey: '' }).synthesize('Hi', opts);
+    expect((fetchImpl as any).mock.calls[0][1].headers).not.toHaveProperty('Authorization');
+    await expect(provider(vi.fn(), { synthesis: 'chat', apiKey: '' }).synthesize('Hi', opts)).rejects.toMatchObject({ kind: 'no-key' });
+  });
+
+  describe('checkSynthesis', () => {
+    it('probes the chat route with two characters and insists on audio back', async () => {
+      const fetchImpl = vi.fn(async () => audioReply('x'));
+      await provider(fetchImpl, chat).checkSynthesis!('mimo_default');
+      const [url, init] = (fetchImpl as any).mock.calls[0];
+      expect(url).toBe('https://api.xiaomimimo.com/v1/chat/completions');
+      expect(JSON.parse(init.body)).toEqual({
+        model: 'mimo-v2.5-tts',
+        messages: [{ role: 'assistant', content: 'Hi' }],
+        audio: { format: 'mp3', voice: 'mimo_default' },
+      });
+    });
+
+    it('fails on a text-only reply, so Test connection says so before Read Aloud does', async () => {
+      await expect(provider(vi.fn(async () => textReply()), chat).checkSynthesis!('mimo_default')).rejects.toMatchObject({
+        kind: 'unknown',
+        message: expect.stringMatching(/no audio/i),
+      });
+    });
+
+    it('tells quota exhaustion apart from rate limiting on this route too', async () => {
+      const quota = vi.fn(async () => new Response(JSON.stringify({ error: { code: 'insufficient_quota' } }), { status: 429 }));
+      await expect(provider(quota, chat).checkSynthesis!('mimo_default')).rejects.toMatchObject({ kind: 'quota' });
+    });
+  });
+});
+
+describe("listVoices with a server's documented voices", () => {
+  it("falls back to them, not OpenAI's, when the server publishes no list", async () => {
+    const voices = await provider(notFound, { defaultVoices: ['mimo_default', '冰糖'] }).listVoices();
+    expect(voices).toEqual([
+      { id: 'mimo_default', label: 'mimo_default', locale: MULTILINGUAL },
+      { id: '冰糖', label: '冰糖', locale: MULTILINGUAL },
+    ]);
+  });
+
+  it('still prefers what the user typed, then what the server publishes', async () => {
+    expect((await provider(notFound, { defaultVoices: ['mimo_default'], voices: 'Mia' }).listVoices()).map((v) => v.id)).toEqual(['Mia']);
+    const published = vi.fn(async () => new Response(JSON.stringify({ voices: ['Chloe'] }), { status: 200 }));
+    expect((await provider(published, { defaultVoices: ['mimo_default'] }).listVoices()).map((v) => v.id)).toEqual(['Chloe']);
+  });
+});
+
+// A refused request carries the server's own reason when it gives one in the
+// OpenAI error shape — MiMo answers a wrong voice id with a 400 whose `param`
+// lists the voices it has; OpenAI puts the detail in `message`.
+describe("the server's reason for a refusal", () => {
+  const chat = { synthesis: 'chat' as const, model: 'mimo-v2.5-tts', baseURL: 'https://api.xiaomimimo.com/v1' };
+  const refused = (status: number, body: unknown) => vi.fn(async () => new Response(JSON.stringify(body), { status }));
+
+  it('quotes the longer of param and message after the status', async () => {
+    const mimo = refused(400, { error: { code: '400', message: 'Param Incorrect', param: 'Unknown voice: alloy. Available voices: [mimo_default, 冰糖]', type: '' } });
+    await expect(provider(mimo, chat).checkSynthesis!('alloy')).rejects.toMatchObject({
+      kind: 'unknown',
+      message: 'chat/completions audio: HTTP 400 — Unknown voice: alloy. Available voices: [mimo_default, 冰糖]',
+    });
+    const openai = refused(400, { error: { message: "Invalid value: 'nova2'. Supported values are: 'alloy', 'nova'.", type: 'invalid_request_error', param: 'voice', code: null } });
+    await expect(provider(openai).synthesize('x', opts)).rejects.toMatchObject({
+      message: "OpenAI speech: HTTP 400 — Invalid value: 'nova2'. Supported values are: 'alloy', 'nova'.",
+    });
+  });
+
+  it('leaves the message as the status alone when the body says nothing usable', async () => {
+    await expect(provider(refused(400, { error: {} }), chat).synthesize('x', opts)).rejects.toMatchObject({ message: 'chat/completions audio: HTTP 400' });
+    await expect(provider(vi.fn(async () => new Response('<html>Bad Gateway</html>', { status: 502 }))).synthesize('x', opts)).rejects.toMatchObject({
+      message: 'OpenAI speech: HTTP 502',
+    });
+  });
+
+  it('keeps auth and rate-limit refusals as they are', async () => {
+    await expect(provider(refused(401, { error: { message: 'Invalid API Key' } }), chat).synthesize('x', opts)).rejects.toMatchObject({ kind: 'auth' });
+    await expect(provider(refused(429, { error: { message: 'slow down' } }), chat).synthesize('x', opts)).rejects.toMatchObject({ kind: 'rate-limit' });
   });
 });

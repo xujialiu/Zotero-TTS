@@ -1,3 +1,4 @@
+import type { SynthesisRoute } from '../server-presets';
 import { normalizeBaseURL } from './base-url';
 import { SynthesisError } from './errors';
 import { MULTILINGUAL, type SynthesisOptions, type SynthesisResult, type TTSProvider, type VoiceInfo } from './types';
@@ -13,8 +14,16 @@ export type OpenAIConfig = {
    */
   headers?: Record<string, string>;
   model: string;
-  /** Comma-separated voice ids to offer; empty means "ask the server, else the OpenAI defaults". */
+  /** Comma-separated voice ids to offer; empty means "ask the server, else `defaultVoices`, else OpenAI's own". */
   voices?: string;
+  /**
+   * The route the server synthesizes on (core/server-presets.ts): OpenAI's
+   * `/v1/audio/speech`, the default, or a chat completion whose reply
+   * carries the audio as base64 — Xiaomi MiMo (issue #50).
+   */
+  synthesis?: SynthesisRoute;
+  /** The voices the server documents, for one that publishes no list; OpenAI's own when absent. */
+  defaultVoices?: readonly string[];
 };
 
 /**
@@ -95,6 +104,58 @@ function statusError(status: number, what: string): SynthesisError {
   return new SynthesisError('unknown', `${what}: HTTP ${status}`);
 }
 
+/**
+ * What the server said, from an error body in OpenAI's shape — the longer
+ * of `error.message` and `error.param`, since OpenAI puts the detail in the
+ * message ("Invalid value: 'x'. Supported values are…", param "voice") and
+ * MiMo in the param ("Unknown voice: x. Available voices: […]", message
+ * "Param Incorrect"). Empty for anything else.
+ */
+export function serverReason(body: string): string {
+  try {
+    const error = (JSON.parse(body) as { error?: unknown } | null)?.error;
+    if (typeof error === 'string') return error.trim().slice(0, 300);
+    const fields = error as { message?: unknown; param?: unknown } | null;
+    const texts = [fields?.message, fields?.param].filter((v): v is string => typeof v === 'string' && v.trim() !== '');
+    return texts.sort((a, b) => b.length - a.length)[0]?.trim().slice(0, 300) ?? '';
+  } catch {
+    return '';
+  }
+}
+
+/**
+ * The typed error for a refused request. OpenAI reports an exhausted
+ * balance as 429 with code "insufficient_quota" — the same status as rate
+ * limiting, told apart only by the body. Any other refusal quotes the
+ * server's reason after the status, when the body gives one: a wrong voice
+ * id is the common case, and the server names the right ones.
+ */
+async function refusal(response: Response, what: string): Promise<SynthesisError> {
+  const body = await response.text().catch(() => '');
+  if (response.status === 429 && /insufficient_quota|exceeded your current quota/i.test(body)) {
+    return new SynthesisError('quota', 'The server refused to synthesize: quota exceeded (insufficient_quota)');
+  }
+  const error = statusError(response.status, what);
+  const reason = error.kind === 'unknown' ? serverReason(body) : '';
+  return reason ? new SynthesisError('unknown', `${error.message} — ${reason}`) : error;
+}
+
+/** The base64 audio of a chat completion reply, `choices[0].message.audio.data`; null when the reply carries none. */
+export function chatAudioData(reply: unknown): string | null {
+  const choices = (reply as { choices?: unknown } | null)?.choices;
+  const first = (Array.isArray(choices) ? choices[0] : null) as { message?: { audio?: { data?: unknown } | null } | null } | null;
+  const data = first?.message?.audio?.data;
+  return typeof data === 'string' && data ? data : null;
+}
+
+/** Base64 to a Blob, byte for byte. `atob` is on the plugin sandbox's whitelist. */
+export function decodeBase64Audio(data: string, type: string): Blob {
+  const binary = atob(data.replace(/\s+/g, ''));
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return new Blob([bytes], { type });
+}
+
 export function createOpenAIProvider(cfg: OpenAIConfig, deps: { fetch: typeof fetch }): TTSProvider {
   // Tolerates the SDK's `/v1` suffix and trailing slashes; works for any
   // OpenAI-compatible server (Kokoro-FastAPI answers the same routes)
@@ -124,15 +185,62 @@ export function createOpenAIProvider(cfg: OpenAIConfig, deps: { fetch: typeof fe
     }
   }
 
+  /**
+   * One synthesis on the configured route, the reply as audio. The speech
+   * route answers with the bytes. The chat route answers with JSON: the
+   * text goes as an `assistant` message with an `audio` object naming the
+   * voice and format, and the mp3 comes back as base64 in
+   * `choices[0].message.audio.data`; a reply without it — a chat model in
+   * the Model field answers text — is an error here, at Test connection and
+   * while reading alike, never a silent empty segment. The `note` names the
+   * route in the debug output (read-aloud/remote-interface.ts).
+   */
+  async function speak(text: string, voice: string, signal?: AbortSignal): Promise<{ audio: Blob; note?: string }> {
+    const chat = (cfg.synthesis ?? 'speech') === 'chat';
+    const what = chat ? 'chat/completions audio' : 'OpenAI speech';
+    const body = chat
+      ? { model: cfg.model, messages: [{ role: 'assistant', content: text }], audio: { format: 'mp3', voice } }
+      : { model: cfg.model, voice, input: text, response_format: 'mp3' };
+    let response: Response;
+    try {
+      response = await deps.fetch(`${base()}${chat ? '/v1/chat/completions' : '/v1/audio/speech'}`, {
+        method: 'POST',
+        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+        signal,
+      });
+    } catch (e) {
+      throw new SynthesisError('network', String(e));
+    }
+    if (!response.ok) throw await refusal(response, what);
+    if (!chat) return { audio: await response.blob() };
+    let reply: unknown;
+    try {
+      reply = await response.json();
+    } catch {
+      throw new SynthesisError('unknown', `${what}: the reply was not JSON`);
+    }
+    const data = chatAudioData(reply);
+    if (!data) throw new SynthesisError('unknown', `${what}: the reply carried no audio — is "${cfg.model}" a speech model?`);
+    try {
+      return { audio: decodeBase64Audio(data, 'audio/mpeg'), note: 'audio through /v1/chat/completions' };
+    } catch (e) {
+      throw new SynthesisError('unknown', `${what}: the audio was not valid base64 (${e})`);
+    }
+  }
+
   const provider: TTSProvider = {
     id: 'openai',
-    // OpenAI's speech endpoint returns no timing information at all. Per spec §4.1, we don't estimate.
+    // OpenAI's speech endpoint returns no timing information at all, and
+    // neither does the chat route (MiMo's `transcript` is null, probed
+    // 2026-09-06). Per spec §4.1, we don't estimate.
     capabilities: { wordTimestamps: false },
 
     /**
      * Voices, in order of trust: the ones the user typed; the ones the
      * server publishes on /v1/audio/voices (a common extension of
-     * OpenAI-compatible servers — OpenAI itself answers 404); OpenAI's own
+     * OpenAI-compatible servers — OpenAI itself answers 404); the ones its
+     * preset documents for it (MiMo has no list to ask); OpenAI's own
      * documented list. A server that cannot be reached at all is an error,
      * not a reason to show OpenAI's names for it.
      */
@@ -153,7 +261,7 @@ export function createOpenAIProvider(cfg: OpenAIConfig, deps: { fetch: typeof fe
       } else if (response.status === 401 || response.status === 403) {
         throw statusError(response.status, `${base()}/v1/audio/voices`);
       }
-      return OPENAI_DEFAULT_VOICES.map((id) => ({ id, label: id, locale: MULTILINGUAL }));
+      return (cfg.defaultVoices ?? OPENAI_DEFAULT_VOICES).map((id) => ({ id, label: id, locale: MULTILINGUAL }));
     },
 
     /** The model ids the server offers; the cheapest authenticated request the API has, so also the connection probe. */
@@ -180,62 +288,21 @@ export function createOpenAIProvider(cfg: OpenAIConfig, deps: { fetch: typeof fe
     },
 
     /**
-     * A two-character speech request, discarded. listModels proves the key
-     * is accepted; only an actual synthesis proves the account can spend.
-     * OpenAI reports an exhausted balance as 429 with code
-     * "insufficient_quota" — same status as rate limiting, told apart only
-     * by the body.
+     * A two-character request on the configured route, discarded.
+     * listModels proves the key is accepted; only an actual synthesis
+     * proves the account can spend, the voice is accepted and — on the
+     * chat route — the model answers audio at all.
      */
     async checkSynthesis(voice: string): Promise<void> {
       if (missingKey()) throw new SynthesisError('no-key', 'OpenAI API key is not set');
-      let response: Response;
-      try {
-        response = await deps.fetch(`${base()}/v1/audio/speech`, {
-          method: 'POST',
-          headers: { ...authHeaders(), 'Content-Type': 'application/json' },
-          body: JSON.stringify({ model: cfg.model, voice, input: 'Hi', response_format: 'mp3' }),
-        });
-      } catch (e) {
-        throw new SynthesisError('network', String(e));
-      }
-      if (response.ok) return;
-      if (response.status === 429) {
-        const body = await response.text().catch(() => '');
-        if (/insufficient_quota|exceeded your current quota/i.test(body)) {
-          throw new SynthesisError('quota', 'The server refused to synthesize: quota exceeded (insufficient_quota)');
-        }
-      }
-      throw statusError(response.status, 'OpenAI speech');
+      await speak('Hi', voice);
     },
 
     async synthesize(text: string, o: SynthesisOptions): Promise<SynthesisResult> {
       if (missingKey()) {
         throw new SynthesisError('no-key', 'OpenAI API key is not set');
       }
-
-      let response: Response;
-      try {
-        response = await deps.fetch(`${base()}/v1/audio/speech`, {
-          method: 'POST',
-          headers: {
-            ...authHeaders(),
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            model: cfg.model,
-            voice: o.voice,
-            input: text,
-            response_format: 'mp3',
-          }),
-          signal: o.signal,
-        });
-      } catch (e) {
-        throw new SynthesisError('network', String(e));
-      }
-
-      if (!response.ok) throw statusError(response.status, 'OpenAI speech');
-
-      return { audio: await response.blob() };
+      return speak(text, o.voice, o.signal);
     },
   };
   return provider;

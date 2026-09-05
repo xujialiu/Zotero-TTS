@@ -51,6 +51,7 @@ Install Plugin From File…** and restart Zotero; then enable a provider in
 | **Azure Speech** | Speech resource key + region · [tutorial](tutorials/azure-speech-free-tier.md) | Free tier: 500,000 characters a month | word |
 | **Kokoro-FastAPI** | A server on your machine or LAN · [tutorial](tutorials/kokoro-fastapi.md) | Free; CPU works, a GPU is faster | word |
 | **OpenAI-compatible** | Base URL and model; an API key if the server wants one | OpenAI bills per character; self-hosted servers such as [Chatterbox](tutorials/chatterbox-tts-server.md) are free | sentence |
+| **Xiaomi MiMo** | An API key from platform.xiaomimimo.com, picked in the OpenAI section's **Server** dropdown | Free for a limited time | sentence |
 | **System voices** | Nothing — Windows only, for now | Free, offline | word |
 
 Each provider section ends with **Enable**: it runs the connection check,
@@ -68,16 +69,19 @@ the settings backup file.
 <summary><b>OpenAI-compatible servers: the fields</b></summary>
 
 The **Server** dropdown names the server — *OpenAI*, *Chatterbox-TTS-Server*,
-or *Other OpenAI-compatible server* — and fills in the address and model you
-last used with that server (its defaults the first time), graying out the
-fields that server ignores. **Base URL** is the server, with or without
+*Xiaomi MiMo*, or *Other OpenAI-compatible server* — and fills in the address
+and model you last used with that server (its defaults the first time),
+graying out the fields that server ignores. **Base URL** is the server, with or without
 `/v1`. **Model** is the name it expects; **Test connection**
 fetches the server's model list and says whether yours is on it. Leave
 **Voices** empty to take the voices the server publishes on
 `/v1/audio/voices`, or list voice ids yourself, comma-separated. The API key
 may stay empty for servers that have none; only api.openai.com insists on
 one. For Kokoro use the **Kokoro-FastAPI** section instead: that is what
-gets you word-level highlighting.
+gets you word-level highlighting. *Xiaomi MiMo* takes the key from
+platform.xiaomimimo.com and, while **Voices** is empty, offers MiMo's
+built-in Chinese and English voices; its speech carries no word timings,
+so sentences are highlighted.
 
 </details>
 

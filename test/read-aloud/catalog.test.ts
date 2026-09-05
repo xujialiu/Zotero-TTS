@@ -75,6 +75,16 @@ describe('listNamedCatalog', () => {
     ]);
   });
 
+  // Xiaomi MiMo (issue #50): the OpenAI section's voices are named after its
+  // preset when the preset has a name of its own, "OpenAI-" otherwise
+  it("names the OpenAI section's voices after its server preset, when the preset has a name", async () => {
+    const bingtang = { id: '冰糖', label: '冰糖', locale: 'mul' };
+    const mimo = { ...DEFAULTS, openai: { ...DEFAULTS.openai, server: 'mimo' } };
+    expect(await listNamedCatalog(mimo, () => provider('openai', [bingtang]))).toEqual([{ provider: 'openai', name: 'MiMo', voices: [bingtang] }]);
+    const chatterbox = { ...DEFAULTS, openai: { ...DEFAULTS.openai, server: 'chatterbox' } };
+    expect(await listNamedCatalog(chatterbox, () => provider('openai', [alloy]))).toEqual([{ provider: 'openai', voices: [alloy] }]);
+  });
+
   it('leaves an unknown engine nameless instead of failing', async () => {
     const settings = {
       ...DEFAULTS,

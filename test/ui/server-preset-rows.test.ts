@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { PRESETS } from '../../src/core/server-presets';
+import { PRESETS, SERVER_PRESETS } from '../../src/core/server-presets';
 import { PREF_PREFIX, type PrefsBackend } from '../../src/core/settings';
 import { FIELD_IDS, initServerPresetRows, SERVER_HELP_ID, SERVER_MENU_ID } from '../../src/ui/server-preset-rows';
 
@@ -164,5 +164,7 @@ describe('addon/content/preferences.xhtml', () => {
     expect(xhtml).toMatch(new RegExp(`<label id="${SERVER_HELP_ID}" class="ztts-help" value="\?"`));
     for (const id of Object.values(FIELD_IDS)) expect(xhtml, id).toContain(`id="${id}"`);
     expect(xhtml).not.toContain('ztts-openai-server-note');
+    // One menu item per preset, in the dropdown's order
+    for (const id of SERVER_PRESETS) expect(xhtml, id).toContain(`<menuitem value="${id}"`);
   });
 });
