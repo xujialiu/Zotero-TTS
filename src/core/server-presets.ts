@@ -26,9 +26,17 @@ export type SynthesisRoute = 'speech' | 'chat';
 
 export type OpenAIField = 'apiKey' | 'baseURL' | 'model' | 'voices' | 'headers';
 
-/** The fields a preset fills in: the address and the model. */
-export type PresetFields = Partial<Pick<Settings['openai'], 'baseURL' | 'model'>>;
-const PRESET_FIELDS = ['baseURL', 'model'] as const;
+/**
+ * The fields a server remembers: the address and the model (issue #34), and
+ * the key, voices and Extra headers typed for it (issue #52) — a switch of
+ * the dropdown files all five of the server being left and restores the
+ * five of the server chosen, so nothing typed for one server is ever sent
+ * to another. A preset's `defaults` fill only the first two.
+ */
+export type PresetFields = Partial<Pick<Settings['openai'], 'baseURL' | 'model' | 'apiKey' | 'voices' | 'headers'>>;
+const PRESET_FIELDS = ['baseURL', 'model', 'apiKey', 'voices', 'headers'] as const;
+/** What a server never visited starts with beyond its defaults: no key, no voices and no headers of another server's. */
+const BLANK_FIELDS: PresetFields = { apiKey: '', voices: '', headers: '' };
 
 export interface PresetSpec {
   id: ServerPreset;
@@ -131,10 +139,13 @@ export function applyPreset(openai: Settings['openai']): Settings['openai'] {
 /**
  * What each server was last used with, keyed by preset — the
  * `openai.presetValues` pref, a JSON object. Leaving a preset stores the
- * section's address and model under it; coming back restores them, so a
- * look at another server and back costs the user nothing (issue #34: every
- * pick used to write the preset's defaults over whatever was there). A
- * preset never visited has no entry and gets its built-in defaults.
+ * section's five fields under it; coming back restores them, so a look at
+ * another server and back costs the user nothing (issue #34: every pick
+ * used to write the preset's defaults over whatever was there) and a
+ * credential typed for one server never reaches another (issue #52). A
+ * preset never visited has no entry and gets its built-in defaults, with
+ * the key, voices and headers empty. The copies live in plain text like
+ * the fields themselves, and go into the settings backup with them.
  */
 export type PresetValues = Partial<Record<ServerPreset, PresetFields>>;
 
@@ -165,16 +176,18 @@ export function parsePresetValues(text: string): PresetValues {
  * A switch of the dropdown from one preset to another: the memory with the
  * current values filed under the preset being left, and the values to write
  * for the one chosen — what it was last used with, gaps filled from its
- * defaults (`other` has none, so a first visit there writes nothing).
- * Picking the current preset again files the current values and reads
- * them straight back, so an edit made since the last visit stays.
+ * defaults for the address and the model and left blank for the rest
+ * (`other` has no defaults, so a first visit there writes only the
+ * blanks). Picking the current preset again files the current values and
+ * reads them straight back, so an edit made since the last visit stays.
  */
 export function switchPreset(
   remembered: PresetValues,
   from: ServerPreset,
   to: ServerPreset,
-  current: Pick<Settings['openai'], 'baseURL' | 'model'>,
+  current: Pick<Settings['openai'], (typeof PRESET_FIELDS)[number]>,
 ): { remembered: PresetValues; values: PresetFields } {
-  const filed: PresetValues = { ...remembered, [from]: { baseURL: current.baseURL, model: current.model } };
-  return { remembered: filed, values: { ...PRESETS[to].defaults, ...filed[to] } };
+  const leaving = Object.fromEntries(PRESET_FIELDS.map((field) => [field, current[field]])) as PresetFields;
+  const filed: PresetValues = { ...remembered, [from]: leaving };
+  return { remembered: filed, values: { ...BLANK_FIELDS, ...PRESETS[to].defaults, ...filed[to] } };
 }

@@ -100,8 +100,14 @@ it measured, updated for the fixes since where marked.
    switching to OpenAI and back **restores the address and model that
    server had** (issue #34, fixed in 1.10.2: `openai.presetValues`
    remembers each server's values; before that the preset's defaults
-   overwrote them); the `?` beside the dropdown carries the preset's
-   note. Enable again at the end.
+   overwrote them) **and, since 1.10.10, its key, Voices and Extra
+   headers** (issue #52): with a token in Extra headers under Chatterbox,
+   a switch to Other leaves `openai.headers` empty (report its length,
+   never a value) and the switch back restores it byte-identical (compare
+   a hash); a key typed under MiMo is gone under Other and back under
+   MiMo the same way; a server never visited starts with all three
+   empty; the `?` beside the dropdown carries the preset's note. Enable
+   again at the end.
    **Xiaomi MiMo** (1.10.10, issue #50; needs a MiMo key in
    `openai.apiKey` — free at platform.xiaomimimo.com — and is NOT
    TESTABLE without one, said so): Disable → the dropdown to *Xiaomi

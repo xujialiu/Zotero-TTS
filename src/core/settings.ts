@@ -17,7 +17,7 @@ export interface Settings {
     headers: string;
     /** Which server the section talks to (core/server-presets.ts); empty means "guess from the address". */
     server: string;
-    /** The Base URL and Model last used with each server, a JSON object keyed by preset (core/server-presets.ts parsePresetValues): what the Server dropdown restores on a switch back. */
+    /** The Base URL, Model, API key, Voices and Extra headers last used with each server, a JSON object keyed by preset (core/server-presets.ts parsePresetValues): what the Server dropdown restores on a switch back, so nothing typed for one server is sent to another. */
     presetValues: string;
   };
   azure: { enabled: boolean; apiKey: string; region: string; voice: string };

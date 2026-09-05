@@ -277,3 +277,4 @@ cite `notes/NOTES.md` with a date or a section title resolve through this index.
 ### [2026-09-06](NOTES_2026-09-06.md)
 
 - Xiaomi MiMo's TTS is a chat completion, and the plugin's OpenAI section learned that route (issue #50)
+- The Server dropdown's memory covers the credentials too (issue #52)

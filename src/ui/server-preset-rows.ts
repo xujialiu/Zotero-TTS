@@ -4,9 +4,10 @@ import { HELP_ATTRIBUTE } from './help-tips';
 
 /**
  * The Server dropdown of the OpenAI section. Not bound with preference=:
- * switching presets has side effects — the address and model the user last
- * used with the chosen server are written (its defaults on a first visit),
- * the fields it does not use are grayed out — which must happen on the
+ * switching presets has side effects — the address, model, key, voices and
+ * headers the user last used with the chosen server are written (its
+ * defaults and blanks on a first visit, issues #34 and #52), the fields it
+ * does not use are grayed out — which must happen on the
  * user's action only, never on load, so that stored values survive. The
  * bound inputs redraw themselves when the values are written. The preset's
  * note is the tooltip of the ? beside the dropdown (ui/help-tips.ts opens

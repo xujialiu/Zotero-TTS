@@ -67,19 +67,25 @@ describe('parsePresetValues', () => {
   });
 
   it('keeps only the known presets and their string fields', () => {
-    const text = JSON.stringify({ chatterbox: { baseURL: 'http://nas:8004', model: 7, voices: 'x' }, kokoro: { baseURL: 'http://x' }, openai: 'oops' });
+    const text = JSON.stringify({ chatterbox: { baseURL: 'http://nas:8004', model: 7, speed: 'x' }, kokoro: { baseURL: 'http://x' }, openai: 'oops' });
     expect(parsePresetValues(text)).toEqual({ chatterbox: { baseURL: 'http://nas:8004' } });
+  });
+
+  it('reads the key, voices and headers filed for a server (issue #52)', () => {
+    const stored = { chatterbox: { baseURL: 'http://nas:8004', model: 'tts-1', apiKey: '', voices: 'Emily.wav', headers: 'CF-Access-Client-Id: a' } };
+    expect(parsePresetValues(JSON.stringify(stored))).toEqual(stored);
   });
 });
 
 describe('switchPreset', () => {
-  const official = { baseURL: 'https://api.openai.com', model: 'gpt-4o-mini-tts' };
-  const own = { baseURL: 'https://h200-chatterbox.example', model: 'tts-1' };
+  const blank = { apiKey: '', voices: '', headers: '' };
+  const official = { baseURL: 'https://api.openai.com', model: 'gpt-4o-mini-tts', apiKey: 'sk-live', voices: '', headers: '' };
+  const own = { baseURL: 'https://h200-chatterbox.example', model: 'tts-1', apiKey: '', voices: '', headers: 'CF-Access-Client-Id: a; CF-Access-Client-Secret: b' };
 
-  it('stores the values of the preset being left, and fills a first visit with the defaults', () => {
+  it('stores the values of the preset being left, and fills a first visit with the defaults and nothing else', () => {
     const { remembered, values } = switchPreset({}, 'chatterbox', 'openai', own);
     expect(remembered).toEqual({ chatterbox: own });
-    expect(values).toEqual(PRESETS.openai.defaults);
+    expect(values).toEqual({ ...blank, ...PRESETS.openai.defaults });
   });
 
   it('gives a revisited preset back what the user had there', () => {
@@ -89,27 +95,43 @@ describe('switchPreset', () => {
     expect(back.remembered).toEqual({ chatterbox: own, openai: official });
   });
 
-  it('"other" has no defaults: a first visit writes nothing, a revisit restores', () => {
-    const groq = { baseURL: 'https://api.groq.com/openai', model: 'playai-tts' };
-    expect(switchPreset({}, 'openai', 'other', official).values).toEqual({});
+  it('"other" has no defaults: a first visit writes only the blanks, a revisit restores', () => {
+    const groq = { baseURL: 'https://api.groq.com/openai', model: 'playai-tts', apiKey: 'gsk', voices: 'Fritz-PlayAI', headers: '' };
+    expect(switchPreset({}, 'openai', 'other', official).values).toEqual(blank);
     const away = switchPreset({}, 'other', 'openai', groq);
     expect(switchPreset(away.remembered, 'openai', 'other', official).values).toEqual(groq);
   });
 
   it('re-picking the current preset changes nothing, even after an edit', () => {
-    const edited = { baseURL: 'https://api.openai.com/v1', model: 'tts-1-hd' };
+    const edited = { ...official, baseURL: 'https://api.openai.com/v1', model: 'tts-1-hd', apiKey: 'sk-rotated' };
     const same = switchPreset({ openai: official }, 'openai', 'openai', edited);
     expect(same.values).toEqual(edited);
     expect(same.remembered).toEqual({ openai: edited });
   });
 
-  it('stores both fields whether or not the preset uses them, and fills a gap from the defaults', () => {
+  it('stores every field whether or not the preset uses it, and fills a gap from the defaults or with a blank', () => {
     // Chatterbox ignores the model, but it is still what the user had, and comes back with the address
-    const { remembered } = switchPreset({}, 'chatterbox', 'other', { baseURL: 'http://nas:8004', model: 'kept' });
-    expect(remembered.chatterbox).toEqual({ baseURL: 'http://nas:8004', model: 'kept' });
-    // A damaged entry missing a field falls back to the preset's default for it
-    const partial = switchPreset({ openai: { baseURL: 'https://api.openai.com/v1' } }, 'other', 'openai', { baseURL: 'http://x', model: 'y' });
-    expect(partial.values).toEqual({ baseURL: 'https://api.openai.com/v1', model: 'gpt-4o-mini-tts' });
+    const kept = { baseURL: 'http://nas:8004', model: 'kept', apiKey: 'unused-but-kept', voices: '', headers: '' };
+    const { remembered } = switchPreset({}, 'chatterbox', 'other', kept);
+    expect(remembered.chatterbox).toEqual(kept);
+    // A damaged entry missing fields falls back to the preset's default for them, else to blank
+    const partial = switchPreset({ openai: { baseURL: 'https://api.openai.com/v1' } }, 'other', 'openai', kept);
+    expect(partial.values).toEqual({ baseURL: 'https://api.openai.com/v1', model: 'gpt-4o-mini-tts', apiKey: '', voices: '', headers: '' });
+  });
+
+  // Issue #52: the key, voices and Extra headers were one set of fields
+  // shared by every server, so a switch carried one server's credentials to
+  // the next — a gateway token typed for Chatterbox went to Xiaomi with the
+  // first MiMo probe. Each server keeps its own now.
+  it("never carries one server's key, voices or headers to another", () => {
+    const away = switchPreset({}, 'chatterbox', 'mimo', own);
+    expect(away.values).toEqual({ ...blank, ...PRESETS.mimo.defaults });
+    const mimo = { ...PRESETS.mimo.defaults, apiKey: 'sk-mimo', voices: '', headers: '' } as typeof own;
+    const onward = switchPreset(away.remembered, 'mimo', 'other', mimo);
+    expect(onward.values).toEqual(blank);
+    const back = switchPreset(onward.remembered, 'other', 'chatterbox', { ...blank, baseURL: 'http://x', model: 'y' });
+    expect(back.values).toEqual(own);
+    expect(back.remembered.mimo).toEqual(mimo);
   });
 
   it('does not touch the memory it was given', () => {
@@ -156,6 +178,7 @@ describe('the Xiaomi MiMo preset', () => {
   it('is remembered like the others', () => {
     const values = { baseURL: 'https://api.xiaomimimo.com', model: 'mimo-v2.5-tts' };
     expect(parsePresetValues(JSON.stringify({ mimo: values }))).toEqual({ mimo: values });
-    expect(switchPreset({}, 'openai', 'mimo', { baseURL: 'https://api.openai.com', model: 'gpt-4o-mini-tts' }).values).toEqual(PRESETS.mimo.defaults);
+    const official = { baseURL: 'https://api.openai.com', model: 'gpt-4o-mini-tts', apiKey: 'sk-live', voices: '', headers: '' };
+    expect(switchPreset({}, 'openai', 'mimo', official).values).toEqual({ apiKey: '', voices: '', headers: '', ...PRESETS.mimo.defaults });
   });
 });

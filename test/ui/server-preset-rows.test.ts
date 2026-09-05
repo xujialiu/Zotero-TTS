@@ -110,8 +110,40 @@ describe('initServerPresetRows', () => {
     expect(t.prefs.store[key('model')]).toBe('tts-1');
     // Both servers' values wait in the pref for the next visit
     expect(JSON.parse(t.prefs.store[key('presetValues')] as string)).toEqual({
-      chatterbox: { baseURL: 'https://h200-chatterbox.example', model: 'tts-1' },
-      openai: { baseURL: 'https://api.openai.com', model: 'gpt-4o-mini-tts' },
+      chatterbox: { baseURL: 'https://h200-chatterbox.example', model: 'tts-1', apiKey: '', voices: '', headers: '' },
+      openai: { baseURL: 'https://api.openai.com', model: 'gpt-4o-mini-tts', apiKey: '', voices: '', headers: '' },
+    });
+  });
+
+  // Issue #52: the key, Voices and Extra headers used to be one set of fields
+  // shared by every server, so a switch carried one server's credentials to
+  // the next. Each server keeps its own now, and a first visit starts empty.
+  it("gives each server its own key, voices and headers, and never another server's", () => {
+    const token = 'CF-Access-Client-Id: a; CF-Access-Client-Secret: b';
+    const t = setup({ [key('server')]: 'chatterbox', [key('baseURL')]: 'http://nas:8004', [key('model')]: 'tts-1', [key('headers')]: token });
+    t.choose('other');
+    expect(t.prefs.store[key('headers')]).toBe('');
+    expect(t.prefs.store[key('apiKey')]).toBe('');
+    expect(t.prefs.store[key('voices')]).toBe('');
+    t.prefs.store[key('apiKey')] = 'gsk-groq';
+    t.prefs.store[key('voices')] = 'Fritz-PlayAI';
+    t.choose('mimo');
+    expect(t.prefs.store[key('apiKey')]).toBe('');
+    expect(t.prefs.store[key('voices')]).toBe('');
+    expect(t.prefs.store[key('headers')]).toBe('');
+    t.choose('chatterbox');
+    expect(t.prefs.store[key('headers')]).toBe(token);
+    expect(t.prefs.store[key('apiKey')]).toBe('');
+    t.choose('other');
+    expect(t.prefs.store[key('apiKey')]).toBe('gsk-groq');
+    expect(t.prefs.store[key('voices')]).toBe('Fritz-PlayAI');
+    expect(t.prefs.store[key('headers')]).toBe('');
+    expect(JSON.parse(t.prefs.store[key('presetValues')] as string).chatterbox).toEqual({
+      baseURL: 'http://nas:8004',
+      model: 'tts-1',
+      apiKey: '',
+      voices: '',
+      headers: token,
     });
   });
 
