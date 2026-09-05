@@ -1,7 +1,8 @@
 import type { ProviderId, TTSProvider } from '../core/providers/types';
 import { LOCAL_ENGINES } from '../core/providers/local/registry';
 import { createProvider, type ProviderDeps } from '../core/providers/factory';
-import { createZoteroPrefs, loadSettings, PREF_PREFIX, type PrefsBackend } from '../core/settings';
+import { type Settings, createZoteroPrefs, loadSettings, PREF_PREFIX, type PrefsBackend } from '../core/settings';
+import { addressHint, addressHintText } from '../core/server-presets';
 import { machineId, renameMachineId } from '../core/machine-id';
 import { getChromeWebSocket, newRequestId } from '../core/providers/azure';
 import { SynthesisError } from '../core/providers/errors';
@@ -345,6 +346,18 @@ function readingTabTitles(): string[] {
  * name would be wrong); the local engine has neither. The server's
  * models, when it lists them, become the Model field's suggestions.
  */
+/**
+ * What a hosted server's Base URL says about the check to come (issue #54):
+ * a typo of the server's own address refuses it before any request — the
+ * key must not go to whoever owns the mistyped domain — and any other
+ * domain gets a note after the result, so a mirror stays usable and seen.
+ */
+export function addressGate(openai: Pick<Settings['openai'], 'server' | 'baseURL'>): { refusal?: string; note?: string } {
+  const hint = addressHint(openai);
+  if (!hint) return {};
+  return hint.kind === 'typo' ? { refusal: `Not tested: ${addressHintText(hint)}` } : { note: addressHintText(hint) };
+}
+
 async function checkProvider(doc: Document, prefs: PrefsBackend, id: ProviderId, deps: ProviderDeps): Promise<ConnectionResult> {
   const settings = loadSettings(prefs);
   let outcome: ConnectionResult;
@@ -352,6 +365,8 @@ async function checkProvider(doc: Document, prefs: PrefsBackend, id: ProviderId,
   // forgives a speech helper that used up its start budget earlier in the
   // session (core/providers/system/daemon.ts MAX_STARTS)
   if (id === 'system') deps.system?.daemon?.reset();
+  const gate = id === 'openai' ? addressGate(settings.openai) : {};
+  if (gate.refusal) return { ok: false, message: gate.refusal };
   try {
     const provider = createProvider(id, settings, deps);
     outcome = await testConnection(provider, {
@@ -362,6 +377,7 @@ async function checkProvider(doc: Document, prefs: PrefsBackend, id: ProviderId,
   } catch (e) {
     outcome = { ok: false, message: `Connection failed: ${String(e)}` };
   }
+  if (gate.note) outcome = { ...outcome, message: `${outcome.message} ${gate.note}` };
   const suggestions = doc.getElementById(`ztts-${id}-models`);
   if (suggestions && outcome.models) {
     suggestions.replaceChildren(

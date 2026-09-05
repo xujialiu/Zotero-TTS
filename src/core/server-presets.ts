@@ -53,6 +53,8 @@ export interface PresetSpec {
   voices?: readonly string[];
   /** The name in front of this server's voices in the player and the voice browser ("MiMo-冰糖"); the section's "OpenAI" when absent. */
   voiceName?: string;
+  /** The server's own hostname, for a hosted service with one address: a Base URL on another host is a typo or a mirror (addressHint, issue #54). */
+  host?: string;
 }
 
 export const PRESETS: Record<ServerPreset, PresetSpec> = {
@@ -60,6 +62,7 @@ export const PRESETS: Record<ServerPreset, PresetSpec> = {
     id: 'openai',
     label: 'OpenAI',
     defaults: { baseURL: 'https://api.openai.com', model: 'gpt-4o-mini-tts' },
+    host: 'api.openai.com',
     uses: { apiKey: true, baseURL: true, model: true, voices: true, headers: false },
     note: "Key and model from platform.openai.com; Voices may stay empty (OpenAI's own) or list newer ones. Extra headers are not needed for api.openai.com.",
     synthesis: 'speech',
@@ -76,6 +79,7 @@ export const PRESETS: Record<ServerPreset, PresetSpec> = {
     id: 'mimo',
     label: 'Xiaomi MiMo',
     defaults: { baseURL: 'https://api.xiaomimimo.com', model: 'mimo-v2.5-tts' },
+    host: 'api.xiaomimimo.com',
     // A fixed hosted endpoint, like api.openai.com: no gateway of the user's
     // sits in front of it, and a token typed for another server must not
     // travel with every request (issue #52)
@@ -190,4 +194,48 @@ export function switchPreset(
   const leaving = Object.fromEntries(PRESET_FIELDS.map((field) => [field, current[field]])) as PresetFields;
   const filed: PresetValues = { ...remembered, [from]: leaving };
   return { remembered: filed, values: { ...BLANK_FIELDS, ...PRESETS[to].defaults, ...filed[to] } };
+}
+
+/** What the Base URL of a hosted preset says: `typo`, within two edits of the server's own hostname; `different`, any other host — a mirror or a proxy. */
+export type AddressHint = { kind: 'typo' | 'different'; host: string; known: string };
+
+/** Levenshtein distance; hostnames are short, so the plain table will do. */
+function editDistance(a: string, b: string): number {
+  let previous = Array.from({ length: b.length + 1 }, (_, j) => j);
+  for (let i = 1; i <= a.length; i++) {
+    const current = [i];
+    for (let j = 1; j <= b.length; j++) {
+      current[j] = Math.min(previous[j] + 1, current[j - 1] + 1, previous[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    }
+    previous = current;
+  }
+  return previous[b.length];
+}
+
+/**
+ * Issue #54: `https://api.xiaomimim.com` — one letter short — fails as
+ * "Cannot reach …" and the eye skips the missing letter, and a registered
+ * typo domain would get the key with the first probe. For a preset with a
+ * fixed host, the typed hostname within two edits of it is a typo (an
+ * address a real mirror never has), any other host a different address;
+ * silent for the server's own address whatever the scheme, case, path or
+ * trailing slash, for a preset without a fixed host, and for an address
+ * that does not parse (Test connection reports that on its own).
+ */
+export function addressHint(openai: Pick<Settings['openai'], 'server' | 'baseURL'>): AddressHint | null {
+  const known = presetSpec(openai).host;
+  if (!known) return null;
+  let host: string;
+  try {
+    host = new URL(openai.baseURL.trim()).hostname.toLowerCase();
+  } catch {
+    return null;
+  }
+  if (!host || host === known) return null;
+  return { kind: editDistance(host, known) <= 2 ? 'typo' : 'different', host, known };
+}
+
+/** The hint as the one sentence the status line shows. */
+export function addressHintText(hint: AddressHint): string {
+  return hint.kind === 'typo' ? `${hint.host} looks like a typo of ${hint.known}.` : `${hint.host} is not ${hint.known}: a mirror or a proxy?`;
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { applyPreset, parsePresetValues, PRESETS, SERVER_PRESETS, serverPreset, switchPreset } from '../../src/core/server-presets';
+import { addressHint, addressHintText, applyPreset, parsePresetValues, PRESETS, SERVER_PRESETS, serverPreset, switchPreset } from '../../src/core/server-presets';
 import { DEFAULTS } from '../../src/core/settings';
 
 const openai = (over: Partial<typeof DEFAULTS.openai>) => ({ ...DEFAULTS.openai, ...over });
@@ -180,5 +180,48 @@ describe('the Xiaomi MiMo preset', () => {
     expect(parsePresetValues(JSON.stringify({ mimo: values }))).toEqual({ mimo: values });
     const official = { baseURL: 'https://api.openai.com', model: 'gpt-4o-mini-tts', apiKey: 'sk-live', voices: '', headers: '' };
     expect(switchPreset({}, 'openai', 'mimo', official).values).toEqual({ apiKey: '', voices: '', headers: '', ...PRESETS.mimo.defaults });
+  });
+});
+
+// Issue #54: a one-letter typo in a hosted preset's address is hard to
+// notice, and the first probe sends the key to whoever owns the mistyped
+// domain. The two hosted presets know their server's hostname.
+describe('addressHint', () => {
+  it('knows the hostname of the two hosted servers only', () => {
+    expect(PRESETS.openai.host).toBe('api.openai.com');
+    expect(PRESETS.mimo.host).toBe('api.xiaomimimo.com');
+    expect(PRESETS.chatterbox.host).toBeUndefined();
+    expect(PRESETS.other.host).toBeUndefined();
+  });
+
+  it("is silent for a preset without a fixed host, an address that does not parse, and the server's own address", () => {
+    expect(addressHint({ server: 'chatterbox', baseURL: 'http://nas:8004' })).toBeNull();
+    expect(addressHint({ server: 'other', baseURL: 'https://api.xiaomimim.com' })).toBeNull();
+    expect(addressHint({ server: 'mimo', baseURL: 'https://api.xiaomimimo.com' })).toBeNull();
+    expect(addressHint({ server: 'mimo', baseURL: ' https://API.xiaomimimo.com/v1/ ' })).toBeNull();
+    expect(addressHint({ server: 'openai', baseURL: 'not a url' })).toBeNull();
+    expect(addressHint({ server: 'openai', baseURL: '' })).toBeNull();
+    // Settings saved before the dropdown: the preset is guessed from the address itself
+    expect(addressHint({ server: '', baseURL: 'https://api.openai.com' })).toBeNull();
+    expect(addressHint({ server: '', baseURL: 'https://api.openai.con' })).toBeNull();
+  });
+
+  it('calls an address within two edits of the host a typo', () => {
+    expect(addressHint({ server: 'mimo', baseURL: 'https://api.xiaomimim.com' })).toEqual({ kind: 'typo', host: 'api.xiaomimim.com', known: 'api.xiaomimimo.com' });
+    expect(addressHint({ server: 'openai', baseURL: 'https://api.openai.con/v1' })).toEqual({ kind: 'typo', host: 'api.openai.con', known: 'api.openai.com' });
+    expect(addressHint({ server: 'mimo', baseURL: 'https://api.xiaomimimo.cm' })).toMatchObject({ kind: 'typo' });
+    expect(addressHint({ server: 'mimo', baseURL: 'https://api.xiaomimmio.com' })).toMatchObject({ kind: 'typo' });
+    expect(addressHint({ server: 'openai', baseURL: 'https://api.openai.com.' })).toMatchObject({ kind: 'typo' });
+  });
+
+  it('calls any other domain a different address, never a typo', () => {
+    expect(addressHint({ server: 'openai', baseURL: 'https://api.chatanywhere.tech' })).toEqual({ kind: 'different', host: 'api.chatanywhere.tech', known: 'api.openai.com' });
+    expect(addressHint({ server: 'mimo', baseURL: 'https://mimo.corp.example:8443/v1' })).toMatchObject({ kind: 'different', host: 'mimo.corp.example' });
+    expect(addressHint({ server: 'openai', baseURL: 'https://my-resource.openai.azure.com' })).toMatchObject({ kind: 'different' });
+  });
+
+  it('words the hint as one sentence', () => {
+    expect(addressHintText({ kind: 'typo', host: 'api.xiaomimim.com', known: 'api.xiaomimimo.com' })).toBe('api.xiaomimim.com looks like a typo of api.xiaomimimo.com.');
+    expect(addressHintText({ kind: 'different', host: 'api.example.com', known: 'api.openai.com' })).toBe('api.example.com is not api.openai.com: a mirror or a proxy?');
   });
 });

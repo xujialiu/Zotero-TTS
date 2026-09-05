@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { SynthesisError } from '../../src/core/providers/errors';
 import type { TTSProvider } from '../../src/core/providers/types';
-import { engineLabel, rankModelsForSpeech, registerPrefsPane, testConnection, unregisterPrefsPane } from '../../src/ui/prefs-pane';
+import { engineLabel, rankModelsForSpeech, registerPrefsPane, testConnection, unregisterPrefsPane, addressGate } from '../../src/ui/prefs-pane';
 
 describe('engineLabel', () => {
   it('names the configured engine from the registry, falling back to the id', () => {
@@ -320,5 +320,26 @@ describe('unregisterPrefsPane', () => {
     } finally {
       delete (globalThis as any).Zotero;
     }
+  });
+});
+
+// Issue #54: a typo of a hosted server's address stops the check before any
+// request; a different domain is tested and told apart in the result.
+describe('addressGate', () => {
+  it('refuses a typo before anything is sent, naming the right address', () => {
+    expect(addressGate({ server: 'mimo', baseURL: 'https://api.xiaomimim.com' })).toEqual({
+      refusal: 'Not tested: api.xiaomimim.com looks like a typo of api.xiaomimimo.com.',
+    });
+  });
+
+  it('lets a different domain through with a note for the result line', () => {
+    expect(addressGate({ server: 'openai', baseURL: 'https://api.chatanywhere.tech/v1' })).toEqual({
+      note: 'api.chatanywhere.tech is not api.openai.com: a mirror or a proxy?',
+    });
+  });
+
+  it("says nothing for the server's own address or a preset without one", () => {
+    expect(addressGate({ server: 'mimo', baseURL: 'https://api.xiaomimimo.com' })).toEqual({});
+    expect(addressGate({ server: 'other', baseURL: 'https://api.xiaomimim.com' })).toEqual({});
   });
 });

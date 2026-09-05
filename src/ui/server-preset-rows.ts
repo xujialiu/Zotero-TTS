@@ -1,5 +1,5 @@
 import { loadSettings, PREF_PREFIX, type PrefsBackend } from '../core/settings';
-import { parsePresetValues, PRESETS, SERVER_PRESETS, serverPreset, switchPreset, type OpenAIField, type ServerPreset } from '../core/server-presets';
+import { addressHint, addressHintText, parsePresetValues, PRESETS, SERVER_PRESETS, serverPreset, switchPreset, type OpenAIField, type ServerPreset } from '../core/server-presets';
 import { HELP_ATTRIBUTE } from './help-tips';
 
 /**
@@ -16,6 +16,8 @@ import { HELP_ATTRIBUTE } from './help-tips';
 
 export const SERVER_MENU_ID = 'ztts-openai-server';
 export const SERVER_HELP_ID = 'ztts-openai-server-help';
+/** The section's status line, where Test connection writes (ui/provider-rows.ts); the Base URL hint of issue #54 goes there as it is typed. */
+export const SERVER_STATUS_ID = 'ztts-test-result-openai';
 export const FIELD_IDS: Record<OpenAIField, string> = {
   apiKey: 'ztts-openai-apiKey',
   baseURL: 'ztts-openai-baseURL',
@@ -27,6 +29,7 @@ export const FIELD_IDS: Record<OpenAIField, string> = {
 interface ElementLike {
   value?: string;
   disabled?: boolean;
+  textContent?: string;
   setAttribute(name: string, value: string): void;
   addEventListener(type: string, fn: () => void): void;
 }
@@ -47,6 +50,8 @@ export function initServerPresetRows(doc: RowsDocument, prefs: PrefsBackend): { 
       if (el) el.disabled = !spec.uses[field];
     }
     doc.getElementById(SERVER_HELP_ID)?.setAttribute(HELP_ATTRIBUTE, spec.note);
+    // The right address stays in view: clearing the field shows it (issue #54)
+    doc.getElementById(FIELD_IDS.baseURL)?.setAttribute('placeholder', spec.defaults.baseURL ?? '');
   };
 
   const refresh = () => render(serverPreset(loadSettings(prefs).openai));
@@ -63,6 +68,17 @@ export function initServerPresetRows(doc: RowsDocument, prefs: PrefsBackend): { 
     prefs.set(pref('server'), id);
     for (const [key, value] of Object.entries(values)) prefs.set(pref(key), value);
     render(id);
+  });
+
+  // A wrong address is named as it is typed — a typo of the server's own,
+  // or another domain — in the line Test connection writes to, which then
+  // refuses the typo before any request (prefs-pane.ts addressGate, issue #54)
+  const address = doc.getElementById(FIELD_IDS.baseURL);
+  address?.addEventListener('input', () => {
+    const status = doc.getElementById(SERVER_STATUS_ID);
+    if (!status) return;
+    const hint = addressHint({ server: loadSettings(prefs).openai.server, baseURL: address.value ?? '' });
+    status.textContent = hint ? addressHintText(hint) : '';
   });
 
   refresh();

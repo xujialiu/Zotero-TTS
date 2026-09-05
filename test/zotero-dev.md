@@ -106,8 +106,17 @@ it measured, updated for the fixes since where marked.
    never a value) and the switch back restores it byte-identical (compare
    a hash); a key typed under MiMo is gone under Other and back under
    MiMo the same way; a server never visited starts with all three
-   empty; the `?` beside the dropdown carries the preset's note. Enable
-   again at the end.
+   empty. **A wrong address is named** (issue #54, 1.10.10): under MiMo,
+   the Base URL input's `placeholder` is `https://api.xiaomimimo.com`;
+   typing `https://api.xiaomimim.com` (an `input` event) puts
+   `api.xiaomimim.com looks like a typo of api.xiaomimimo.com.` in the
+   status line at once, and Test connection then answers `Not tested:
+   api.xiaomimim.com looks like a typo of api.xiaomimimo.com.` within a
+   few ms with no request made (no `Cannot reach` in the debug store);
+   `https://mimo.corp.example` runs the test and its result ends
+   `mimo.corp.example is not api.xiaomimimo.com: a mirror or a proxy?`;
+   the own address gets no note. The `?` beside the dropdown carries the
+   preset's note. Enable again at the end.
    **Xiaomi MiMo** (1.10.10, issue #50; needs a MiMo key in
    `openai.apiKey` — free at platform.xiaomimimo.com — and is NOT
    TESTABLE without one, said so): Disable → the dropdown to *Xiaomi

@@ -82,7 +82,10 @@ one. For Kokoro use the **Kokoro-FastAPI** section instead: that is what
 gets you word-level highlighting. *Xiaomi MiMo* takes the key from
 platform.xiaomimimo.com and, while **Voices** is empty, offers MiMo's
 built-in Chinese and English voices; its speech carries no word timings,
-so sentences are highlighted.
+so sentences are highlighted. With *OpenAI* or *Xiaomi MiMo* chosen, an
+address one or two letters off the server's own is refused as a typo before
+anything is sent, and any other address is tested with a note that it is
+not the server's own — a mirror or a proxy.
 
 </details>
 

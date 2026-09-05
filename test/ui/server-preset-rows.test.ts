@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { PRESETS, SERVER_PRESETS } from '../../src/core/server-presets';
 import { PREF_PREFIX, type PrefsBackend } from '../../src/core/settings';
-import { FIELD_IDS, initServerPresetRows, SERVER_HELP_ID, SERVER_MENU_ID } from '../../src/ui/server-preset-rows';
+import { FIELD_IDS, initServerPresetRows, SERVER_HELP_ID, SERVER_MENU_ID, SERVER_STATUS_ID } from '../../src/ui/server-preset-rows';
 
 function fakePrefs(initial: Record<string, unknown> = {}): PrefsBackend & { store: Record<string, unknown> } {
   const store = { ...initial };
@@ -12,6 +12,7 @@ function fakePrefs(initial: Record<string, unknown> = {}): PrefsBackend & { stor
 class FakeElement {
   value = '';
   disabled = false;
+  textContent = '';
   attrs = new Map<string, string>();
   listeners = new Map<string, Array<() => void>>();
   setAttribute(k: string, v: string) {
@@ -29,7 +30,7 @@ class FakeElement {
 const key = (k: string) => `${PREF_PREFIX}openai.${k}`;
 
 function setup(initial: Record<string, unknown> = {}) {
-  const ids = [SERVER_MENU_ID, SERVER_HELP_ID, ...Object.values(FIELD_IDS)];
+  const ids = [SERVER_MENU_ID, SERVER_HELP_ID, SERVER_STATUS_ID, ...Object.values(FIELD_IDS)];
   const els = new Map(ids.map((id) => [id, new FakeElement()]));
   const doc = { getElementById: (id: string) => els.get(id) ?? null };
   const prefs = fakePrefs(initial);
@@ -46,6 +47,14 @@ function setup(initial: Record<string, unknown> = {}) {
       menu.value = id;
       menu.fire('command');
     },
+    // Typing into the Base URL field: the bound input's own value, not yet the pref
+    type(url: string) {
+      const address = els.get(FIELD_IDS.baseURL)!;
+      address.value = url;
+      address.fire('input');
+    },
+    placeholder: () => els.get(FIELD_IDS.baseURL)!.attrs.get('placeholder'),
+    status: () => els.get(SERVER_STATUS_ID)!.textContent,
   };
 }
 
@@ -198,5 +207,39 @@ describe('addon/content/preferences.xhtml', () => {
     expect(xhtml).not.toContain('ztts-openai-server-note');
     // One menu item per preset, in the dropdown's order
     for (const id of SERVER_PRESETS) expect(xhtml, id).toContain(`<menuitem value="${id}"`);
+  });
+});
+
+// Issue #54: the right address is always in view, and a wrong one is named
+// as it is typed — before Test connection, which refuses a typo anyway.
+describe('the Base URL of a hosted preset', () => {
+  it("shows the preset's default address as the placeholder", () => {
+    const t = setup();
+    expect(t.placeholder()).toBe('https://api.openai.com');
+    t.choose('mimo');
+    expect(t.placeholder()).toBe('https://api.xiaomimimo.com');
+    t.choose('other');
+    expect(t.placeholder()).toBe('');
+  });
+
+  it('names a typo or a foreign domain in the status line as it is typed, and clears it for the own address', () => {
+    const t = setup({ [key('server')]: 'mimo', [key('baseURL')]: 'https://api.xiaomimimo.com' });
+    t.type('https://api.xiaomimim.com');
+    expect(t.status()).toBe('api.xiaomimim.com looks like a typo of api.xiaomimimo.com.');
+    t.type('https://mimo.corp.example');
+    expect(t.status()).toBe('mimo.corp.example is not api.xiaomimimo.com: a mirror or a proxy?');
+    t.type('https://api.xiaomimimo.com/v1');
+    expect(t.status()).toBe('');
+  });
+
+  it('says nothing while typing for a server without a fixed address', () => {
+    const t = setup({ [key('server')]: 'chatterbox', [key('baseURL')]: 'http://localhost:8004' });
+    t.type('http://nas:8004');
+    expect(t.status()).toBe('');
+  });
+
+  it('has the status line in the markup, where Test connection writes', () => {
+    const xhtml = readFileSync(new URL('../../addon/content/preferences.xhtml', import.meta.url), 'utf8');
+    expect(xhtml).toContain(`id="${SERVER_STATUS_ID}"`);
   });
 });
