@@ -130,6 +130,14 @@ documents, settings backup/restore (file or WebDAV), highlight colors.
   before the commit that closes the issue, and it is about this change —
   NOTES.md still gets the durable Zotero knowledge, and neither copies the
   other.
+  **An issue opened by someone outside the project gets a reply before it
+  closes** (settled 2026-09-06, issue #50): a couple of plain lines that
+  read like a person wrote them — thanks for the report or suggestion, it
+  is done, the released version it is in, and a star if they like the
+  plugin — in the reporter's language, posted once that version is
+  actually released so they can install it. It sits beside the closing
+  summary, not instead of it, and nothing in it reads like a generated
+  changelog.
   **Never hard-wrap an issue or comment body** (settled 2026-08-30):
   GitHub renders issue, PR and comment Markdown with `breaks: true`, so
   every single newline becomes a `<br>` and a paragraph wrapped at 80

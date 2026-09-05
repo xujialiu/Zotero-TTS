@@ -124,7 +124,9 @@ start over.
    selected tier (reader.js:81994-81996) and `_applyVoice` drops an id
    outside it — `_voice` null, controller destroyed, no error
    (2026-09-04). Resuming after a voice change needs a fresh
-   `notifyUserGestureActivation()`. While the selected id has no `::`
+   `reader._iframeWindow.document.notifyUserGestureActivation()` — on the
+   reader iframe's *document*; `windowUtils` has no such method in this
+   Firefox (2026-09-06). While the selected id has no `::`
    (a metered voice), resume, poll and pause go in the SAME script —
    every bridge round trip is billed audio, and a check capped at four
    sentences ran thirteen once. Walking reader-compartment arrays from
@@ -136,8 +138,11 @@ start over.
 6. `zotero_screenshot` (target `window`, the id from `zotero_list_windows`)
    for layout checks. `zotero_read_errors` at the end: report anything from
    the plugin (`[zotero-tts]`, `zotero-tts.js` in a stack); Zotero's own
-   noise (`selectionRanges`, missing `.ftl` locale resources) is not a
-   finding. A burst of `can't access dead object` at the second of an
+   noise (`selectionRanges`, missing `.ftl` locale resources, two `uncaught
+   exception: undefined` per in-place install) is not a finding, and neither
+   is Zotero One (`zoteroif@qnscholar`) throwing `OperationError …
+   NS_ERROR_FILE_UNRECOGNIZED_PATH` from its Obsidian delete listener when a
+   fixture is erased (2026-09-06). A burst of `can't access dead object` at the second of an
    in-place upgrade was the teardown bug of issue #5, fixed in 1.8.3
    (notes/NOTES.md): from that build on it is a regression, not background
    noise — report it with its timestamp and its count. `zotero_clear_logs` clears
