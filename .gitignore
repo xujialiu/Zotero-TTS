@@ -8,3 +8,6 @@ docs/
 
 # Private notes (billing account ids, cloud setup) — never committed.
 secrets/
+
+# Icon design drafts (npm-less scratch, never committed).
+icons/
