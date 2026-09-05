@@ -209,7 +209,12 @@ start over.
 - Leave the user's Zotero as found. Read a pref before changing it and
   restore it in a `finally` of the same script. Never print an API key or a
   pref that may hold one (`apiKey`, `headers`, `password`): report "set"
-  or its length.
+  or its length. A bulk read is where that goes wrong — a baseline
+  snapshot of "all our prefs", a `zotero_search_prefs`, an inspect of the
+  settings object — so name the prefs you read and map the secret ones to
+  their length inside the script, before the value can reach a tool result
+  (2026-09-05: a baseline dump put a live Cloudflare Access service token
+  in a transcript).
 - Read Aloud sessions belong to the user. A session that is `active`
   (paused counts) blocks adding voices by design — that refusal is a
   behavior to verify, not an obstacle. Close a session only when the brief
