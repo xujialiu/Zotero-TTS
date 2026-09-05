@@ -68,8 +68,11 @@ export const PRESETS: Record<ServerPreset, PresetSpec> = {
     id: 'mimo',
     label: 'Xiaomi MiMo',
     defaults: { baseURL: 'https://api.xiaomimimo.com', model: 'mimo-v2.5-tts' },
-    uses: { apiKey: true, baseURL: true, model: true, voices: true, headers: true },
-    note: "Key from platform.xiaomimimo.com; free for now. Voices may stay empty for MiMo's built-in voices (Chinese and English) or list your own. Sentences are highlighted, not words: MiMo reports no word timings.",
+    // A fixed hosted endpoint, like api.openai.com: no gateway of the user's
+    // sits in front of it, and a token typed for another server must not
+    // travel with every request (issue #52)
+    uses: { apiKey: true, baseURL: true, model: true, voices: true, headers: false },
+    note: "Key from platform.xiaomimimo.com; free for now. Voices may stay empty for MiMo's built-in voices (Chinese and English) or list your own. Sentences are highlighted, not words: MiMo reports no word timings. Extra headers are not needed for api.xiaomimimo.com.",
     synthesis: 'chat',
     // The built-in voices of mimo-v2.5-tts, from the platform's documentation
     // (verified live 2026-09-06); the server has no /v1/audio/voices.

@@ -106,7 +106,8 @@ it measured, updated for the fixes since where marked.
    `openai.apiKey` — free at platform.xiaomimimo.com — and is NOT
    TESTABLE without one, said so): Disable → the dropdown to *Xiaomi
    MiMo* → Base URL `https://api.xiaomimimo.com` and Model
-   `mimo-v2.5-tts` written, no field grayed, the `?` carrying the
+   `mimo-v2.5-tts` written, Extra headers grayed and nothing else (as
+   for OpenAI), the `?` carrying the
    preset's note (derive from `PRESETS.mimo.note`), Voices empty. Test
    connection → `Connected. Model mimo-v2.5-tts available. 9 voices
    available. Synthesis works.` — the probe is one two-character chat

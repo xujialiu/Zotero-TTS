@@ -129,12 +129,14 @@ describe('the Xiaomi MiMo preset', () => {
     expect(SERVER_PRESETS).toEqual(['openai', 'chatterbox', 'mimo', 'other']);
   });
 
-  it('fills in the platform address and the TTS model, and disables nothing', () => {
+  it('fills in the platform address and the TTS model, and takes no Extra headers, like OpenAI', () => {
     expect(PRESETS.mimo.label).toBe('Xiaomi MiMo');
     expect(PRESETS.mimo.defaults).toEqual({ baseURL: 'https://api.xiaomimimo.com', model: 'mimo-v2.5-tts' });
-    expect(Object.values(PRESETS.mimo.uses).every(Boolean)).toBe(true);
-    const mimo = openai({ server: 'mimo', apiKey: 'sk-mimo', voices: '冰糖', headers: 'X: y' });
-    expect(applyPreset(mimo)).toEqual(mimo);
+    // A fixed hosted endpoint with no gateway of the user's in front: a token
+    // typed for another server must not travel with every request (issue #52)
+    expect(PRESETS.mimo.uses).toEqual({ apiKey: true, baseURL: true, model: true, voices: true, headers: false });
+    const mimo = openai({ server: 'mimo', apiKey: 'sk-mimo', voices: '冰糖', headers: 'CF-Access-Client-Id: x' });
+    expect(applyPreset(mimo)).toEqual({ ...mimo, headers: '' });
   });
 
   it('synthesizes through the chat completions route, where every other preset uses the speech route', () => {

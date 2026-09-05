@@ -92,10 +92,17 @@ describe('the Xiaomi MiMo preset', () => {
         ? new Response(JSON.stringify({ choices: [{ message: { audio: { data: btoa('mp3') } } }] }), { status: 200 })
         : new Response('', { status: 404 }),
     );
-    const settings = { ...DEFAULTS, openai: { ...DEFAULTS.openai, ...PRESETS.mimo.defaults, server: 'mimo', apiKey: 'k' } };
+    const settings = {
+      ...DEFAULTS,
+      openai: { ...DEFAULTS.openai, ...PRESETS.mimo.defaults, server: 'mimo', apiKey: 'k', headers: 'CF-Access-Client-Id: left-over' },
+    };
     const p = createProvider('openai', settings, { ...deps, fetch: fetchImpl as unknown as typeof fetch });
     const result = await p.synthesize('Hello', { voice: '冰糖', signal: new AbortController().signal });
-    expect((fetchImpl as any).mock.calls[0][0]).toBe('https://api.xiaomimimo.com/v1/chat/completions');
+    const [url, init] = (fetchImpl as any).mock.calls[0];
+    expect(url).toBe('https://api.xiaomimimo.com/v1/chat/completions');
+    // The key goes; a gateway token left over from another server does not (issue #52)
+    expect(init.headers).toMatchObject({ Authorization: 'Bearer k' });
+    expect(init.headers).not.toHaveProperty('CF-Access-Client-Id');
     expect(await result.audio.text()).toBe('mp3');
     expect((await p.listVoices()).map((v) => v.id)).toEqual([...PRESETS.mimo.voices!]);
   });
