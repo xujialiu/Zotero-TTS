@@ -84,6 +84,7 @@ function setup(over: Partial<ReadAloudShortcutsDeps> = {}) {
   const resumeLastPosition = vi.fn(() => true);
   const optionsButton = { click: vi.fn() };
   const findOptionsButton = vi.fn((_reader: unknown) => optionsButton as { click(): void } | null);
+  const rememberSpeed = vi.fn((_speed: number) => {});
   const log = vi.fn();
   const shortcuts = createReadAloudShortcuts({
     getBindings: () => BINDINGS,
@@ -98,6 +99,7 @@ function setup(over: Partial<ReadAloudShortcutsDeps> = {}) {
     emitState,
     resumeLastPosition,
     findOptionsButton,
+    rememberSpeed,
     log,
     ...over,
   });
@@ -110,6 +112,7 @@ function setup(over: Partial<ReadAloudShortcutsDeps> = {}) {
     lockPosition,
     canReadAloud,
     hasSelection,
+    rememberSpeed,
     startReadAloud,
     togglePaused,
     emitState,
@@ -186,38 +189,57 @@ describe('handleKeyDown', () => {
     expect(voicesPref(prefs)).toEqual({ en: { speed: 1.6 } });
   });
 
-  // An idle manager on a tag no key resolves — an EPUB declaring en_US — is
-  // read by Zotero under that tag (issue #26): the speed goes into that entry,
-  // and the en entry, which every other English document reads, stays as it was
-  it('persists under the manager’s own tag when no entry resolves, leaving the base language alone', () => {
+  // An idle manager on a tag no key resolves — an EPUB declaring en_US, a PDF
+  // whose /Lang says EN — is read by Zotero under that tag (issue #26), but
+  // Zotero never creates such an entry: it moves the manager to a language
+  // it has a voice for before it persists (issue #59). So the pref is left
+  // alone — the en entry, which every other English document reads, above
+  // all — and the speed goes to the memory, which reaches the document once
+  // memory-sync restores again on the language Zotero moved it to
+  it('leaves the pref alone on a tag Zotero never persists under, and hands the speed to the memory', () => {
     const preferredLanguages = vi.fn(() => ['en-US', 'en']);
-    const { shortcuts, manager, prefs, resolve } = setup({ preferredLanguages });
+    const { shortcuts, manager, prefs, rememberSpeed, resolve } = setup({ preferredLanguages });
     manager.active = false;
     manager.lang = 'en_US';
     manager.speed = 1;
     prefs.set(READ_ALOUD_VOICES_PREF, JSON.stringify({ en: { speed: 1.7 } }));
     shortcuts.handleKeyDown(keyEvent({ key: 'C', code: 'KeyC' }), resolve);
     expect(manager.setSpeed).toHaveBeenCalledWith(1.1, false);
-    expect(voicesPref(prefs)).toEqual({ en: { speed: 1.7 }, en_US: { speed: 1.1 } });
+    expect(voicesPref(prefs)).toEqual({ en: { speed: 1.7 } });
+    expect(rememberSpeed).toHaveBeenCalledWith(1.1);
     expect(preferredLanguages).toHaveBeenCalled();
   });
 
+  // A profile with no entry at all and no reader: every-entry has nothing to
+  // update, and the memory is the only place the speed can go
+  it('hands the speed to the memory when there is no entry to write it into', () => {
+    const { shortcuts, prefs, rememberSpeed, showToast, reader, resolve } = setup({ getManager: () => null });
+    expect(shortcuts.handleKeyDown(keyEvent({ key: 'C', code: 'KeyC' }), resolve)).toBe(true);
+    expect(prefs.store[READ_ALOUD_VOICES_PREF]).toBeUndefined();
+    expect(rememberSpeed).toHaveBeenCalledWith(1.1);
+    expect(showToast).toHaveBeenCalledWith(reader, 1.1);
+  });
+
   it('falls back to the pref alone when the reader has no manager', () => {
-    const { shortcuts, prefs, reader, showToast, resolve } = setup({ getManager: () => null });
+    const { shortcuts, prefs, reader, showToast, rememberSpeed, resolve } = setup({ getManager: () => null });
     prefs.set(READ_ALOUD_VOICES_PREF, JSON.stringify({ en: { speed: 1.5 } }));
     expect(shortcuts.handleKeyDown(keyEvent({ key: 'C', code: 'KeyC' }), resolve)).toBe(true);
     expect(voicesPref(prefs)).toEqual({ en: { speed: 1.6 } });
     expect(showToast).toHaveBeenCalledWith(reader, 1.6);
+    // The pref carried it: memory-sync's observer learns it from there
+    expect(rememberSpeed).not.toHaveBeenCalled();
   });
 
   it('treats a manager lookup that throws as no manager, and records it', () => {
-    const { shortcuts, prefs, log, resolve } = setup({
+    const { shortcuts, prefs, rememberSpeed, log, resolve } = setup({
       getManager: () => {
         throw new Error('dead window');
       },
     });
     expect(shortcuts.handleKeyDown(keyEvent({ key: 'C', code: 'KeyC' }), resolve)).toBe(true);
-    expect(voicesPref(prefs)).toEqual({});
+    // No entry to carry it: the memory gets the speed
+    expect(prefs.store[READ_ALOUD_VOICES_PREF]).toBeUndefined();
+    expect(rememberSpeed).toHaveBeenCalledWith(1.1);
     expect(log).toHaveBeenCalled();
   });
 

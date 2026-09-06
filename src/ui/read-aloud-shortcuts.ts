@@ -71,6 +71,12 @@ export interface ReadAloudShortcutsDeps {
   getManager(reader: unknown): ReadAloudManagerLike | null;
   /** What Zotero's resolveLanguage reads as `navigator.languages` when it picks among regional entries of the pref: a reader window's, since the sandbox has none. Absent or empty, Zotero's default regions decide. */
   preferredLanguages?(): readonly string[];
+  /**
+   * A speed the pref cannot carry: the manager sits on a tag Zotero never
+   * persists under (a PDF's raw `/Lang`, issue #59), or no entry exists at
+   * all. memory-sync learns it the way its pref observer would have.
+   */
+  rememberSpeed?(speed: number): void;
   showToast?(reader: unknown, speed: number): void;
   /** After a skip, what the popup's own buttons do: lock the view to the spoken position, so it follows again. */
   lockPosition?(reader: unknown): void;
@@ -206,8 +212,9 @@ export function createReadAloudShortcuts(deps: ReadAloudShortcutsDeps): ReadAlou
       }
     }
     // With no language known the pref is updated for every language: the
-    // user asked for a speed, not for a speed in one language.
-    if (!persistedByZotero) persistSpeed(deps.prefs, lang, next, preferred);
+    // user asked for a speed, not for a speed in one language. A speed the
+    // pref cannot carry at all goes to the memory instead (issue #59).
+    if (!persistedByZotero && !persistSpeed(deps.prefs, lang, next, preferred)) deps.rememberSpeed?.(next);
 
     deps.showToast?.(reader, next);
     return next;

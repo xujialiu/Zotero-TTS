@@ -90,6 +90,12 @@ import { PLUGIN_TIER, type ListedVoice } from './voice-catalog';
  * attached from the renderToolbar event and, as the safety net, from the
  * plugin's getVoices — which Zotero calls synchronously right before the
  * sync that matters.
+ *
+ * A third hook, on the manager itself, supplies the restore Zotero lacks
+ * for a document whose own language tag no voice matches (issue #59, see
+ * attachMoveHook): Zotero moves such a manager to another language once
+ * the list lands and never restores again, so the wrapper above — and
+ * Zotero's restore behind it — run once more, on the language it moved to.
  */
 
 /** Zotero.Prefs.registerObserver takes names relative to `extensions.zotero.`. */
@@ -181,6 +187,15 @@ export interface ReadAloudMemorySync {
   reconcile(reader: unknown, voices: ListedVoices): void;
   /** Whether this reader's last sync started with a substitute: the voice that was not offered and the one put in its place (null: Zotero's own choice); null when the remembered voice was offered. */
   substitution(reader: unknown): Substitution | null;
+  /**
+   * A speed the pref could not carry — a shortcut on a manager whose tag
+   * Zotero never persists under, a profile with no entry at all (issue
+   * #59) — learned as the observer learns one from the pref: the memory,
+   * then the spread while "one speed everywhere" is on.
+   */
+  learnSpeed(speed: number): void;
+  /** How often this reader's manager was restored again after Zotero moved its language inside a resolution of its own (issue #59), and the last such move; null when never. */
+  resyncs(reader: unknown): MoveRecord | null;
   /** Prototypes held by the pick hooks, and how many of them a closed tab has not taken with it. */
   patchCounts(): { total: number; live: number };
   dispose(): void;
@@ -199,6 +214,13 @@ export interface Substitution {
   missing: string;
   /** The Local voice put in its place for this open; null when the list offered none and the choice was left to Zotero. */
   instead: string | null;
+}
+
+/** The re-syncs a reader's manager got after Zotero moved its language (issue #59). */
+export interface MoveRecord {
+  count: number;
+  /** The last move, `EN -> en`. */
+  last: string;
 }
 
 export type SyncMethod = (...args: unknown[]) => unknown;
@@ -619,6 +641,86 @@ export function createReadAloudMemorySync(deps: ReadAloudMemoryDeps): ReadAloudM
   }
 
   /**
+   * The restore Zotero lacks (issue #59). A document's own language tag —
+   * `EN`, `English`, the `/Lang` of 250 of this library's PDFs — reaches
+   * the manager as its language, and Zotero's only restore of a fresh tab
+   * runs on it and finds no entry. Once the list lands, `_resolveVoice`
+   * finds no voice for the tag and moves the manager to the first language
+   * it has one for (reader.js ~82419, `resolveLanguage(lang, languages) ||
+   * languages[0]`), and nothing restores again: the entry of the language
+   * the document now reads in — the user's English voice and speed — is
+   * never applied, and Zotero's fallback picks the voice, a metered one
+   * included. So `_resolveVoice` is shadowed on the manager itself — an own
+   * property, as the wrapper above is on the internal reader, delegating to
+   * whatever the prototype holds when called: system-voices.ts shadows the
+   * same method on the prototype, and a second prototype shadow would leave
+   * a zombie wrapper on dispose, since index.ts disposes this sync first
+   * (the #38 shape). When the language before and after the call differ,
+   * the move was Zotero's own (`_pendingSetVoice` was not set: not the
+   * dropdown, not a tier pick) and the call is not inside this hook's own
+   * re-sync, Zotero's restore runs once more, on the language it moved to —
+   * synchronously, since every caller of `_resolveVoice` has only
+   * `_stateChanged()` left after it, so the state the reader then reads is
+   * the restored one. The same move happens inside `setLanguage` when the
+   * list is in before the SDT, and Zotero's own restore then follows: one
+   * idempotent extra restore, on an idle manager. Zotero fixing either half
+   * upstream — a normalized tag, a restore after the move — makes this a
+   * no-op: the language then never changes inside a resolution.
+   */
+  const moveHooks = new WeakMap<object, () => void>();
+  const resyncing = new WeakSet<object>();
+  const moves = new WeakMap<object, MoveRecord>();
+
+  function attachMoveHook(reader: unknown, internal: object, manager: any): void {
+    if (!manager || typeof manager !== 'object' || moveHooks.has(manager)) return;
+    const target = waive(manager);
+    if (typeof target._resolveVoice !== 'function') return;
+    const hook = function (this: unknown, ...args: unknown[]) {
+      const before = managerLangOf(manager);
+      const pending = !!target._pendingSetVoice;
+      // The prototype's method as it stands now: Zotero's, or the shadow system-voices.ts put there
+      const original = ownerOf(target, '_resolveVoice')?._resolveVoice;
+      const result = typeof original === 'function' ? Reflect.apply(original, this, args) : undefined;
+      try {
+        const after = managerLangOf(manager);
+        if (before && after && after !== before && !pending && !resyncing.has(internal)) {
+          resyncing.add(internal);
+          try {
+            const record = moves.get(internal);
+            moves.set(internal, { count: (record?.count ?? 0) + 1, last: `${before} -> ${after}` });
+            deps.debug?.(`Zotero moved the manager ${before} -> ${after} inside its resolution; restored again for ${after}`);
+            resync(reader, internal);
+          } finally {
+            resyncing.delete(internal);
+          }
+        }
+      } catch (e) {
+        deps.error(e);
+      }
+      return result;
+    };
+    target._resolveVoice = deps.exportFunction ? deps.exportFunction(hook, manager) : hook;
+    moveHooks.set(manager, () => {
+      delete target._resolveVoice;
+    });
+  }
+
+  function resyncs(reader: any): MoveRecord | null {
+    const internal = reader?._internalReader;
+    return (internal && moves.get(internal)) || null;
+  }
+
+  /** A speed the pref could not carry (issue #59), learned as the observer above learns one: the memory, then the spread. */
+  function learnSpeed(speed: number): void {
+    const current = memory();
+    if (!validSpeed(speed) || current.speed === speed) return;
+    const learned = { ...current, speed };
+    writeMemory(deps.prefs, learned);
+    deps.debug?.(`read-aloud memory (a speed the pref could not carry): ${describeMemory(learned)}`);
+    spread(speed);
+  }
+
+  /**
    * The wrapper's own sequence, run from our side: the reader's copy of the
    * pref brought up to date (its own observer may not have run yet — see
    * refreshVoices), the memory in place, then Zotero's restore.
@@ -686,6 +788,7 @@ export function createReadAloudMemorySync(deps: ReadAloudMemoryDeps): ReadAloudM
       const manager = internal._readAloudManager;
       if (manager && typeof manager === 'object') readerOf.set(manager, reader);
       attachPicks(manager);
+      attachMoveHook(reader, internal, manager);
     } catch (e) {
       deps.error(e);
     }
@@ -722,6 +825,12 @@ export function createReadAloudMemorySync(deps: ReadAloudMemoryDeps): ReadAloudM
           internal._syncPersistedVoicesToManager = original;
           originals.delete(internal);
         }
+        const manager = internal?._readAloudManager;
+        const undo = manager && typeof manager === 'object' ? moveHooks.get(manager) : undefined;
+        if (undo) {
+          undo();
+          moveHooks.delete(manager);
+        }
       } catch (e) {
         deps.error(e);
       }
@@ -737,6 +846,8 @@ export function createReadAloudMemorySync(deps: ReadAloudMemoryDeps): ReadAloudM
     opening,
     reconcile,
     substitution,
+    learnSpeed,
+    resyncs,
     patchCounts: pickPatches.counts,
     dispose,
   };

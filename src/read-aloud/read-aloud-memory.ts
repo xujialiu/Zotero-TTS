@@ -1,5 +1,5 @@
 import { MULTILINGUAL } from '../core/providers/types';
-import { resolveVoiceLang, type VoiceEntry, type VoicesMap } from '../core/read-aloud-speed';
+import { isZoteroLangKey, resolveVoiceLang, type VoiceEntry, type VoicesMap } from '../core/read-aloud-speed';
 import { PREF_PREFIX, type PrefsBackend } from '../core/settings';
 import { compareVoiceLabels, decodeVoiceId, PLUGIN_TIER, type ListedVoice } from './voice-catalog';
 
@@ -223,14 +223,19 @@ export function substitutionMessage(missing: string, instead: string | null, pai
  * memory-sync moved it — so with no voice remembered the manager goes back
  * there and Zotero restores its own choice for it. The entry is the one
  * Zotero's own resolution reads for `lang` (`resolveVoiceLang`, with
- * `preferred` as its `navigator.languages`) — created under the tag
- * verbatim when none resolves, as Zotero would (issue #26).
+ * `preferred` as its `navigator.languages`, issue #26); none, and one is
+ * created only under a key Zotero's own persist could produce
+ * (isZoteroLangKey) — the voice's lane always is, a document's raw tag
+ * (`EN`, `English`) is not and gets no entry: Zotero moves off it once the
+ * list lands, and memory-sync restores again there, where this plans a
+ * second time (issue #59).
  */
 export function planSync(docLang: string | null, voices: VoicesMap, memory: ReadAloudMemory, tier: string | null = null, preferred: readonly string[] = []): SyncPlan {
   if (!docLang) return { lang: null, voices: null };
   const voice = memory.voice;
   const lang = voice ? (isGlobalVoice(voice) ? MULTILINGUAL : voice.lang) : docLang;
-  const key = resolveVoiceLang(lang, Object.keys(voices), preferred) ?? lang;
+  const key = resolveVoiceLang(lang, Object.keys(voices), preferred) ?? (isZoteroLangKey(lang) ? lang : null);
+  if (key === null) return { lang, voices: null };
   const entry = voices[key] ?? {};
   let next = entry;
   if (memory.speed !== null && speedOf(entry) !== memory.speed) next = { ...next, speed: memory.speed };

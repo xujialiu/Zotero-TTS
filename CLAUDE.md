@@ -242,6 +242,12 @@ there.
 (`-beta2`, `-beta3`, …), so Tools → Plugins shows at a glance which build is
 actually installed. `package.json` stays at the released version — it is not
 what Zotero displays, and leaving it alone keeps the lock file out of it.
+Two worktrees started from the same base can name the same `-betaN`
+(2026-09-06: #59 and #60 both built 1.11.0-beta3, and one was installed
+over the other in the middle of a verification): before naming one, check
+`origin/main` and the other worktrees' `addon/manifest.json`, and prove
+which build a profile runs by a grep of its bundle or by a diagnostic field
+the build adds — never by the version string alone.
 
 **Every build is verified by its mechanism, not only by its visible
 effect** — a diagnostic that proves the code path ran, with the expected

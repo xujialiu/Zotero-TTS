@@ -116,6 +116,19 @@ export function resolveVoiceLang(lang: string | null, keys: readonly string[], p
   return candidates[0];
 }
 
+/**
+ * Whether Zotero's own persist can produce this key. `_persistCurrentVoice`
+ * writes `getBaseLanguage(this._lang)`, and `_lang` is, once `_resolveVoice`
+ * has run, the base of one of the voice list's locales — two or three
+ * lowercase letters (`en`, `zh`, `mul`). A document's raw tag (`EN`,
+ * `English`, `en_US`, the `x` of `x-unknown`) never comes out of it: Zotero
+ * moves the manager off such a tag before it persists (issue #59), so an
+ * entry created under one is read only until then, by nobody after.
+ */
+export function isZoteroLangKey(lang: string): boolean {
+  return /^[a-z]{2,3}$/.test(lang);
+}
+
 /** The speed Zotero last persisted for the language, else for any language, else 1. */
 export function readPersistedSpeed(prefs: PrefsBackend, lang: string | null, preferred: readonly string[] = []): number {
   const voices = readReadAloudVoices(prefs);
@@ -132,18 +145,26 @@ export function readPersistedSpeed(prefs: PrefsBackend, lang: string | null, pre
  * Store the speed the way Zotero would, touching only the `speed` field so
  * the voice, region and tier choices Zotero keeps beside it survive. Used
  * when the reader's manager cannot persist for us (no voice selected yet,
- * or no manager at all). A language no key resolves to gets the entry
- * Zotero itself would create for it — under the tag verbatim.
+ * or no manager at all). An entry that exists is updated whatever its key;
+ * one is created only under a key Zotero's own persist could produce
+ * (isZoteroLangKey) — a document's raw tag gets none, since Zotero moves
+ * off it before it persists (issue #59). Returns whether anything was
+ * written: false means the pref cannot carry this speed, and the caller
+ * hands it to the memory instead.
  */
-export function persistSpeed(prefs: PrefsBackend, lang: string | null, speed: number, preferred: readonly string[] = []): void {
+export function persistSpeed(prefs: PrefsBackend, lang: string | null, speed: number, preferred: readonly string[] = []): boolean {
   const voices = readReadAloudVoices(prefs);
   const key = resolveVoiceLang(lang, Object.keys(voices), preferred);
   if (key) {
     voices[key] = { ...voices[key], speed };
   } else if (lang) {
+    if (!isZoteroLangKey(lang)) return false;
     voices[lang] = { speed };
   } else {
-    for (const k of Object.keys(voices)) voices[k] = { ...voices[k], speed };
+    const keys = Object.keys(voices);
+    if (!keys.length) return false;
+    for (const k of keys) voices[k] = { ...voices[k], speed };
   }
   prefs.set(READ_ALOUD_VOICES_PREF, JSON.stringify(voices));
+  return true;
 }

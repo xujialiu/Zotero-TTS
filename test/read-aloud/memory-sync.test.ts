@@ -149,6 +149,7 @@ function fakeReader(
     _voiceID: state.selectedVoiceID ?? null,
     _selectedTier: state.selectedTier ?? null,
     _persistedVoices: state.persisted ?? {},
+    _pendingSetVoice: false,
     speed: state.speed ?? 1,
     active: state.active ?? false,
     /** What the popup listed at its last open. */
@@ -207,6 +208,10 @@ function fakeReader(
     manager._voiceID = pick;
     manager._selectedTier = tierOf(pick);
   };
+  // On the prototype, as Zotero's is, and reached through the instance by
+  // every internal call, so an own property the sync puts on the manager
+  // (issue #59) is what those calls meet
+  proto._resolveVoice = vi.fn(() => resolve());
   /** What ReadAloudManager._persistCurrentVoice does: the entry for the manager's language, through Zotero's pref. */
   const persist = () => {
     if (!manager._voiceID) return;
@@ -226,9 +231,11 @@ function fakeReader(
     if (!manager.allVoices.length) return;
     // One resolution at once, under the tier still selected (issue #36) and
     // from `_persistedVoices` as it stands — Zotero never re-reads the entry
-    // here (issue #49); the popup's dropdown, which passes persist, then
-    // persists whatever that landed on
-    resolve();
+    // here (issue #49); the popup's dropdown, which passes persist, notes it
+    // as _pendingSetVoice first and then persists whatever that landed on
+    manager._pendingSetVoice = !!options?.persist;
+    manager._resolveVoice();
+    manager._pendingSetVoice = false;
     if (options?.persist) persist();
   });
   proto.selectVoice = vi.fn((id: string) => {
@@ -256,7 +263,7 @@ function fakeReader(
     m._persistedVoices = current[l] ?? {};
     m._voiceID = null;
     m._selectedTier = null;
-    resolve();
+    m._resolveVoice();
     return 'original-result';
   });
   const internal = {
@@ -271,7 +278,12 @@ function fakeReader(
     },
   };
   z.deps.registerObserver(READ_ALOUD_VOICES_OBSERVER, reader._handleReadAloudVoicesPrefChange);
-  return { reader, internal, manager, proto, original, log, setLanguageSpy, resolve };
+  /** Zotero's loadVoices: the list assigned, then one resolution through the instance. */
+  const loadVoices = (list: FakeVoice[]) => {
+    manager.allVoices = list;
+    manager._resolveVoice();
+  };
+  return { reader, internal, manager, proto, original, log, setLanguageSpy, resolve, loadVoices };
 }
 
 const multilingual: ReadAloudMemory = { speed: 1.4, voice: { id: ISABELLA, lang: MULTILINGUAL } };
@@ -309,14 +321,16 @@ describe('createReadAloudMemorySync', () => {
     const z = fakeZotero();
     const r = fakeReader('zh', z);
     const exportFunction = vi.fn((fn: (...args: unknown[]) => unknown, target: object) => {
-      // The pick hooks go onto the manager's prototype, the sync wrapper onto the internal reader
-      expect([r.internal, r.proto]).toContain(target);
+      // The pick hooks go onto the manager's prototype, the move hook onto the manager itself, the sync wrapper onto the internal reader
+      expect([r.internal, r.proto, r.manager]).toContain(target);
       return (...args: unknown[]) => fn(...args);
     });
     const sync = createReadAloudMemorySync({ ...z.deps, exportFunction });
     sync.attach(r.reader);
-    expect(exportFunction).toHaveBeenCalledTimes(4);
-    expect(r.internal._syncPersistedVoicesToManager).toBe(exportFunction.mock.results[3].value);
+    expect(exportFunction).toHaveBeenCalledTimes(5);
+    const exportedTo = (target: object) => exportFunction.mock.results[exportFunction.mock.calls.findIndex(([, t]) => t === target)]?.value;
+    expect(r.internal._syncPersistedVoicesToManager).toBe(exportedTo(r.internal));
+    expect(r.manager._resolveVoice).toBe(exportedTo(r.manager));
     expect(r.internal._syncPersistedVoicesToManager()).toBe('original-result');
     expect(r.log).toEqual(['lang:mul', 'zotero-sync:mul:1.4']);
   });
@@ -426,7 +440,11 @@ describe('createReadAloudMemorySync', () => {
     const r = fakeReader('zh', z);
     sync.attach(r.reader);
     r.internal._syncPersistedVoicesToManager.call(r.internal);
-    expect(r.log).toEqual(['zotero-sync:zh:none']);
+    // Nothing written, nothing moved by the sync. The list has no Chinese
+    // voice, so Zotero's own resolution moves the manager to the first
+    // language it has one for — and the sync then supplies the restore
+    // Zotero lacks after such a move, switches or no switches (issue #59)
+    expect(r.log).toEqual(['zotero-sync:zh:none', 'zotero-sync:mul:1.4']);
     expect(z.voices()).toEqual(voices);
   });
 
@@ -451,7 +469,10 @@ describe('createReadAloudMemorySync', () => {
     const r = fakeReader('fr', z);
     sync.attach(r.reader);
     r.internal._syncPersistedVoicesToManager.call(r.internal);
-    expect(r.log).toEqual(['zotero-sync:fr:1.4']);
+    // The speed under fr, a base language Zotero could persist under; no
+    // French voice listed, so Zotero moves the manager on and the sync
+    // restores again there (issue #59), the speed already in that entry
+    expect(r.log).toEqual(['zotero-sync:fr:1.4', 'zotero-sync:mul:1.4']);
     expect(z.voices().fr).toEqual({ speed: 1.4 });
     expect(r.setLanguageSpy).not.toHaveBeenCalled();
   });
@@ -1017,14 +1038,16 @@ describe('a pick the pref does not show', () => {
     sync.attach(tab1.reader);
     sync.attach(tab1.reader);
     expect(tab1.proto.selectVoice).not.toBe(originals.selectVoice);
-    // The sync wrapper and the three pick hooks
-    expect(exportFunction).toHaveBeenCalledTimes(4);
+    // The sync wrapper, the three pick hooks and the move hook on the manager itself (issue #59)
+    expect(exportFunction).toHaveBeenCalledTimes(5);
+    expect(Object.prototype.hasOwnProperty.call(tab1.manager, '_resolveVoice')).toBe(true);
     tab1.manager.selectVoice(ADA);
     expect(sync.memory().voice).toEqual({ id: ADA, lang: 'en' });
     sync.dispose();
     expect(tab1.proto.selectVoice).toBe(originals.selectVoice);
     expect(tab1.proto.selectTier).toBe(originals.selectTier);
     expect(tab1.proto.setLanguage).toBe(originals.setLanguage);
+    expect(Object.prototype.hasOwnProperty.call(tab1.manager, '_resolveVoice')).toBe(false);
   });
 
   it('reports a hook that throws and still runs the original', () => {
@@ -1471,5 +1494,175 @@ describe('a manager on a tier without the voice’s language', () => {
     expect(standing.manager.lang).toBe(MULTILINGUAL);
     expect(standing.manager.selectedVoiceID).toBe(AVA.id);
     expect(standing.manager.selectedTier).toBe('local');
+  });
+});
+
+// A document whose /Lang says `EN` or `English` — 250 of this library's 1914
+// PDFs (issue #59): Zotero's only restore of a fresh tab runs on that tag and
+// finds no entry; once the list lands, _resolveVoice moves the manager to the
+// first language it has a voice for, and Zotero never restores again. The
+// sync shadows _resolveVoice on the manager itself — an own property
+// delegating to the prototype's method at call time, since system-voices.ts
+// holds the prototype's — and, when a resolution Zotero ran on its own
+// moved the language, runs Zotero's restore once more, on the language it
+// moved to.
+describe('the restore Zotero lacks after _resolveVoice moves the language (issue #59)', () => {
+  /** An English Local voice and a multilingual one: what a list holds for an English document. */
+  const ENGLISH = [describeVoice(AOEDE), describeVoice(ISABELLA)];
+  const open = (r: ReturnType<typeof fakeReader>) => r.internal._syncPersistedVoicesToManager.call(r.internal);
+
+  it('hooks the manager itself, not its prototype, and takes the hook with it on dispose', () => {
+    const z = fakeZotero();
+    const sync = createReadAloudMemorySync(z.deps);
+    const r = fakeReader('EN', z, { voices: [] });
+    z.readers.push(r.reader);
+    const protoMethod = r.proto._resolveVoice;
+    sync.attach(r.reader);
+    expect(Object.prototype.hasOwnProperty.call(r.manager, '_resolveVoice')).toBe(true);
+    expect(r.proto._resolveVoice).toBe(protoMethod);
+    const hook = r.manager._resolveVoice;
+    expect(sync.attach(r.reader)).toBe(true);
+    expect(r.manager._resolveVoice).toBe(hook);
+    sync.dispose();
+    expect(Object.prototype.hasOwnProperty.call(r.manager, '_resolveVoice')).toBe(false);
+    expect(r.manager._resolveVoice).toBe(protoMethod);
+  });
+
+  it('restores again on the language Zotero moved to, with both switches off', () => {
+    const z = fakeZotero();
+    z.deps.sameVoice.mockReturnValue(false);
+    z.deps.globalSpeed.mockReturnValue(false);
+    const sync = createReadAloudMemorySync(z.deps);
+    const r = fakeReader('EN', z, { voices: [] });
+    sync.attach(r.reader);
+    // _prepareReadAloud: the SDT said EN, the list is not in, Zotero's restore finds no entry
+    open(r);
+    expect(r.log).toEqual(['zotero-sync:EN:none']);
+    expect(r.manager.selectedVoiceID).toBeNull();
+    expect(sync.resyncs(r.reader)).toBeNull();
+    r.log.length = 0;
+    // loadVoices: the list lands, Zotero finds no voice for EN and moves to en — and the sync restores again there
+    r.loadVoices(ENGLISH);
+    expect(r.manager.lang).toBe('en');
+    expect(r.log).toEqual(['zotero-sync:en:1.4']);
+    expect(r.manager.selectedVoiceID).toBe(AOEDE);
+    expect(sync.resyncs(r.reader)).toEqual({ count: 1, last: 'EN -> en' });
+    expect(z.deps.debug).toHaveBeenCalledWith('Zotero moved the manager EN -> en inside its resolution; restored again for en');
+    // Nothing was written under EN
+    expect(Object.keys(z.voices())).toEqual(['en', MULTILINGUAL]);
+    // A second listing on en moves nothing and restores nothing more
+    r.log.length = 0;
+    r.loadVoices(ENGLISH);
+    expect(r.log).toEqual([]);
+    expect(sync.resyncs(r.reader)).toEqual({ count: 1, last: 'EN -> en' });
+    expect(z.deps.error).not.toHaveBeenCalled();
+  });
+
+  it('writes the memory under that language on its second pass, never under the tag', () => {
+    const z = fakeZotero(voices, { speed: 1.7, voice: null });
+    z.deps.sameVoice.mockReturnValue(false);
+    const sync = createReadAloudMemorySync(z.deps);
+    const r = fakeReader('EN', z, { voices: [] });
+    sync.attach(r.reader);
+    open(r);
+    // Nothing to put under EN: Zotero's persist never produces such a key (planSync)
+    expect(z.voices()).toEqual(voices);
+    expect(r.log).toEqual(['zotero-sync:EN:none']);
+    r.log.length = 0;
+    r.loadVoices(ENGLISH);
+    expect(r.manager.lang).toBe('en');
+    expect(z.voices()).toEqual({ ...voices, en: { ...voices.en, speed: 1.7 } });
+    expect(r.log).toEqual(['zotero-sync:en:1.7']);
+    expect(r.manager.selectedVoiceID).toBe(AOEDE);
+    expect(z.deps.debug).toHaveBeenCalledWith(expect.stringContaining('applied read-aloud memory: en -> en, speed 1.7, voice -'));
+  });
+
+  // _prepareReadAloud with the list already in: setLanguage resolves at once,
+  // the same move happens there, and Zotero's own restore follows — one extra
+  // restore, on an idle manager, finding the same
+  it('restores inside setLanguage too, when the list is in before the SDT is', () => {
+    const z = fakeZotero();
+    z.deps.sameVoice.mockReturnValue(false);
+    z.deps.globalSpeed.mockReturnValue(false);
+    const sync = createReadAloudMemorySync(z.deps);
+    const r = fakeReader(null, z, { voices: ENGLISH });
+    sync.attach(r.reader);
+    r.manager.setLanguage('EN');
+    expect(r.manager.lang).toBe('en');
+    expect(r.log).toEqual(['setLanguage:EN', 'zotero-sync:en:1.4']);
+    open(r);
+    expect(r.log).toEqual(['setLanguage:EN', 'zotero-sync:en:1.4', 'zotero-sync:en:1.4']);
+    expect(r.manager.selectedVoiceID).toBe(AOEDE);
+    expect(sync.resyncs(r.reader)).toEqual({ count: 1, last: 'EN -> en' });
+  });
+
+  // The dropdown's pick of a language the list has no voice for: Zotero
+  // resets it and persists what it lands on, with _pendingSetVoice noted
+  // first — the user's move, left to Zotero
+  it('leaves a move the user made to Zotero', () => {
+    const z = fakeZotero();
+    z.deps.sameVoice.mockReturnValue(false);
+    z.deps.globalSpeed.mockReturnValue(false);
+    const sync = createReadAloudMemorySync(z.deps);
+    const r = fakeReader('en', z, { voices: [AOEDE], selectedVoiceID: AOEDE, selectedTier: 'local' });
+    sync.attach(r.reader);
+    r.manager.setLanguage('fr', { persist: true });
+    expect(r.manager.lang).toBe('en');
+    expect(r.original).not.toHaveBeenCalled();
+    expect(sync.resyncs(r.reader)).toBeNull();
+  });
+
+  // Issue #35's substitute, on a raw tag: the manager was moved to the
+  // remembered voice's lane before the list was in; the list then has no
+  // voice for that lane, Zotero moves it to English, and the second restore
+  // plans the substitute on that language
+  it('plans the substitute on the language Zotero moved to, when the remembered voice is not offered', () => {
+    const z = fakeZotero(voices, multilingual);
+    const sync = createReadAloudMemorySync({ ...z.deps, favorites: () => [] });
+    const r = fakeReader('EN', z, { voices: [] });
+    sync.attach(r.reader);
+    open(r);
+    expect(r.manager.lang).toBe(MULTILINGUAL);
+    expect(r.log).toEqual(['lang:mul', 'zotero-sync:mul:1.4']);
+    r.log.length = 0;
+    r.loadVoices([describeVoice(AOEDE)]);
+    expect(r.manager.lang).toBe('en');
+    expect(r.manager.selectedVoiceID).toBe(AOEDE);
+    expect(sync.substitution(r.reader)).toEqual({ missing: ISABELLA, instead: AOEDE });
+    expect(sync.resyncs(r.reader)).toEqual({ count: 1, last: 'mul -> en' });
+    expect(sync.documentLanguage(r.reader)).toBe('en');
+    expect(z.deps.error).not.toHaveBeenCalled();
+  });
+});
+
+// A speed the pref could not carry — a shortcut on an idle manager sitting
+// on a tag Zotero never persists under, or a profile with no entry at all —
+// reaches the memory through here instead of the pref observer (issue #59)
+describe('learnSpeed', () => {
+  it('writes the memory and spreads it while the switch is on', () => {
+    const z = fakeZotero();
+    const sync = createReadAloudMemorySync(z.deps);
+    const r = fakeReader('en', z, { active: true, speed: 1.4, selectedVoiceID: AOEDE });
+    z.readers.push(r.reader);
+    sync.learnSpeed(1.6);
+    expect(z.storedMemory().speed).toBe(1.6);
+    expect(r.manager.speed).toBe(1.6);
+    expect(z.voices().en.speed).toBe(1.6);
+    expect(z.voices()[MULTILINGUAL].speed).toBe(1.6);
+  });
+
+  it('writes the memory alone while the switch is off, and nothing for a speed it already holds', () => {
+    const z = fakeZotero();
+    z.deps.globalSpeed.mockReturnValue(false);
+    const sync = createReadAloudMemorySync(z.deps);
+    const r = fakeReader('en', z, { active: true, speed: 1.4, selectedVoiceID: AOEDE });
+    z.readers.push(r.reader);
+    sync.learnSpeed(1.6);
+    expect(z.storedMemory().speed).toBe(1.6);
+    expect(r.manager.speed).toBe(1.4);
+    expect(z.voices()).toEqual(voices);
+    z.deps.debug.mockClear();
+    sync.learnSpeed(1.6);
+    expect(z.deps.debug).not.toHaveBeenCalled();
   });
 });

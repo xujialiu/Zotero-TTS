@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   clampSpeed,
+  isZoteroLangKey,
   nextSpeed,
   persistSpeed,
   READ_ALOUD_VOICES_PREF,
@@ -135,39 +136,75 @@ describe('readPersistedSpeed', () => {
   });
 });
 
+// Zotero's _persistCurrentVoice writes getBaseLanguage(this._lang), and _lang
+// is, once _resolveVoice has run, the base of one of the voice list's locales:
+// two or three lowercase letters. A document's raw /Lang tag never comes out
+// of it — Zotero moves off such a tag before it persists (issue #59).
+describe('isZoteroLangKey', () => {
+  it('accepts the base of a voice locale', () => {
+    for (const key of ['en', 'zh', 'fr', 'mul', 'cmn', 'yue']) expect(isZoteroLangKey(key)).toBe(true);
+  });
+
+  it('rejects a document tag Zotero never persists under', () => {
+    for (const key of ['EN', 'English', 'en_US', 'en-US', 'x', 'x-unknown', '', 'Deutsch', 'e1']) expect(isZoteroLangKey(key)).toBe(false);
+  });
+});
+
 describe('persistSpeed', () => {
   it('patches only the speed field, preserving the voice Zotero chose', () => {
     const before = { en: { region: 'US', voice: 'v', speed: 1, tierVoices: { standard: 'v' } }, zh: { speed: 1 } };
     const prefs = fakePrefs({ [pref]: JSON.stringify(before) });
-    persistSpeed(prefs, 'en-US', 1.3);
+    expect(persistSpeed(prefs, 'en-US', 1.3)).toBe(true);
     expect(stored(prefs)).toEqual({ ...before, en: { ...before.en, speed: 1.3 } });
   });
 
-  // Zotero reads a document tagged en_US under en_US, and would create that entry
-  // itself (_persistCurrentVoice writes getBaseLanguage(manager.lang) verbatim; issue
-  // #26): the speed goes there, and the en entry stays what it was
-  it('creates the entry Zotero would create for a tag no key resolves, leaving the base language alone', () => {
+  // A document tagged en_US, EN or English is read by Zotero under that tag
+  // exactly (issue #26), but Zotero never creates such an entry: it moves the
+  // manager to a language it has a voice for before it persists (issue #59).
+  // So nothing is written — the caller is told, and hands the speed to the
+  // memory instead — and the en entry, which every other English document
+  // reads, stays what it was
+  it('creates nothing under a tag Zotero never persists under, and says so', () => {
+    const before = { en: { region: 'US', voice: 'v', speed: 1.7, tierVoices: {} }, English: { speed: 1.7 } };
+    const prefs = fakePrefs({ [pref]: JSON.stringify(before) });
+    for (const tag of ['en_US', 'EN', 'x']) {
+      expect(persistSpeed(prefs, tag, 1.1)).toBe(false);
+      expect(stored(prefs)).toEqual(before);
+    }
+    // An entry that exists is updated whatever its key, as the spread updates it
+    expect(persistSpeed(prefs, 'English', 1.1)).toBe(true);
+    expect(stored(prefs)).toEqual({ ...before, English: { speed: 1.1 } });
+  });
+
+  // A base language no key resolves is still one Zotero could persist under
+  it('creates the entry for a base language that has none, following Zotero’s equivalents', () => {
     const before = { en: { region: 'US', voice: 'v', speed: 1.7, tierVoices: {} } };
     const prefs = fakePrefs({ [pref]: JSON.stringify(before) });
-    persistSpeed(prefs, 'en_US', 1.1);
-    expect(stored(prefs)).toEqual({ ...before, en_US: { speed: 1.1 } });
-    persistSpeed(prefs, 'cmn', 1.3);
-    expect(stored(prefs)).toEqual({ ...before, en_US: { speed: 1.1 }, cmn: { speed: 1.3 } });
+    expect(persistSpeed(prefs, 'de', 1.1)).toBe(true);
+    expect(stored(prefs)).toEqual({ ...before, de: { speed: 1.1 } });
+    expect(persistSpeed(prefs, 'cmn', 1.3)).toBe(true);
+    expect(stored(prefs)).toEqual({ ...before, de: { speed: 1.1 }, cmn: { speed: 1.3 } });
     const zh = fakePrefs({ [pref]: JSON.stringify({ en: { speed: 1.2 }, zh: { speed: 1.6 } }) });
-    persistSpeed(zh, 'cmn', 1.3);
+    expect(persistSpeed(zh, 'cmn', 1.3)).toBe(true);
     expect(stored(zh)).toEqual({ en: { speed: 1.2 }, zh: { speed: 1.3 } });
   });
 
   it('creates an entry when the language has none', () => {
     const prefs = fakePrefs();
-    persistSpeed(prefs, 'en', 1.2);
+    expect(persistSpeed(prefs, 'en', 1.2)).toBe(true);
     expect(stored(prefs)).toEqual({ en: { speed: 1.2 } });
   });
 
   it('updates every entry when the language is unknown', () => {
     const prefs = fakePrefs({ [pref]: JSON.stringify({ en: { speed: 1 }, zh: { speed: 1 } }) });
-    persistSpeed(prefs, null, 1.5);
+    expect(persistSpeed(prefs, null, 1.5)).toBe(true);
     expect(stored(prefs)).toEqual({ en: { speed: 1.5 }, zh: { speed: 1.5 } });
+  });
+
+  it('writes nothing, and says so, when the language is unknown and no entry exists', () => {
+    const prefs = fakePrefs();
+    expect(persistSpeed(prefs, null, 1.5)).toBe(false);
+    expect(prefs.store[pref]).toBeUndefined();
   });
 
   it('survives a corrupt pref by starting over', () => {

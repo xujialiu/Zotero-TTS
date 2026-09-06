@@ -849,6 +849,8 @@ function startReadAloudShortcuts(pluginID: string): void {
     prefs,
     getManager: readAloudManager,
     preferredLanguages,
+    // A speed the pref cannot carry goes to the memory (issue #59)
+    rememberSpeed: (speed) => readAloudMemory?.learnSpeed(speed),
     showToast: toastFor,
     // After a skip, what the popup's own buttons do: the view follows the spoken position again
     lockPosition: (reader: any) => reader?._internalReader?._lockPositionToReadAloud?.(),
@@ -2132,6 +2134,8 @@ const diagnostics = {
         selectedTier: safe(() => manager()?.selectedTier ?? null),
         listsDefault: safe(() => (remembered ? lists(remembered) : null)),
         substitution: safe(() => readAloudMemory?.substitution(r) ?? null),
+        // The restores run again after Zotero moved the language inside a resolution of its own (issue #59)
+        resyncs: safe(() => readAloudMemory?.resyncs(r) ?? null),
         active: safe(() => !!manager()?.active),
         paused: safe(() => !!manager()?.paused),
       };

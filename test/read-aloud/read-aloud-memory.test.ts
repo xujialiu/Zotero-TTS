@@ -240,19 +240,41 @@ describe('planSync', () => {
   });
 });
 
-// A document whose own tag no key resolves — en_US, EN, or cmn with no zh
-// entry — is read by Zotero under that tag exactly (issue #26): the memory
-// goes into that entry, never into the base language's
+// A document whose own tag no key resolves — en_US, EN, English — is read by
+// Zotero under that tag exactly (issue #26), but Zotero never creates such an
+// entry: once the list lands it moves the manager to a language it has a
+// voice for, and memory-sync restores again there (issue #59). So the memory
+// is put under no such key, never under the base language's either, and
+// reaches the document on that second restore
 describe('planSync on a non-canonical document tag', () => {
   const speedOnly: ReadAloudMemory = { speed: 1.5, voice: null };
 
-  it('writes the remembered speed under the tag Zotero will read, not under the base language', () => {
-    expect(planSync('en_US', voices, speedOnly)).toEqual({ lang: 'en_US', voices: { ...voices, en_US: { speed: 1.5 } } });
-    expect(planSync('EN', voices, speedOnly)).toEqual({ lang: 'EN', voices: { ...voices, EN: { speed: 1.5 } } });
+  it('plans no entry under a tag Zotero never persists under', () => {
+    expect(planSync('en_US', voices, speedOnly)).toEqual({ lang: 'en_US', voices: null });
+    expect(planSync('EN', voices, speedOnly)).toEqual({ lang: 'EN', voices: null });
+    expect(planSync('English', voices, speedOnly)).toEqual({ lang: 'English', voices: null });
+    expect(planSync('EN', {}, speedOnly)).toEqual({ lang: 'EN', voices: null });
+  });
+
+  it('still creates the entry of a base language that has none', () => {
+    expect(planSync('de', voices, speedOnly)).toEqual({ lang: 'de', voices: { ...voices, de: { speed: 1.5 } } });
+    expect(planSync('en', {}, speedOnly)).toEqual({ lang: 'en', voices: { en: { speed: 1.5 } } });
+  });
+
+  it('updates an entry that exists under such a tag, as the spread does', () => {
+    const fossil: VoicesMap = { ...voices, English: { speed: 1.7 } };
+    expect(planSync('English', fossil, speedOnly)).toEqual({ lang: 'English', voices: { ...fossil, English: { speed: 1.5 } } });
   });
 
   it('follows Zotero’s language equivalents: a cmn document reads the zh entry', () => {
     expect(planSync('cmn', voices, speedOnly)).toEqual({ lang: 'cmn', voices: { ...voices, zh: { ...voices.zh, speed: 1.5 } } });
+  });
+
+  // The remembered voice's lane is a base language by construction, so the
+  // move to it is planned as for any document
+  it('moves a raw-tagged document to the remembered voice’s lane as before', () => {
+    const english: ReadAloudMemory = { speed: 1.5, voice: { id: AOEDE, lang: 'en' } };
+    expect(planSync('EN', voices, english)).toEqual({ lang: 'en', voices: { ...voices, en: { ...voices.en, speed: 1.5 } } });
   });
 });
 

@@ -293,3 +293,4 @@ cite `notes/NOTES.md` with a date or a section title resolve through this index.
 - macOS joined the System provider: a `say` per sentence, an `osascript` per listing, and the sentence highlight (issue #23)
 - The two diagnostics say what they read: a view without a state answers null, and `position()` shows the copy Zotero drops (issue #39)
 - The `"English"` key is 37 publisher PDFs' `/Lang`, and whether a raw tag stands is a race the plugin then writes into the pref (issue #59)
+- The restore Zotero skips after moving off a raw tag now runs from a hook on the manager itself, and no entry is created under such a tag (issue #59)
