@@ -274,6 +274,10 @@ cite `notes/NOTES.md` with a date or a section title resolve through this index.
 - The pause between sentences is catalog data, and the gap is one number handed to a timer (issue #44)
 - The player's voice list has a second per-voice channel: the option row's DOM id (issue #45)
 
+### [2026-09-05](NOTES_2026-09-05.md)
+
+- A bug hunt over the released 1.10.9, through the bridge on Windows: seven runs, three issues, and what Zotero showed (issues #48, #49, #51)
+
 ### [2026-09-06](NOTES_2026-09-06.md)
 
 - Xiaomi MiMo's TTS is a chat completion, and the plugin's OpenAI section learned that route (issue #50)

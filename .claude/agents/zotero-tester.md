@@ -119,6 +119,36 @@ start over.
    goes true and the manager `active` while `.read-aloud-popup` never
    appears, not even once the tab is selected (2026-09-06) — open the
    player in the selected tab, and drive its dropdowns there.
+   **Never a bare `_prepareReadAloud()` (or `setLanguage`) on a tab before
+   its first popup open**: `_updateReadAloudUIState` drops every write while
+   the popup is closed (reader.js:83565-83569), the SDT block that writes
+   the UI's `lang` runs only while the manager has none (83983-83995), and
+   the player then never renders for the tab's life although the session
+   is active (the render gate, 42586; measured 2026-09-05) —
+   `toggleReadAloudPopup(true)` first, always. An options object handed to
+   `_updateReadAloudUIState` needs `Cu.cloneInto` like `scrollTo`'s. The
+   player's option rows select on `pointerup`, not `click`
+   (reader.js:37954-37958): `element.click()` on one does nothing;
+   `row.dispatchEvent(new win.PointerEvent('pointerup', { bubbles: true, cancelable: true, pointerId: 1, isPrimary: true }))`
+   does. `diagnostics.playerOptions(true)` presses the Options button of
+   **every** reader with a player, not the picked one — restore the others
+   by clicking their own button. `view._readAloudPositionLocked` is already
+   `true` when a session starts: force it `false` through
+   `Components.utils.waiveXrays(view)` before asserting that a key locked it.
+   **Probe the audio before any check that needs playback to advance**: on
+   a machine without an output device (a remote desktop session with no
+   audio redirection) the Read Aloud `AudioContext` stays `suspended` at
+   `currentTime` 0, `source.onended` never fires and `_position` never
+   moves on its own, while synthesis, timestamps, highlight and prefetch
+   all run; an `<audio>` element there fails with `OnMediaSinkAudioError`
+   a few ms after `playing`. Read the controller's `_audioContext.state`
+   and `currentTime` twice ~500 ms apart in one script; frozen means every
+   "speaks within N s" is NOT TESTABLE (machine) and the mechanism checks
+   still run. The device came and went within one day (2026-09-05), the
+   sink is per content process and does not recover in place (a new
+   reader tab gets a fresh one), and `AudioContext.resume()` never settles
+   while it is gone — always `Promise.race` it against a timer, or the
+   script is the timeout's bare `undefined`.
    `selectTier` **persists**: it runs `_persistCurrentVoice`
    (reader.js:82072-82112) and rewrites
    `extensions.zotero.reader.readAloudVoices` — snapshot that pref
@@ -160,10 +190,13 @@ start over.
    of 2026-08-31 while its contents rotated completely, so a length that
    does not move proves nothing — find a run's new errors by content and
    timestamp, and take the debug store (`Zotero.Debug.setStore(true)`
-   for the run, the value restored at the end) as the record for
-   dead-object bursts and `[zotero-tts]` lines. `Zotero.Debug.get()` is
-   async: `await` it, or the read comes back as a promise whose string
-   holds no `[zotero-tts]` line and looks empty (2026-09-06).
+   for the run, the value restored at the end — read `Zotero.Debug.storing`
+   first: on 2026-09-05 it was already on, and was left alone) as the
+   record for dead-object bursts and `[zotero-tts]` lines. `Zotero.Debug.get()`
+   is async: `await` it, or the read comes back as a promise whose string
+   holds no `[zotero-tts]` line and looks empty (2026-09-06). Reading a
+   `MediaError.message` from chrome scope logs Gecko's
+   `privacy.resistFingerprinting` warning: those lines are the run's own.
 7. Hover and tooltips: move the mouse with
    `win.windowUtils.sendMouseEvent('mousemove', x, y, 0, 0, 0, false, 0, 0, false, false)`
    — the two trailing `false` (the DOM- and widget-synthesized flags) are
@@ -245,7 +278,8 @@ start over.
   synthesize a probe (Azure's free tier, Chatterbox is free). One run per
   check is fine unless the brief says otherwise; never in a loop.
 - The plugin's own dialog (`#ztts-notice`, an html:dialog in the pane) does
-  not block the eval thread: read its text, then `dialog.close()`. A native
+  not block the eval thread: read its text, then `dialog.close()`. Its
+  `textContent` opens with its own `<style>` rule — read the child `div`s. A native
   prompt (`Services.prompt.*`) would freeze it — do not trigger one.
 - A failing bridge call is retried at most twice, then reported.
 

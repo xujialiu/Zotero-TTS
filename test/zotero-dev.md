@@ -21,8 +21,10 @@ before the next starts; a follow-up on a section goes to the same agent
 through `SendMessage`. Every item names the check and the expected
 output; "derive" means the agent takes the expected output from `src/`
 and says so. The first full pass was the 1.10.1 bug hunt of 2026-08-31
-(notes/NOTES_2026-08-31.md, 16:01); the expected outputs below are what
-it measured, updated for the fixes since where marked.
+(notes/NOTES_2026-08-31.md, 16:01), the second the 1.10.9 pass of
+2026-09-05 on Windows (notes/NOTES_2026-09-05.md; issues #48, #49, #51);
+the expected outputs below are what they measured, updated for the fixes
+since where marked.
 
 ## 0. Before every section — the baseline
 
@@ -59,6 +61,21 @@ it measured, updated for the fixes since where marked.
   Chatterbox and the System voices are what plays.
 - Spend: one Test connection per provider, one sample per provider, a
   few sentences per playback check; never a loop of synthesis.
+- **Audio, probed before the first playback check** (2026-09-05): on a
+  machine without an output device — a remote desktop session with no
+  audio redirection — Zotero's `AudioContext` stays `suspended` at
+  `currentTime` 0 and a session never advances on its own, while
+  synthesis, timestamps, highlight, prefetch and every state check still
+  run; the device can come and go within a day. Frozen: every "speaks
+  within N s" and every audio-driven count is NOT TESTABLE (machine), the
+  mechanism half of the item still runs, and the run says which. The
+  probe is the controller's `_audioContext.state` and `currentTime`
+  twice ~500 ms apart in one script (rulebook step 5).
+- The profile's state is read, not assumed: on 2026-09-05 both sync
+  switches of section 6 were on, `Zotero.Debug` was already storing, the
+  memory named a metered voice, and the library held two fixtures of an
+  earlier pass that had arrived through Zotero sync — reported, not
+  erased.
 
 ## 1. Startup, the settings pane, providers, system voices
 
@@ -185,7 +202,7 @@ it measured, updated for the fixes since where marked.
     a close and reopen shows them in the new language (`停用`, the run
     `收藏的语音`): a user is asked to restart on a language change, so
     this is by design, not a FAIL (measured 2026-09-04: the pane
-    retranslated in 172 ms). Each switch logs one Zotero-own `uncaught
+    retranslated in 172 ms; 117 ms on 2026-09-05). Each switch logs one Zotero-own `uncaught
     exception: undefined`, reproduced with no settings window open. Then
     the pref back verbatim (an empty snapshot means `requestedLocales = []`)
     and `appLocalesAsBCP47` equal to the baseline's.
@@ -235,7 +252,10 @@ it measured, updated for the fixes since where marked.
    the default is not a favorite** — the notice names the voice and the
    two ways out (`src/ui/voice-list-switches.ts`), the pref stays false.
 6. **Samples.** ▶ on a Kokoro voice, on a System voice and on a Zotero
-   voice: glyph `▶` → `…` → `■` → `▶` within ~10 s, no `Sample failed:`;
+   voice: glyph `▶` → `…` → `■` → `▶` within ~10 s, no `Sample failed:`
+   (on a machine with no audio sink the element errors ~7 ms after
+   `playing` and the glyph still comes back with no message, issue #48 —
+   the `■` state is evidence only where audio is known good);
    `diagnostics.sampleSpeed()` → `startingSpeed` the memory's speed,
    `playing.playbackRate` 1.5, `preservesPitch` true, `afterSetRate` 2.
 7. **The speed slider.** `input` moves only the sample rate; `change`
@@ -274,12 +294,17 @@ it measured, updated for the fixes since where marked.
    to re-measure the gutter: with the stylesheet emptied and restored,
    row height, dropdown width, `scrollWidth` and `scrollHeight` were
    identical (24 / 284 / 282 / 874) and no label was clipped, so the
-   16 px cost nothing but the indent.
+   16 px cost nothing but the indent. Windows, 2026-09-05: 24 / 284 /
+   282 / 1042 (86 rows), the widest label 199.88 px in the 234 px left
+   to it, the same both ways.
 
 ## 3. The Read Aloud integration on a fixture
 
-1. **The reader's list.** With the popup closed, `_prepareReadAloud()`
-   and poll `allVoices`: under favorites-only exactly the favorites per
+1. **The reader's list.** With the popup closed — on a tab whose popup
+   has been opened and closed once, never before the first open: a bare
+   `_prepareReadAloud()` there leaves the player unrendered for the tab's
+   life (rulebook step 5; reader.js:83565-83569, measured 2026-09-05) —
+   `_prepareReadAloud()` and poll `allVoices`: under favorites-only exactly the favorites per
    tier, no others; `diagnostics.systemVoices()` → Zotero's own Windows
    voices hidden (`hid N system voices` in the log);
    `diagnostics.multilingualFirst()` → `mulLabel` with the leading space;
@@ -334,7 +359,12 @@ it measured, updated for the fixes since where marked.
    stop there with `_error: null` is the regression.
 7. **Prefetch and cache.** The log's `prefetch: <provider>: N chars
    ready ahead of playback` lines reach up to the setting plus Zotero's
-   three ahead (measured 6 on a 17-segment fixture); after the first
+   three ahead (measured 6 on a 17-segment fixture) — that is the upper
+   bound: `prefetchAfter` warms exactly the setting's count after the
+   segment just requested, one chain at a time, so the steady state
+   while playing is `position + count` (measured 2026-09-05 with the
+   setting at 5: 5, 7 and 11 ahead, all inside
+   `[position + count, position + 3 + count]`); after the first
    pass every replayed segment logs `(cached)`. A skip back is answered
    by Zotero's own `_audioBuffers` before the plugin's cache — not a
    check.
@@ -414,10 +444,14 @@ key. Two fixtures open, A speaking.
    visible document for ~900 ms, memory `speed`, every language entry's
    `speed`, the log `spread read-aloud speed N to M reader(s)`, the idle
    tab's manager takes the speed without persisting. Shift+X back;
-   Shift+Z to 1; the popup's own `setSpeed(1.7, true)` restores.
+   Shift+Z to 1 (the toast reads `1.0×`: `toFixed(1)`); the popup's own
+   `setSpeed(1.7, true)` restores.
 2. **Skips.** ArrowRight/ArrowLeft ±1 segment, Shift+Arrow to the
    previous/next `paragraphStart` anchor (derive from the controller's
-   `_segments`), `view._readAloudPositionLocked` true after each.
+   `_segments`), `view._readAloudPositionLocked` true after each — the
+   flag is already true when a session starts, so force it false
+   (`Components.utils.waiveXrays(view)._readAloudPositionLocked = false`)
+   before each press, or the check proves nothing.
 3. **Shift+Space.** `diagnostics.smartKey()` predicts each press:
    playing → `togglePaused (pause)`; paused → resume; idle with nothing
    stored → `startReadAloud (plain start)` (the press supplies the
@@ -426,9 +460,13 @@ key. Two fixtures open, A speaking.
    true and `_readAloudState` is re-emitted. The visible scroll back is
    Zotero's smooth follow, which did not animate in this window — eyes
    only. Without a session Shift+Enter is not consumed and the arrows
-   keep paging (the page number changes).
+   keep paging (the page number changes — a two-page document, fixture A,
+   not B).
 5. **Shift+O.** `diagnostics.playerOptions(true)` flips `expanded`; the
-   real press flips it back, on the picked reader only.
+   real press flips it back, on the picked reader only. The diagnostic
+   presses the button of **every** reader with a player, so with two
+   players open the other one is left expanded — restore it by clicking
+   its own Options button.
 6. **Tab routing.** A paused in the background, B visible: the key goes
    to B, the toast in B's document. A speaking in the background, B
    visible: the key goes to A (speaking wins), the toast in the chrome
@@ -453,7 +491,8 @@ key. Two fixtures open, A speaking.
    sentence; `database.rows` up by one within ~10 s, `store.queued` 0,
    `lastError` null.
 2. **Close capture.** Popup closed, tab closed: `tabHooks`/`captureHooks`
-   back to 0, the `trace` `tab.onClose fired` → `reader.uninit fired` →
+   back to the baseline's (0 with no other tab open), the `trace`
+   `tab.onClose fired` → `reader.uninit fired` →
    the notifier, the row kept with the sentence paused on. One close
    pokes the position transport once (issue #40, 1.10.4).
 3. **Resume.** Reopen; `diagnostics.smartKey()` → `resume at the stored
@@ -465,7 +504,11 @@ key. Two fixtures open, A speaking.
    NOT TESTABLE on a two-page fixture; ours stays regardless.
 5. **Colors live.** The pane's color input (`preference=`-bound; set
    `value`, dispatch `input`) → the pref, `diagnostics.highlight().style`,
-   the drawn word, the pane's preview; *Restore default colors* puts the
+   the drawn word (at the next draw — a word onset while playing, or
+   `view._render()` on a paused session; the *sentence under word* switch
+   takes effect at the next state push, so a paused session keeps its
+   sentence until it resumes — by mechanism, 2026-09-05), the pane's
+   preview; *Restore default colors* puts the
    five defaults back (no user value left).
 6. **In-place reinstall with a tab open** (the path an update takes):
    the log `stopped` (observers unregistered, `Closing database`,
@@ -493,11 +536,25 @@ key. Two fixtures open, A speaking.
 Against the user's real WebDAV folder; every test file deleted from the
 server at the end, every switch restored (bool prefs through
 `zotero_execute_js` with `Zotero.Prefs.set(name, false, true)` and a
-read-back — `zotero_set_pref` cannot write false).
+read-back — `zotero_set_pref` cannot write false). The profile decides
+the starting state: on 2026-09-05 both switches were on, and the folder
+held five files — the pre-1.11 shared `zotero-tts-settings.json`, this
+machine's, another machine's, an orphan of an earlier rename of this
+machine, and the positions file with 45 entries, 8 of them the erased
+fixtures of earlier runs (issue #51) — all left as found. Item 2's
+"first upload creates the file" is not re-run from absence while the
+file holds other machines' entries; the `not-found` branch is proved with
+a GET of a name that does not exist (404). Item 3's crafted entry names
+the run's own fixture, never a user document. `readAloud.memory` is not
+a settings key, so items 5 and 6 take their settings change from a sync
+switch.
 
 1. **Positions, switch off** (the default): every trigger runs and
-   sends nothing — `diagnostics.positionSync()` → `enabled: false`,
-   the transport stats unchanged across a tab open and close.
+   sends nothing — `diagnostics.positionSync()` → `enabled: false`;
+   across a tab open and close the transport's `syncs` and
+   `lastTrigger` move with `lastOutcome` `skipped` (the counter is
+   bumped before the switch is read), while `remoteEntries`, `adopted`,
+   `uploaded` and the file's `lastModified` do not.
 2. **Switch on** syncs at once (the pref observer): the transport's
    `lastAt`/outcome move, the first upload creates
    `zotero-tts-positions.json` with the store's bookmarks in canonical
