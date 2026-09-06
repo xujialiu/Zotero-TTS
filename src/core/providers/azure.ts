@@ -8,7 +8,7 @@ import {
   parseWordBoundaries,
 } from './azure-ws';
 import { SynthesisError } from './errors';
-import { MULTILINGUAL, type SynthesisOptions, type SynthesisResult, type TTSProvider, type VoiceInfo } from './types';
+import { MULTILINGUAL, type ListVoicesOptions, type SynthesisOptions, type SynthesisResult, type TTSProvider, type VoiceInfo } from './types';
 
 type AzureVoice = { ShortName: string; DisplayName?: string; LocalName?: string; Locale: string };
 
@@ -57,14 +57,14 @@ export function createAzureProvider(cfg: AzureConfig, deps: AzureDeps): TTSProvi
     id: 'azure',
     capabilities: { wordTimestamps: true },
 
-    async listVoices(): Promise<VoiceInfo[]> {
+    async listVoices(options?: ListVoicesOptions): Promise<VoiceInfo[]> {
       if (!cfg.apiKey) throw new SynthesisError('no-key', 'Azure API key is not set');
 
       let response: Response;
       try {
         response = await deps.fetch(
           `https://${cfg.region}.tts.speech.microsoft.com/cognitiveservices/voices/list`,
-          { headers: { 'Ocp-Apim-Subscription-Key': cfg.apiKey } },
+          { headers: { 'Ocp-Apim-Subscription-Key': cfg.apiKey }, signal: options?.signal },
         );
       } catch (e) {
         throw new SynthesisError('network', String(e));

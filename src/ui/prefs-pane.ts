@@ -8,7 +8,7 @@ import { getChromeWebSocket, newRequestId } from '../core/providers/azure';
 import { SynthesisError } from '../core/providers/errors';
 import { withTimeout } from '../core/timeout';
 import { createWebDAVClient } from '../core/webdav';
-import { listNamedCatalog } from '../read-aloud/catalog';
+import { CATALOG_CAP_MS, listNamedCatalog } from '../read-aloud/catalog';
 import { FAVORITES_ONLY_OBSERVER, parseFavoriteVoices } from '../read-aloud/favorites';
 import { languageDisplayName } from '../read-aloud/language-dropdown';
 import { readMemory, writeMemory, READ_ALOUD_MEMORY_OBSERVER, type VoiceChoice } from '../read-aloud/read-aloud-memory';
@@ -510,13 +510,18 @@ export function onPaneLoad(doc: Document, hooks: PaneHooks = {}): void {
     ...readingGuard,
     // The very catalog the Read Aloud interface publishes, so the browser
     // and the popup agree on voices and names. Bounded like every network
-    // call: a hanging server must become a status line, not a spinner.
+    // call: a hanging server must become a status line, not a spinner —
+    // each provider on its own inside the catalog (issue #55), its request
+    // cancelled with a controller from the pane's window since the sandbox
+    // has none, and the cap on the whole listing as the last resort.
     listCatalog: () => {
       const settings = loadSettings(prefs);
       return withTimeout(
-        listNamedCatalog(settings, (id) => createProvider(id, settings, providerDeps()), (e) => Zotero.logError(e)),
-        TEST_CONNECTION_TIMEOUT_MS,
-        () => new SynthesisError('network', `No voice list within ${Math.round(TEST_CONNECTION_TIMEOUT_MS / 1000)} s`),
+        listNamedCatalog(settings, (id) => createProvider(id, settings, providerDeps()), (e) => Zotero.logError(e), {
+          newAbortController: () => (typeof win?.AbortController === 'function' ? new win.AbortController() : null),
+        }),
+        CATALOG_CAP_MS,
+        () => new SynthesisError('network', `No voice list within ${Math.round(CATALOG_CAP_MS / 1000)} s`),
       );
     },
     synthesizeSample: (id, voiceId, text) => synthesizeSample(win, prefs, id, voiceId, text, providerDeps()),

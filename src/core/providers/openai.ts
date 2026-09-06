@@ -1,7 +1,7 @@
 import type { SynthesisRoute } from '../server-presets';
 import { normalizeBaseURL } from './base-url';
 import { SynthesisError } from './errors';
-import { MULTILINGUAL, type SynthesisOptions, type SynthesisResult, type TTSProvider, type VoiceInfo } from './types';
+import { MULTILINGUAL, type ListVoicesOptions, type SynthesisOptions, type SynthesisResult, type TTSProvider, type VoiceInfo } from './types';
 
 export type OpenAIConfig = {
   apiKey: string;
@@ -177,9 +177,9 @@ export function createOpenAIProvider(cfg: OpenAIConfig, deps: { fetch: typeof fe
   };
   const missingKey = () => !cfg.apiKey && keyRequired();
 
-  async function get(path: string): Promise<Response> {
+  async function get(path: string, signal?: AbortSignal): Promise<Response> {
     try {
-      return await deps.fetch(`${base()}${path}`, { headers: authHeaders() });
+      return await deps.fetch(`${base()}${path}`, { headers: authHeaders(), signal });
     } catch (e) {
       throw new SynthesisError('network', `Cannot reach ${base()}: ${e}`);
     }
@@ -244,11 +244,11 @@ export function createOpenAIProvider(cfg: OpenAIConfig, deps: { fetch: typeof fe
      * documented list. A server that cannot be reached at all is an error,
      * not a reason to show OpenAI's names for it.
      */
-    async listVoices(): Promise<VoiceInfo[]> {
+    async listVoices(options?: ListVoicesOptions): Promise<VoiceInfo[]> {
       const custom = parseVoiceIds(cfg.voices ?? '');
       if (custom.length) return custom.map((id) => ({ id, label: id, locale: MULTILINGUAL }));
 
-      const response = await get('/v1/audio/voices');
+      const response = await get('/v1/audio/voices', options?.signal);
       if (response.ok) {
         let body: unknown = null;
         try {

@@ -104,9 +104,10 @@ security note is in [NOTES_2026-08-22.md](NOTES_2026-08-22.md). These remain:
    and the consumer handles null; ours should too.
 3. Minor: `patched` reader list in the hijack never shrinks during a
    session; `toZoteroError` reaches exhaustiveness via `default` rather
-   than a `never` check; the Kokoro `call()` helper classifies a user abort
-   as "local server down" (unreachable today — nothing aborts through this
-   interface).
+   than a `never` check; the Kokoro `call()` helper classifies an abort
+   as "local server down" (since issue #55 the catalog aborts a listing
+   that ran past its bound, but that rejection is discarded by the
+   timeout race and never read).
 
 ---
 
@@ -285,3 +286,4 @@ cite `notes/NOTES.md` with a date or a section title resolve through this index.
 - A typo of a hosted server's address is named before the key goes anywhere (issue #54)
 - The player's language dropdown resolved against the previous language's entry, so the pick hook now hands it the right one first (issue #49)
 - A permanently deleted document's bookmark now leaves the shared file: tombstones stay on the machine, never in the file (issue #51)
+- A provider that hangs at the popup's open dropped every provider's voices, so each is bounded on its own now (issue #55)

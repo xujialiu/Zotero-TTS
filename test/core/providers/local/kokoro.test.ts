@@ -54,6 +54,15 @@ describe('kokoroAdapter', () => {
     ]);
   });
 
+  // Issue #55: the catalog bounds each provider's listing and aborts one
+  // that runs past the bound, so the request must carry the caller's signal
+  it("passes the caller's signal to the voice list request", async () => {
+    const fetchImpl = vi.fn(async () => Response.json({ voices: ['af_bella'] }));
+    const { signal } = new AbortController();
+    await provider(fetchImpl).listVoices({ signal });
+    expect((fetchImpl as any).mock.calls[0][1].signal).toBe(signal);
+  });
+
   it("accepts an address written with the OpenAI SDK's /v1 suffix", async () => {
     const fetchImpl = vi.fn(async () => Response.json({ voices: [] }));
     await kokoroAdapter.create('http://localhost:8880/v1/', { fetch: fetchImpl as unknown as typeof fetch }).listVoices();

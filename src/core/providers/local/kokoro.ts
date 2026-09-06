@@ -2,7 +2,7 @@ import { alignWordsToText } from '../../align';
 import type { TimedWord } from '../../align';
 import { normalizeBaseURL } from '../base-url';
 import { SynthesisError } from '../errors';
-import type { SynthesisOptions, SynthesisResult, TTSProvider, VoiceInfo } from '../types';
+import type { ListVoicesOptions, SynthesisOptions, SynthesisResult, TTSProvider, VoiceInfo } from '../types';
 
 /** Kokoro voice ids encode language and gender via a prefix, e.g. af_bella = American Female. */
 const LOCALE_BY_PREFIX: Record<string, string> = {
@@ -86,8 +86,8 @@ function createKokoroProvider(rawBaseURL: string, deps: LocalEngineDeps): TTSPro
     id: 'local',
     capabilities: { wordTimestamps: true },
 
-    async listVoices(): Promise<VoiceInfo[]> {
-      const response = await call('/v1/audio/voices', {});
+    async listVoices(options?: ListVoicesOptions): Promise<VoiceInfo[]> {
+      const response = await call('/v1/audio/voices', { signal: options?.signal });
       if (!response.ok) {
         throw statusError('Kokoro voices', response.status);
       }

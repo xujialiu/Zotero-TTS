@@ -321,7 +321,47 @@ since where marked.
    against the **new** list (#37). Expected outputs: the fix's own
    verification on the three issues; derive the current ones from
    `src/read-aloud/memory-sync.ts`.
-3. **Playback and its mechanism.** `notifyUserGestureActivation()` +
+3. **A provider that hangs at the open** (issue #55, 1.10.13). Start a
+   listener that accepts every connection and never answers (a Python
+   `socket` that `accept`s and holds — port 8899 on 2026-09-06), point
+   `local.baseURL` at it with the Local engine and one answering
+   provider enabled (Azure, or the System voices), the memory naming a
+   voice of the answering one, favorites-only off; on a tab whose popup
+   was opened and closed once, `_prepareReadAloud()` with the popup
+   closed, `_allVoices` polled in ≤7 s windows against a start time kept
+   on a chrome global. Expected — the mechanism: the list lands **about
+   15 s** after the call (`PROVIDER_LISTING_TIMEOUT_MS`,
+   `src/read-aloud/catalog.ts`), never 30; it holds the answering
+   provider's voices and no `local::` id; `selectedVoiceID` stays the
+   memory's voice and is never a Zotero id at any sample; the error
+   store gains exactly one `local: listing voices failed: no voice list
+   within 15 s` (matched with that prefix — the system-voice migration's
+   error ends the same way) and no `Listing the plugin's voices took
+   longer than 30 s`; the listener says whether the peer closed the
+   connection at ≈15 s (the abort reaching the socket; recorded either
+   way). Before the fix the union's 30 s cap dropped every provider's
+   voices and Zotero resolved a Standard or Premium one. Then the memory
+   on `local::am_puck`: the substitute is a voice of the answering
+   provider (item 2's order), the `is not offered here. Reading with …`
+   toast, the memory unchanged. The pane's voice browser leaves `Listing
+   voices…` at ≈15 s with the answering provider's rows and no `Listing
+   voices failed`; `diagnostics.defaultVoice()` — started in one script,
+   its stored promise awaited in a later one — reports `problems: []`.
+   The toast's text is read from the chrome document (a 5 s transient
+   the bridge's round trip outlasts — seeing it is a human check); it
+   names the missing voice by its id (`local::am_puck`) when the whole
+   provider is skipped, since no listed voice carries its label, and it
+   is said once per popup open per `missing>instead` pair. Restore
+   `local.baseURL` and the memory, stop the listener. Measured
+   2026-09-06 on 10.0.2-beta.7, 1.10.12-beta, three providers answering
+   (Azure 691, Chatterbox 28, a remote Kokoro 68; N 2267): the list
+   landed as 2199 = 1480 Zotero + 691 + 28, `diagnostics.defaultVoice()`
+   settled at 15065 ms and the pane's status line at 15326 ms, the
+   listener saw every connection closed by the peer at 15.00–15.50 s,
+   the error at +14663 ms of the listing, seven `local:` lines for
+   seven listings and no 30 s line; the substitute was
+   `azure::en-US-AndrewNeural`, the first en-US favorite by label.
+4. **Playback and its mechanism.** `notifyUserGestureActivation()` +
    `toggleReadAloudPopup(true)` in one script; `active && !paused`
    within a few seconds; the log `[zotero-tts] <provider>: N word
    timestamps for M chars` per sentence (`azure`/`local`/`system` N > 0;
@@ -330,7 +370,7 @@ since where marked.
    popup's own path (`selectVoice`, on the voice's language), each
    speaking within 15 s; a voice with no audio in 15 s is a FAIL with
    the log. Every pick is learned: memory and Zotero's entry follow.
-4. **Highlight.** While speaking, `diagnostics.highlight()` → `patched:
+5. **Highlight.** While speaking, `diagnostics.highlight()` → `patched:
    true`, `sentenceSlot: "ours"`, `activeWordTimestamp: "real"` (Azure,
    Kokoro, System) or the stand-in kind (OpenAI, granularity down to
    `sentence`), `style` = the pane's five prefs; the log `highlight style
@@ -338,13 +378,13 @@ since where marked.
    inside the sentence in the sentence color. `patched: false` is the
    normal state of a tab whose popup never opened, not a fault. Known:
    the diagnostic logs an error per call on such a tab (issue #39).
-5. **Invisible text** (issue #15). The fixture's size-zero line never
+6. **Invisible text** (issue #15). The fixture's size-zero line never
    reaches Zotero's structured text, so this needs a real latexit PDF
    (an inline span at size zero in a transparent color): expected the
    log `skipping N chars that are not visible on the page; playing a
    400 ms pause instead` and no such segment spoken. Without that
    fixture: NOT TESTABLE, say so.
-6. **Empty audio becomes a pause** (issue #42). Azure answers
+7. **Empty audio becomes a pause** (issue #42). Azure answers
    asterisk-only text (the `****` scene separators) with zero audio
    frames — a success with nothing in it, which Zotero cannot decode
    and pauses on silently, error state unset, Retry inert. With a
@@ -357,7 +397,7 @@ since where marked.
    a stored empty original heals on the way out. Playback across such
    a separator continues into the next sentence after the pause; a
    stop there with `_error: null` is the regression.
-7. **Prefetch and cache.** The log's `prefetch: <provider>: N chars
+8. **Prefetch and cache.** The log's `prefetch: <provider>: N chars
    ready ahead of playback` lines reach up to the setting plus Zotero's
    three ahead (measured 6 on a 17-segment fixture) — that is the upper
    bound: `prefetchAfter` warms exactly the setting's count after the
@@ -368,37 +408,37 @@ since where marked.
    pass every replayed segment logs `(cached)`. A skip back is answered
    by Zotero's own `_audioBuffers` before the plugin's cache — not a
    check.
-8. **The reading guard** (issue #11), session active (paused counts):
+9. **The reading guard** (issue #11), session active (paused counts):
    Disable on a provider, the *Offer only favorite voices* checkbox, a
    ♥ while only favorites are offered — each opens `#ztts-notice` naming
    the tab (`Read Aloud is open in a tab: • <title>`), the pref
    unchanged, the checkbox snapped back; `dialog.close()` after reading
    it.
-9. **The pauses** (issue #44, 1.10.8). `diagnostics.pauses()` per
-   reader. Popup closed: `patched.controller` false, `count` 0. A
-   session on a plugin voice: `patched: {manager: true, controller:
-   true}`, `voice.nativeSentenceDelay` 0, at the defaults `gaps:
-   {sentence: 0, paragraph: round(200/speed)}`, `count` up one per
-   boundary, `last.paragraph` true exactly into segments 5/9/12/15
-   with `last.scheduled` 200 and `last.delay` round(200/speed), false
-   elsewhere with 0 and 0. Mid-session, sentence 1000 and paragraph
-   400 at 2× → `gaps {500, 700}` and the next boundaries' `last.delay`
-   accordingly; `_allVoices.length` unchanged, `active` still true, no
-   `#ztts-notice`. Both switches off → `gaps {0, 200}` and
-   `last.delay === last.scheduled`. `Premium Voice 1` (spends: at most
-   three sentences, only with Premium credit on the account —
-   `selectTier('premium')` before `selectVoice`, and resume, poll and
-   pause in ONE script, since every round trip is billed audio):
-   `nativeSentenceDelay` 300; at the defaults `last.scheduled` 300 or
-   500 → `delay` 0 or 100 at 2×; switches off → `delay === scheduled`.
-   An in-place reinstall under the paused session → `patched` both
-   true again, `count` 0, `diagnostics.patches().pauses` = one entry
-   per open tab plus one per tab with a session (`{6, 6}` measured
-   with four tabs and two sessions), no dead-object burst. The pane:
-   the two rows under *Use one speed everywhere*, bound to the four
-   prefs; writes through the number inputs and the checkboxes reach the
-   prefs; the `?` tooltips open. By ear only: the pacing at 1× and 2×.
-10. **The player's language dropdown lands on the language's remembered
+10. **The pauses** (issue #44, 1.10.8). `diagnostics.pauses()` per
+    reader. Popup closed: `patched.controller` false, `count` 0. A
+    session on a plugin voice: `patched: {manager: true, controller:
+    true}`, `voice.nativeSentenceDelay` 0, at the defaults `gaps:
+    {sentence: 0, paragraph: round(200/speed)}`, `count` up one per
+    boundary, `last.paragraph` true exactly into segments 5/9/12/15
+    with `last.scheduled` 200 and `last.delay` round(200/speed), false
+    elsewhere with 0 and 0. Mid-session, sentence 1000 and paragraph
+    400 at 2× → `gaps {500, 700}` and the next boundaries' `last.delay`
+    accordingly; `_allVoices.length` unchanged, `active` still true, no
+    `#ztts-notice`. Both switches off → `gaps {0, 200}` and
+    `last.delay === last.scheduled`. `Premium Voice 1` (spends: at most
+    three sentences, only with Premium credit on the account —
+    `selectTier('premium')` before `selectVoice`, and resume, poll and
+    pause in ONE script, since every round trip is billed audio):
+    `nativeSentenceDelay` 300; at the defaults `last.scheduled` 300 or
+    500 → `delay` 0 or 100 at 2×; switches off → `delay === scheduled`.
+    An in-place reinstall under the paused session → `patched` both
+    true again, `count` 0, `diagnostics.patches().pauses` = one entry
+    per open tab plus one per tab with a session (`{6, 6}` measured
+    with four tabs and two sessions), no dead-object burst. The pane:
+    the two rows under *Use one speed everywhere*, bound to the four
+    prefs; writes through the number inputs and the checkboxes reach the
+    prefs; the `?` tooltips open. By ear only: the pacing at 1× and 2×.
+11. **The player's language dropdown lands on the language's remembered
     voice** (issue #49, 1.10.10). With *Use one voice everywhere* on, the
     memory naming a single-language Local voice V_en under `en`, the
     `mul` entry naming a Local multilingual voice V_mul — neither the
@@ -432,7 +472,7 @@ since where marked.
     `_getAnnotationFromSelectionRanges`) per dropdown click, its own
     noise, nothing of ours in the stack. Measured 2026-09-06 with
     Andrew / AlloyTurbo at 2.1×, 1.10.10-beta.
-11. **Teardown**: popup closed, tab closed, the item erased, `rows` back.
+12. **Teardown**: popup closed, tab closed, the item erased, `rows` back.
 
 ## 4. Shortcuts, the toast, the recorder, two tabs
 

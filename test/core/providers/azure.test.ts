@@ -271,6 +271,15 @@ describe('createAzureProvider', () => {
       expect(init.headers['Ocp-Apim-Subscription-Key']).toBe('key-1');
     });
 
+    // Issue #55: the catalog bounds each provider's listing and aborts one
+    // that runs past the bound, so the request must carry the caller's signal
+    it("passes the caller's signal to the voice list request", async () => {
+      const fetchImpl = vi.fn(async () => new Response('[]', { status: 200 }));
+      const { signal } = new AbortController();
+      await provider(fetchImpl as unknown as typeof fetch).listVoices({ signal });
+      expect((fetchImpl as any).mock.calls[0][1].signal).toBe(signal);
+    });
+
     it('rejects with no-key before fetching when the key is empty', async () => {
       const fetchImpl = vi.fn();
       const p = createAzureProvider(

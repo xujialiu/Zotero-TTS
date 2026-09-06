@@ -1,7 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { ProviderId, TTSProvider } from '../../src/core/providers/types';
 import { DEFAULTS } from '../../src/core/settings';
-import { collectCatalog, listNamedCatalog } from '../../src/read-aloud/catalog';
+import { CATALOG_CAP_MS, collectCatalog, listNamedCatalog, PROVIDER_LISTING_TIMEOUT_MS } from '../../src/read-aloud/catalog';
+import { TEST_CONNECTION_TIMEOUT_MS } from '../../src/ui/prefs-pane';
 
 function provider(id: ProviderId, voices: { id: string; label: string; locale: string }[] | Error): TTSProvider {
   return {
@@ -57,6 +58,65 @@ describe('collectCatalog', () => {
     const getProvider = vi.fn();
     expect(await collectCatalog([], getProvider)).toEqual([]);
     expect(getProvider).not.toHaveBeenCalled();
+  });
+});
+
+// Issue #55: a provider that neither answers nor fails used to hold the
+// whole listing past the union's cap, and the cap then dropped every
+// provider's voices — the ones that had answered included — so Read Aloud
+// started on one of Zotero's paid voices. Each provider is bounded on its
+// own now, and one that has not answered in time is skipped exactly like
+// one that failed.
+describe('collectCatalog with a provider that never answers', () => {
+  const hanging = (id: ProviderId, listVoices: (...args: unknown[]) => Promise<unknown> = vi.fn(() => new Promise<never>(() => {}))): TTSProvider =>
+    ({ id, capabilities: { wordTimestamps: false }, listVoices, synthesize: vi.fn() }) as unknown as TTSProvider;
+
+  it('skips it within the bound, keeps the providers that answered, and names it in the log with the bound', async () => {
+    const log = vi.fn();
+    const providers = { local: hanging('local'), azure: provider('azure', [xiaoxiao]) } as Record<ProviderId, TTSProvider>;
+    const started = Date.now();
+    const catalog = await collectCatalog(['local', 'azure'], (id) => providers[id], log, { timeoutMs: 20 });
+    expect(Date.now() - started).toBeLessThan(1000);
+    expect(catalog).toEqual([{ provider: 'azure', voices: [xiaoxiao] }]);
+    expect(log).toHaveBeenCalledTimes(1);
+    expect((log.mock.calls[0][0] as Error).message).toMatch(/^local: listing voices failed: no voice list within \d+ s$/);
+  });
+
+  it('hands each provider its own signal and aborts only the one that timed out', async () => {
+    const hung = vi.fn(() => new Promise<never>(() => {}));
+    const answered = vi.fn(async () => [xiaoxiao]);
+    const providers = { local: hanging('local', hung), azure: hanging('azure', answered) } as Record<ProviderId, TTSProvider>;
+    const newAbortController = vi.fn(() => new AbortController());
+    await collectCatalog(['local', 'azure'], (id) => providers[id], undefined, { timeoutMs: 20, newAbortController });
+    expect(newAbortController).toHaveBeenCalledTimes(2);
+    const [forLocal, forAzure] = newAbortController.mock.results.map((r) => r.value as AbortController);
+    expect(hung).toHaveBeenCalledWith({ signal: forLocal.signal });
+    expect(answered).toHaveBeenCalledWith({ signal: forAzure.signal });
+    expect(forLocal.signal.aborted).toBe(true);
+    expect(forAzure.signal.aborted).toBe(false);
+  });
+
+  it('still skips it in time when no controller can be made', async () => {
+    const hung = vi.fn(() => new Promise<never>(() => {}));
+    const providers = { local: hanging('local', hung), azure: provider('azure', [xiaoxiao]) } as Record<ProviderId, TTSProvider>;
+    const catalog = await collectCatalog(['local', 'azure'], (id) => providers[id], undefined, { timeoutMs: 20, newAbortController: () => null });
+    expect(catalog).toEqual([{ provider: 'azure', voices: [xiaoxiao] }]);
+    expect(hung).toHaveBeenCalledWith();
+  });
+
+  it('is bounded through listNamedCatalog the same way', async () => {
+    const settings = { ...DEFAULTS, azure: { ...DEFAULTS.azure, enabled: true } };
+    const providers = { openai: hanging('openai'), azure: provider('azure', [xiaoxiao]) } as Record<ProviderId, TTSProvider>;
+    const catalog = await listNamedCatalog(settings, (id) => providers[id], undefined, { timeoutMs: 20 });
+    expect(catalog).toEqual([{ provider: 'azure', voices: [xiaoxiao] }]);
+  });
+
+  // The bound is the one Test connection puts on a provider's list, so the
+  // pane and the popup agree on how long is too long; the callers that cap
+  // the whole listing as a last resort sit above it, or the two would tie
+  it('defaults to the pane’s bound, below the cap on the whole listing', () => {
+    expect(PROVIDER_LISTING_TIMEOUT_MS).toBe(TEST_CONNECTION_TIMEOUT_MS);
+    expect(CATALOG_CAP_MS).toBeGreaterThan(PROVIDER_LISTING_TIMEOUT_MS);
   });
 });
 

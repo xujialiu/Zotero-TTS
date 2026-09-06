@@ -27,7 +27,7 @@ import { describePosition, READ_ALOUD_POSITIONS_PREF, readPositions, resumeTarge
 import { readMemory } from './read-aloud/read-aloud-memory';
 import { readReadAloudVoices, resolveVoiceLang } from './core/read-aloud-speed';
 import { runStartupSteps, type StartupReport } from './core/startup-steps';
-import { listNamedCatalog, type CatalogEntry } from './read-aloud/catalog';
+import { CATALOG_CAP_MS, listNamedCatalog, type CatalogEntry } from './read-aloud/catalog';
 import { FAVORITES_OBSERVER, FAVORITES_ONLY_OBSERVER, parseFavoriteVoices } from './read-aloud/favorites';
 import { dropdownLanguage, languageDisplayName } from './read-aloud/language-dropdown';
 import { decodeVoiceId } from './read-aloud/voice-catalog';
@@ -38,7 +38,7 @@ import {
   type NativeRemoteInterface,
   type RemoteInterface,
 } from './read-aloud/remote-interface';
-import { defaultMachineName, onPaneLoad, registerPrefsPane, TEST_CONNECTION_TIMEOUT_MS, unregisterPrefsPane, zoteroVoiceService } from './ui/prefs-pane';
+import { defaultMachineName, onPaneLoad, registerPrefsPane, unregisterPrefsPane, zoteroVoiceService } from './ui/prefs-pane';
 import {
   createReadAloudShortcuts,
   deepActiveElement,
@@ -236,10 +236,25 @@ function providerDeps() {
   return { fetch, getWebSocket: getChromeWebSocket, newRequestId, system: speechDeps() };
 }
 
-/** The voices of every enabled provider; one failing is logged and skipped, not fatal. */
+/**
+ * An AbortController from a chrome window, for a listing request the
+ * catalog has to cancel once it runs past its bound (read-aloud/catalog.ts,
+ * issue #55): the plugin sandbox has none (CLAUDE.md), and no reader is at
+ * hand where the pane and the diagnostics list. Per call, never cached, so
+ * a closed window is never retained; null when no window is up, and the
+ * request is then left to finish on its own — the bound is what matters.
+ */
+function newChromeAbortController(): AbortController | null {
+  const win = Zotero.getMainWindow() ?? Services.wm.getMostRecentWindow(null);
+  return typeof win?.AbortController === 'function' ? new win.AbortController() : null;
+}
+
+/** The voices of every enabled provider; one failing, or not answering within its bound, is logged and skipped, not fatal. */
 async function listCatalog(): Promise<CatalogEntry[]> {
   const settings = loadSettings(prefs);
-  return listNamedCatalog(settings, (id) => createProvider(id, settings, providerDeps()), (e) => Zotero.logError(e));
+  return listNamedCatalog(settings, (id) => createProvider(id, settings, providerDeps()), (e) => Zotero.logError(e), {
+    newAbortController: newChromeAbortController,
+  });
 }
 
 /**
@@ -1869,9 +1884,9 @@ const diagnostics = {
       const { readAloud } = loadSettings(prefs);
       const { globalSpeed, sameForAllDocuments: sameVoice, favoritesOnly } = readAloud;
       const favorites = parseFavoriteVoices(readAloud.favoriteVoices);
-      // The pane's listing (ui/voice-browser-rows.ts listBrowserVoices): both catalogs, each failing on its own, the catalog bounded as the pane bounds it — a server that never answers must end in a problem, not a hang
+      // The pane's listing (ui/voice-browser-rows.ts listBrowserVoices): both catalogs, each failing on its own, the catalog capped as the pane caps it — each provider is bounded inside it (issue #55), this is the last resort
       const { voices, problems } = await listBrowserVoices({
-        listCatalog: () => withTimeout(listCatalog(), TEST_CONNECTION_TIMEOUT_MS, () => new Error('No voice list within 15 s')),
+        listCatalog: () => withTimeout(listCatalog(), CATALOG_CAP_MS, () => new Error(`No voice list within ${Math.round(CATALOG_CAP_MS / 1000)} s`)),
         listZoteroVoices: () => zoteroVoiceService().listVoices(),
       });
       const rows = defaultVoiceRows(voices, memory.voice);
@@ -1920,7 +1935,7 @@ const diagnostics = {
       } catch (e) {
         zoteroError = String(e);
       }
-      const catalog = await withTimeout(listCatalog(), TEST_CONNECTION_TIMEOUT_MS, () => new Error('No voice list within 15 s'));
+      const catalog = await withTimeout(listCatalog(), CATALOG_CAP_MS, () => new Error(`No voice list within ${Math.round(CATALOG_CAP_MS / 1000)} s`));
       const tiers = groupVoicesByTier(browserVoices(catalog, zotero), appLanguageName);
       const column = (tier: unknown) => tiers.find((g) => g.tier === tier)?.languages.map((l) => l.language).sort() ?? [];
       const readers = (Zotero.Reader._readers ?? []).map((r: any) => {

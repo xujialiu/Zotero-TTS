@@ -136,6 +136,15 @@ describe('listVoices', () => {
     });
     await expect(provider(fetchImpl).listVoices()).rejects.toMatchObject({ kind: 'network' });
   });
+
+  // Issue #55: the catalog bounds each provider's listing and aborts one
+  // that runs past the bound, so the request must carry the caller's signal
+  it("passes the caller's signal to the voice list request", async () => {
+    const fetchImpl = vi.fn(async () => Response.json({ voices: ['af_bella'] }));
+    const { signal } = new AbortController();
+    await provider(fetchImpl, { baseURL: 'http://localhost:8880' }).listVoices({ signal });
+    expect((fetchImpl as any).mock.calls[0][1].signal).toBe(signal);
+  });
 });
 
 describe('listModels / checkConnection', () => {

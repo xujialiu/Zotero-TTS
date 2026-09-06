@@ -49,10 +49,20 @@ export type SynthesisOptions = {
   signal: AbortSignal;
 };
 
+/**
+ * The signal a caller that bounds the listing hands over, so a request
+ * that runs past its bound is cancelled rather than left running
+ * (read-aloud/catalog.ts, issue #55). Optional: Test connection lists
+ * without one, and a provider with no request to cancel ignores it.
+ */
+export type ListVoicesOptions = {
+  signal?: AbortSignal;
+};
+
 export interface TTSProvider {
   readonly id: ProviderId;
   readonly capabilities: { wordTimestamps: boolean };
-  listVoices(): Promise<VoiceInfo[]>;
+  listVoices(options?: ListVoicesOptions): Promise<VoiceInfo[]>;
   synthesize(text: string, o: SynthesisOptions): Promise<SynthesisResult>;
   /**
    * One cheap request that proves the configuration works — server
