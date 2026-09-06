@@ -51,35 +51,38 @@ it adds voices to the player's **Local** tier and tunes what is around them.
 | **Xiaomi MiMo** | An API key from platform.xiaomimimo.com, picked in the OpenAI section's **Server** dropdown | Free for a limited time | sentence |
 | **System voices** | Nothing — Windows and macOS | Free, offline | word on Windows, sentence on macOS |
 
-Each provider section ends with **Enable**: it runs the connection check,
-and only a check that passes switches the provider on. While a provider is
-on, its fields are locked — **Disable** to edit them. **Test connection**
-probes without switching anything on. API keys, gateway headers and the
-WebDAV password are masked; like every plugin setting they are stored in
-Zotero's preferences in plain text, and they go into the settings backup
-file.
+- **Enable**, at the end of every provider section, runs the connection
+  check first: a provider that does not answer never switches on.
+- **Test connection** probes without switching anything on.
+- While a provider is on its fields are locked — **Disable** to edit them.
+- API keys, gateway headers and the WebDAV password are masked. Like every
+  plugin setting they are stored in Zotero's preferences in plain text, and
+  they go into the settings backup file.
 
 <details>
 <summary><b>OpenAI-compatible servers: how to fill the settings in</b></summary>
 
-The **Server** dropdown names the server — *OpenAI*, *Chatterbox-TTS-Server*,
-*Xiaomi MiMo*, or *Other OpenAI-compatible server* — and fills in the
-address, model, key, voices and headers you last used with that server (its
-defaults the first time, and nothing of another server's), graying out the
-fields that server ignores. **Base URL** is the server, with or without
-`/v1`. **Model** is the name it expects; **Test connection**
-fetches the server's model list and says whether yours is on it. Leave
-**Voices** empty to take the voices the server offers, or list voice ids
-yourself, comma-separated. The API key
-may stay empty for servers that have none; only api.openai.com insists on
-one. For Kokoro use the **Kokoro-FastAPI** section instead: that is what
-gets you word-level highlighting. *Xiaomi MiMo* takes the key from
-platform.xiaomimimo.com and, while **Voices** is empty, offers MiMo's
-built-in Chinese and English voices; its speech carries no word timings,
-so sentences are highlighted. With *OpenAI* or *Xiaomi MiMo* chosen, an
-address one or two letters off the server's own is refused as a typo before
-anything is sent, and any other address is tested with a note that it is
-not the server's own — a mirror or a proxy.
+- **Server** names the server — *OpenAI*, *Chatterbox-TTS-Server*, *Xiaomi
+  MiMo*, or *Other OpenAI-compatible server* — and fills in the address,
+  model, key, voices and headers you last used with it (its defaults the
+  first time, and nothing of another server's), graying out the fields that
+  server ignores.
+- **Base URL** is the server, with or without `/v1`.
+- **Model** is the name it expects; **Test connection** fetches the
+  server's model list and says whether yours is on it.
+- **Voices** — leave it empty to take the voices the server offers, or list
+  voice ids yourself, comma-separated.
+- The **API key** may stay empty for servers that have none; only
+  api.openai.com insists on one.
+- For Kokoro use the **Kokoro-FastAPI** section instead: that is what gets
+  you word-level highlighting.
+- *Xiaomi MiMo* takes the key from platform.xiaomimimo.com and, while
+  **Voices** is empty, offers MiMo's built-in Chinese and English voices;
+  its speech carries no word timings, so sentences are highlighted.
+- With *OpenAI* or *Xiaomi MiMo* chosen, an address one or two letters off
+  the server's own is refused as a typo before anything is sent, and any
+  other address is tested with a note that it is not the server's own — a
+  mirror or a proxy.
 
 </details>
 
@@ -99,15 +102,18 @@ They go out with every request. [Tutorial](tutorials/remote-access-cloudflare.md
 Read Aloud already lists the voices Windows and macOS install, under
 **Local**, but bare: no sample, no favorite, no cache, no word highlight.
 
-**Enable** in the *System voices* section gives them all of that. They come
-back as `System-Microsoft David`, `System-Samantha` and so on — the same
-voices, now with the voice browser, samples, favorites and the cache behind
-them, and word-by-word highlighting on Windows. On macOS the highlight
-stays on the sentence, and every sentence takes about half a second to
-start. Zotero's own copies leave the player, so nothing is listed twice,
-and a voice you had already picked keeps playing. At speed these voices
-sound a little different from before. On Windows you may see one
-`powershell.exe` while Zotero is open; Linux is not supported.
+**Enable** in the *System voices* section gives them all of that:
+
+- They come back as `System-Microsoft David`, `System-Samantha` and so on —
+  the same voices, now with the voice browser, samples, favorites and the
+  cache behind them.
+- Word-by-word highlighting on Windows. On macOS the highlight stays on the
+  sentence, and every sentence takes about half a second to start.
+- Zotero's own copies leave the player, so nothing is listed twice, and a
+  voice you had already picked keeps playing.
+- At speed these voices sound a little different from before.
+- On Windows you may see one `powershell.exe` while Zotero is open; Linux
+  is not supported.
 
 </details>
 
@@ -135,40 +141,42 @@ Everything is under **Edit → Settings → Zotero-TTS**.
 
 <p align="center"><img src="assets/settings-highlight.png" width="520" alt="The Highlight group"></p>
 
-A color and an opacity for the word and for its sentence, and a switch to
-keep the sentence highlighted under the word — for Zotero's own voices too.
-Word-by-word highlighting also needs Zotero's own switch: **Settings →
-General → Read Aloud → Highlight current → Word**.
-
-<details>
-<summary><b>Details</b></summary>
-
-The preview is painted in your reader's theme. The default is a blue word
-on a yellow sentence, both at 70 %; *Restore default colors* brings it back.
-
-</details>
+- A color and an opacity for the word and for its sentence, and a switch to
+  keep the sentence highlighted under the word — for Zotero's own voices too.
+- The default is a blue word on a yellow sentence, both at 70 %; *Restore
+  default colors* brings it back.
+- The preview is painted in your reader's theme.
+- Word-by-word highlighting also needs Zotero's own switch: **Settings →
+  General → Read Aloud → Highlight current → Word**.
 
 ### Keyboard shortcuts
 
 <p align="center"><img src="assets/settings-shortcuts.png" width="440" alt="The Keyboard shortcuts group"></p>
 
-**`Shift+Space` is the only key you need.** It pauses and resumes an open
-session, and otherwise starts reading — from the selected text, from
-[where you last stopped](#resume-where-you-stopped), or from the visible
-page. One key, whatever the reader is doing.
+**`Shift+Space` is the only key you need** — one key, whatever the reader is
+doing:
 
-The others act only while Read Aloud is open and keep their usual meaning
-otherwise; click a field to record another key.
+- Text selected: reading starts there.
+- Nothing selected, a document you have listened to before: reading picks up
+  at [the sentence you stopped on](#resume-where-you-stopped).
+- Nothing selected, a document you have never listened to: reading starts
+  from the page you are looking at.
+- Read Aloud already playing: it pauses; pressed again it goes on from the
+  same sentence — or from the selection, if you made one while it was
+  paused.
 
 ### Voice browser
 
 <p align="center"><img src="assets/settings-voices.png" width="700" alt="The voice browser: tier, language and voice columns"></p>
 
 Every voice Read Aloud can use, in the player's own three steps — tier,
-language, voice. **▶** plays a short sample, **♥** marks a favorite, and a
-click on a row makes that voice the **default**: what Read Aloud starts
-with, in every document. The **Speed** slider is the player's own (0.5×–3×);
-**Volume** is how loud Read Aloud plays, 100% being Zotero's own level.
+language, voice.
+
+- **▶** plays a short sample, **♥** marks a favorite.
+- A click on a row makes that voice the **default**: what Read Aloud starts
+  with, in every document.
+- **Speed** is the player's own slider (0.5×–3×); **Volume** is how loud
+  Read Aloud plays, 100% being Zotero's own level.
 
 <details>
 <summary><b>Favorites, samples, the default voice</b></summary>
@@ -237,18 +245,24 @@ with, in every document. The **Speed** slider is the player's own (0.5×–3×);
 
 ### Backup and sync
 
-**Your reading positions can follow you between computers.** Switch on
-*Sync reading positions between computers*, give it a WebDAV folder of your
-own, and every computer sharing that folder and the same library stays in
-step: stop listening on one, press `Shift+Space` on another, and reading
-goes on from that sentence. Turning it on loses no bookmark, whichever
-computer it came from. Without a server, *Export reading positions…* and
-*Import reading positions…* carry the same bookmarks as a file.
+**Reading positions sync** — your bookmarks follow you between computers.
 
-Settings need less: *Backup settings…* and *Restore settings…* keep every
-setting as one file, and the same WebDAV folder can hold each computer's
-settings and keep them up to date, to restore on another. A provider that
-cannot work on the computer you restore to stays off and says why.
+- Switch on *Sync reading positions between computers* and give it a WebDAV
+  folder of your own.
+- Every computer sharing that folder and the same library stays in step:
+  stop listening on one, press `Shift+Space` on another, and reading goes on
+  from that sentence.
+- Turning it on loses no bookmark, whichever computer it came from.
+- Without a server, *Export reading positions…* and *Import reading
+  positions…* carry the same bookmarks as a file.
+
+**Settings backup and sync**
+
+- *Backup settings…* and *Restore settings…* keep every setting as one file.
+- The same WebDAV folder can hold each computer's settings and keep them up
+  to date, to restore on another.
+- A provider that cannot work on the computer you restore to stays off and
+  says why.
 
 <details>
 <summary><b>WebDAV URL examples</b></summary>
