@@ -46,7 +46,11 @@ documents, settings backup/restore (file or WebDAV), highlight colors.
   `test/docs-translation.test.ts` fails when that hash has moved or a page has
   no translation at all; `npm run docs:pin` records the new hashes once the
   translation is up to date. A stale Chinese page therefore cannot be built
-  or released.
+  or released. **The translating is `docs-translator`'s** (settled
+  2026-09-06, issue #58): a session running Fable hands it the English
+  pages that changed and their diff, and checks the diff that comes back;
+  any other model translates in place by
+  `.claude/agents/docs-translator.md`.
 - `notes/NOTES.md` — the standing reference: what the plugin is, the Zotero
   internals verified by reading its source, what is still open, and an index
   of the log. **Read it before touching Read Aloud internals.** The log itself
@@ -172,21 +176,35 @@ documents, settings backup/restore (file or WebDAV), highlight colors.
   `prefs.js` holds the user's keys in plaintext — grep it only for the exact
   pref you need, never print whole lines.
 - **Delegation is decided per agent** (settled 2026-08-28, gated
-  2026-08-28, widened 2026-08-30, split 2026-09-04): the `git-chores` and
-  `zotero-tester` agents run Opus at maximum reasoning effort, and who
-  hands work to them is decided agent by agent. **Every run of the
+  2026-08-28, widened 2026-08-30, split 2026-09-04, a third agent
+  2026-09-06): the `git-chores`, `zotero-tester` and `docs-translator`
+  agents run Opus at maximum reasoning effort, and who hands work to them
+  is decided agent by agent. **Every run of the
   zotero-dev bridge goes to `zotero-tester`**, from a session running
   Fable *or* Opus, research as much as verification — a bridge run floods
   a context with traces, DOM dumps and unpacked Zotero source whatever
   model is reading them, and that context is where the issue and the fix
-  are then written. `git-chores` is handed over by a Fable session only;
-  every other model — this one included — commits, tags and merges itself,
-  here, in place: no subagent, the whole run in view. The agent files stay
-  the rule book either way; read `.claude/agents/git-chores.md` /
-  `.claude/agents/zotero-tester.md` before doing their work by hand.
+  are then written. `git-chores` and `docs-translator` are handed over by
+  a Fable session only; every other model — this one included — commits,
+  tags, merges and translates itself, here, in place: no subagent, the
+  whole run in view. The agent files stay the rule book either way: read
+  the agent's file before doing its work by hand, and only then — a
+  session that delegates never reads it, since the brief's shape is in
+  this file and a rulebook is 6k tokens on every later call.
+- **A session is one issue, and it reads in batches** (measured
+  2026-09-06 over the transcripts since 08-28, issue #58): a session's
+  cost is its context times its calls — some 60k tokens of harness and
+  rules on every call, plus its own thinking, which stays in the context
+  until the next user message. So the session that closed an issue ends
+  there; the next chore gets a fresh one, not a 300k context (the
+  2026-08-31 session's second day cost six times what a fresh one would
+  have). Everything a step needs is read in one call — never one file
+  per call — and what only the agent needs (its rulebook, the checklist
+  section it will run) is not read at all.
 - **Git housekeeping** (settled 2026-08-28): committing what is in the
   working tree, deleting merged branches locally and on origin, tagging,
-  pushing, and `--ff-only` merges follow `.claude/agents/git-chores.md`.
+  pushing, `--ff-only` merges and, since 2026-09-06, the whole of a
+  release (see Releasing) follow `.claude/agents/git-chores.md`.
   A Fable session hands them to `Agent` with `subagent_type:
   "git-chores"` — told exactly what to commit, with which message, and
   what to leave in the working tree — then confirms the report against
@@ -256,8 +274,10 @@ before the issue is written.
   Fable or Opus hands **every** run to `Agent` with `subagent_type:
   "zotero-tester"` — research as much as verification, since research is
   what floods a context with traces, DOM dumps and unpacked Zotero
-  source — and confirms the reported evidence (traces, pref values,
-  screenshots) field by field, which keeps its tokens for the work. A
+  source — and confirms the report field by field: a PASS / FAIL table
+  with the observed values first, scripts and traces verbatim only under
+  the rows that failed, were not testable or surprised (settled
+  2026-09-06, issue #58), which keeps its tokens for the work. A
   **verification brief** names the xpi path, the behaviors to verify, the
   diagnostics with their expected output, and what state it may touch; a
   **research brief** names the question to settle and what state it may
@@ -280,8 +300,11 @@ before the issue is written.
   it uses are `test/fixtures/`. **A feature adds its items there before
   it merges** — the check that proves the new behavior by its mechanism,
   what it may touch, what only a human can judge — and its verification
-  brief runs that section plus the baseline (section 0). A fix that
-  changes an expected output changes it there in the same commit. The
+  brief runs that section plus the baseline (section 0). The tester's
+  report ends with those items drafted in the file's shape from what it
+  measured; the session pastes and trims them rather than reading the
+  section to write them. A fix that changes an expected output changes
+  it there in the same commit. The
   **whole file runs only when the user asks for it** — never on a
   session's own initiative: not after a release, not after a Zotero
   update, not because a batch of features landed, however much changed.
@@ -308,21 +331,33 @@ before the issue is written.
 ## Releasing
 
 Installed copies auto-update through the manifest's `update_url`, which
-points at `update.json` on `main`. A release is these three steps, and
-skipping the third strands every installed copy on the old version:
+points at `update.json` on `main`. A release is **one hand-off** (settled
+2026-09-06, issue #58): a Fable session hands "release X.Y.Z" and a line
+of release notes to `git-chores`; any other model runs the release
+section of `.claude/agents/git-chores.md` itself. Underneath are two
+scripts and three commits, and skipping the last strands every installed
+copy on the old version:
 
-1. Bump the version in **both** `package.json` and `addon/manifest.json`
-   to the clean `X.Y.Z`, dropping any `-beta` suffix left by a test build
-   (run `npm install --package-lock-only`); tests, typecheck, build.
-2. Commit (`chore: release X.Y.Z`), tag `vX.Y.Z`, push with the tag, then
+1. `node scripts/release-prepare.mjs X.Y.Z` bumps **both** `package.json`
+   and `addon/manifest.json` to the clean version (a test build's `-beta`
+   suffix dropped), refreshes the lock file, runs tests, typecheck and
+   build, and checks the xpi's manifest; it refuses a dirty tree, a
+   version that is not newer, an existing tag. Commit those three files
+   as `chore: release X.Y.Z`, tag `vX.Y.Z`, push both, then
    `gh release create vX.Y.Z build/zotero-tts.xpi` — the asset must be
    named `zotero-tts.xpi`.
-3. Update `update.json` on `main`: `version`, and `update_link` to
-   `https://github.com/xujialiu/Zotero-TTS/releases/download/vX.Y.Z/zotero-tts.xpi`.
+2. `node scripts/release-point.mjs X.Y.Z` checks the asset answers 200
+   and points `update.json` at it. Commit as `chore: point update.json at
+   X.Y.Z`, push.
+3. `node scripts/release-point.mjs X.Y.Z --verify` reads the raw
+   `update_url` back (cached for up to five minutes; the script says how
+   long to wait), then the running Zotero is offered the update through
+   the bridge with the rulebook's fixed `findUpdates` script — the one
+   bridge run a release does itself, not the tester's. Zotero's Tools →
+   Plugins → gear → "Check for Plugin Updates" is the user's view of the
+   same, and it installs rather than offers.
 
-Verify: the `update_link` answers 200 and the raw `update_url` serves the
-new version; Zotero's Tools → Plugins → gear → "Check for Plugin Updates"
-should then offer it. Diagnostics run through the bridge's
+Diagnostics run through the bridge's
 `zotero_execute_js` (chrome context: `Zotero`, `Zotero.Reader._readers`,
 `reader._internalReader`, the plugin's `Zotero.ZoteroTTS`; return a string
 or JSON to read the result) — the same scope as the user's **Tools →

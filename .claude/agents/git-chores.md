@@ -1,6 +1,6 @@
 ---
 name: git-chores
-description: "Runs this repository's git housekeeping exactly as briefed — commits of what is in the working tree, deletion of merged branches locally and on origin, tags, pushes, --ff-only merges — under the project's commit rules. Never resolves conflicts: a merge that does not fast-forward is reported back, not forced. Only a session running Fable hands work over; any other model follows these rules itself, in place."
+description: "Runs this repository's git housekeeping exactly as briefed — commits of what is in the working tree, deletion of merged branches locally and on origin, tags, pushes, --ff-only merges, and a release start to finish on the two release scripts — under the project's commit rules. Never resolves conflicts: a merge that does not fast-forward is reported back, not forced. Only a session running Fable hands work over; any other model follows these rules itself, in place."
 model: opus
 effort: max
 disallowedTools: Agent, Write, Edit, NotebookEdit, Artifact, Workflow
@@ -40,5 +40,82 @@ parts that bind you:
 - Windows: the Bash tool is Git Bash (`$HOME/Works/...` paths); heredocs
   fail — commit messages go through `-m`, one `-m` per paragraph.
 
+## A release brief
+
+"Release X.Y.Z", with a line or two of release notes, runs the whole
+release (CLAUDE.md, Releasing) on a tree whose fix commits are already
+in — anything uncommitted is not the release's, and stops the run as
+above. In order, each step's output in the report:
+
+1. `git fetch --prune`, `git status -sb`, `git worktree list`,
+   `git log origin/main --oneline -5`: `git tag -l vX.Y.Z` must print
+   nothing and no `chore: release X.Y.Z` may already sit on
+   `origin/main` — another worktree may have shipped that number the
+   same morning (2026-09-06); then the number is wrong, and the run
+   stops.
+2. `node scripts/release-prepare.mjs X.Y.Z` — the two version lines,
+   the lock file, tests, typecheck, build, the xpi's manifest checked.
+   It refuses a dirty tree, a version that is not newer and an existing
+   tag, and a failed check ends it; any refusal ends the run, reported
+   verbatim. It touches nothing but the three files it names.
+3. Commit exactly `package.json`, `package-lock.json` and
+   `addon/manifest.json` as `chore: release X.Y.Z`; `git tag vX.Y.Z`
+   (lightweight, no `-a`).
+4. Bring `main` up and push: on a branch, `git merge --ff-only` into
+   `main` in the primary checkout (`~/Works/zotero_plugin_tts`); when
+   that checkout is busy — another session's uncommitted files there —
+   push the branch straight to the remote main from here,
+   `git push origin <branch>:main`. The key scan over what goes up, as
+   above; then `git push origin main` (or the `<branch>:main` form) and
+   `git push origin vX.Y.Z`. A `main` that does not fast-forward is not
+   yours: stop and report.
+5. `gh release create vX.Y.Z build/zotero-tts.xpi --title vX.Y.Z --notes "<the brief's notes>"`
+   — the asset must be named `zotero-tts.xpi`, which `build/` gives.
+   When the brief has no notes, the subjects of
+   `git log <previous tag>..vX.Y.Z --oneline` are the notes.
+6. `node scripts/release-point.mjs X.Y.Z` — it checks the asset answers
+   200 and rewrites `update.json`; commit `update.json` alone as
+   `chore: point update.json at X.Y.Z`, and push as in step 4.
+7. `node scripts/release-point.mjs X.Y.Z --verify` — the raw
+   `update.json` on `main` must serve X.Y.Z and the link answer 200.
+   raw.githubusercontent.com caches for up to five minutes: exit code 2
+   names the wait; wait it out and retry, up to three times, before
+   calling it a failure.
+8. The installed copy is offered the update — the one bridge run a
+   release does itself (CLAUDE.md names it; everything else in Zotero
+   is the tester's). Load `mcp__zotero-dev__zotero_ping` and
+   `mcp__zotero-dev__zotero_execute_js` with ToolSearch, ping, then run
+   this verbatim:
+
+   ```js
+   (async () => {
+     const { AddonManager } = ChromeUtils.importESModule('resource://gre/modules/AddonManager.sys.mjs');
+     const addon = await AddonManager.getAddonByID('zotero-tts@xujialiu.top');
+     const result = await new Promise((resolve) => {
+       let offered = null;
+       addon.findUpdates({
+         onUpdateAvailable: (a, install) => {
+           offered = { version: install.version, from: install.sourceURI.spec, state: install.state };
+           install.cancel();
+           offered.after = install.state;
+         },
+         onNoUpdateAvailable: () => {},
+         onUpdateFinished: (a, status) => resolve({ installed: addon.version, offered, status }),
+       }, AddonManager.UPDATE_WHEN_USER_REQUESTED);
+     });
+     return JSON.stringify(result);
+   })()
+   ```
+
+   Expected: `installed` the beta this machine runs, `offered.version`
+   X.Y.Z, `offered.from` the release asset, `status` 0, and the install
+   cancelled — `state` 0 (available) then `after` 12 (cancelled), the
+   beta left installed; the gear menu would install, this does not.
+   `offered` null within five minutes of step 6 is the cache of step 7,
+   not a failure: wait and run it again. A bridge that does not answer
+   is reported, and the release stands.
+
 Report: every command with its output, then `git log --oneline -8` and
-`git status -sb`, and anything left undone and why.
+`git status -sb`, and anything left undone and why. For a release,
+also the tag, the release URL, what `--verify` printed and what the
+`findUpdates` script returned.

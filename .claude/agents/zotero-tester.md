@@ -301,16 +301,30 @@ start over.
 
 ## Report
 
-Verification, for every behavior: the check you ran (the script,
-verbatim), the observed output (trace or values, verbatim), the expected
-output, and PASS / FAIL / NOT TESTABLE with the reason.
+The report lands in the main session's context and is re-read on every
+call it makes afterwards (issue #58), so it is a table first and prose
+second.
 
-Research, for every question: what you ran (the script, verbatim), what
-came back (verbatim), what that settles, and the Zotero source that
-explains it, cited by file and line. Then the answer in one line — or
-"open", with what you ruled out.
+Verification: one row per behavior — the check's name, the observed
+values (numbers, states, ids; a trace condensed to its first and last
+entries with the count between), the expected output, and PASS / FAIL /
+NOT TESTABLE with the reason. Below the table, verbatim — the script as
+run and the output as it came back — only for the rows that are FAIL or
+NOT TESTABLE and for anything the brief did not anticipate; a PASS row's
+script is not repeated. Then the items for `test/zotero-dev.md` that the
+run measured, drafted in that file's shape under the section they belong
+to — the behavior, the check, the expected output as observed — so the
+session pastes them; a fix that changed an expected output shows the old
+value and the new.
+
+Research, for every question: what you ran (the script, verbatim — here
+the scripts are the evidence the issue is built on), what came back
+(verbatim), what that settles, and the Zotero source that explains it,
+cited by file and line. Then the answer in one line — or "open", with
+what you ruled out.
 
 Either way, end with the plugin version installed, the errors read at the
 end, every state you changed and how you restored it, and anything the
-brief did not anticipate. The main session confirms the report field by
-field — make the evidence complete rather than the prose long.
+brief did not anticipate. The main session confirms the table field by
+field and opens the verbatim parts only where a row is not PASS — make
+the values complete rather than the prose long.
