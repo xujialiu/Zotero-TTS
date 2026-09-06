@@ -103,8 +103,14 @@ const FAVORITES_PREF = PREF_PREFIX + 'readAloud.favoriteVoices';
 const XHTML = 'http://www.w3.org/1999/xhtml';
 
 export interface SamplePlayer {
-  /** Starts the audio at `rate` times its natural pace, pitch kept; onDone fires once, when playback ends or fails. */
-  play(audio: Blob, rate: number, onDone: () => void): Promise<void>;
+  /**
+   * Starts the audio at `rate` times its natural pace, pitch kept; settles
+   * once playback has started, and rejects when it cannot start. onDone
+   * fires once afterwards: with null when the sample ends or is stopped,
+   * with the failure when playback breaks off after it started (issue #48:
+   * an output device the element cannot open, a stream it cannot finish).
+   */
+  play(audio: Blob, rate: number, onDone: (error: Error | null) => void): Promise<void>;
   /** Changes the pace of whatever is playing right now; nothing to do otherwise. */
   setRate(rate: number): void;
   stop(): void;
@@ -505,11 +511,13 @@ export function initVoiceBrowserRows(
       stopPlayback();
       playing = voice.encoded;
       setPlayGlyph(voice.encoded, GLYPHS.stop);
-      await deps.player.play(audio, speed, () => {
-        if (playing === voice.encoded) {
-          playing = null;
-          setPlayGlyph(voice.encoded, GLYPHS.play);
-        }
+      await deps.player.play(audio, speed, (error) => {
+        if (playing !== voice.encoded) return;
+        playing = null;
+        setPlayGlyph(voice.encoded, GLYPHS.play);
+        // The sample was synthesized and cached before playback began: what
+        // failed is on the way out, not the voice (issue #48)
+        if (error) status(`Sample failed: the audio arrived, but playback stopped: ${error.message}`);
       });
     } catch (e) {
       if (playing === voice.encoded) playing = null;
@@ -909,6 +917,29 @@ export async function blobToDataURL(blob: Blob): Promise<string> {
   return `data:${blob.type || 'audio/mpeg'};base64,${btoa(binary)}`;
 }
 
+/** MediaError.code in plain words (1–4 are the four the spec defines). */
+const MEDIA_ERROR_WORDS: Record<number, string> = {
+  1: 'playback aborted',
+  2: 'a network error',
+  3: 'decoding or output failed',
+  4: 'format not supported',
+};
+
+/**
+ * What an <audio> element's MediaError says, for the status line: the code
+ * in plain words, the engine's own message kept in parentheses so a bug
+ * report carries it — Gecko's `OnMediaSinkAudioError` (code 3) is an
+ * output device it could not open, and looks like nothing else.
+ */
+export function describeMediaError(error: { code: number; message?: string } | null | undefined): string {
+  if (!error) return 'unknown error';
+  const words = MEDIA_ERROR_WORDS[error.code] ?? `media error ${error.code}`;
+  // Read once: every read of MediaError.message puts a resistFingerprinting
+  // warning on the error console, signed with the plugin's line
+  const message = error.message;
+  return message ? `${words} (${message})` : words;
+}
+
 /**
  * Plays one sample at a time through a fresh <audio> element of the pane's
  * own document. The speed is the element's playbackRate with preservesPitch
@@ -918,11 +949,11 @@ export async function blobToDataURL(blob: Blob): Promise<string> {
  */
 export function createSamplePlayer(createAudio: () => HTMLAudioElement): SamplePlayer {
   let current: HTMLAudioElement | null = null;
-  let done: (() => void) | null = null;
-  const finish = () => {
+  let done: ((error: Error | null) => void) | null = null;
+  const finish = (error: Error | null) => {
     const cb = done;
     done = null;
-    cb?.();
+    cb?.(error);
   };
   const stop = () => {
     const el = current;
@@ -935,7 +966,7 @@ export function createSamplePlayer(createAudio: () => HTMLAudioElement): SampleP
         // The pane may be tearing down; there is nothing to silence then
       }
     }
-    finish();
+    finish(null);
   };
   /**
    * Both rates: setting `src` runs the element's load algorithm, whose step 7
@@ -954,12 +985,30 @@ export function createSamplePlayer(createAudio: () => HTMLAudioElement): SampleP
       const el = createAudio();
       current = el;
       done = onDone;
-      el.addEventListener('ended', finish);
-      el.addEventListener('error', finish);
+      let started = false;
+      // A stopped element may still report; only the current one is heard
+      el.addEventListener('ended', () => {
+        if (el === current) finish(null);
+      });
+      // play() settles the moment playback starts, and a failure after
+      // that rejects nothing: this event is its only word, and the element
+      // keeps the reason in its MediaError (issue #48 was the event ending
+      // the sample like a success). Before play() has settled, the failure
+      // rejects play() itself, and the caller's catch has it.
+      el.addEventListener('error', () => {
+        if (el === current && started) finish(new Error(describeMediaError(el.error)));
+      });
       el.src = await blobToDataURL(audio);
       el.preservesPitch = true;
       applyRate(el, rate);
-      await el.play();
+      try {
+        await el.play();
+      } catch (e) {
+        // Reported through the rejection; nothing is owed to the callback
+        if (el === current) done = null;
+        throw e;
+      }
+      started = true;
     },
     setRate(rate) {
       if (current) applyRate(current, rate);

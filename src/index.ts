@@ -1982,12 +1982,18 @@ const diagnostics = {
       const win = mainWindows()[0];
       const el = win.document.createElementNS('http://www.w3.org/1999/xhtml', 'audio') as HTMLAudioElement;
       const player = createSamplePlayer(() => el);
-      await player.play(silentWav(100), 1.5, () => {});
+      // How the silence ends — `ended`, or the failure the player would put
+      // on the voice browser's status line: on a machine with no audio
+      // output the element errors a few ms after it starts (issue #48)
+      let settle: (outcome: string) => void = () => {};
+      const outcome = new Promise<string>((resolve) => (settle = resolve));
+      await player.play(silentWav(100), 1.5, (error) => settle(error ? `error: ${error.message}` : 'ended'));
       const playing = { playbackRate: el.playbackRate, defaultPlaybackRate: el.defaultPlaybackRate, preservesPitch: el.preservesPitch };
       player.setRate(2);
       const afterSetRate = el.playbackRate;
+      const ending = await Promise.race([outcome, new Promise<string>((resolve) => setTimeout(() => resolve('neither ended nor failed within 3 s'), 3000))]);
       player.stop();
-      return JSON.stringify({ startingSpeed: startingSpeed(prefs), playing, afterSetRate }, null, 1);
+      return JSON.stringify({ startingSpeed: startingSpeed(prefs), playing, afterSetRate, outcome: ending }, null, 1);
     } catch (e) {
       return JSON.stringify({ error: String(e) }, null, 1);
     }

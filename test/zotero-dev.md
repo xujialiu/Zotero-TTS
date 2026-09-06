@@ -273,12 +273,21 @@ since where marked.
    the default is not a favorite** — the notice names the voice and the
    two ways out (`src/ui/voice-list-switches.ts`), the pref stays false.
 6. **Samples.** ▶ on a Kokoro voice, on a System voice and on a Zotero
-   voice: glyph `▶` → `…` → `■` → `▶` within ~10 s, no `Sample failed:`
-   (on a machine with no audio sink the element errors ~7 ms after
-   `playing` and the glyph still comes back with no message, issue #48 —
-   the `■` state is evidence only where audio is known good);
-   `diagnostics.sampleSpeed()` → `startingSpeed` the memory's speed,
-   `playing.playbackRate` 1.5, `preservesPitch` true, `afterSetRate` 2.
+   voice: glyph `▶` → `…` → `■` → `▶` within ~10 s, and the status line
+   says how it ended (issue #48): with audio, no `Sample failed:` — the
+   default line stays; on a machine with no audio sink the element
+   errors ~7 ms after `playing` (`MediaError.code` 3,
+   `OnMediaSinkAudioError`) and the line reads `Sample failed: the audio
+   arrived, but playback stopped: decoding or output failed
+   (OnMediaSinkAudioError)`. A `■` that comes back with the default line
+   intact and nothing heard is the swallowed error, the bug itself. A
+   failure before playback starts (synthesis, a blob the element refuses)
+   still reads `Sample failed: <reason>`, without the "audio arrived"
+   clause. `diagnostics.sampleSpeed()` → `startingSpeed` the memory's
+   speed, `playing.playbackRate` 1.5, `preservesPitch` true,
+   `afterSetRate` 2, and `outcome`: `ended` with audio, `error: decoding
+   or output failed (OnMediaSinkAudioError)` without a sink; `neither
+   ended nor failed within 3 s` is a stall to report.
 7. **The speed slider.** `input` moves only the sample rate; `change`
    commits: memory `speed`, every `reader.readAloudVoices.<lang>.speed`,
    the status line's `N×` — and back, byte-identical after the round

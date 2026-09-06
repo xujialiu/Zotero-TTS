@@ -150,7 +150,7 @@ function setup(
     if (k === FAVORITES_ONLY_PREF) for (const fn of [...favoritesOnlyWatchers]) fn();
     if (k === SAME_VOICE_PREF || k === GLOBAL_SPEED_PREF) for (const fn of [...switchWatchers]) fn();
   };
-  const player = { play: vi.fn(async (_audio: Blob, _rate: number, _onDone: () => void) => {}), stop: vi.fn(), setRate: vi.fn() };
+  const player = { play: vi.fn(async (_audio: Blob, _rate: number, _onDone: (error: Error | null) => void) => {}), stop: vi.fn(), setRate: vi.fn() };
   const deps = {
     prefs,
     listCatalog: vi.fn(async () => {
@@ -495,19 +495,46 @@ describe('playing a sample', () => {
     await t.rows.load();
     await t.pickTier('Premium');
     await t.play(0).fire('click');
-    t.player.play.mock.calls[0][2]();
+    t.player.play.mock.calls[0][2](null);
     await t.play(0).fire('click');
     expect(t.deps.sampleZoteroVoice).toHaveBeenCalledTimes(1);
     expect(t.player.play).toHaveBeenCalledTimes(2);
   });
 
-  it('returns the button to play when the sample ends', async () => {
+  it('returns the button to play when the sample ends, and says nothing', async () => {
     const t = setup();
     await t.rows.load();
     await t.play(0).fire('click');
     const onDone = t.player.play.mock.calls[0][2];
-    onDone();
+    onDone(null);
     expect(t.play(0).textContent).toBe(GLYPHS.play);
+    expect(t.status()).not.toContain('Sample failed');
+  });
+
+  // A failure the element reports after play() resolved — an output device
+  // it cannot open, a stream it cannot finish decoding — comes through the
+  // same callback as the end, with the reason. Issue #48 was that one
+  // ending the sample like a success: the glyph came back, the status line
+  // kept its default line, and nothing had been heard.
+  it('says so, and restores the button, when the sample fails after it started', async () => {
+    const t = setup();
+    await t.rows.load();
+    await t.play(0).fire('click');
+    const onDone = t.player.play.mock.calls[0][2];
+    onDone(new Error('decoding or output failed (OnMediaSinkAudioError)'));
+    expect(t.play(0).textContent).toBe(GLYPHS.play);
+    expect(t.status()).toBe('Sample failed: the audio arrived, but playback stopped: decoding or output failed (OnMediaSinkAudioError)');
+  });
+
+  it('ignores a late failure of a sample another one has replaced', async () => {
+    const t = setup();
+    await t.rows.load();
+    await t.play(0).fire('click');
+    const first = t.player.play.mock.calls[0][2];
+    await t.play(1).fire('click');
+    first(new Error('decoding or output failed (OnMediaSinkAudioError)'));
+    expect(t.play(1).textContent).toBe(GLYPHS.stop);
+    expect(t.status()).not.toContain('Sample failed');
   });
 
   it('stops when the playing voice is clicked again, without a second synthesis', async () => {
@@ -523,7 +550,7 @@ describe('playing a sample', () => {
     const t = setup();
     await t.rows.load();
     await t.play(0).fire('click');
-    t.player.play.mock.calls[0][2]();
+    t.player.play.mock.calls[0][2](null);
     await t.play(0).fire('click');
     expect(t.deps.synthesizeSample).toHaveBeenCalledTimes(1);
     expect(t.player.play).toHaveBeenCalledTimes(2);
@@ -620,7 +647,7 @@ describe('the speed slider', () => {
     await t.rows.load();
     await t.dragSpeed('2');
     await t.play(0).fire('click');
-    t.player.play.mock.calls[0][2]();
+    t.player.play.mock.calls[0][2](null);
     await t.dragSpeed('0.5');
     await t.play(0).fire('click');
     expect(t.deps.synthesizeSample).toHaveBeenCalledTimes(1);
@@ -1333,7 +1360,10 @@ describe('createSamplePlayer', () => {
       play: () => Promise<void>;
       pause: () => void;
       removeAttribute: (k: string) => void;
+      /** What the element knows about its failure: its MediaError, or null */
+      error: { code: number; message: string } | null;
     };
+    el.error = null;
     el.play = vi.fn(async () => {});
     el.pause = vi.fn();
     el.removeAttribute = vi.fn();
@@ -1353,17 +1383,19 @@ describe('createSamplePlayer', () => {
     return el;
   }
 
-  function playerWithElements() {
+  /** `prepare` gets every element before the player touches it: a test can make its play() fail. */
+  function playerWithElements(prepare: (el: ReturnType<typeof fakeAudio>) => void = () => {}) {
     const created: ReturnType<typeof fakeAudio>[] = [];
     const player = createSamplePlayer(() => {
       const el = fakeAudio();
+      prepare(el);
       created.push(el);
       return el as unknown as HTMLAudioElement;
     });
     return { created, player };
   }
 
-  it('plays the blob through a fresh element and reports the end once', async () => {
+  it('plays the blob through a fresh element and reports the end once, with no error', async () => {
     const { created, player } = playerWithElements();
     const onDone = vi.fn();
     await player.play(new Blob(['x'], { type: 'audio/wav' }), 1, onDone);
@@ -1372,6 +1404,91 @@ describe('createSamplePlayer', () => {
     await created[0].fire('ended');
     await created[0].fire('ended');
     expect(onDone).toHaveBeenCalledOnce();
+    expect(onDone).toHaveBeenCalledWith(null);
+  });
+
+  // play() settles when playback starts; a failure after that — an output
+  // device the element cannot open, a stream it cannot finish decoding —
+  // is the error event and rejects nothing (issue #48). The element keeps
+  // the reason in its MediaError: the code, and Gecko's own message.
+  it('reports an error raised after playback started, in the MediaError’s words', async () => {
+    const { created, player } = playerWithElements();
+    const onDone = vi.fn();
+    await player.play(new Blob(['x']), 1, onDone);
+    created[0].error = { code: 3, message: 'OnMediaSinkAudioError' };
+    await created[0].fire('error');
+    expect(onDone).toHaveBeenCalledOnce();
+    const error = onDone.mock.calls[0][0];
+    expect(error).toBeInstanceOf(Error);
+    expect(error.message).toBe('decoding or output failed (OnMediaSinkAudioError)');
+  });
+
+  it.each([
+    [1, 'playback aborted (x)'],
+    [2, 'a network error (x)'],
+    [4, 'format not supported (x)'],
+    [9, 'media error 9 (x)'],
+  ])('names MediaError code %i in plain words, the engine’s message kept', async (code, words) => {
+    const { created, player } = playerWithElements();
+    const onDone = vi.fn();
+    await player.play(new Blob(['x']), 1, onDone);
+    created[0].error = { code, message: 'x' };
+    await created[0].fire('error');
+    expect(onDone.mock.calls[0][0].message).toBe(words);
+  });
+
+  it('reports an error event the element holds no MediaError for as unknown', async () => {
+    const { created, player } = playerWithElements();
+    const onDone = vi.fn();
+    await player.play(new Blob(['x']), 1, onDone);
+    await created[0].fire('error');
+    expect(onDone.mock.calls[0][0].message).toBe('unknown error');
+  });
+
+  // Measured: error at 11 ms, pause and ended at 16 ms — the failure ends
+  // the element too, and a stop follows from the caller
+  it('the ended and the stop that follow an error are not a second call', async () => {
+    const { created, player } = playerWithElements();
+    const onDone = vi.fn();
+    await player.play(new Blob(['x']), 1, onDone);
+    created[0].error = { code: 3, message: 'OnMediaSinkAudioError' };
+    await created[0].fire('error');
+    await created[0].fire('ended');
+    player.stop();
+    expect(onDone).toHaveBeenCalledOnce();
+  });
+
+  // Before play() has settled, the element's error rejects play() itself
+  // (NotSupportedError while the source is still being selected), and the
+  // caller's catch has it: the callback must not report it a second time,
+  // then or at the next stop
+  it('leaves an error raised before play() settled to play()’s rejection, and never calls back for it', async () => {
+    const { player } = playerWithElements((el) => {
+      el.play = vi.fn(async () => {
+        el.error = { code: 4, message: 'NS_ERROR_DOM_MEDIA_METADATA_ERR' };
+        await el.fire('error');
+        throw new Error('The media resource was not suitable.');
+      });
+    });
+    const onDone = vi.fn();
+    await expect(player.play(new Blob(['x']), 1, onDone)).rejects.toThrow('not suitable');
+    expect(onDone).not.toHaveBeenCalled();
+    player.stop();
+    expect(onDone).not.toHaveBeenCalled();
+  });
+
+  it('ignores a late event of an element a newer sample has replaced', async () => {
+    const { created, player } = playerWithElements();
+    const first = vi.fn();
+    const second = vi.fn();
+    await player.play(new Blob(['x']), 1, first);
+    await player.play(new Blob(['y']), 1, second);
+    created[0].error = { code: 3, message: 'OnMediaSinkAudioError' };
+    await created[0].fire('error');
+    await created[0].fire('ended');
+    expect(first).toHaveBeenCalledOnce();
+    expect(first).toHaveBeenCalledWith(null);
+    expect(second).not.toHaveBeenCalled();
   });
 
   // Read Aloud time-stretches its audio with the pitch kept (the reader's
@@ -1396,13 +1513,14 @@ describe('createSamplePlayer', () => {
     expect(created[0].playbackRate).toBe(2);
   });
 
-  it('stop() silences the element and reports the end', async () => {
+  it('stop() silences the element and reports the end, with no error', async () => {
     const { created, player } = playerWithElements();
     const onDone = vi.fn();
     await player.play(new Blob(['x']), 1, onDone);
     player.stop();
     expect(created[0].pause).toHaveBeenCalled();
     expect(onDone).toHaveBeenCalledOnce();
+    expect(onDone).toHaveBeenCalledWith(null);
     player.stop();
     expect(onDone).toHaveBeenCalledOnce();
   });
