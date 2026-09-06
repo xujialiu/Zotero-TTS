@@ -21,6 +21,7 @@ import { initShortcutRows } from './shortcut-rows';
 import { initBackupRows, type BackupFileIO } from './backup-rows';
 import { initServerPresetRows } from './server-preset-rows';
 import { initHelpTips } from './help-tips';
+import { markPlatform } from './platform-class';
 import { initBoldLabels } from './bold-labels';
 import { initBuildRows } from './build-rows';
 import { initWebDAVRows } from './webdav-rows';
@@ -451,6 +452,8 @@ export interface PaneHooks {
 
 export function onPaneLoad(doc: Document, hooks: PaneHooks = {}): void {
   const prefs = createZoteroPrefs();
+  // The platform as a class on the pane's root, for the sheet's macOS-only rules (ui/platform-class.ts)
+  markPlatform(doc, { isMac: Zotero.isMac });
   /** Providers are built from this everywhere in the pane, so the samples and the checks reach the same speech helper the readers do. */
   const providerDeps = (): ProviderDeps => hooks.providerDeps?.() ?? { fetch, getWebSocket: getChromeWebSocket, newRequestId };
   const shortcutRows = initShortcutRows(doc, prefs, Zotero.isMac ? 'Cmd' : Zotero.isWin ? 'Win' : 'Super');

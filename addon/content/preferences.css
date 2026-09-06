@@ -48,3 +48,29 @@ label.ztts-help[value]:hover {
 .ztts-pane :is(checkbox, description) + label.ztts-help[value] {
   margin-inline-start: 4px;
 }
+
+/* macOS only, told by the ztts-mac class ui/platform-class.ts puts on the
+   root: Zotero's preferences.css gives every XUL button there
+   `margin: 0 -2px -1px` (scss/components/_button.scss, "Prevent ugly
+   non-native button styles on macOS") in place of the toolkit's Aqua
+   `5px 6px 3px`. The native face is drawn 2px inside the button's box,
+   and the negative margin puts the face's edge on the box's edge — what
+   lines a button up with the text column — but it also puts two buttons
+   in a row 4px into each other, faces touching (issue #56). On Windows
+   and Linux the toolkit's margins stand (5px inline on Windows, the
+   boxes 10px apart), and Zotero's own sheet leaves them alone. So do
+   these rules: the second of two buttons in a pane row opens its box
+   6px after the first (8 − 2), the faces then 10px apart, Windows'
+   distance; a ? after a button opens 3px (5 − 2), the 5px it has after
+   a button on Windows. The buttons' own margins stay Zotero's. A class
+   and not `@media (-moz-platform: macos)`: that feature is honored in
+   chrome and UA sheets only, and this sheet reaches the window under
+   the xpi's jar:file: URL, where the whole block is a condition nobody
+   recognizes and never matches (measured 2026-09-06). */
+.ztts-pane.ztts-mac hbox > button + button {
+  margin-inline-start: 8px;
+}
+
+.ztts-pane.ztts-mac hbox > button + label.ztts-help[value] {
+  margin-inline-start: 5px;
+}

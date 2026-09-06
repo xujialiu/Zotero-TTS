@@ -94,6 +94,27 @@ since where marked.
    its computed `white-space` is `normal`, its `textContent` ends in
    `cannot start with it`, and its `clientHeight` is more than one
    line's.
+   **Side-by-side buttons stand apart on macOS** (issue #56, 1.10.13):
+   Zotero's sheet gives every button there `margin: 0 -2px -1px`, so
+   without the plugin's rule two buttons in a row overlap by 4 px and
+   their faces touch. Measure `#ztts-key-clear-speedReset` against
+   `#ztts-key-speedReset`, `#ztts-test-openai` against
+   `#ztts-enable-openai`, `#ztts-webdav-download` against
+   `#ztts-webdav-upload`: the second computes `margin-left: 8px` and
+   `second.left - first.right` is 6; the `?` after
+   `#ztts-key-clear-previousSentence` computes `margin-left: 5px` and
+   starts 3 px after it, the `?` after a checkbox still `4px`; the
+   first button of a pair and the lone Restore buttons keep
+   `margin-left: -2px`; the pane's root `.ztts-pane` carries `ztts-mac`
+   (`ui/platform-class.ts` — a `-moz-platform` media query is inert in
+   a plugin's `jar:file:` sheet), and `InspectorUtils.getMatchingCSSRules`
+   (not `getCSSStyleRules`, gone in Firefox 140) lists
+   `.ztts-pane.ztts-mac hbox > button + button` from the plugin's own
+   sheet after Zotero's `button` rule. On Windows and Linux the class is
+   absent: `margin-left` stays the toolkit's (5px on Windows) and the
+   boxes 10 px apart. Poll `doc.styleSheets` for the plugin's sheet
+   before reading its rules (it lands a beat after `navigateToPane`).
+   A 2x snapshot of the shortcut rows for the eye.
 3. **Locked sections, masked fields.** Every enabled provider: inputs
    `disabled`, button `Disable`; the two API keys, both Extra headers
    and the WebDAV password `type="password"` (issue #19); report `type`,

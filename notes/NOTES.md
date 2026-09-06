@@ -287,3 +287,4 @@ cite `notes/NOTES.md` with a date or a section title resolve through this index.
 - The player's language dropdown resolved against the previous language's entry, so the pick hook now hands it the right one first (issue #49)
 - A permanently deleted document's bookmark now leaves the shared file: tombstones stay on the machine, never in the file (issue #51)
 - A provider that hangs at the popup's open dropped every provider's voices, so each is bounded on its own now (issue #55)
+- Zotero collapses button margins on macOS, and a plugin's pane sheet cannot ask which platform it is on (issue #56)

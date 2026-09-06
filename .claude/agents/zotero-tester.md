@@ -248,6 +248,17 @@ start over.
     is wrapped: an `await` inside a `try` or any nested block fails with
     `SyntaxError: await is only valid in async functions` — make an
     `(async () => { … })()` the last expression of every script.
+11. The rules that style an element: `InspectorUtils.getCSSStyleRules`
+    does not exist in this Firefox (140) — it is
+    `win.InspectorUtils.getMatchingCSSRules(el)`, in increasing order of
+    precedence, each rule with `selectorText`, `style.cssText`,
+    `parentStyleSheet.href` and, inside an `@media`,
+    `parentRule.conditionText`. `(-moz-platform: macos)` there is how
+    Zotero's platform-only rules show, and why a margin measured on
+    Windows is not the Mac's (issue #56).
+    A plugin pane's own sheet reaches `doc.styleSheets` a beat after
+    `navigateToPane` returns (2026-09-06: absent at 40 ms, there on the
+    next read) — poll for it before reading its rules.
 
 ## Rules
 
