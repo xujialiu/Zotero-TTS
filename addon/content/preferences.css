@@ -20,20 +20,24 @@
    is its tooltip (the `help` attribute, opened on hover by ui/help-tips.ts).
    A XUL label[value] is an inline-flex box whose text is its ::before
    (toolkit xul.css), so the flex properties center the glyph in the
-   circle. The selector outranks Zotero's `label:not(…)` rule in
-   preferences.css (specificity (0,1,1), and its sheet comes after this
-   one), which would otherwise give the label its 1px/2px block margins
-   and shift it off the row's center; the gap to the control before the ?
-   is that control's own end margin. */
+   circle. The glyph is the pane's own size — no font-size here, the
+   label inherits it (issue #53: at 0.8em the ? was the smallest text in
+   the pane) — and the circle, in that same em, clears the glyph's 1em
+   line box and the border on both sides while staying under the height
+   of any row that carries one: 16.25px at the pane's 13px. The selector
+   outranks Zotero's `label:not(…)` rule in preferences.css (specificity
+   (0,1,1), and its sheet comes after this one), which would otherwise
+   give the label its 1px/2px block margins and shift it off the row's
+   center; the gap to the control before the ? is that control's own end
+   margin. */
 label.ztts-help[value] {
-  width: 1.35em;
-  height: 1.35em;
+  width: 1.25em;
+  height: 1.25em;
   margin: 0;
   justify-content: center;
   align-items: center;
   border: 1px solid currentColor;
   border-radius: 50%;
-  font-size: 0.8em;
   font-weight: 600;
   line-height: 1;
   opacity: 0.6;

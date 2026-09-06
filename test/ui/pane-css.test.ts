@@ -71,3 +71,26 @@ describe('the pane stylesheet and the platforms (issue #56)', () => {
     expect(sheet.replace(/\/\*[\s\S]*?\*\//g, '')).not.toMatch(/@media[^{]*-moz-/);
   });
 });
+
+/**
+ * The ? icons (issue #53). The glyph reads at the pane's own size, like
+ * every other string in the pane: the rule declares no font-size, so the
+ * label inherits it. The circle is sized in that same em, and is left a
+ * little wider than the glyph's line box, which is 1em tall at
+ * `line-height: 1` and has the 1px border on each side to clear.
+ */
+describe('the ? icons (issue #53)', () => {
+  const help = rulesOf(sheet).find((r) => r.selector === 'label.ztts-help[value]');
+
+  it('sets no font-size of its own: the glyph is the pane’s size', () => {
+    expect(help).toBeDefined();
+    expect(help?.declarations).not.toMatch(/font-size/);
+  });
+
+  it('draws the circle wider than the glyph’s 1em line box plus the border', () => {
+    const size = (side: string) => Number(help?.declarations.match(new RegExp(`${side}:\\s*([\\d.]+)em`))?.[1]);
+    expect(size('width')).toBeGreaterThan(1.15);
+    expect(size('height')).toBe(size('width'));
+    expect(help?.declarations).toMatch(/line-height:\s*1\b/);
+  });
+});

@@ -86,8 +86,18 @@ since where marked.
    the four provider sections (OpenAI, Azure, the Local engine named
    after its engine — `Kokoro-FastAPI`, System voices), Voice browser,
    Reading, Highlight, Keyboard shortcuts, Backup, Sync, Build. No
-   clipped or overlapping text, no empty label; every `?` on its line;
-   the Build row `Version <build> · Date <date> · Author Xujia Liu`
+   clipped or overlapping text, no empty label; every `?` on its line,
+   its glyph the pane's own size (issue #53, 1.10.15): every
+   `.ztts-help` computes the `font-size` of its row's text (`13px` on
+   Windows; it was `10.4px`) and a 16.25 px square box, lower than
+   every row that carries one (the lowest, after a description,
+   measured 22.333 px) and on its row's center within 0.01 px; the gap
+   to the control before it is that control's end margin, not the
+   icon's (5 px after a menulist, an input or a button, 6 after a
+   checkbox, 4 after a description); and
+   `InspectorUtils.getMatchingCSSRules` lists the plugin's
+   `label.ztts-help[value]` with `width: 1.25em` and no `font-size`.
+   The Build row `Version <build> · Date <date> · Author Xujia Liu`
    (`src/ui/build-rows.ts`). The message lines wrap instead of running
    past the window (issue #31): with the not-a-favorite warning on it
    (2.5), `#ztts-voices-status` measures `scrollWidth <= clientWidth`,
