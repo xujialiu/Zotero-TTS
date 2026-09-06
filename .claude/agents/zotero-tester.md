@@ -114,6 +114,11 @@ start over.
    — open it and pause it in the SAME script, and check the voice is
    one of ours before opening at all; the voice dropdown is behind the
    player's Options button and is not in the DOM until that is clicked.
+   The player's markup mounts only in the tab that is selected when the
+   popup opens: opened through the API in a background tab, `popupOpen`
+   goes true and the manager `active` while `.read-aloud-popup` never
+   appears, not even once the tab is selected (2026-09-06) — open the
+   player in the selected tab, and drive its dropdowns there.
    `selectTier` **persists**: it runs `_persistCurrentVoice`
    (reader.js:82072-82112) and rewrites
    `extensions.zotero.reader.readAloudVoices` — snapshot that pref
@@ -156,7 +161,9 @@ start over.
    does not move proves nothing — find a run's new errors by content and
    timestamp, and take the debug store (`Zotero.Debug.setStore(true)`
    for the run, the value restored at the end) as the record for
-   dead-object bursts and `[zotero-tts]` lines.
+   dead-object bursts and `[zotero-tts]` lines. `Zotero.Debug.get()` is
+   async: `await` it, or the read comes back as a promise whose string
+   holds no `[zotero-tts]` line and looks empty (2026-09-06).
 7. Hover and tooltips: move the mouse with
    `win.windowUtils.sendMouseEvent('mousemove', x, y, 0, 0, 0, false, 0, 0, false, false)`
    — the two trailing `false` (the DOM- and widget-synthesized flags) are
