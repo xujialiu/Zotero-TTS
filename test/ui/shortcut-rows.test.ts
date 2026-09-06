@@ -58,6 +58,10 @@ const IDS = [
   'ztts-key-clear-speedReset',
   'ztts-key-clear-speedDown',
   'ztts-key-clear-speedUp',
+  'ztts-key-volumeDown',
+  'ztts-key-volumeUp',
+  'ztts-key-clear-volumeDown',
+  'ztts-key-clear-volumeUp',
   'ztts-key-previousSentence',
   'ztts-key-nextSentence',
   'ztts-key-previousParagraph',
@@ -129,6 +133,8 @@ describe('initShortcutRows', () => {
     expect(doc.el('ztts-key-speedReset').label).toBe('Shift+Z');
     expect(doc.el('ztts-key-speedDown').label).toBe('Shift+X');
     expect(doc.el('ztts-key-speedUp').label).toBe('Shift+C');
+    expect(doc.el('ztts-key-volumeDown').label).toBe('Shift+ArrowDown');
+    expect(doc.el('ztts-key-volumeUp').label).toBe('Shift+ArrowUp');
     expect(doc.el('ztts-key-previousSentence').label).toBe('ArrowLeft');
     expect(doc.el('ztts-key-nextSentence').label).toBe('ArrowRight');
     expect(doc.el('ztts-key-previousParagraph').label).toBe('Shift+ArrowLeft');

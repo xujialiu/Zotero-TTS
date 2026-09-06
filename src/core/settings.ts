@@ -1,5 +1,6 @@
 import type { ProviderId } from './providers/types';
 import type { ShortcutAction } from './shortcut-actions';
+import { VOLUME_DEFAULT, VOLUME_MAX, VOLUME_MIN } from './read-aloud-volume';
 
 export const PROVIDER_IDS: readonly ProviderId[] = ['openai', 'azure', 'local', 'system'];
 
@@ -48,7 +49,7 @@ export interface Settings {
   cacheAudio: boolean;
   /**
    * Keyboard shortcuts that drive Zotero's own Read Aloud — the playback
-   * speed, and skipping by sentence or paragraph (core/shortcut-actions.ts)
+   * speed and volume, and skipping by sentence or paragraph (core/shortcut-actions.ts)
    * — as text understood by core/shortcuts.ts ("Shift+Z"). Empty disables one.
    */
   shortcuts: Record<ShortcutAction, string>;
@@ -77,6 +78,13 @@ export interface Settings {
     /** Added on top where the next sentence begins a paragraph; off, Zotero's own 200 ms, for every voice alike. */
     paragraphDelayEnabled: boolean;
     paragraphDelayMs: number;
+    /**
+     * How loud Read Aloud plays, in percent of Zotero's own output, for
+     * every voice in the player and the samples (read-aloud/volume.ts,
+     * issue #62): 100 leaves the audio as Zotero plays it. The volume keys
+     * and the pane's field both write this one number.
+     */
+    volume: number;
   };
   /** The colors of Zotero's Read Aloud highlights (read-aloud/highlight-style.ts); opacities in percent. */
   highlight: {
@@ -124,6 +132,10 @@ export const DEFAULTS: Settings = {
     speedReset: 'Shift+Z',
     speedDown: 'Shift+X',
     speedUp: 'Shift+C',
+    // Taken only while a Read Aloud session is open: the reader uses these to
+    // grow a text selection by a line and to resize a selected annotation
+    volumeDown: 'Shift+ArrowDown',
+    volumeUp: 'Shift+ArrowUp',
     // Bare arrows: taken only while a Read Aloud session is open, the reader pages with them otherwise
     previousSentence: 'ArrowLeft',
     nextSentence: 'ArrowRight',
@@ -151,6 +163,7 @@ export const DEFAULTS: Settings = {
     sentenceDelayMs: 0,
     paragraphDelayEnabled: true,
     paragraphDelayMs: 200,
+    volume: VOLUME_DEFAULT,
   },
   // A blue word (near Zotero's own #4072e5) on a yellow sentence, both at 70%, the sentence
   // kept under the word; the reader still draws them at its own 0.4 (light) / 0.3 (dark).
@@ -217,6 +230,8 @@ export function loadSettings(prefs: PrefsBackend): Settings {
       speedReset: str(prefs, 'shortcuts.speedReset', DEFAULTS.shortcuts.speedReset),
       speedDown: str(prefs, 'shortcuts.speedDown', DEFAULTS.shortcuts.speedDown),
       speedUp: str(prefs, 'shortcuts.speedUp', DEFAULTS.shortcuts.speedUp),
+      volumeDown: str(prefs, 'shortcuts.volumeDown', DEFAULTS.shortcuts.volumeDown),
+      volumeUp: str(prefs, 'shortcuts.volumeUp', DEFAULTS.shortcuts.volumeUp),
       previousSentence: str(prefs, 'shortcuts.previousSentence', DEFAULTS.shortcuts.previousSentence),
       nextSentence: str(prefs, 'shortcuts.nextSentence', DEFAULTS.shortcuts.nextSentence),
       previousParagraph: str(prefs, 'shortcuts.previousParagraph', DEFAULTS.shortcuts.previousParagraph),
@@ -234,6 +249,7 @@ export function loadSettings(prefs: PrefsBackend): Settings {
       sentenceDelayMs: num(prefs, 'readAloud.sentenceDelayMs', DEFAULTS.readAloud.sentenceDelayMs, 0, MAX_PAUSE_MS),
       paragraphDelayEnabled: bool(prefs, 'readAloud.paragraphDelayEnabled', DEFAULTS.readAloud.paragraphDelayEnabled),
       paragraphDelayMs: num(prefs, 'readAloud.paragraphDelayMs', DEFAULTS.readAloud.paragraphDelayMs, 0, MAX_PAUSE_MS),
+      volume: num(prefs, 'readAloud.volume', DEFAULTS.readAloud.volume, VOLUME_MIN, VOLUME_MAX),
     },
     highlight: {
       wordColor: str(prefs, 'highlight.wordColor', DEFAULTS.highlight.wordColor),

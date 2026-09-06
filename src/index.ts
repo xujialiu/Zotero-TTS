@@ -20,6 +20,8 @@ import { createSystemVoiceHiding, type SystemVoiceHiding } from './read-aloud/sy
 import { createMultilingualFirst, type MultilingualFirst } from './read-aloud/multilingual-first';
 import { createFavoriteMarks, type FavoriteMarks } from './read-aloud/favorite-marks';
 import { createPauses, pauseSettingsOf, type Pauses } from './read-aloud/pauses';
+import { createVolumeControl, type VolumeControl } from './read-aloud/volume';
+import { VOLUME_OBSERVER } from './core/read-aloud-volume';
 import { createPositionSync, ACTIVE_TICK_MS, IDLE_TICK_MS, type PositionSync } from './read-aloud/position-sync';
 import { createPositionStore, type PositionStore } from './read-aloud/position-store';
 import { createPositionTransport, type PositionTransport } from './read-aloud/position-transport';
@@ -97,6 +99,9 @@ let favoriteMarks: FavoriteMarks | null = null;
 let favoriteMarkObservers: unknown[] = [];
 /** The pauses between sentences and before paragraphs, for every voice (read-aloud/pauses.ts, issue #44). */
 let pauses: Pauses | null = null;
+/** How loud Read Aloud plays, for every voice (read-aloud/volume.ts, issue #62), and the pref observer that moves every open chain. */
+let volumeControl: VolumeControl | null = null;
+let volumeObserver: unknown = null;
 
 const prefs = createZoteroPrefs();
 
@@ -371,6 +376,7 @@ function buildReaderInterface(reader: any, targetWindow: any, native: () => unkn
           // The manager's controller is built after the voices land, so its
           // prototype is patched from the first one this session builds
           pauses?.attach(reader);
+          volumeControl?.attach(reader);
         },
         // The list this reader is about to receive: the remembered voice is
         // planned against it before Zotero resolves from it (issue #35)
@@ -590,6 +596,7 @@ function watchReader(reader: any): void {
   multilingualFirst?.attach(reader);
   favoriteMarks?.attach(reader);
   pauses?.attach(reader);
+  volumeControl?.attach(reader);
   const iframe = reader._iframeWindow;
   if (iframe) {
     readAloudShortcuts.listen(iframe, () => reader, {
@@ -852,6 +859,11 @@ function startReadAloudShortcuts(pluginID: string): void {
     // A speed the pref cannot carry goes to the memory (issue #59)
     rememberSpeed: (speed) => readAloudMemory?.learnSpeed(speed),
     showToast: toastFor,
+    // The level in percent, where the speed's toast goes (issue #62)
+    showVolumeToast: (reader: any, level: number) => {
+      const doc = toastDoc(reader);
+      if (doc) showToast(doc, t('ztts-volume-toast', { percent: level }));
+    },
     // After a skip, what the popup's own buttons do: the view follows the spoken position again
     lockPosition: (reader: any) => reader?._internalReader?._lockPositionToReadAloud?.(),
     // The smart key is consumed whenever Read Aloud exists — never left to
@@ -1408,6 +1420,40 @@ function stopPauses(): void {
   pauses = null;
 }
 
+// ---- The volume ------------------------------------------------------------
+//
+// A gain ahead of Zotero's own filter chain, per controller, at the level of
+// the readAloud.volume pref; see read-aloud/volume.ts. The pref is written by
+// the pane's field and by the volume keys alike, and the observer here is the
+// one path from it to the audio, so both land within the sentence being spoken.
+
+function startVolume(): void {
+  stopVolume();
+  volumeControl = createVolumeControl({
+    getLevel: () => loadSettings(prefs).readAloud.volume,
+    exportFunction: (fn, target) => Components.utils.exportFunction(fn, target),
+    waiveXrays: (value) => ((value && typeof value === 'object') || typeof value === 'function' ? Components.utils.waiveXrays(value) : value),
+    isDead: (value) => Components.utils.isDeadWrapper(value),
+    error: (e) => Zotero.logError(e),
+    debug: (message) => Zotero.debug('[zotero-tts] ' + message),
+  });
+  for (const reader of Zotero.Reader._readers ?? []) volumeControl.attach(reader);
+  volumeObserver = Zotero.Prefs.registerObserver(VOLUME_OBSERVER, () => volumeControl?.apply());
+}
+
+function stopVolume(): void {
+  if (volumeObserver !== null) {
+    try {
+      Zotero.Prefs.unregisterObserver(volumeObserver);
+    } catch (e) {
+      Zotero.logError(e);
+    }
+    volumeObserver = null;
+  }
+  volumeControl?.dispose();
+  volumeControl = null;
+}
+
 async function startup({ id, version, rootURI }: StartupParams): Promise<void> {
   pluginVersion = version;
   // Each step on its own (core/startup-steps.ts): a Zotero internal that
@@ -1446,6 +1492,7 @@ async function startup({ id, version, rootURI }: StartupParams): Promise<void> {
       ['Multiple-languages-first ordering', startMultilingualFirst],
       ['favorite marks in the player', startFavoriteMarks],
       ['sentence and paragraph pauses', startPauses],
+      ['Read Aloud volume', startVolume],
       ['Read Aloud hook', startHijack],
       ['Read Aloud shortcuts', () => startReadAloudShortcuts(id)],
     ],
@@ -1503,6 +1550,7 @@ async function shutdown(reason?: number): Promise<void> {
   stopMultilingualFirst();
   stopFavoriteMarks();
   stopPauses();
+  stopVolume();
   // Last: the stop line above is the one string that never goes through t()
   setMessageSource(null);
   Zotero.debug('[zotero-tts] stopped' + (reason !== undefined ? ` (reason ${reason})` : ''));
@@ -1638,6 +1686,16 @@ const diagnostics = {
    */
   pauses: () => JSON.stringify((Zotero.Reader._readers ?? []).map((r: any) => pauses?.inspect(r) ?? null), null, 1),
   /**
+   * The volume (issue #62), per open reader: whether the manager and the
+   * controllers' base prototype are patched, the session state, the level
+   * and the gain it means, and `chains` — every open chain the hook gained
+   * in the tab (a session's, a popup sample's), each with the gain it
+   * carries and, for the live controller, `inChain`: its `_filterChainInput`
+   * is that very node, so every source lands on it. `count` is how many
+   * chains the hook has gained in the tab, which is what proves it ran.
+   */
+  volume: () => JSON.stringify((Zotero.Reader._readers ?? []).map((r: any) => volumeControl?.inspect(r) ?? null), null, 1),
+  /**
    * The undo logs of the five modules that shadow a reader-side prototype
    * (read-aloud/proto-patches.ts): `total` entries held, `live` of them
    * belonging to a tab that is still open. They used to drift apart by one
@@ -1653,6 +1711,7 @@ const diagnostics = {
         multilingualFirst: safe(() => multilingualFirst?.patchCounts()) ?? null,
         readAloudMemory: safe(() => readAloudMemory?.patchCounts()) ?? null,
         pauses: safe(() => pauses?.patchCounts()) ?? null,
+        volume: safe(() => volumeControl?.patchCounts()) ?? null,
         // Which instance serves each tab (issue #38): `hijacked` — the
         // reader carries this instance's own method; `slotsCurrent` — both
         // stored slots hold a clone stamped by this instance. A tab

@@ -62,6 +62,13 @@ ztts-favorites-only =
 ztts-voices-speed =
     .value = Speed
     .tooltiptext = Samples play at this speed; with “Use one speed everywhere” on, releasing the slider makes it the speed Read Aloud starts with
+ztts-volume =
+    .value = Volume
+ztts-volume-percent =
+    .value = %
+ztts-help-volume =
+    .value = ?
+    .help = How loud Read Aloud plays, for every voice, and the samples here. 100% is Zotero's own level; above it, quiet voices come up and loud ones change little. The volume keys below change it by 10% while Read Aloud is open, and a change lands on the sentence being spoken.
 
 
 ## Reading
@@ -133,6 +140,10 @@ ztts-key-slower =
     .value = Slower (−0.1×)
 ztts-key-faster =
     .value = Faster (+0.1×)
+ztts-key-quieter =
+    .value = Quieter (−10%)
+ztts-key-louder =
+    .value = Louder (+10%)
 ztts-key-previous-sentence =
     .value = Previous sentence
 ztts-key-next-sentence =
@@ -161,6 +172,9 @@ ztts-help-key-return =
 ztts-help-key-options =
     .value = ?
     .help = Opens and closes the player's options panel — the speed slider, the tier, the language and the voice. Acts only while Read Aloud is open; otherwise the key keeps its usual meaning in the reader.
+ztts-help-key-volume =
+    .value = ?
+    .help = Changes the Volume setting above by 10%, for every voice, within the sentence being spoken. Acts only while Read Aloud is open; otherwise the key keeps its usual meaning in the reader.
 ztts-restore-shortcuts =
     .label = Restore default shortcuts
 
@@ -351,6 +365,8 @@ ztts-key-needs-modifier = Add a modifier (Ctrl, Alt, Shift or Cmd): a bare key w
 ztts-action-speed-reset = Reset speed
 ztts-action-slower = Slower
 ztts-action-faster = Faster
+ztts-action-quieter = Quieter
+ztts-action-louder = Louder
 ztts-action-previous-sentence = Previous sentence
 ztts-action-next-sentence = Next sentence
 ztts-action-previous-paragraph = Previous paragraph
@@ -358,6 +374,8 @@ ztts-action-next-paragraph = Next paragraph
 ztts-action-play = Play / pause / resume
 ztts-action-return = Go to reading position
 ztts-action-options = Player options
+# The toast the volume keys show, where the speed's shows `1.3×`
+ztts-volume-toast = Volume { $percent }%
 
 ## Backup and Sync (ui/backup-rows.ts, ui/webdav-rows.ts)
 

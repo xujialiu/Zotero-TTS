@@ -1,8 +1,10 @@
 import { SPEED_ACTIONS, type SpeedAction } from './read-aloud-speed';
+import { VOLUME_ACTIONS, type VolumeAction } from './read-aloud-volume';
 
 /**
  * Everything a keyboard shortcut can do to Zotero's Read Aloud: change the
- * playback speed (read-aloud-speed.ts), skip by sentence or paragraph
+ * playback speed (read-aloud-speed.ts) or the volume (read-aloud-volume.ts,
+ * a setting the keys and the pane share), skip by sentence or paragraph
  * the way the popup's skip buttons do (`ReadAloudManager.skipBack` /
  * `skipAhead`, granularity `'sentence' | 'paragraph'`), act on the
  * reading position (`reader.startReadAloudAtPosition`, the context menu's
@@ -11,7 +13,7 @@ import { SPEED_ACTIONS, type SpeedAction } from './read-aloud-speed';
  * `shortcuts.<action>` prefs (settings.ts).
  */
 
-export type { SpeedAction };
+export type { SpeedAction, VolumeAction };
 
 export type NavigationAction = 'previousSentence' | 'nextSentence' | 'previousParagraph' | 'nextParagraph';
 
@@ -25,7 +27,7 @@ export type PositionAction = 'startFromSelection' | 'returnToSpoken';
  */
 export type PlayerAction = 'toggleOptions';
 
-export type ShortcutAction = SpeedAction | NavigationAction | PositionAction | PlayerAction;
+export type ShortcutAction = SpeedAction | VolumeAction | NavigationAction | PositionAction | PlayerAction;
 
 export const NAVIGATION_ACTIONS: readonly NavigationAction[] = ['previousSentence', 'nextSentence', 'previousParagraph', 'nextParagraph'];
 
@@ -35,6 +37,7 @@ export const PLAYER_ACTIONS: readonly PlayerAction[] = ['toggleOptions'];
 
 export const SHORTCUT_ACTIONS: readonly ShortcutAction[] = [
   ...SPEED_ACTIONS,
+  ...VOLUME_ACTIONS,
   ...NAVIGATION_ACTIONS,
   ...POSITION_ACTIONS,
   ...PLAYER_ACTIONS,
@@ -52,6 +55,10 @@ export const NAVIGATION: Record<NavigationAction, { direction: 'back' | 'ahead';
 
 export function isNavigationAction(action: ShortcutAction): action is NavigationAction {
   return action in NAVIGATION;
+}
+
+export function isVolumeAction(action: ShortcutAction): action is VolumeAction {
+  return (VOLUME_ACTIONS as readonly string[]).includes(action);
 }
 
 export function isPositionAction(action: ShortcutAction): action is PositionAction {

@@ -26,6 +26,8 @@ const ACTION_NAMES: Record<ShortcutAction, () => string> = {
   speedReset: () => t('ztts-action-speed-reset'),
   speedDown: () => t('ztts-action-slower'),
   speedUp: () => t('ztts-action-faster'),
+  volumeDown: () => t('ztts-action-quieter'),
+  volumeUp: () => t('ztts-action-louder'),
   previousSentence: () => t('ztts-action-previous-sentence'),
   nextSentence: () => t('ztts-action-next-sentence'),
   previousParagraph: () => t('ztts-action-previous-paragraph'),

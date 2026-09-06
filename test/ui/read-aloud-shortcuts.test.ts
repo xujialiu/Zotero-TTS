@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { READ_ALOUD_VOICES_PREF } from '../../src/core/read-aloud-speed';
+import { VOLUME_PREF } from '../../src/core/read-aloud-volume';
 import type { PrefsBackend } from '../../src/core/settings';
 import {
   createReadAloudShortcuts,
@@ -60,6 +61,8 @@ const BINDINGS = {
   speedReset: 'Shift+Z',
   speedDown: 'Shift+X',
   speedUp: 'Shift+C',
+  volumeDown: 'Shift+ArrowDown',
+  volumeUp: 'Shift+ArrowUp',
   previousSentence: 'ArrowLeft',
   nextSentence: 'ArrowRight',
   previousParagraph: 'Shift+ArrowLeft',
@@ -75,6 +78,7 @@ function setup(over: Partial<ReadAloudShortcutsDeps> = {}) {
   const manager = fakeManager();
   const reader = { id: 'reader' };
   const showToast = vi.fn();
+  const showVolumeToast = vi.fn();
   const lockPosition = vi.fn();
   const canReadAloud = vi.fn(() => true);
   const hasSelection = vi.fn(() => false);
@@ -91,6 +95,7 @@ function setup(over: Partial<ReadAloudShortcutsDeps> = {}) {
     prefs,
     getManager: () => manager,
     showToast,
+    showVolumeToast,
     lockPosition,
     canReadAloud,
     hasSelection,
@@ -109,6 +114,7 @@ function setup(over: Partial<ReadAloudShortcutsDeps> = {}) {
     manager,
     reader,
     showToast,
+    showVolumeToast,
     lockPosition,
     canReadAloud,
     hasSelection,
@@ -397,6 +403,101 @@ describe('navigation', () => {
     manager.active = false;
     expect(shortcuts.navigate(reader, 'previousParagraph')).toBe(false);
     expect(manager.skipBack).not.toHaveBeenCalled();
+  });
+});
+
+describe('the volume keys (actions volumeDown / volumeUp)', () => {
+  const down = (partial: Partial<ShortcutKeyEvent> = {}) => keyEvent({ key: 'ArrowDown', code: 'ArrowDown', ...partial });
+  const up = (partial: Partial<ShortcutKeyEvent> = {}) => keyEvent({ key: 'ArrowUp', code: 'ArrowUp', ...partial });
+
+  it('steps the volume pref by 10 while a session is open, and shows the level', () => {
+    const { shortcuts, prefs, reader, manager, showVolumeToast, showToast, resolve } = setup();
+    const event = down();
+    expect(shortcuts.handleKeyDown(event, resolve)).toBe(true);
+    expect(event.preventDefault).toHaveBeenCalled();
+    expect(event.stopPropagation).toHaveBeenCalled();
+    // An unset pref counts as 100
+    expect(prefs.store[VOLUME_PREF]).toBe(90);
+    expect(showVolumeToast).toHaveBeenCalledWith(reader, 90);
+    expect(shortcuts.handleKeyDown(up(), resolve)).toBe(true);
+    expect(shortcuts.handleKeyDown(up(), resolve)).toBe(true);
+    expect(prefs.store[VOLUME_PREF]).toBe(110);
+    expect(showVolumeToast).toHaveBeenLastCalledWith(reader, 110);
+    // Nothing of the speed's is touched
+    expect(manager.setSpeed).not.toHaveBeenCalled();
+    expect(showToast).not.toHaveBeenCalled();
+    expect(prefs.store[READ_ALOUD_VOICES_PREF]).toBeUndefined();
+  });
+
+  it('works while paused: the level is a setting, not a playback state', () => {
+    const { shortcuts, prefs, manager, resolve } = setup();
+    manager.paused = true;
+    expect(shortcuts.handleKeyDown(up(), resolve)).toBe(true);
+    expect(prefs.store[VOLUME_PREF]).toBe(110);
+  });
+
+  it('stops at 0 and at 200', () => {
+    const { shortcuts, prefs, reader, showVolumeToast, resolve } = setup();
+    prefs.store[VOLUME_PREF] = 5;
+    expect(shortcuts.handleKeyDown(down(), resolve)).toBe(true);
+    expect(prefs.store[VOLUME_PREF]).toBe(0);
+    expect(shortcuts.handleKeyDown(down(), resolve)).toBe(true);
+    expect(prefs.store[VOLUME_PREF]).toBe(0);
+    expect(showVolumeToast).toHaveBeenLastCalledWith(reader, 0);
+    prefs.store[VOLUME_PREF] = 195;
+    shortcuts.handleKeyDown(up(), resolve);
+    shortcuts.handleKeyDown(up(), resolve);
+    expect(prefs.store[VOLUME_PREF]).toBe(200);
+  });
+
+  it('leaves the keys to the reader when no Read Aloud session is open', () => {
+    const { shortcuts, prefs, manager, showVolumeToast, resolve } = setup();
+    manager.active = false;
+    const event = down();
+    expect(shortcuts.handleKeyDown(event, resolve)).toBe(false);
+    expect(event.preventDefault).not.toHaveBeenCalled();
+    expect(prefs.store[VOLUME_PREF]).toBeUndefined();
+    expect(showVolumeToast).not.toHaveBeenCalled();
+  });
+
+  it('leaves the keys alone without a manager', () => {
+    const { shortcuts, prefs, resolve } = setup({ getManager: () => null });
+    expect(shortcuts.handleKeyDown(up(), resolve)).toBe(false);
+    expect(prefs.store[VOLUME_PREF]).toBeUndefined();
+  });
+
+  it('lets typing through in editable fields', () => {
+    const { shortcuts, prefs, resolve } = setup();
+    expect(shortcuts.handleKeyDown(up({ target: { tagName: 'INPUT', type: 'text' } }), resolve)).toBe(false);
+    expect(prefs.store[VOLUME_PREF]).toBeUndefined();
+  });
+
+  it('swallows auto-repeat: one step per press', () => {
+    const { shortcuts, prefs, resolve } = setup();
+    expect(shortcuts.handleKeyDown(down({ repeat: true }), resolve)).toBe(true);
+    expect(prefs.store[VOLUME_PREF]).toBeUndefined();
+  });
+
+  it('logs a pref write that throws, shows no level, and still consumes the key', () => {
+    const { shortcuts, log, showVolumeToast, resolve } = setup({
+      prefs: {
+        get: () => 100,
+        set: () => {
+          throw new Error('pref refused');
+        },
+      },
+    });
+    const event = down();
+    expect(shortcuts.handleKeyDown(event, resolve)).toBe(true);
+    expect(event.preventDefault).toHaveBeenCalled();
+    expect(log).toHaveBeenCalledTimes(1);
+    expect(showVolumeToast).not.toHaveBeenCalled();
+  });
+
+  it('adjustVolume() reports the level it set', () => {
+    const { shortcuts, reader } = setup();
+    expect(shortcuts.adjustVolume(reader, 'volumeUp')).toBe(110);
+    expect(shortcuts.adjustVolume(reader, 'volumeDown')).toBe(100);
   });
 });
 

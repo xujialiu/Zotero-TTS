@@ -997,8 +997,11 @@ export function describeMediaError(error: { code: number; message?: string } | n
  * on — a time-stretch with the pitch kept, which is what Read Aloud does to
  * its own audio (the reader's stretchAudioBuffer; a plain rate change would
  * shift the pitch like a turntable, and that is not how reading sounds).
+ * `volume` is the Read Aloud level in percent (issue #62), applied to each
+ * element as a fraction of its full volume — an element cannot boost, so
+ * anything above 100 plays at 100.
  */
-export function createSamplePlayer(createAudio: () => HTMLAudioElement): SamplePlayer {
+export function createSamplePlayer(createAudio: () => HTMLAudioElement, volume?: () => number): SamplePlayer {
   let current: HTMLAudioElement | null = null;
   let done: ((error: Error | null) => void) | null = null;
   const finish = (error: Error | null) => {
@@ -1030,10 +1033,17 @@ export function createSamplePlayer(createAudio: () => HTMLAudioElement): SampleP
     el.defaultPlaybackRate = rate;
     el.playbackRate = rate;
   };
+  const applyVolume = (el: HTMLAudioElement) => {
+    if (!volume) return;
+    const level = volume();
+    if (!Number.isFinite(level)) return;
+    el.volume = Math.min(1, Math.max(0, level / 100));
+  };
   return {
     async play(audio, rate, onDone) {
       stop();
       const el = createAudio();
+      applyVolume(el);
       current = el;
       done = onDone;
       let started = false;

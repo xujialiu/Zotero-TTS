@@ -296,3 +296,4 @@ cite `notes/NOTES.md` with a date or a section title resolve through this index.
 - The restore Zotero skips after moving off a raw tag now runs from a hook on the manager itself, and no entry is created under such a tag (issue #59)
 - The strings TypeScript writes went through t(): a joiner message for the space between sentences, counts as text, constants turned into thunks (issue #43)
 - A click on the next sample did not stop the one playing, and the player would have started an abandoned element (issue #61)
+- A volume of its own: a gain ahead of Zotero's filter chain, one pref for the keys and the pane (issue #62)

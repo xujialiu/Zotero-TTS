@@ -1,7 +1,9 @@
 import { nextSpeed, persistSpeed, readPersistedSpeed, type SpeedAction } from '../core/read-aloud-speed';
+import { clampVolume, nextVolume, VOLUME_PREF, type VolumeAction } from '../core/read-aloud-volume';
 import type { PrefsBackend } from '../core/settings';
 import {
   isNavigationAction,
+  isVolumeAction,
   NAVIGATION,
   SHORTCUT_ACTIONS,
   type NavigationAction,
@@ -78,6 +80,8 @@ export interface ReadAloudShortcutsDeps {
    */
   rememberSpeed?(speed: number): void;
   showToast?(reader: unknown, speed: number): void;
+  /** The volume's own toast, the level in percent (the speed's shows `1.3×`). */
+  showVolumeToast?(reader: unknown, level: number): void;
   /** After a skip, what the popup's own buttons do: lock the view to the spoken position, so it follows again. */
   lockPosition?(reader: unknown): void;
   /**
@@ -143,6 +147,8 @@ export interface ReadAloudShortcuts {
   handleKeyDown(event: ShortcutKeyEvent, resolveReader: () => unknown, options?: HandleOptions): boolean;
   /** Apply a speed action to a reader and return the new speed. */
   adjust(reader: unknown, action: SpeedAction): number;
+  /** Step the volume pref, which every open chain follows (read-aloud/volume.ts), and return the new level in percent. */
+  adjustVolume(reader: unknown, action: VolumeAction): number;
   /** Skip by sentence or paragraph; false when the reader has no open Read Aloud session to skip in. */
   navigate(reader: unknown, action: NavigationAction): boolean;
   /** The smart play key; false when this reader has no Read Aloud to act on, so the key is left alone. */
@@ -217,6 +223,24 @@ export function createReadAloudShortcuts(deps: ReadAloudShortcutsDeps): ReadAlou
     if (!persistedByZotero && !persistSpeed(deps.prefs, lang, next, preferred)) deps.rememberSpeed?.(next);
 
     deps.showToast?.(reader, next);
+    return next;
+  }
+
+  /**
+   * The volume is a setting, not a state of the manager: the pref is the
+   * one thing written, and the observer behind it moves every open chain
+   * (index.ts). A write that fails shows no toast — the level did not move.
+   */
+  function adjustVolume(reader: unknown, action: VolumeAction): number {
+    const current = clampVolume(deps.prefs.get(VOLUME_PREF));
+    const next = nextVolume(current, action);
+    try {
+      deps.prefs.set(VOLUME_PREF, next);
+    } catch (e) {
+      log(e);
+      return current;
+    }
+    deps.showVolumeToast?.(reader, next);
     return next;
   }
 
@@ -344,7 +368,10 @@ export function createReadAloudShortcuts(deps: ReadAloudShortcutsDeps): ReadAlou
     // consumed whenever Read Aloud exists — only an older Zotero without
     // startReadAloudAtPosition leaves Shift+Space paging. The options key
     // needs the player itself on screen: the button is all there is to press.
+    // The volume keys follow the skip keys: only with a session open, since
+    // the reader grows a selection and resizes an annotation with them.
     if (isNavigationAction(action) && !canSkip(managerOf(reader))) return false;
+    if (isVolumeAction(action) && !managerOf(reader)?.active) return false;
     if (action === 'startFromSelection' && !canSmartPlay(reader)) return false;
     if (action === 'returnToSpoken' && !canReturnToSpoken(reader)) return false;
     if (action === 'toggleOptions' && !optionsButton(reader)) return false;
@@ -353,6 +380,7 @@ export function createReadAloudShortcuts(deps: ReadAloudShortcutsDeps): ReadAlou
     // Holding the key down would restart the current segment on every auto-repeat
     if (event.repeat) return true;
     if (isNavigationAction(action)) navigate(reader, action);
+    else if (isVolumeAction(action)) adjustVolume(reader, action);
     else if (action === 'startFromSelection') smartPlay(reader);
     else if (action === 'returnToSpoken') returnToSpoken(reader);
     else if (action === 'toggleOptions') toggleOptions(reader);
@@ -393,7 +421,7 @@ export function createReadAloudShortcuts(deps: ReadAloudShortcutsDeps): ReadAlou
     for (const target of [...listeners.keys()]) unlisten(target);
   }
 
-  return { handleKeyDown, adjust, navigate, smartPlay, returnToSpoken, toggleOptions, listen, unlisten, dispose };
+  return { handleKeyDown, adjust, adjustVolume, navigate, smartPlay, returnToSpoken, toggleOptions, listen, unlisten, dispose };
 }
 
 /**

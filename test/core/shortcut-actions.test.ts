@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { SPEED_ACTIONS } from '../../src/core/read-aloud-speed';
+import { VOLUME_ACTIONS } from '../../src/core/read-aloud-volume';
 import {
   allowsBareArrows,
   isNavigationAction,
   isPlayerAction,
   isPositionAction,
+  isVolumeAction,
   NAVIGATION,
   NAVIGATION_ACTIONS,
   PLAYER_ACTIONS,
@@ -13,8 +15,9 @@ import {
 } from '../../src/core/shortcut-actions';
 
 describe('shortcut actions', () => {
-  it('lists the speed actions first, then the navigation ones, then the position ones, then the player ones', () => {
-    expect(SHORTCUT_ACTIONS).toEqual([...SPEED_ACTIONS, ...NAVIGATION_ACTIONS, ...POSITION_ACTIONS, ...PLAYER_ACTIONS]);
+  it('lists the speed actions first, then the volume ones, then navigation, position and the player', () => {
+    expect(SHORTCUT_ACTIONS).toEqual([...SPEED_ACTIONS, ...VOLUME_ACTIONS, ...NAVIGATION_ACTIONS, ...POSITION_ACTIONS, ...PLAYER_ACTIONS]);
+    expect(VOLUME_ACTIONS).toEqual(['volumeDown', 'volumeUp']);
     expect(NAVIGATION_ACTIONS).toEqual(['previousSentence', 'nextSentence', 'previousParagraph', 'nextParagraph']);
     expect(POSITION_ACTIONS).toEqual(['startFromSelection', 'returnToSpoken']);
     expect(PLAYER_ACTIONS).toEqual(['toggleOptions']);
@@ -44,6 +47,18 @@ describe('shortcut actions', () => {
     expect(isNavigationAction('startFromSelection')).toBe(false);
     expect(allowsBareArrows('startFromSelection')).toBe(false);
     expect(allowsBareArrows('returnToSpoken')).toBe(false);
+  });
+
+  it('tells the volume actions apart from every other group, and keeps them off bare arrow keys', () => {
+    expect(isVolumeAction('volumeUp')).toBe(true);
+    expect(isVolumeAction('volumeDown')).toBe(true);
+    expect(isVolumeAction('speedUp')).toBe(false);
+    expect(isVolumeAction('nextSentence')).toBe(false);
+    expect(isNavigationAction('volumeUp')).toBe(false);
+    expect(isPositionAction('volumeDown')).toBe(false);
+    expect(isPlayerAction('volumeUp')).toBe(false);
+    expect(allowsBareArrows('volumeUp')).toBe(false);
+    expect(allowsBareArrows('volumeDown')).toBe(false);
   });
 
   it('tells the player action apart from every other group, and keeps it off bare arrow keys', () => {

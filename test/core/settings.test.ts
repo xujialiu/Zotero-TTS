@@ -82,11 +82,13 @@ describe('loadSettings', () => {
     expect(loadSettings(fakePrefs({ 'extensions.zotero.zotero-tts.highlight.sentenceAlpha': -1 })).highlight.sentenceAlpha).toBe(0);
   });
 
-  it('ships Shift+Z / X / C for the speed, the arrow keys for skipping, Shift+Space / Shift+Enter for the position and Shift+O for the options panel', () => {
+  it('ships Shift+Z / X / C for the speed, Shift+↓ / ↑ for the volume, the arrow keys for skipping, Shift+Space / Shift+Enter for the position and Shift+O for the options panel', () => {
     expect(DEFAULTS.shortcuts).toEqual({
       speedReset: 'Shift+Z',
       speedDown: 'Shift+X',
       speedUp: 'Shift+C',
+      volumeDown: 'Shift+ArrowDown',
+      volumeUp: 'Shift+ArrowUp',
       previousSentence: 'ArrowLeft',
       nextSentence: 'ArrowRight',
       previousParagraph: 'Shift+ArrowLeft',
@@ -229,6 +231,26 @@ describe('readAloud pauses', () => {
     expect(prefs.store[key('readAloud.sentenceDelayMs')]).toBe(120);
     expect(prefs.store[key('readAloud.paragraphDelayEnabled')]).toBe(true);
     expect(prefs.store[key('readAloud.paragraphDelayMs')]).toBe(40);
+  });
+});
+
+describe('readAloud.volume', () => {
+  const key = (k: string) => PREF_PREFIX + k;
+
+  it('defaults to 100, Zotero’s own level, and is read clamped to 0–200', () => {
+    expect(DEFAULTS.readAloud.volume).toBe(100);
+    expect(loadSettings(fakePrefs()).readAloud.volume).toBe(100);
+    expect(loadSettings(fakePrefs({ [key('readAloud.volume')]: 80 })).readAloud.volume).toBe(80);
+    expect(loadSettings(fakePrefs({ [key('readAloud.volume')]: 999 })).readAloud.volume).toBe(200);
+    expect(loadSettings(fakePrefs({ [key('readAloud.volume')]: -5 })).readAloud.volume).toBe(0);
+    expect(loadSettings(fakePrefs({ [key('readAloud.volume')]: '80' })).readAloud.volume).toBe(100);
+    expect(loadSettings(fakePrefs({ [key('readAloud.volume')]: NaN })).readAloud.volume).toBe(100);
+  });
+
+  it('is saved with the rest of the Reading settings', () => {
+    const prefs = fakePrefs();
+    saveSettings(prefs, { ...DEFAULTS, readAloud: { ...DEFAULTS.readAloud, volume: 60 } });
+    expect(prefs.store[key('readAloud.volume')]).toBe(60);
   });
 });
 

@@ -165,6 +165,18 @@
       <html:input type="range" id="ztts-voices-speed" min="0.5" max="3" step="0.1" style="width: 14em; margin: 0 6px;"/>
       <html:span id="ztts-voices-speed-value" style="min-width: 3em;">1.0×</html:span>
     </hbox>
+    <!-- How loud Read Aloud plays, for every voice in the player and the
+         samples below: a gain ahead of Zotero's own filter chain, at this
+         percent of Zotero's level (read-aloud/volume.ts, issue #62). Bound:
+         the observer behind the pref moves every open chain at once, and
+         the volume keys write the same pref -->
+    <hbox align="center">
+      <label data-l10n-id="ztts-volume" control="ztts-volume"/>
+      <html:input type="number" id="ztts-volume" min="0" max="200" step="10" style="width: 5em"
+                  preference="extensions.zotero.zotero-tts.readAloud.volume"/>
+      <label data-l10n-id="ztts-volume-percent"/>
+      <label class="ztts-help" value="?" data-l10n-id="ztts-help-volume" data-l10n-attrs="help"/>
+    </hbox>
     <!-- Each column is position: relative — the offsetParent of its entries —
          so ui/voice-browser-rows.ts can scroll it to the selection (issue #33) -->
     <html:div id="ztts-voices-browser" style="display: flex; gap: 8px; margin-top: 4px; max-width: 54em;">
@@ -288,6 +300,18 @@
       <label data-l10n-id="ztts-key-faster" style="width: 12em"/>
       <button id="ztts-key-speedUp" style="min-width: 10em"/>
       <button id="ztts-key-clear-speedUp" data-l10n-id="ztts-clear"/>
+    </hbox>
+    <hbox align="center">
+      <label data-l10n-id="ztts-key-quieter" style="width: 12em"/>
+      <button id="ztts-key-volumeDown" style="min-width: 10em"/>
+      <button id="ztts-key-clear-volumeDown" data-l10n-id="ztts-clear"/>
+      <label class="ztts-help" value="?" data-l10n-id="ztts-help-key-volume" data-l10n-attrs="help"/>
+    </hbox>
+    <hbox align="center">
+      <label data-l10n-id="ztts-key-louder" style="width: 12em"/>
+      <button id="ztts-key-volumeUp" style="min-width: 10em"/>
+      <button id="ztts-key-clear-volumeUp" data-l10n-id="ztts-clear"/>
+      <label class="ztts-help" value="?" data-l10n-id="ztts-help-key-volume" data-l10n-attrs="help"/>
     </hbox>
     <hbox align="center">
       <label data-l10n-id="ztts-key-previous-sentence" style="width: 12em"/>

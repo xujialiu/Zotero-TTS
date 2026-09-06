@@ -544,8 +544,12 @@ export function onPaneLoad(doc: Document, hooks: PaneHooks = {}): void {
     // the plugin's; failing on its own leaves the plugin's voices listed
     listZoteroVoices: () => zoteroVoiceService().listVoices(),
     sampleZoteroVoice: (voiceId) => zoteroVoiceService().sample(voiceId),
-    // A detached element plays fine; the pane window closing stops it
-    player: createSamplePlayer(() => doc.createElementNS(XHTML, 'audio') as HTMLAudioElement),
+    // A detached element plays fine; the pane window closing stops it. The
+    // samples play at the Read Aloud volume, read per sample (issue #62)
+    player: createSamplePlayer(
+      () => doc.createElementNS(XHTML, 'audio') as HTMLAudioElement,
+      () => loadSettings(prefs).readAloud.volume,
+    ),
     // Named as the popup's dropdown names them, in the app's locale
     localeName: (code) => languageDisplayName(code, Zotero.locale ?? 'en'),
     // The manager of every open reader, the way the shortcuts reach it: a

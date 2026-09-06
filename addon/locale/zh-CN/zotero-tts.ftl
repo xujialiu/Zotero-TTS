@@ -55,6 +55,13 @@ ztts-favorites-only =
 ztts-voices-speed =
     .value = 速度
     .tooltiptext = 试听按此速度播放；开启“所有文档使用同一速度”后，松开滑块即把它设为朗读的起始速度
+ztts-volume =
+    .value = 音量
+ztts-volume-percent =
+    .value = %
+ztts-help-volume =
+    .value = ?
+    .help = 朗读的响度，对每个语音和这里的试听都有效。100% 是 Zotero 本来的响度；再往上，偏小声的语音会变响，本来就响的变化不大。朗读打开时，下面的音量键每次调 10%，正在读的这一句立刻生效。
 
 
 ## Reading
@@ -122,6 +129,10 @@ ztts-key-slower =
     .value = 减速 (−0.1×)
 ztts-key-faster =
     .value = 加速 (+0.1×)
+ztts-key-quieter =
+    .value = 音量减 (−10%)
+ztts-key-louder =
+    .value = 音量加 (+10%)
 ztts-key-previous-sentence =
     .value = 上一句
 ztts-key-next-sentence =
@@ -150,6 +161,9 @@ ztts-help-key-return =
 ztts-help-key-options =
     .value = ?
     .help = 打开或收起播放器的选项面板——速度滑块、语音模式、语言和语音。仅在朗读打开时生效；否则这个键在阅读器里保持原来的作用。
+ztts-help-key-volume =
+    .value = ?
+    .help = 把上面的“音量”设置调 10%，对每个语音有效，正在读的这一句立刻生效。仅在朗读打开时生效；否则这个键在阅读器里保持原来的作用。
 ztts-restore-shortcuts =
     .label = 恢复默认快捷键
 
@@ -313,6 +327,8 @@ ztts-key-needs-modifier = 请加上修饰键（Ctrl、Alt、Shift 或 Cmd）：�
 ztts-action-speed-reset = 重置速度
 ztts-action-slower = 减速
 ztts-action-faster = 加速
+ztts-action-quieter = 音量减
+ztts-action-louder = 音量加
 ztts-action-previous-sentence = 上一句
 ztts-action-next-sentence = 下一句
 ztts-action-previous-paragraph = 上一段
@@ -320,6 +336,8 @@ ztts-action-next-paragraph = 下一段
 ztts-action-play = 播放 / 暂停 / 继续
 ztts-action-return = 回到朗读位置
 ztts-action-options = 播放器选项
+# The toast the volume keys show, where the speed's shows `1.3×`
+ztts-volume-toast = 音量 { $percent }%
 
 ## Backup and Sync
 

@@ -1537,6 +1537,30 @@ describe('createSamplePlayer', () => {
     return { created, player };
   }
 
+  it('plays at the Read Aloud volume, a fraction of the element’s full level, capped at 1 (issue #62)', async () => {
+    let level = 60;
+    const created: ReturnType<typeof fakeAudio>[] = [];
+    const player = createSamplePlayer(() => {
+      const el = fakeAudio();
+      created.push(el);
+      return el as unknown as HTMLAudioElement;
+    }, () => level);
+    await player.play(new Blob(['x']), 1, () => {});
+    expect((created[0] as any).volume).toBe(0.6);
+    level = 150;
+    await player.play(new Blob(['x']), 1, () => {});
+    expect((created[1] as any).volume).toBe(1);
+    level = NaN;
+    await player.play(new Blob(['x']), 1, () => {});
+    expect((created[2] as any).volume).toBeUndefined();
+  });
+
+  it('leaves the element’s own level when no volume is wired', async () => {
+    const { created, player } = playerWithElements();
+    await player.play(new Blob(['x']), 1, () => {});
+    expect((created[0] as any).volume).toBeUndefined();
+  });
+
   it('plays the blob through a fresh element and reports the end once, with no error', async () => {
     const { created, player } = playerWithElements();
     const onDone = vi.fn();

@@ -32,7 +32,7 @@ things around the edges. Why it is built this way: [PHILOSOPHY.md](PHILOSOPHY.md
 - 🔖 **Resume where you stopped** — close a document, open it again later, press `Shift+Space`, and Read Aloud starts at the sentence you left off on. [→ Resume where you stopped](#resume-where-you-stopped)
 - 🎧 **A voice browser** in the settings: every voice by tier and language — yours and Zotero's own — a play button for a short sample, hearts for favorites, and a switch to offer only the favorites. [→ Voice browser](#voice-browser)
 - ✨ **Word *and* sentence highlighting at once**, in your own colors and opacities — for Zotero's voices too. [→ Highlight](#highlight)
-- ⌨️ **Keyboard shortcuts**: speed up, down, reset; jump by sentence or paragraph; read from the selection; bring the view back to what's being read; open the player's options panel. All rebindable. [→ Shortcuts](#keyboard-shortcuts)
+- ⌨️ **Keyboard shortcuts**: speed up, down, reset; volume up and down; jump by sentence or paragraph; read from the selection; bring the view back to what's being read; open the player's options panel. All rebindable. [→ Shortcuts](#keyboard-shortcuts)
 - 📌 **One voice and speed everywhere** — every document and every open tab, picked in any tab's player or in the voice browser — instead of Zotero's choice per language. [→ Reading](#reading)
 - ⏱️ **The pauses are yours** — how long every voice waits between sentences and before a paragraph, for Zotero's voices too, and shorter as you read faster. [→ Reading](#reading)
 - 💾 **Backup and sync** — settings and reading positions as files, or through your own WebDAV folder: bookmarks follow you between computers, and each computer's settings file keeps itself fresh on the server. [→ Backup](#backup)
@@ -184,9 +184,12 @@ on a yellow sentence, both at 70 %; *Restore default colors* brings it back
 pauses and resumes an open session, and otherwise starts reading — from the
 selected text, from where you last stopped (below), or from the visible
 page. `Shift+O` opens and closes the player's options panel — the speed
-slider, the tier, the language and the voice. The arrow keys, `Shift+Enter`
-and `Shift+O` act only while Read Aloud is open and keep their usual
-meaning otherwise. Click a field to record another key.
+slider, the tier, the language and the voice. `Shift+↑` and `Shift+↓` turn
+Read Aloud up and down by 10% — a volume of its own, apart from the
+system's, for every voice; the same number is the **Volume** field in the
+voice browser, and 100% is Zotero's own level. The arrow keys,
+`Shift+Enter` and `Shift+O` act only while Read Aloud is open and keep
+their usual meaning otherwise. Click a field to record another key.
 
 ## Resume where you stopped
 
@@ -215,7 +218,8 @@ looking at.
 Every voice Read Aloud can use, in the player's own three steps — tier,
 language, voice. **▶** plays a short sample, **♥** marks a favorite, and a
 click on a row makes that voice the **default**: what Read Aloud starts
-with, in every document. The **Speed** slider is the player's own (0.5×–3×).
+with, in every document. The **Speed** slider is the player's own (0.5×–3×);
+**Volume** is how loud Read Aloud plays, 100% being Zotero's own level.
 
 <details>
 <summary><b>Favorites, samples, the default voice</b></summary>
@@ -248,6 +252,11 @@ with, in every document. The **Speed** slider is the player's own (0.5×–3×).
   makes that the speed Read Aloud starts with — at once in a document that
   is playing. Zotero stretches its audio, pitch kept, so the slider costs
   no new request.
+- **Volume** (0–200%) applies to every voice, Zotero's Standard and
+  Premium included, and to the samples; a change lands on the sentence
+  being spoken, in every open tab. Above 100% quiet voices come up and
+  loud ones change little. `Shift+↑` / `Shift+↓` move the same number
+  while Read Aloud is open.
 - While Read Aloud is open in some tab, every setting that changes what the
   player lists is refused with a message naming the tabs — close them, then
   try again. Zotero has no way to refresh an open player's list, and two
