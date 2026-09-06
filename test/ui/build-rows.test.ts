@@ -90,11 +90,11 @@ describe('addon/', () => {
     expect(ftl).toMatch(/^ztts-build-star = \S.*<label data-l10n-name="github">GitHub<\/label>/m);
   });
 
-  // The README is read on GitHub itself, so its sentence names no site and
-  // carries no link; the reason is the pane's, word for word
+  // The README is the docs site too, where the link is the way back to the
+  // repository; the sentence is the pane's, word for word
   it('asks for the star in the README too, under the GIF', () => {
     const readme = readFileSync(new URL('../../README.md', import.meta.url), 'utf8');
-    const star = readme.indexOf('give it a ⭐ — it helps others find it.');
+    const star = readme.indexOf(`give it a ⭐ on <a href="${REPOSITORY_URL}">GitHub</a> — it helps others find it.`);
     expect(star).toBeGreaterThan(readme.indexOf('word-highlight.gif'));
     expect(star).toBeLessThan(readme.indexOf('## What is this?'));
   });

@@ -1,4 +1,4 @@
-<!-- translated-from: README.md sha256:918dd010d564 -->
+<!-- translated-from: README.md sha256:9ffb40aba652 -->
 <p align="center"><img src="assets/icon.png" width="80" alt="Zotero-TTS 图标"></p>
 <h1 align="center">Zotero-TTS</h1>
 
@@ -16,7 +16,7 @@
 
 <p align="center"><img src="assets/word-highlight.gif" width="720" alt="朗读正在读一段文字：正在读的词是蓝色，它所在的句子是黄色"></p>
 
-<p align="center">如果你喜欢 Zotero-TTS，欢迎给它点个 ⭐——让更多人发现它。</p>
+<p align="center">如果你喜欢 Zotero-TTS，欢迎到 <a href="https://github.com/xujialiu/Zotero-TTS">GitHub</a> 给它点个 ⭐——让更多人发现它。</p>
 
 ## 这是什么
 
