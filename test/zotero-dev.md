@@ -198,14 +198,39 @@ since where marked.
    empty. Then the dropdown back to the server it had (its address and
    model return through `presetValues`), Enable; the key is the user's
    to clear.
-8. **System voices** (Windows): `diagnostics.systemProvider()` →
-   `enabled`, `platform: "win"`, `unsupported: null`, the daemon
-   `running`, voices with `id`/`name`/`lang`/`zoteroId`; then with the
-   first voice id → `synthesis.bytes` > 0, `type` audio, `words` > 0
-   (or `words: 0` with the SAPI-rate `note`), `daemonAfter.running`.
-   On macOS and Linux instead: `unsupported` is the platform sentence
-   (`System voices need the Windows speech helper; this build has none
-   for macOS or Linux yet.`), and Test connection **and** Enable on the
+8. **System voices.** `diagnostics.systemProvider()` → `enabled`,
+   `platform` (`"win"` / `"mac"`), `unsupported: null`, `backend` with
+   its `platform`, `wordTimestamps` and state, voices with
+   `id`/`name`/`lang`/`zoteroId`; then with the first voice id →
+   `synthesis.bytes` > 0, `type` audio, `backendAfter`. **On Windows**:
+   `backend.running`, ids `sapi5/…` / `onecore/…`, `zoteroId`
+   `local-urn:moz-tts:sapi:<desc>?<lang>`, `synthesis.words` > 0 (or
+   `words: 0` with the SAPI-rate `note`); Test connection → `Connected.
+   N voices available. Word timestamps available.`; the note beside the
+   `?` reads `Your Windows voices, with word highlighting.` **On macOS**
+   (issue #23, 1.11.0): `backend.wordTimestamps: false` and
+   `backend.spawned` counting up (one `osascript` per listing, one `say`
+   per sentence); every id `osx/<identifier>` with `zoteroId`
+   `local-urn:moz-tts:osx:<identifier>`, the id set identical to
+   `speechSynthesis.getVoices()` in the main window (191 = 191 on
+   2026-09-06); `synthesis.words: 0` with `note: "macOS voices come
+   without word timings"`; `diagnostics.systemProvider('osx/com.apple.voice.nosuch')`
+   → `synthesisError` naming the voice and no `synthesis` — `say` alone
+   would have spoken Samantha, exit 0; Test connection → `Connected. N
+   voices available. Synthesis works. No word timestamps: macOS voices
+   have none, so the sentence is highlighted.`; Enable turns
+   `system.enabled` on and locks the section, and a planted
+   `reader.readAloudVoices` entry naming `local-urn:moz-tts:osx:<id>` is
+   rewritten to `system::osx/<id>` in `voice` and `tierVoices.local`
+   about 0.5 s *after* the button reads Disable (the adoption is not
+   awaited — poll the pref; and reset `readAloud.memory` after planting,
+   since a chrome-scope write of that pref is a pick to memory-sync),
+   with `adopted 1 remembered voice(s)` in the log; Disable off; the note
+   reads `Your Mac's voices, highlighted by sentence.` with the Windows
+   and Linux notes `hidden`. **On Linux** instead: `unsupported` is the
+   platform sentence (`System voices are available on Windows and macOS
+   only; this build has no speech helper for Linux.`), the note reads
+   `Not available on Linux.`, and Test connection **and** Enable on the
    System voices section write that same sentence, word for word, to
    `#ztts-test-result-system` — never a sentence about an address, which
    that section does not have (issue #47); Enable leaves the pref false.
@@ -355,8 +380,8 @@ since where marked.
    `_prepareReadAloud()` there leaves the player unrendered for the tab's
    life (rulebook step 5; reader.js:83565-83569, measured 2026-09-05) —
    `_prepareReadAloud()` and poll `allVoices`: under favorites-only exactly the favorites per
-   tier, no others; `diagnostics.systemVoices()` → Zotero's own Windows
-   voices hidden (`hid N system voices` in the log);
+   tier, no others; `diagnostics.systemVoices()` → Zotero's own system
+   voices hidden (`hid N system voices` in the log; 191 on this Mac);
    `diagnostics.multilingualFirst()` → `mulLabel` with the leading space;
    `manager.speed` the memory's speed.
 2. **A remembered default the list does not offer** (issues #35, #36,
@@ -414,16 +439,20 @@ since where marked.
 4. **Playback and its mechanism.** `notifyUserGestureActivation()` +
    `toggleReadAloudPopup(true)` in one script; `active && !paused`
    within a few seconds; the log `[zotero-tts] <provider>: N word
-   timestamps for M chars` per sentence (`azure`/`local`/`system` N > 0;
-   `openai: no word timestamps for M chars, highlighting the sentence`);
+   timestamps for M chars` per sentence (`azure`/`local` N > 0, `system`
+   N > 0 on Windows; `openai: no word timestamps for M chars,
+   highlighting the sentence`, and on macOS `system: no word timestamps
+   for M chars (macOS voices come without word timings), highlighting
+   the sentence`);
    `manager.speed` the memory's. One pick per provider through the
    popup's own path (`selectVoice`, on the voice's language), each
    speaking within 15 s; a voice with no audio in 15 s is a FAIL with
    the log. Every pick is learned: memory and Zotero's entry follow.
 5. **Highlight.** While speaking, `diagnostics.highlight()` → `patched:
    true`, `sentenceSlot: "ours"`, `activeWordTimestamp: "real"` (Azure,
-   Kokoro, System) or the stand-in kind (OpenAI, granularity down to
-   `sentence`), `style` = the pane's five prefs; the log `highlight style
+   Kokoro, System on Windows) or the stand-in kind (OpenAI, System on
+   macOS, granularity down to `sentence`), `style` = the pane's five
+   prefs; the log `highlight style
    attached to a PDF view`; a screenshot with the word in the word color
    inside the sentence in the sentence color. `patched: false` is the
    normal state of a tab whose popup never opened, not a fault. Known:
@@ -716,7 +745,8 @@ screen, the complete Run JavaScript code, the expected output.
 - *Restore settings from server…*: the picker listing every machine's
   file with its date, the confirm, the restore.
 - How a voice sounds; whether the word highlight keeps pace with the
-  audio (Azure, Kokoro, System) and the sentence highlight with OpenAI.
+  audio (Azure, Kokoro, System on Windows) and the sentence highlight
+  with OpenAI and with the System voices on macOS.
 - Shift+Enter bringing the view back to the spoken sentence; the popup
   in motion; the speed toast's fade.
 - The pane in a Chinese Zotero after a restart (issue #30): how the
@@ -729,8 +759,10 @@ screen, the complete Run JavaScript code, the expected output.
   cannot be read aloud at all here (`Zotero.SDT.getPack` unavailable,
   notes/NOTES_2026-08-31.md 02:25); an EPUB fixture would cover the
   `dc:language` path of issue #26.
-- macOS and Linux: the System provider is Windows-only; everything else
-  is the same code, verified on macOS by hand at releases.
+- Linux: the System provider has no backend there, and §1.8's platform
+  sentence is all it does; everything else is the same code. Windows and
+  macOS each have their own System backend (issue #23), so §1.8 runs on
+  whichever is at hand and says which.
 - A provider failing mid-document (Zotero's error UI, the 429 that maps
   to the silent `quota-exceeded`, notes/NOTES.md "Still open"): needs a
   server that fails on cue.

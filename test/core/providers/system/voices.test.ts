@@ -97,3 +97,31 @@ describe('readVoiceRecords', () => {
     expect(readVoiceRecords({})).toEqual([]);
   });
 });
+
+// Issue #23: on macOS Gecko's id is the identifier itself, with no language
+// suffix (`urn:moz-tts:osx:<identifier>`, measured against all 191 voices
+// of this Mac on 2026-09-06), and the identifier is the plugin's id too
+describe('macOS ids (issue #23)', () => {
+  const SAMANTHA: SystemVoiceRecord = { id: 'osx/com.apple.voice.compact.en-US.Samantha', name: 'Samantha', desc: 'Samantha', lang: 'en-US' };
+  const SOUMYA: SystemVoiceRecord = { id: 'osx/com.apple.voice.compact.kn-IN.Alpana', name: 'Soumya', desc: 'Soumya', lang: 'kn-IN' };
+
+  it('rebuilds Gecko’s osx id from the identifier alone', () => {
+    expect(zoteroVoiceId(SAMANTHA)).toBe('local-urn:moz-tts:osx:com.apple.voice.compact.en-US.Samantha');
+    // The display name is not in the id, and does not need to be
+    expect(zoteroVoiceId(SOUMYA)).toBe('local-urn:moz-tts:osx:com.apple.voice.compact.kn-IN.Alpana');
+  });
+
+  it('finds the installed voice behind one, and nothing behind a Windows-shaped id', () => {
+    expect(systemVoiceIdFor('local-urn:moz-tts:osx:com.apple.voice.compact.en-US.Samantha', [SOUMYA, SAMANTHA])).toBe(SAMANTHA.id);
+    expect(systemVoiceIdFor('local-urn:moz-tts:sapi:Samantha?en-US', [SAMANTHA])).toBeNull();
+    expect(systemVoiceIdFor('local-urn:moz-tts:osx:com.apple.voice.compact.en-US.Samantha?en-US', [SAMANTHA])).toBeNull();
+  });
+
+  it('labels by the display name and keeps the identifier as the id', () => {
+    expect(toVoiceInfo(SOUMYA)).toEqual({ id: 'osx/com.apple.voice.compact.kn-IN.Alpana', label: 'Soumya', locale: 'kn-IN' });
+  });
+
+  it('has no Zotero id for a Windows record without a description', () => {
+    expect(zoteroVoiceId({ id: 'sapi5/X', desc: '', lang: 'en-US' })).toBeNull();
+  });
+});

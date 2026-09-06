@@ -1,7 +1,9 @@
 import { getChromeWebSocket, newRequestId } from './core/providers/azure';
 import { createProvider } from './core/providers/factory';
-import { createDaemon, type Daemon, type DaemonProcess } from './core/providers/system/daemon';
+import type { SpeechBackend } from './core/providers/system/backend';
+import { createDaemon, type DaemonProcess } from './core/providers/system/daemon';
 import { encodeCommand, WINDOWS_DAEMON_SCRIPT, WINDOWS_POWERSHELL, windowsCommandArguments } from './core/providers/system/daemon-script.win';
+import { createMacBackend, type MacProcess } from './core/providers/system/mac';
 import { listSystemVoiceRecords, systemUnavailableReason, type SystemProviderDeps } from './core/providers/system';
 import { zoteroVoiceId } from './core/providers/system/voices';
 import { FTL_FILE, hasMessageSource, setMessageSource, t } from './core/l10n';
@@ -113,37 +115,37 @@ function cacheVersion(): string {
  */
 const audioCache = createMemoryCache({ maxBytes: 64 * 1024 * 1024 });
 
-// ---- The operating system's own voices (issue #12) -------------------------
+// ---- The operating system's own voices (issues #12, #23) ------------------
 //
-// One helper process for the whole session, driven through the framed
-// protocol in core/providers/system. Everything Zotero-flavored is here;
-// the provider itself knows only the injected shape.
+// One backend for the whole session (core/providers/system/backend.ts): on
+// Windows the helper process driven through the framed protocol, on macOS a
+// `say` per sentence and an `osascript` per listing. Everything
+// Zotero-flavored is here; the provider itself knows only the injected shape.
 
-/** How long any one helper request may take: a cold start loads System.Speech (~285 ms), a sentence is 10–100 ms warm. */
+/** How long any one backend request may take: a cold Windows start loads System.Speech (~285 ms) and a warm sentence is 10–100 ms; `say` is 0.3–0.6 s per sentence, 2.5 s cold. */
 const SPEECH_TIMEOUT_MS = 20_000;
 
-let speechDaemon: Daemon | null = null;
-/** A daemon ran and was shut down: the platform is fine, this instance stopped — say that, not "platform" (issue #38). */
+let speechBackend: SpeechBackend | null = null;
+/** A backend ran and was shut down: the platform is fine, this instance stopped — say that, not "platform" (issue #38). */
 let speechStopped = false;
 /** Distinguishes this Zotero's temp WAVs from another instance's, so a sweep never takes a live one. */
 const speechRunId = Math.random().toString(36).slice(2, 10);
 let speechFileSeq = 0;
 
-/** Why this platform gets no system voices, or null when it does. Windows only for now: nothing else has been measured. */
+/** Why this platform gets no system voices, or null when it does: Windows and macOS have a backend, Linux has none. */
 function speechUnsupportedReason(): string | null {
-  if (!Zotero.isWin) {
-    return 'System voices need the Windows speech helper; this build has none for macOS or Linux yet.';
-  }
-  return null;
+  if (Zotero.isWin || Zotero.isMac) return null;
+  return 'System voices are available on Windows and macOS only; this build has no speech helper for Linux.';
 }
 
 /**
- * The helper as Subprocess runs it. `pathSearch` cannot find powershell.exe
- * — Zotero's process environment has no PATH (measured 2026-08-29) — so the
- * absolute path is used. The process gets no console window
- * (`MainWindowHandle` 0), which is also why the helper never touches
- * `[Console]::OutputEncoding`. stderr is drained in the background: PowerShell
- * writes CLIXML progress records there, and a full pipe would block it.
+ * The Windows helper as Subprocess runs it. `pathSearch` cannot find
+ * powershell.exe — Zotero's process environment has no PATH (measured
+ * 2026-08-29) — so the absolute path is used. The process gets no console
+ * window (`MainWindowHandle` 0), which is also why the helper never touches
+ * `[Console]::OutputEncoding`. stderr is drained in the background:
+ * PowerShell writes CLIXML progress records there, and a full pipe would
+ * block it.
  */
 async function spawnSpeechHelper(): Promise<DaemonProcess> {
   const { Subprocess } = ChromeUtils.importESModule('resource://gre/modules/Subprocess.sys.mjs');
@@ -172,24 +174,53 @@ async function spawnSpeechHelper(): Promise<DaemonProcess> {
   };
 }
 
-function startSpeechDaemon(): void {
-  stopSpeechDaemon();
-  speechStopped = false;
-  if (speechUnsupportedReason()) return;
-  speechDaemon = createDaemon({
-    spawn: spawnSpeechHelper,
-    timeoutMs: SPEECH_TIMEOUT_MS,
-    debug: (message) => Zotero.debug('[zotero-tts] ' + message),
-    log: (e) => Zotero.logError(e),
-  });
+/**
+ * One macOS process run to its end (core/providers/system/mac.ts):
+ * `Subprocess.call` with an absolute path, both pipes drained chunk by
+ * chunk — `readString()` without a length answers the next chunk, at most
+ * 32 KiB, and an empty string at EOF (subprocess_common.sys.mjs:520; the
+ * 37 KB voice list was cut short by a single read, measured 2026-09-06) —
+ * and `wait()` for the exit code. `kill` is what the backend's timeout calls.
+ */
+async function runMacProcess(command: string, args: string[]): Promise<MacProcess> {
+  const { Subprocess } = ChromeUtils.importESModule('resource://gre/modules/Subprocess.sys.mjs');
+  const proc = await Subprocess.call({ command, arguments: args, stderr: 'pipe' });
+  const drain = async (pipe: { readString(): Promise<string> }): Promise<string> => {
+    let out = '';
+    try {
+      for (;;) {
+        const chunk = await pipe.readString();
+        if (!chunk) break;
+        out += chunk;
+      }
+    } catch {
+      // The pipe closed with the process; what was read is what there is
+    }
+    return out;
+  };
+  const output = (async () => {
+    const [stdout, stderr, exit] = await Promise.all([drain(proc.stdout), drain(proc.stderr), proc.wait() as Promise<{ exitCode: number }>]);
+    return { exitCode: exit.exitCode, stdout, stderr };
+  })();
+  return { output, kill: () => void proc.kill() };
 }
 
-function stopSpeechDaemon(): void {
-  if (speechDaemon) {
-    speechDaemon.stop();
+function startSpeechBackend(): void {
+  stopSpeechBackend();
+  speechStopped = false;
+  if (speechUnsupportedReason()) return;
+  const debug = (message: string) => Zotero.debug('[zotero-tts] ' + message);
+  speechBackend = Zotero.isMac
+    ? createMacBackend({ run: runMacProcess, timeoutMs: SPEECH_TIMEOUT_MS, debug })
+    : createDaemon({ spawn: spawnSpeechHelper, timeoutMs: SPEECH_TIMEOUT_MS, debug, log: (e) => Zotero.logError(e) });
+}
+
+function stopSpeechBackend(): void {
+  if (speechBackend) {
+    speechBackend.stop();
     speechStopped = true;
   }
-  speechDaemon = null;
+  speechBackend = null;
 }
 
 /**
@@ -220,10 +251,10 @@ const NEVER_ABORTS = {
   removeEventListener() {},
 } as unknown as AbortSignal;
 
-/** The system provider's plumbing: the session's helper, and one temp WAV per sentence. */
+/** The system provider's plumbing: the session's backend, and one temp WAV per sentence. */
 function speechDeps(): SystemProviderDeps {
   return {
-    daemon: speechDaemon,
+    backend: speechBackend,
     unsupportedReason: systemUnavailableReason({ stopped: speechStopped, platformReason: speechUnsupportedReason() }),
     tempFile: async () => PathUtils.join(await PathUtils.tempDir, `zotero-tts-${speechRunId}-${speechFileSeq++}.wav`),
     readFile: (path) => IOUtils.read(path),
@@ -1404,7 +1435,7 @@ async function startup({ id, version, rootURI }: StartupParams): Promise<void> {
       [
         'system speech helper',
         () => {
-          startSpeechDaemon();
+          startSpeechBackend();
           // Nothing waits on the sweep; a crash's leftovers are not urgent
           void sweepSpeechFiles().catch((e) => Zotero.debug('[zotero-tts] temp sweep skipped: ' + e));
         },
@@ -1465,7 +1496,7 @@ async function shutdown(reason?: number): Promise<void> {
   await stopPositionTracking();
   stopReadAloudMemory();
   stopHighlightStyling();
-  stopSpeechDaemon();
+  stopSpeechBackend();
   stopSystemVoiceHiding();
   stopMultilingualFirst();
   stopFavoriteMarks();
@@ -2000,13 +2031,15 @@ const diagnostics = {
   },
   /**
    * The system-voice provider, proved by its own mechanism rather than by
-   * the list looking right: the helper's state, the voices it enumerates
-   * with the id each maps onto in Zotero's own list, and — with a voice id
-   * — one real synthesis, reporting the audio's length, the engine's word
-   * marks and the timestamps they became. `words: 0` with `marks` above zero
-   * is the SAPI rate trap (core/providers/system/daemon-script.win.ts): the
-   * engine's timeline is not the file's and the marks were dropped rather
-   * than drawn in the wrong place.
+   * the list looking right: the backend's platform and state, the voices it
+   * enumerates with the id each maps onto in Zotero's own list, and — with
+   * a voice id — one real synthesis, reporting the audio's length, the
+   * engine's word marks and the timestamps they became. `words: 0` with a
+   * `note` about marks is the SAPI rate trap
+   * (core/providers/system/daemon-script.win.ts): the engine's timeline is
+   * not the file's and the marks were dropped rather than drawn in the
+   * wrong place. On macOS `words` is always 0 and the note says why: the
+   * backend has no marks (issue #23).
    */
   systemProvider: async (voice?: string) => {
     const settings = loadSettings(prefs);
@@ -2014,7 +2047,7 @@ const diagnostics = {
       enabled: settings.system.enabled,
       platform: Zotero.isWin ? 'win' : Zotero.isMac ? 'mac' : 'other',
       unsupported: speechUnsupportedReason(),
-      daemon: speechDaemon ? speechDaemon.state() : null,
+      backend: speechBackend ? { platform: speechBackend.platform, wordTimestamps: speechBackend.wordTimestamps, ...speechBackend.state() } : null,
     };
     try {
       const records = await listSystemVoiceRecords(speechDeps());
@@ -2041,7 +2074,7 @@ const diagnostics = {
         out.synthesisError = String(e);
       }
     }
-    if (speechDaemon) out.daemonAfter = speechDaemon.state();
+    if (speechBackend) out.backendAfter = speechBackend.state();
     return JSON.stringify(out, null, 1);
   },
   /**

@@ -44,7 +44,7 @@ export function createProvider(id: ProviderId, settings: Settings, deps: Provide
     case 'system':
       return createSystemProvider(
         deps.system ?? {
-          daemon: null,
+          backend: null,
           tempFile: () => Promise.resolve(''),
           readFile: () => Promise.reject(new Error('no speech helper')),
           removeFile: () => Promise.resolve(),

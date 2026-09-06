@@ -19,16 +19,29 @@
  * never a guess. It is what lets a voice the user already picked keep
  * playing after the provider takes over (migrateChoices in
  * read-aloud/system-voice-choices.ts).
+ *
+ * **macOS needs no such guess** (issue #23): Gecko's backend there
+ * publishes `urn:moz-tts:osx:<identifier>` with no language suffix, and the
+ * identifier is the plugin's id itself (`osx/<identifier>`, mac.ts) — so
+ * the mapping is the id, and the name and locale ride along for display.
  */
 
 import type { VoiceInfo } from '../types';
-import type { SystemVoiceRecord } from './protocol';
+import { OSX_ID_PREFIX, type SystemVoiceRecord } from './protocol';
 
 /** How Gecko's Windows backend spells a system voice; the reader prefixes `local-` to it. */
 export const MOZ_TTS_SAPI_PREFIX = 'urn:moz-tts:sapi:';
+/** How Gecko's macOS backend spells one: the identifier, nothing after it. */
+export const MOZ_TTS_OSX_PREFIX = 'urn:moz-tts:osx:';
 
-/** The reader's own id for the same voice, as `BrowserReadAloudVoice` builds it. */
-export function zoteroVoiceId(record: Pick<SystemVoiceRecord, 'desc' | 'lang'>): string {
+/**
+ * The reader's own id for the same voice, as `BrowserReadAloudVoice` builds
+ * it — or null for a Windows record without a description, which could only
+ * match by accident.
+ */
+export function zoteroVoiceId(record: Pick<SystemVoiceRecord, 'id' | 'desc' | 'lang'>): string | null {
+  if (record.id.startsWith(OSX_ID_PREFIX)) return `local-${MOZ_TTS_OSX_PREFIX}${record.id.slice(OSX_ID_PREFIX.length)}`;
+  if (!record.desc) return null;
   return `local-${MOZ_TTS_SAPI_PREFIX}${record.desc}?${record.lang}`;
 }
 
@@ -78,7 +91,8 @@ export function readVoiceRecords(raw: unknown): SystemVoiceRecord[] {
  */
 export function systemVoiceIdFor(zoteroId: string, records: readonly SystemVoiceRecord[]): string | null {
   for (const record of records) {
-    if (record.desc && zoteroVoiceId(record) === zoteroId) return record.id;
+    const id = zoteroVoiceId(record);
+    if (id !== null && id === zoteroId) return record.id;
   }
   return null;
 }

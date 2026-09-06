@@ -98,6 +98,9 @@ describe('createDaemon', () => {
     t.fake.reply({ id: 1, ok: true, voices: [] });
     await expect(pending).resolves.toMatchObject({ id: 1, ok: true });
     expect(t.daemon.state()).toMatchObject({ running: true, starts: 1, sent: 1, queued: 0 });
+    // The Windows backend, with word marks from both APIs (backend.ts)
+    expect(t.daemon.platform).toBe('win');
+    expect(t.daemon.wordTimestamps).toBe(true);
   });
 
   it('refuses to start when the helper cannot be spawned, and says why', async () => {

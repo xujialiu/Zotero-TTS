@@ -367,8 +367,9 @@ async function checkProvider(doc: Document, prefs: PrefsBackend, id: ProviderId,
   let outcome: ConnectionResult;
   // Test connection is the retry after an environment was fixed, so it
   // forgives a speech helper that used up its start budget earlier in the
-  // session (core/providers/system/daemon.ts MAX_STARTS)
-  if (id === 'system') deps.system?.daemon?.reset();
+  // session (core/providers/system/daemon.ts MAX_STARTS; the macOS backend
+  // forgets its last error)
+  if (id === 'system') deps.system?.backend?.reset();
   const gate = id === 'openai' ? addressGate(settings.openai) : {};
   if (gate.refusal) return { ok: false, message: gate.refusal };
   try {
@@ -376,7 +377,9 @@ async function checkProvider(doc: Document, prefs: PrefsBackend, id: ProviderId,
     outcome = await testConnection(provider, {
       model: id === 'openai' ? settings.openai.model : undefined,
       synthesisVoice: id === 'azure' ? settings.azure.voice : undefined,
-      probeSynthesis: id === 'openai',
+      // The System provider defines checkSynthesis only where it has no
+      // word marks to probe (macOS): one real `say`, caught here not mid-sentence
+      probeSynthesis: id === 'openai' || id === 'system',
     });
   } catch (e) {
     outcome = { ok: false, message: `Connection failed: ${String(e)}` };
@@ -423,7 +426,9 @@ async function adoptSystemVoices(prefs: PrefsBackend, deps: ProviderDeps, hooks:
       if (voices) prefs.set(READ_ALOUD_VOICES_PREF, JSON.stringify(voices));
       if (memory) writeMemory(prefs, memory);
     });
-    if (changes.length) Zotero.debug(`[zotero-tts] system voices adopted ${changes.length} remembered choice(s): ${changes.map((c) => c.to).join(', ')}`);
+    // One entry is two rewrites (`voice` and `tierVoices.local`), so the ids are listed once each
+    const adopted = [...new Set(changes.map((c) => c.to))];
+    if (adopted.length) Zotero.debug(`[zotero-tts] system voices adopted ${adopted.length} remembered voice(s): ${adopted.join(', ')}`);
   } catch (e) {
     // A failed remap costs nothing the provider needed: it leaves Zotero's
     // own fallback doing what it does for every other unresolvable id
@@ -455,8 +460,9 @@ export interface PaneHooks {
 
 export function onPaneLoad(doc: Document, hooks: PaneHooks = {}): void {
   const prefs = createZoteroPrefs();
-  // The platform as a class on the pane's root, for the sheet's macOS-only rules (ui/platform-class.ts)
-  markPlatform(doc, { isMac: Zotero.isMac });
+  // The platform as a class on the pane's root, for the sheet's macOS-only
+  // rules, and the System voices note written for this platform (ui/platform-class.ts)
+  markPlatform(doc, { isMac: Zotero.isMac, isWin: Zotero.isWin });
   /** Providers are built from this everywhere in the pane, so the samples and the checks reach the same speech helper the readers do. */
   const providerDeps = (): ProviderDeps => hooks.providerDeps?.() ?? { fetch, getWebSocket: getChromeWebSocket, newRequestId };
   const shortcutRows = initShortcutRows(doc, prefs, Zotero.isMac ? 'Cmd' : Zotero.isWin ? 'Win' : 'Super');

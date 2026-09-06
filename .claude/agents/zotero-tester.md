@@ -168,6 +168,11 @@ start over.
    chrome: `Array.prototype.filter` returns `[]` (an index loop over
    the same `_allVoices` counted 1452 premium voices); a voice's fields
    are prototype getters, so `Object.keys(voice)` is `impl, provider`.
+   A chrome-scope write of `extensions.zotero.reader.readAloudVoices` is a
+   voice pick to memory-sync's observer: it moves `readAloud.memory` onto
+   the written voice and spreads it to reading tabs (2026-09-06) — plant a
+   fixture entry there only with every tab idle, reset the memory after,
+   and expect the restore at the end to move the memory back by itself.
    Name readers by title:
    `(Zotero.Items.get(r.itemID).parentItem ?? Zotero.Items.get(r.itemID)).getField('title')`.
 6. `zotero_screenshot` (target `window`, the id from `zotero_list_windows`)

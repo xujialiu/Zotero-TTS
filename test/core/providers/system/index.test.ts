@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createSystemProvider, listSystemVoiceRecords, systemUnavailableReason } from '../../../../src/core/providers/system';
-import type { Daemon } from '../../../../src/core/providers/system/daemon';
+import { createSystemProvider, listSystemVoiceRecords, platformName, systemUnavailableReason } from '../../../../src/core/providers/system';
+import type { SpeechBackend } from '../../../../src/core/providers/system/backend';
 import type { SystemRequestBody, SystemResponse } from '../../../../src/core/providers/system/protocol';
 
 const NEVER_ABORTS = { aborted: false, addEventListener() {}, removeEventListener() {} } as unknown as AbortSignal;
@@ -10,10 +10,18 @@ const VOICES = [
   { id: 'sapi5/TTS_MS_ZH-CN_HUIHUI_11.0', name: 'Microsoft Huihui Desktop', desc: 'Microsoft Huihui Desktop - Chinese (Simplified)', lang: 'zh-CN' },
 ];
 
-/** The daemon replaced by a table of answers, so the provider is tested without a process. */
-function fakeDaemon(answer: (request: SystemRequestBody) => Partial<SystemResponse> | Promise<Partial<SystemResponse>>) {
+/** What the macOS backend reports: the identifier as the id, the display name twice, Gecko's tag. */
+const MAC_VOICES = [
+  { id: 'osx/com.apple.voice.compact.en-US.Samantha', name: 'Samantha', desc: 'Samantha', lang: 'en-US' },
+  { id: 'osx/com.apple.voice.compact.kn-IN.Alpana', name: 'Soumya', desc: 'Soumya', lang: 'kn-IN' },
+];
+
+/** The backend replaced by a table of answers, so the provider is tested without a process. */
+function fakeBackend(answer: (request: SystemRequestBody) => Partial<SystemResponse> | Promise<Partial<SystemResponse>>, platform: 'win' | 'mac' = 'win') {
   const sent: SystemRequestBody[] = [];
-  const daemon: Daemon = {
+  const backend: SpeechBackend = {
+    platform,
+    wordTimestamps: platform === 'win',
     send: async (request) => {
       sent.push(request);
       return { id: sent.length, ok: true, ...(await answer(request)) } as SystemResponse;
@@ -22,16 +30,43 @@ function fakeDaemon(answer: (request: SystemRequestBody) => Partial<SystemRespon
     reset: () => {},
     state: () => ({ running: true, starts: 1, sent: sent.length, queued: 0, lastError: null }),
   };
-  return { daemon, sent };
+  return { backend, sent };
 }
 
-function setup(options: { answer?: (r: SystemRequestBody) => any; bytes?: Uint8Array; daemon?: Daemon | null } = {}) {
+/** A WAV as say lays it out: fmt, a FLLR filler, then a data chunk of `dataBytes` samples' worth. */
+function sayWav(dataBytes: number): Uint8Array {
+  const filler = 4044;
+  const out = new Uint8Array(12 + 8 + 16 + 8 + filler + 8 + dataBytes);
+  const view = new DataView(out.buffer);
+  const ascii = (at: number, s: string) => {
+    for (let i = 0; i < s.length; i++) out[at + i] = s.charCodeAt(i);
+  };
+  ascii(0, 'RIFF');
+  view.setUint32(4, out.length - 8, true);
+  ascii(8, 'WAVE');
+  ascii(12, 'fmt ');
+  view.setUint32(16, 16, true);
+  ascii(36, 'FLLR');
+  view.setUint32(40, filler, true);
+  ascii(44 + filler, 'data');
+  view.setUint32(48 + filler, dataBytes, true);
+  return out;
+}
+
+function setup(
+  options: {
+    answer?: (r: SystemRequestBody) => any;
+    bytes?: Uint8Array;
+    backend?: SpeechBackend | null;
+    platform?: 'win' | 'mac';
+  } = {},
+) {
   const files: string[] = [];
   const removed: string[] = [];
-  const fake = fakeDaemon(options.answer ?? (() => ({ voices: VOICES })));
+  const fake = fakeBackend(options.answer ?? (() => ({ voices: options.platform === 'mac' ? MAC_VOICES : VOICES })), options.platform);
   const provider = createSystemProvider({
-    daemon: options.daemon === undefined ? fake.daemon : options.daemon,
-    unsupportedReason: options.daemon === null ? 'no helper on this platform' : undefined,
+    backend: options.backend === undefined ? fake.backend : options.backend,
+    unsupportedReason: options.backend === null ? 'no helper on this platform' : undefined,
     tempFile: async () => {
       files.push(`C:\\tmp\\zotero-tts-abc-${files.length}.wav`);
       return files[files.length - 1];
@@ -64,11 +99,12 @@ describe('createSystemProvider', () => {
     ]);
     expect(t.sent).toEqual([{ op: 'voices' }]);
     expect(t.provider.id).toBe('system');
+    expect(t.provider.capabilities.wordTimestamps).toBe(true);
   });
 
   it('reports an empty list as a failure, with whatever the helper said about either API', async () => {
     const t = setup({ answer: () => ({ voices: [], notes: ['System.Speech: assembly not found'] }) });
-    await expect(t.provider.listVoices()).rejects.toThrow(/no installed voices: System.Speech: assembly not found/);
+    await expect(t.provider.listVoices()).rejects.toThrow(/Windows reported no installed voices: System.Speech: assembly not found/);
   });
 
   it('synthesizes through the helper, hands back the WAV, and removes the temp file', async () => {
@@ -116,7 +152,21 @@ describe('createSystemProvider', () => {
 
   it('refuses an empty audio file rather than handing the player nothing to decode', async () => {
     const t = setup({ answer: () => ({ ms: 100, words: [] }), bytes: new Uint8Array(0) });
-    await expect(t.provider.synthesize(TEXT, { voice: 'onecore/X', signal: NEVER_ABORTS })).rejects.toThrow(/empty audio file/);
+    await expect(t.provider.synthesize(TEXT, { voice: 'onecore/X', signal: NEVER_ABORTS })).rejects.toThrow(/Windows speech helper wrote an empty audio file/);
+  });
+
+  // say writes a header with a data chunk of zero bytes for text it cannot
+  // voice, and Zotero's decoder rejects that with an EncodingError (measured
+  // 2026-09-06) — a decode failure is a silent stop (issue #42), where empty
+  // audio is the short pause the remote interface already plays
+  it('hands a WAV with no samples on as empty audio, which the player turns into a pause', async () => {
+    const t = setup({ answer: () => ({}), bytes: sayWav(0), platform: 'mac' });
+    const result = await t.provider.synthesize('   ', { voice: 'osx/com.apple.voice.compact.en-US.Samantha', signal: NEVER_ABORTS });
+    expect(result.audio.size).toBe(0);
+    // And one with samples, however few, goes through as it is
+    const some = setup({ answer: () => ({}), bytes: sayWav(512), platform: 'mac' });
+    const played = await some.provider.synthesize('***', { voice: 'osx/com.apple.voice.compact.en-US.Samantha', signal: NEVER_ABORTS });
+    expect(played.audio.size).toBe(sayWav(512).length);
   });
 
   it('refuses a voice id that is not one of ours before spending a request on it', async () => {
@@ -145,23 +195,90 @@ describe('createSystemProvider', () => {
         detail: "the engine's 2 word marks do not fit 300 ms of audio",
       });
     });
+
+    it('has no synthesis probe of its own on Windows: the marks probe already is one', () => {
+      expect(setup().provider.checkSynthesis).toBeUndefined();
+    });
+  });
+
+  // Issue #23: the macOS backend has no word marks, and the provider says so
+  // rather than probing for them or handing Zotero an empty timeline
+  describe('on macOS, where the backend has no word marks', () => {
+    const SAMANTHA = 'osx/com.apple.voice.compact.en-US.Samantha';
+    const mac = (answer: (r: SystemRequestBody) => any = (r) => (r.op === 'voices' ? { voices: MAC_VOICES } : {})) => setup({ platform: 'mac', answer });
+
+    it('publishes the voices with sentence-level highlighting declared', async () => {
+      const t = mac();
+      expect(t.provider.capabilities.wordTimestamps).toBe(false);
+      await expect(t.provider.listVoices()).resolves.toEqual([
+        { id: SAMANTHA, label: 'Samantha', locale: 'en-US' },
+        { id: 'osx/com.apple.voice.compact.kn-IN.Alpana', label: 'Soumya', locale: 'kn-IN' },
+      ]);
+    });
+
+    it('hands the audio over with a note instead of a timeline', async () => {
+      const t = mac();
+      const result = await t.provider.synthesize(TEXT, { voice: SAMANTHA, signal: NEVER_ABORTS });
+      expect(t.sent).toEqual([{ op: 'speak', voice: SAMANTHA, text: TEXT, file: t.files[0] }]);
+      expect(result.audio.size).toBe(8);
+      expect(result.timestamps).toBeUndefined();
+      expect(result.note).toBe('macOS voices come without word timings');
+      expect(t.removed).toEqual(t.files);
+    });
+
+    it('answers the word-timestamp check from the pane without spending a synthesis', async () => {
+      const t = mac();
+      await expect(t.provider.checkWordTimestamps!(SAMANTHA)).resolves.toEqual({
+        ok: false,
+        detail: 'macOS voices have none, so the sentence is highlighted',
+      });
+      expect(t.sent).toEqual([]);
+    });
+
+    it('proves synthesis with one probe instead, which is what catches a broken say in the pane', async () => {
+      const t = mac();
+      await expect(t.provider.checkSynthesis!(SAMANTHA)).resolves.toBeUndefined();
+      expect(t.sent).toEqual([{ op: 'speak', voice: SAMANTHA, text: 'Read aloud.', file: t.files[0] }]);
+      expect(t.removed).toEqual(t.files);
+    });
+
+    it('lets the probe fail with what say said', async () => {
+      const t = mac((r) => {
+        if (r.op === 'speak') throw new Error('macOS has no voice "com.apple.voice.nosuch"');
+        return { voices: MAC_VOICES };
+      });
+      await expect(t.provider.checkSynthesis!('osx/com.apple.voice.nosuch')).rejects.toThrow(/has no voice/);
+    });
+
+    it('names macOS in an empty listing', async () => {
+      const t = mac(() => ({ voices: [] }));
+      await expect(t.provider.listVoices()).rejects.toThrow(/^macOS reported no installed voices$/);
+    });
   });
 
   describe('on a platform with no helper', () => {
     it('says so, from every call, instead of failing obscurely', async () => {
-      const t = setup({ daemon: null });
+      const t = setup({ backend: null });
       await expect(t.provider.listVoices()).rejects.toThrow(/no helper on this platform/);
       await expect(t.provider.synthesize('x', { voice: 'onecore/X', signal: NEVER_ABORTS })).rejects.toThrow(/no helper on this platform/);
       await expect(t.provider.checkConnection!()).rejects.toThrow(/no helper on this platform/);
+      expect(t.provider.checkSynthesis).toBeUndefined();
     });
+  });
+});
+
+describe('platformName', () => {
+  it('names the platform the way the messages do', () => {
+    expect(platformName({ platform: 'win' })).toBe('Windows');
+    expect(platformName({ platform: 'mac' })).toBe('macOS');
   });
 });
 
 describe('listSystemVoiceRecords', () => {
   it('keeps the descriptions the catalog drops, which is what the id mapping needs', async () => {
-    const fake = fakeDaemon(() => ({ voices: VOICES }));
+    const fake = fakeBackend(() => ({ voices: VOICES }));
     const records = await listSystemVoiceRecords({
-      daemon: fake.daemon,
+      backend: fake.backend,
       tempFile: async () => '',
       readFile: async () => new Uint8Array(),
       removeFile: async () => {},

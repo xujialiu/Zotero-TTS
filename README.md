@@ -25,7 +25,7 @@ things around the edges. Why it is built this way: [PHILOSOPHY.md](PHILOSOPHY.md
 ## What it adds
 
 - 🗣️ **More voices in the Local tier** of the Read Aloud player — Azure Speech, a [Kokoro-FastAPI](https://github.com/remsky/Kokoro-FastAPI) on your machine, OpenAI or any OpenAI-compatible server — next to Zotero's Standard and Premium voices. [→ Providers](#providers)
-- 🖥️ **Your Windows voices, promoted** — the ones Read Aloud already lists, but taken over by the plugin so they get the voice browser, samples, favorites, the cache *and* word-level highlighting, which Zotero's own path cannot do for them. [→ System voices](#system-voices)
+- 🖥️ **Your system's voices, promoted** — the ones Read Aloud already lists on Windows and macOS, but taken over by the plugin so they get the voice browser, samples, favorites and the cache — and, on Windows, word-level highlighting, which Zotero's own path cannot do for them. [→ System voices](#system-voices)
 - 🔖 **Resume where you stopped** — close a document, open it again later, press `Shift+Space`, and Read Aloud starts at the sentence you left off on. [→ Resume where you stopped](#resume-where-you-stopped)
 - 🎧 **A voice browser** in the settings: every voice by tier and language — yours and Zotero's own — a play button for a short sample, hearts for favorites, and a switch to offer only the favorites. [→ Voice browser](#voice-browser)
 - ✨ **Word *and* sentence highlighting at once**, in your own colors and opacities — for Zotero's voices too. [→ Highlight](#highlight)
@@ -52,7 +52,7 @@ Install Plugin From File…** and restart Zotero; then enable a provider in
 | **Kokoro-FastAPI** | A server on your machine or LAN · [tutorial](tutorials/kokoro-fastapi.md) | Free; CPU works, a GPU is faster | word |
 | **OpenAI-compatible** | Base URL and model; an API key if the server wants one | OpenAI bills per character; self-hosted servers such as [Chatterbox](tutorials/chatterbox-tts-server.md) are free | sentence |
 | **Xiaomi MiMo** | An API key from platform.xiaomimimo.com, picked in the OpenAI section's **Server** dropdown | Free for a limited time | sentence |
-| **System voices** | Nothing — Windows only, for now | Free, offline | word |
+| **System voices** | Nothing — Windows and macOS | Free, offline | word on Windows, sentence on macOS |
 
 Each provider section ends with **Enable**: it runs the connection check,
 and only a check that passes switches the provider on. While a provider is
@@ -101,43 +101,53 @@ They go out with every request. [Tutorial](tutorials/remote-access-cloudflare.md
 
 ### System voices
 
-Windows already installs a handful of voices, and Read Aloud already lists
+Windows and macOS install voices of their own, and Read Aloud already lists
 them under **Local**. It gets them straight from the browser engine, which
 hands over no audio and no word timings — so those voices are the one kind
 the plugin could never touch: no voice browser, no samples, no ♡, no cache,
 no word highlight.
 
 **Enable** in the *System voices* section takes them over. The plugin talks
-to the same Windows speech engines itself, through a small helper process,
-and publishes the result as ordinary plugin voices called
-`System-Microsoft David`, `System-Microsoft Huihui` and so on — with word
-timings, which is more than Zotero's own path can give them.
+to the system's own speech engines itself — through a small helper process
+on Windows, through `say` on macOS — and publishes the result as ordinary
+plugin voices called `System-Microsoft David`, `System-Samantha` and so on.
+On Windows they come with word timings, which is more than Zotero's own
+path can give them; on macOS the sentence is highlighted, as it is for
+these voices on Zotero's own path.
 
 Zotero's own copies of these voices are never listed in the player, whether
 or not this is enabled: the plugin hides them, because Zotero reaches them
 through the browser engine and nothing the plugin does for a voice can
 follow it there. A voice you had already picked from those copies is
 re-pointed at the plugin's equivalent when you enable this, so it keeps
-playing. On macOS and Linux, where the helper does not exist yet, the player
-therefore offers Zotero's own Standard and Premium voices plus whichever
-providers you have configured.
+playing. On Linux, where the plugin has no helper, the player offers
+Zotero's own Standard and Premium voices plus whichever providers you have
+configured.
 
 <details>
 <summary><b>Details</b></summary>
 
-Two Windows APIs are needed and together they are exactly the list Read
+On Windows two APIs are needed and together they are exactly the list Read
 Aloud shows: `System.Speech` for the older "… Desktop" voices and
 `Windows.Media.SpeechSynthesis` for the rest. The helper is one
 `powershell.exe` for the whole Zotero session, started at the first
 sentence and stopped with the plugin; a sentence takes 10–100 ms, far
 faster than real time.
 
+On macOS there is nothing to keep running: every sentence is one `say`
+process writing a WAV file, and the voice list comes from `osascript`. A
+sentence takes about half a second, most of it starting the process. Every
+voice installed on the Mac is listed, the novelty ones included, exactly as
+Read Aloud lists them. macOS reports where each word starts only to a
+program speaking through its own speech engine, which `say` is not, so
+these voices have no word timings and the highlight stays on the sentence.
+
 Audio is made at the voice's natural pace, like every other provider's, and
 Read Aloud's slider stretches it — so the same voice sounds a little
 different from Zotero's own path, which changes the engine's rate instead.
 
-macOS and Linux are not covered yet; the section says so, and enabling it
-there fails with a message.
+Linux is not covered; the section says so, and enabling it there fails
+with a message.
 
 </details>
 

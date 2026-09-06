@@ -37,10 +37,13 @@ ztts-field-region =
 ztts-field-address =
     .value = Address
 ztts-heading-system-voices = System voices
-ztts-system-note = Windows only.
+# One note per platform; ui/platform-class.ts shows the one that applies
+ztts-system-note-win = Your Windows voices, with word highlighting.
+ztts-system-note-mac = Your Mac's voices, highlighted by sentence.
+ztts-system-note-other = Not available on Linux.
 ztts-help-system-voices =
     .value = ?
-    .help = Windows only for now — macOS and Linux are not supported yet. The plugin takes over the voices Windows itself installs, so they come with the voice browser, samples, favorites, the cache and word highlighting, like every other provider's.
+    .help = The plugin takes over the voices your system itself installs, so they come with the voice browser, samples, favorites and the cache, like every other provider's. Windows adds word highlighting; on macOS the sentence is highlighted. Linux is not supported.
 
 ## The provider switch, written by ui/provider-rows.ts
 

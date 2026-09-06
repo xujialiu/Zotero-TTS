@@ -30,10 +30,13 @@ ztts-field-region =
 ztts-field-address =
     .value = 地址
 ztts-heading-system-voices = 系统语音
-ztts-system-note = 仅限 Windows。
+# One note per platform; ui/platform-class.ts shows the one that applies
+ztts-system-note-win = Windows 自带的语音，带逐词高亮。
+ztts-system-note-mac = Mac 自带的语音，按句高亮。
+ztts-system-note-other = Linux 上不可用。
 ztts-help-system-voices =
     .value = ?
-    .help = 目前仅支持 Windows，macOS 和 Linux 暂不支持。插件接管 Windows 自带的语音，于是它们和其他服务商的语音一样，有语音浏览器、试听、收藏、缓存和逐词高亮。
+    .help = 插件接管系统自带的语音，于是它们和其他服务商的语音一样，有语音浏览器、试听、收藏和缓存。Windows 上还有逐词高亮；macOS 上按句高亮。不支持 Linux。
 
 ## The provider switch, written by ui/provider-rows.ts
 

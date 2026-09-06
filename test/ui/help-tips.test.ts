@@ -153,15 +153,27 @@ describe('addon/content/preferences.xhtml', () => {
     }
   });
 
-  it('says only the platform limit beside System voices, and the rest in the ?', () => {
-    const row = rowOf('id="ztts-system-note"');
-    expect(row).toContain('<description id="ztts-system-note" data-l10n-id="ztts-system-note"/>');
-    expect(englishValue('ztts-system-note')).toBe('Windows only.');
+  // One note per platform, the effect on that platform, and the rest in the
+  // ? (issue #23); ui/platform-class.ts shows the one that applies
+  it('says what System voices give on this platform beside the ?, and the rest in the ?', () => {
+    const row = rowOf('id="ztts-system-note-win"');
+    const notes: [string, string][] = [
+      ['win', 'Your Windows voices, with word highlighting.'],
+      ['mac', "Your Mac's voices, highlighted by sentence."],
+      ['other', 'Not available on Linux.'],
+    ];
+    for (const [platform, text] of notes) {
+      const id = `ztts-system-note-${platform}`;
+      expect(row).toContain(`<description id="${id}" data-ztts-platform="${platform}" data-l10n-id="${id}"/>`);
+      expect(englishValue(id)).toBe(text);
+    }
     expect(row).not.toMatch(/max-width/);
     const text = helpTextOf(row);
-    expect(text).toMatch(/macOS and Linux are not supported yet/);
-    expect(text).toMatch(/voice browser, samples, favorites, the cache and word highlighting/);
+    expect(text).toMatch(/Linux is not supported/);
+    expect(text).toMatch(/voice browser, samples, favorites and the cache/);
+    expect(text).toMatch(/word highlighting/);
+    expect(text).toMatch(/sentence is highlighted/);
     // What the plugin does behind the player is README and NOTES material
-    expect(text).not.toMatch(/browser engine|timings|drops/);
+    expect(text).not.toMatch(/browser engine|timings|drops|helper|say\b/);
   });
 });

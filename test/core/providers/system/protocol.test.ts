@@ -56,7 +56,9 @@ describe('isSystemVoiceId', () => {
   it('takes only an API and a token', () => {
     expect(isSystemVoiceId('sapi5/TTS_MS_EN-US_DAVID_11.0')).toBe(true);
     expect(isSystemVoiceId('onecore/MSTTS_V110_enUS_MarkM')).toBe(true);
+    expect(isSystemVoiceId('osx/com.apple.voice.compact.en-US.Samantha')).toBe(true);
     expect(isSystemVoiceId('sapi5/')).toBe(false);
+    expect(isSystemVoiceId('osx/')).toBe(false);
     expect(isSystemVoiceId('espeak/x')).toBe(false);
     expect(isSystemVoiceId('onecore/a/b')).toBe(false);
     expect(isSystemVoiceId('system::onecore/x')).toBe(false);

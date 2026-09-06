@@ -124,14 +124,18 @@
   </groupbox>
 
   <!-- The operating system's own voices, synthesized by the plugin through a
-       helper process, so they are ordinary plugin voices (issue #12). No
-       fields: there is no key and no address. Zotero's own copies of the same
-       voices are never listed beside these: the reader drops them either way
-       (read-aloud/system-voices.ts, issue #17). -->
+       helper process on Windows and through `say` on macOS, so they are
+       ordinary plugin voices (issues #12, #23). No fields: there is no key
+       and no address. The note is written once per platform and
+       ui/platform-class.ts shows the one for this platform. Zotero's own
+       copies of the same voices are never listed beside these: the reader
+       drops them either way (read-aloud/system-voices.ts, issue #17). -->
   <groupbox id="ztts-provider-system">
     <label><html:h2 data-l10n-id="ztts-heading-system-voices"/></label>
     <hbox align="center">
-      <description id="ztts-system-note" data-l10n-id="ztts-system-note"/>
+      <description id="ztts-system-note-win" data-ztts-platform="win" data-l10n-id="ztts-system-note-win"/>
+      <description id="ztts-system-note-mac" data-ztts-platform="mac" data-l10n-id="ztts-system-note-mac"/>
+      <description id="ztts-system-note-other" data-ztts-platform="other" data-l10n-id="ztts-system-note-other"/>
       <label class="ztts-help" value="?" data-l10n-id="ztts-help-system-voices" data-l10n-attrs="help"/>
     </hbox>
     <hbox align="center">

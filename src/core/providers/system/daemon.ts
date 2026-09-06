@@ -30,6 +30,7 @@
 
 import { SynthesisError } from '../errors';
 import { withTimeout } from '../../timeout';
+import type { SpeechBackend } from './backend';
 import { decodeFrameBody, decodeFrameLength, encodeFrame, type SystemRequestBody, type SystemResponse } from './protocol';
 
 /**
@@ -57,7 +58,10 @@ export interface DaemonDeps {
 /** How many times a session will start the helper before giving up on it. */
 export const MAX_STARTS = 3;
 
-export interface Daemon {
+/** The Windows backend (backend.ts): the helper process, with word marks from both APIs. */
+export interface Daemon extends SpeechBackend {
+  readonly platform: 'win';
+  readonly wordTimestamps: true;
   /** Sends one request, starting the helper if needed. Rejects with a SynthesisError. */
   send(request: SystemRequestBody): Promise<SystemResponse>;
   /** Kills the helper and empties the queue; the next `send` starts a new one. */
@@ -189,6 +193,8 @@ export function createDaemon(deps: DaemonDeps): Daemon {
   }
 
   return {
+    platform: 'win',
+    wordTimestamps: true,
     send,
     stop: () => {
       discard('the plugin is shutting down');

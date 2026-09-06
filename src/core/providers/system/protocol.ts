@@ -87,13 +87,17 @@ export function decodeFrameBody(body: Uint8Array): SystemResponse {
   return response;
 }
 
+/** The macOS ids: the prefix, then the voice's identifier as `say -v` takes it (mac.ts). */
+export const OSX_ID_PREFIX = 'osx/';
+
 /**
- * The plugin's voice ids carry the API in front of the token
- * (`onecore/MSTTS_V110_enUS_MarkM`), which is what the daemon dispatches on.
- * Anything else is refused here rather than sent.
+ * The plugin's voice ids carry the engine in front of the token
+ * (`onecore/MSTTS_V110_enUS_MarkM`, `osx/com.apple.voice.compact.en-US.Samantha`),
+ * which is what the backend dispatches on. Anything else is refused here
+ * rather than sent.
  */
 export function isSystemVoiceId(id: string): boolean {
-  return /^(sapi5|onecore)\/[^/]+$/.test(id);
+  return /^(sapi5|onecore|osx)\/[^/]+$/.test(id);
 }
 
 /**
