@@ -308,3 +308,4 @@ cite `notes/NOTES.md` with a date or a section title resolve through this index.
 ### [2026-09-07](NOTES_2026-09-07.md)
 
 - The plugin carries its own copy of its strings in the registry, since Zotero's reload deletes the shared one after the successor has started (issue #64)
+- Azure's Dragon Latest voices time only the first ten seconds of a segment, and Zotero's word timers leave the last word lit (issue #69)
