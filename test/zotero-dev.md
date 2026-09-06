@@ -104,7 +104,11 @@ since where marked.
    (`src/ui/build-rows.ts`). Under it the star line (1.11.1):
    `description[data-l10n-id="ztts-build-star"]`, in the same groupbox as
    `#ztts-build-line` and after it, `textContent` with whitespace
-   collapsed exactly `If you like Zotero-TTS, give it a ⭐ on GitHub`.
+   collapsed exactly `If you like Zotero-TTS, give it a ⭐ on GitHub — it
+   helps others find it.`. The clause after the link is a text node of
+   its own (`" — it helps others find it."`, the dash U+2014), and the
+   three parts sit on one line: the sentence measures 413.78 px inside
+   the 578 px box (macOS, 800×600, 2026-09-06).
    The `GitHub` word is Zotero's own `zotero-text-link` label, and that it
    was upgraded is what the row proves: `getAttribute('is')`
    `zotero-text-link`, `classList.contains('zotero-text-link')` true,
@@ -131,8 +135,9 @@ since where marked.
    (`elements/textLink.js:7-11` dispatches to `open()`, `:73-77` calls
    `Zotero.launchURL(uri.spec)` and `preventDefault`s, so the `win.open`
    fallback is never reached). Never click it unstubbed.
-   `l10n().pane.elements` is 101 (the file's 102 `data-l10n-id`
-   occurrences less the one in its header comment). The message lines
+   `l10n().pane.elements` is 110 (the file's 111 `data-l10n-id`
+   occurrences less the one in its header comment: 100 at 1.11.0, plus
+   the volume setting's nine and the star line's one). The message lines
    wrap instead of running
    past the window (issue #31): with the not-a-favorite warning on it
    (2.5), `#ztts-voices-status` measures `scrollWidth <= clientWidth`,
@@ -340,10 +345,12 @@ since where marked.
     api.xiaomimimo.com 的笔误。` and Test connection `未测试：…`; product
     names, voice ids, `1.7×`, ` | ` and `Name (N)` stay as they are, and
     `l10n().pane` is still `{elements: <n>, blank: [], questionless: []}`
-    (100 elements on 2026-09-06; 101 since the star line). The Build
-    star line retranslates with the pane, no reopen needed (1.11.1):
-    `如果你喜欢 Zotero-TTS，欢迎到 GitHub 给它点个 ⭐` (63 ms on
-    2026-09-06, 56 ms back). Fluent replaces the named child with a
+    (110 on 2026-09-06: 100 at 1.11.0, plus the volume setting's nine
+    and the star line's one). The Build star line retranslates with the
+    pane, no reopen needed (1.11.1):
+    `如果你喜欢 Zotero-TTS，欢迎到 GitHub 给它点个 ⭐——让更多人发现它。` (76 ms on
+    2026-09-06 macOS, 43 ms back), the star followed by `——` (U+2014
+    U+2014), the sentence 435.3 px on one line. Fluent replaces the named child with a
     clone, and the clone is upgraded again —
     `classList.contains('zotero-text-link')` true, `role` `link`, `href`
     and the text `GitHub` unchanged, still one line — and the stubbed

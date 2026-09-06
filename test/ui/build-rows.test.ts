@@ -80,7 +80,7 @@ describe('addon/', () => {
   });
 
   it('asks for the star in one sentence, GitHub the link', () => {
-    expect(englishValue('ztts-build-star')).toBe('If you like Zotero-TTS, give it a ⭐ on <label data-l10n-name="github">GitHub</label>');
+    expect(englishValue('ztts-build-star')).toBe('If you like Zotero-TTS, give it a ⭐ on <label data-l10n-name="github">GitHub</label> — it helps others find it.');
   });
 
   // Fluent fills the label named github and drops a name the markup lacks:
@@ -90,9 +90,11 @@ describe('addon/', () => {
     expect(ftl).toMatch(/^ztts-build-star = \S.*<label data-l10n-name="github">GitHub<\/label>/m);
   });
 
+  // The README is read on GitHub itself, so its sentence names no site and
+  // carries no link; the reason is the pane's, word for word
   it('asks for the star in the README too, under the GIF', () => {
     const readme = readFileSync(new URL('../../README.md', import.meta.url), 'utf8');
-    const star = readme.indexOf(`<a href="${REPOSITORY_URL}">GitHub</a>`);
+    const star = readme.indexOf('give it a ⭐ — it helps others find it.');
     expect(star).toBeGreaterThan(readme.indexOf('word-highlight.gif'));
     expect(star).toBeLessThan(readme.indexOf('## What is this?'));
   });
