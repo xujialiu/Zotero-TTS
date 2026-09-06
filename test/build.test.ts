@@ -93,6 +93,25 @@ describe('build', () => {
     expect(names).toContain('locale/zh-CN/zotero-tts.ftl');
   });
 
+  // Tools → Plugins and the settings sidebar draw the plugin's icon from the
+  // manifest's `icons` (preferencePanes.js falls back to
+  // Zotero.Plugins.getIconURI when a pane registers no image): a path listed
+  // there that the xpi does not carry is an empty slot, silently (issue #60).
+  it('packages every icon the manifest names, each a PNG of its listed size', () => {
+    execFileSync('node', ['scripts/build.mjs'], { cwd: root, stdio: 'pipe' });
+    const zip = new AdmZip(xpi);
+    const { icons } = JSON.parse(zip.getEntry('manifest.json')!.getData().toString('utf8'));
+    expect(Object.keys(icons ?? {}).sort()).toEqual(['48', '96']);
+    for (const [size, path] of Object.entries(icons as Record<string, string>)) {
+      const entry = zip.getEntry(path);
+      expect(entry).not.toBeNull();
+      const png = entry!.getData();
+      // The PNG signature, then IHDR: width and height, big-endian, at bytes 16 and 20
+      expect([...png.subarray(0, 8)]).toEqual([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+      expect([png.readUInt32BE(16), png.readUInt32BE(20)]).toEqual([Number(size), Number(size)]);
+    }
+  });
+
   // The date the pane's Build section shows exists nowhere else: esbuild's
   // `define` is what puts it into the bundle, and a define that stops being
   // applied would leave the identifier standing and the row on a dash.

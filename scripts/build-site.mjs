@@ -26,6 +26,8 @@ export const SITE = {
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const IMAGE = /\.(?:png|gif|jpe?g|svg|webp)$/i;
+/** The plugin's icon, every page's favicon (issue #60). */
+const FAVICON = 'assets/icon.png';
 // Search engines show about this much of a description.
 const DESCRIPTION_LENGTH = 160;
 // A first paragraph shorter than this is the language switcher or an image,
@@ -125,6 +127,7 @@ function rewrite(body, src, outPath, all, images) {
 
 function page(src, outPath, all, images, verification) {
   const body = rewrite(pandocHtml(join(ROOT, src)), src, outPath, all, images);
+  images.set(FAVICON, src);
   const heading = text(body.match(/<h1[^>]*>([\s\S]*?)<\/h1>/)?.[1] ?? '') || posix.basename(src, '.md');
   const title = heading.includes(SITE.name) ? heading : `${heading} · ${SITE.name}`;
   const lang = src.endsWith('.zh.md') ? 'zh-CN' : 'en';
@@ -135,6 +138,7 @@ function page(src, outPath, all, images, verification) {
     `<meta name="description" content="${escapeAttr(describe(body))}">`,
     `<link rel="canonical" href="${urlOf(outPath)}">`,
     ...alternates(src, all).map(([hreflang, href]) => `<link rel="alternate" hreflang="${hreflang}" href="${href}">`),
+    `<link rel="icon" type="image/png" href="${posix.relative(posix.dirname(outPath), FAVICON)}">`,
   ];
   if (verification) head.push(`<meta name="google-site-verification" content="${escapeAttr(verification)}">`);
   head.push(`<style>${STYLE}${SITE_STYLE}</style>`);

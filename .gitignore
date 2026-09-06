@@ -10,5 +10,6 @@ site/
 # Private notes (billing account ids, cloud setup) — never committed.
 secrets/
 
-# Icon design drafts (npm-less scratch, never committed).
-icons/
+# Icon design drafts at the repo root (scratch, never committed); the plugin's
+# own icons live in addon/content/icons/ and ship (issue #60).
+/icons/

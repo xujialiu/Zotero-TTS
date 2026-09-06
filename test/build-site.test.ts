@@ -88,6 +88,15 @@ describe('build-site', () => {
     expect(read('tutorials/kokoro-fastapi.zh.html')).toContain('href="kokoro-fastapi.html"');
   });
 
+  // The browser tab and the bookmark show the plugin's icon (issue #60);
+  // a link from a tutorial page climbs out of tutorials/ first
+  it('gives every page the plugin icon as its favicon, copied in once', () => {
+    expect(head('index.html')).toContain('<link rel="icon" type="image/png" href="assets/icon.png">');
+    expect(head('index.zh.html')).toContain('<link rel="icon" type="image/png" href="assets/icon.png">');
+    expect(head('tutorials/kokoro-fastapi.html')).toContain('<link rel="icon" type="image/png" href="../assets/icon.png">');
+    expect(existsSync(join(out, 'assets', 'icon.png'))).toBe(true);
+  });
+
   it('copies the images in and points the pages at the copies', () => {
     expect(read('index.html')).toContain('src="assets/word-highlight.gif"');
     expect(existsSync(join(out, 'assets', 'word-highlight.gif'))).toBe(true);

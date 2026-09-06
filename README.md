@@ -1,3 +1,4 @@
+<p align="center"><img src="assets/icon.png" width="128" alt="Zotero-TTS icon"></p>
 <h1 align="center">Zotero-TTS</h1>
 
 <p align="center"><em>An enhancer for Zotero 10's Read Aloud: more voices in its Local tier, word-and-sentence highlighting in your colors, keyboard shortcuts.</em></p>

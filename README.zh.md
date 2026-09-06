@@ -1,4 +1,5 @@
-<!-- translated-from: README.md sha256:49b68c48f59f -->
+<!-- translated-from: README.md sha256:025057e6cf9c -->
+<p align="center"><img src="assets/icon.png" width="128" alt="Zotero-TTS 图标"></p>
 <h1 align="center">Zotero-TTS</h1>
 
 <p align="center"><em>Zotero 10 朗读功能的增强插件：本地语音模式里更多语音、按你的颜色逐词与逐句高亮、键盘快捷键。</em></p>
