@@ -21,6 +21,13 @@ documents, settings backup/restore (file or WebDAV), highlight colors.
   plain text, a cache a restart empties, one WebDAV folder per computer,
   a voice that sounds different at speed. The mechanism goes to
   `notes/NOTES.md`, which is where a later session reads it.
+  **Facts go in points, not paragraphs** (settled 2026-09-07): where a
+  section states more than one thing, each is its own bullet, and what it
+  is about — the field, the case, the setting — leads it in bold or
+  italics. Prose is for a single thought: a section's lead sentence, one
+  caveat, a pointer to a tutorial. A paragraph a reader has to comb
+  through for the one line that applies to them is the shape this
+  replaces.
   **After editing any `.md` under the repo, run `npm run docs`** — it
   renders every doc to `docs/` (gitignored), the source tree mirrored; tell
   the user which `docs/….html` to open. The README in both languages,
