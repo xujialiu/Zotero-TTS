@@ -8,10 +8,13 @@ import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 const SUFFIX = '.zh.md';
-const MARKER = /^<!-- translated-from: \S+ sha256:[0-9a-f]{12} -->\n?/;
+const MARKER = /^<!-- translated-from: \S+ sha256:[0-9a-f]{12} -->\r?\n?/;
 
 function pin(source) {
-  return createHash('sha256').update(readFileSync(source)).digest('hex').slice(0, 12);
+  // Hashed after CRLF → LF: a checkout with core.autocrlf pins the same
+  // revision as one without (test/docs-translation.test.ts hashes the same way).
+  const text = readFileSync(source, 'utf8').replace(/\r\n/g, '\n');
+  return createHash('sha256').update(text).digest('hex').slice(0, 12);
 }
 
 for (const dir of ['.', 'tutorials']) {

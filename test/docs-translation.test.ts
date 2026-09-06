@@ -32,7 +32,9 @@ function englishPages(): string[] {
 }
 
 function pin(source: string): string {
-  return createHash('sha256').update(readFileSync(join(root, source))).digest('hex').slice(0, 12);
+  // Hashed after CRLF → LF: a checkout with core.autocrlf pins the same revision as one without.
+  const text = readFileSync(join(root, source), 'utf8').replace(/\r\n/g, '\n');
+  return createHash('sha256').update(text).digest('hex').slice(0, 12);
 }
 
 describe('the Chinese pages', () => {
@@ -45,7 +47,7 @@ describe('the Chinese pages', () => {
 
   it.each(pages)('%s and its translation are the same revision', (source) => {
     const translated = source.replace(/\.md$/, SUFFIX);
-    const first = readFileSync(join(root, translated), 'utf8').split('\n')[0];
+    const first = readFileSync(join(root, translated), 'utf8').split(/\r?\n/)[0];
     const marker = MARKER.exec(first);
     expect(marker, `${translated} must open with \`<!-- translated-from: … -->\`; run \`npm run docs:pin\``).not.toBeNull();
     expect(marker![1], `${translated} names the wrong source`).toBe(source.split(/[\\/]/).pop());
