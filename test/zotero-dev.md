@@ -318,7 +318,24 @@ measured, updated for the fixes since where marked.
     (Zotero's own word, reader.ftl); `isolationMarks: false` — no bidi
     isolation mark (U+2066–U+2069) around a placeable (all measured
     2026-09-06 on 1.11.0-beta5; a build without `formatted` is older than
-    #43).
+    #43). **The plugin's own copy of the file** (issue #64, 1.11.2):
+    `startup()` has the `own strings source` step second, right after
+    `strings`, and the log reads `[zotero-tts] own strings source
+    registered: en-US, zh-CN for 46 Zotero locales` — `registered`, not
+    `replaced` (46 = `Services.locale.availableLocales.length`;
+    `replaced` would mean the previous instance had not removed its
+    source). At rest `diagnostics.l10n().registry` → `{locale: "en-US",
+    shared: "present", own: "present", bundles: 2}`: Zotero's shared
+    `zotero-plugins` source and the plugin's own `zotero-tts` source both
+    hold `zotero-tts.ftl`, and the app locale yields two bundles for it.
+    From chrome scope the same:
+    `L10nRegistry.getInstance().getSource('zotero-tts').hasFile('en-US',
+    'zotero-tts.ftl')` → `present`, `new Localization(['zotero-tts.ftl'],
+    true).formatValueSync('ztts-heading-sync')` → `Sync` (measured
+    2026-09-06 on macOS, 1.11.2-beta2). `registry.locale` is the first
+    negotiated app locale (`Services.locale.appLocalesAsBCP47[0]`), what
+    the registry resolves the file by, so it follows a live switch (item
+    12).
 11. **The pane is translated by Zotero, not by the plugin.** With the
     settings window open on the pane, `diagnostics.l10n().pane` →
     `elements` the count of `data-l10n-id` in `preferences.xhtml` (derive),
@@ -345,7 +362,13 @@ measured, updated for the fixes since where marked.
     `Services.locale.requestedLocales = ['zh-CN']`: `diagnostics.l10n().sample`
     becomes `语音浏览器`, and the open pane retranslates itself — the
     Voice browser heading reads `语音浏览器`, `blank` and `questionless`
-    stay empty, the `?` icons keep their `?`; a screenshot. `Zotero.locale`
+    stay empty, the `?` icons keep their `?`; a screenshot.
+    `diagnostics.l10n().registry` follows the switch (issue #64, 1.11.2):
+    `{locale: "zh-CN", shared: "present", own: "present", bundles: 2}` at
+    rest — the plugin's own source maps all 46 Zotero locales onto the
+    shipped en-US and zh-CN files, so from chrome scope
+    `L10nRegistry.getInstance().getSource('zotero-tts').hasFile('zh-CN',
+    'zotero-tts.ftl')` is `present`. `Zotero.locale`
     does not move (computed at startup) and is not expected to. What
     TypeScript painted stays as it was until the pane is reopened — the
     provider switches' `Enable`/`Disable` and the bold run of *Offer only
@@ -1007,16 +1030,35 @@ float32 AudioParam: 0.7 reads `0.699999988079071`, 0.6 reads
    once, and the push probe (a setter on `_getReadAloudRemoteInterface`,
    a reader pushed and spliced) seeing **one** assignment. Nothing else
    is driven after a reload — restore everything before it. **A reload
-   leaves the plugin's strings gone** (issue #64, 2026-09-06): Zotero's
-   `onDisabled` tail unregisters the locales the concurrent `onEnabling`
-   registered, so after it `diagnostics.l10n().sample` reads its id, the
-   pane renders 99 of 100 labels blank and every `t()` returns a code —
-   deterministic, silent, and not what an in-place install does (that
-   path is serialized, measured with a 10.9 s shutdown). So the run ends
-   with one more in-place install of the same xpi, and
-   `diagnostics.l10n().sample` reading `Voice browser` again, so the
-   user's pane is not left blank; the pane is never verified after a
-   reload.
+   no longer costs the plugin's strings** (issue #64, 1.11.2): Zotero's
+   `onDisabled` tail still unregisters the locales the concurrent
+   `onEnabling` registered — the log shows `stopped (reason 4)` *after*
+   `Calling bootstrap method 'startup' … ADDON_ENABLE` — but the plugin's
+   own source carries the file. After the reload
+   `diagnostics.l10n().sample` still reads `Voice browser`, `source` is
+   true, and `registry` → `{locale: "en-US", shared: "missing", own:
+   "present", bundles: 1}`: Zotero's copy gone (the shared source's
+   other plugins keep theirs, `zoteroif_preferences.ftl` `present`), ours
+   there; `shared: "present"` instead means the race did not happen in
+   that reload — reload once more. The log has `own strings source
+   registered` (not `replaced`) after `stopped (reason 4)`; the errors
+   have no `Missing resource in locale en-US: zotero-tts.ftl` and no
+   `translateFragment() failed` (`Missing resource in locale
+   en-AU/en-NZ/en-CA: browser/menubar.ftl` is Zotero's own fallback
+   chain, not this). Then the settings window, opened on the pane after
+   the reload: `diagnostics.l10n().pane` → `{elements: 110, blank: [],
+   questionless: []}`, the four provider switches' `label` reading
+   `Enable` / `Disable` (they carry no `data-l10n-id`; ui/provider-rows.ts
+   paints them through `t()`), and Zotero's own Advanced and Cite panes,
+   navigated to in that same window afterwards, 0 blank `[data-l10n-id]`
+   elements each — the window's one `document.l10n` lists the file, and
+   a listed resource missing empties every pane loaded after ours
+   (1.11.1 and earlier lost the strings on 2 of 2 reloads on Windows; the
+   fix measured 2026-09-06 on macOS, 1.11.2-beta2). `shared` stays
+   `missing` for the rest of the session — nothing can re-register into
+   Zotero's source — until a restart or an in-place install, which ends
+   the run as before and reads `{shared: "present", own: "present",
+   bundles: 2}` again.
 8. **The end of a document, and what a resume does** (2026-09-06, from
    a surprise in section 4; driven before item 7's reload). A fixture
    read to its last segment on a plugin voice: at `Complete` the manager

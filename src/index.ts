@@ -7,6 +7,7 @@ import { createMacBackend, type MacProcess } from './core/providers/system/mac';
 import { listSystemVoiceRecords, systemUnavailableReason, type SystemProviderDeps } from './core/providers/system';
 import { zoteroVoiceId } from './core/providers/system/voices';
 import { FTL_FILE, hasMessageSource, sentences, setMessageSource, t } from './core/l10n';
+import { installOwnSource, OWN_SOURCE_NAME, unregisterOwnSource } from './core/l10n-source';
 import { createMemoryCache } from './core/memory-cache';
 import { audioCacheOn, createZoteroPrefs, DEFAULTS, loadSettings, migrateLegacyProviderPref } from './core/settings';
 import { createBackup, flattenSettings, machineSettingsFilename, serializeBackup, SETTINGS_FILE_PATTERN } from './core/settings-backup';
@@ -1454,6 +1455,49 @@ function stopVolume(): void {
   volumeControl = null;
 }
 
+/**
+ * Gecko's Fluent globals — L10nRegistry and L10nFileSource — from the scope
+ * Zotero's own modules run in (issue #64): the plugin sandbox is handed
+ * Localization only, and xpcom/plugins.js reaches these two as bare
+ * globals of that scope. Throws when they are not there, so the step that
+ * needs them is reported instead of failing quietly.
+ */
+function fluentGlobals(): { L10nRegistry: any; L10nFileSource: any } {
+  const scope = Components.utils.getGlobalForObject(Zotero);
+  if (typeof scope?.L10nRegistry?.getInstance !== 'function' || typeof scope?.L10nFileSource?.createMock !== 'function') {
+    throw new Error('zotero-tts: the Fluent registry is not reachable from the plugin scope');
+  }
+  return scope;
+}
+
+let ownStringsInstalled = false;
+
+/** Registers the plugin's own copy of its Fluent file (core/l10n-source.ts, issue #64), read from the xpi's locale/ directory. */
+async function installOwnStrings(rootURI: string): Promise<void> {
+  const { L10nRegistry, L10nFileSource } = fluentGlobals();
+  const report = await installOwnSource({
+    registry: L10nRegistry.getInstance(),
+    createMock: (name, metasource, locales, prePath, files) => L10nFileSource.createMock(name, metasource, locales, prePath, files),
+    resolveLocale: (locale, available) => Zotero.Utilities.Internal.resolveLocale(locale, available, { silent: true }),
+    readFile: (locale) => Zotero.File.getResourceAsync(`${rootURI}locale/${locale}/${FTL_FILE}`),
+    zoteroLocales: Array.from(Services.locale.availableLocales as Iterable<string>),
+    fileName: FTL_FILE,
+    warn: (message) => Zotero.debug(`[zotero-tts] ${message}`),
+  });
+  ownStringsInstalled = true;
+  Zotero.debug(`[zotero-tts] own strings source ${report.updated ? 'replaced' : 'registered'}: ${report.locales.join(', ')} for ${report.entries} Zotero locales`);
+}
+
+function removeOwnStrings(): void {
+  if (!ownStringsInstalled) return;
+  ownStringsInstalled = false;
+  try {
+    unregisterOwnSource(fluentGlobals().L10nRegistry.getInstance());
+  } catch (e) {
+    Zotero.logError(e);
+  }
+}
+
 async function startup({ id, version, rootURI }: StartupParams): Promise<void> {
   pluginVersion = version;
   // Each step on its own (core/startup-steps.ts): a Zotero internal that
@@ -1467,6 +1511,11 @@ async function startup({ id, version, rootURI }: StartupParams): Promise<void> {
       // over the plugin's own Fluent file, which Zotero registered before
       // calling startup (core/l10n.ts, issue #30). Without it t() shows ids.
       ['strings', () => setMessageSource(new Localization([FTL_FILE], true))],
+      // Then the plugin's own copy of that file in the registry
+      // (core/l10n-source.ts, issue #64): a reload's disable tail deletes
+      // Zotero's shared entry after this instance has started, and ours is
+      // what the pane, t() and the rest of the settings window read then
+      ['own strings source', () => installOwnStrings(rootURI)],
       [
         'legacy provider setting',
         () => {
@@ -1551,6 +1600,9 @@ async function shutdown(reason?: number): Promise<void> {
   stopFavoriteMarks();
   stopPauses();
   stopVolume();
+  // The plugin's copy of its strings leaves with it; a reload's successor
+  // registers its own (issue #64)
+  removeOwnStrings();
   // Last: the stop line above is the one string that never goes through t()
   setMessageSource(null);
   Zotero.debug('[zotero-tts] stopped' + (reason !== undefined ? ` (reason ${reason})` : ''));
@@ -1633,6 +1685,21 @@ const diagnostics = {
         appLocales: safe(() => Array.from(Services.locale.appLocalesAsBCP47)) ?? null,
         requestedLocales: safe(() => Array.from(Services.locale.requestedLocales)) ?? null,
         source: hasMessageSource(),
+        // The file in the registry (issue #64): Zotero's shared source and the
+        // plugin's own, `present` / `missing` / `unknown` as hasFile says (or
+        // `no source`), and the bundles the app locale yields for the file —
+        // 2 while both hold it, 1 after a reload has cost Zotero's; `locale`
+        // is the first app locale, what the registry resolves the file by
+        registry: safe(() => {
+          const reg = fluentGlobals().L10nRegistry.getInstance();
+          // The locale Fluent negotiates now, not Zotero.locale, which is
+          // fixed at startup: the field follows a live locale switch
+          const locale: string = Array.from(Services.locale.appLocalesAsBCP47 as Iterable<string>)[0] ?? Zotero.locale;
+          const file = (name: string) => (reg.hasSource(name) ? reg.getSource(name).hasFile(locale, FTL_FILE) : 'no source');
+          let bundles = 0;
+          for (const bundle of reg.generateBundlesSync([locale], [FTL_FILE])) if (bundle) bundles++;
+          return { locale, shared: file('zotero-plugins'), own: file(OWN_SOURCE_NAME), bundles };
+        }),
         sample: t('ztts-heading-voice-browser'),
         fallback: t(probe),
         // The strings TypeScript writes (issue #43): a count handed over as

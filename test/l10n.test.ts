@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { FluentBundle, FluentResource } from '@fluent/bundle';
 import { parse, type Attribute, type Message, type Pattern, type Resource } from '@fluent/syntax';
 import { describe, expect, it } from 'vitest';
+import { SHIPPED_LOCALES } from '../src/core/l10n-source';
 
 /**
  * The Fluent files against each other, the markup and the code (issue #30).
@@ -22,8 +23,8 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const localeDir = join(root, 'addon', 'locale');
 const FTL = 'zotero-tts.ftl';
 const SOURCE = 'en-US';
-/** Every locale the plugin ships; a directory added under addon/locale/ is added here, so it is checked. */
-const LOCALES = ['en-US', 'zh-CN'];
+/** Every locale the plugin ships — core/l10n-source.ts's list, what the plugin's own registry source reads (issue #64); a directory added under addon/locale/ is added there, so it is checked here. */
+const LOCALES = [...SHIPPED_LOCALES];
 
 function resource(locale: string): Resource {
   return parse(readFileSync(join(localeDir, locale, FTL), 'utf8'), { withSpans: false });

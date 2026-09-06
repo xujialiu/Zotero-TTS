@@ -86,7 +86,13 @@ Verified by reading the unpacked `omni.ja` of both `10.0-beta.26` and
   `<label value="?">` needs `.value = ?` — and writes custom attributes
   only when `data-l10n-attrs` names them. The sandbox is handed
   `Localization`; a sync instance formats without a window and follows a
-  live locale change.
+  live locale change. Since 1.11.2 the plugin also registers a source of
+  its own, `zotero-tts`, holding the same file for every Zotero locale
+  (core/l10n-source.ts, issue #64, [2026-09-07](NOTES_2026-09-07.md)):
+  a reload's disable tail deletes the shared entry after the successor
+  has started, nothing can put it back into Zotero's source, and a
+  resource missing from the settings window's one Localization empties
+  every pane loaded after the plugin's.
 
 ---
 
@@ -298,3 +304,7 @@ cite `notes/NOTES.md` with a date or a section title resolve through this index.
 - A click on the next sample did not stop the one playing, and the player would have started an abandoned element (issue #61)
 - A volume of its own: a gain ahead of Zotero's filter chain, one pref for the keys and the pane (issue #62)
 - A full pass over the released 1.11.0, through the bridge on Windows: seven runs, no plugin failure, one issue, and what Zotero showed (issue #64)
+
+### [2026-09-07](NOTES_2026-09-07.md)
+
+- The plugin carries its own copy of its strings in the registry, since Zotero's reload deletes the shared one after the successor has started (issue #64)
