@@ -23,9 +23,10 @@ through `SendMessage`. Every item names the check and the expected
 output; "derive" means the agent takes the expected output from `src/`
 and says so. The first full pass was the 1.10.1 bug hunt of 2026-08-31
 (notes/NOTES_2026-08-31.md, 16:01), the second the 1.10.9 pass of
-2026-09-05 on Windows (notes/NOTES_2026-09-05.md; issues #48, #49, #51);
-the expected outputs below are what they measured, updated for the fixes
-since where marked.
+2026-09-05 on Windows (notes/NOTES_2026-09-05.md; issues #48, #49, #51),
+the third the 1.11.0 pass of 2026-09-06 on Windows
+(notes/NOTES_2026-09-06.md); the expected outputs below are what they
+measured, updated for the fixes since where marked.
 
 ## 0. Before every section — the baseline
 
@@ -64,16 +65,34 @@ since where marked.
   Chatterbox and the System voices are what plays.
 - Spend: one Test connection per provider, one sample per provider, a
   few sentences per playback check; never a loop of synthesis.
-- **Audio, probed before the first playback check** (2026-09-05): on a
-  machine without an output device — a remote desktop session with no
-  audio redirection — Zotero's `AudioContext` stays `suspended` at
-  `currentTime` 0 and a session never advances on its own, while
-  synthesis, timestamps, highlight, prefetch and every state check still
-  run; the device can come and go within a day. Frozen: every "speaks
+- **Audio, probed before the first playback check** (2026-09-05,
+  corrected 2026-09-06): on a machine without an output device — a
+  remote desktop session with no audio redirection, or a sink that died
+  mid-run — a session never advances on its own, while synthesis,
+  timestamps, highlight, prefetch and every state check still run; the
+  device can come and go within a day. A `suspended` `AudioContext` at
+  `currentTime` 0 is **not** by itself the machine: `ReadAloudController`
+  builds its own context (`reader.js` 39936, one per
+  `_createController()`, 82650-82655), and Gecko's autoplay gate resumes
+  only one created inside a trusted gesture — a context made by a script
+  (`toggleReadAloudPopup(true)`, `startReadAloudAtPosition`, a voice or
+  speed change) stays `suspended` for its whole life, and neither
+  `notifyUserGestureActivation()` nor a later trusted Shift+Space
+  rescues it (2026-09-06: 90 s at `_position` 0 with 4 buffers
+  prefetched). The probe is therefore a session started by a **trusted
+  Shift+Space in a fresh tab**, then `manager._controller._audioContext`
+  read for `state` and `currentTime` twice ~500 ms apart in one script
+  (rulebook step 5): `running` with the clock moving is a device. A sink
+  that has really gone says so in `zotero_read_errors` —
+  `NS_ERROR_DOM_MEDIA_MEDIASINK_ERR (0x806e000b)` /
+  `OnMediaSinkAudioError` on a `blob:resource://zotero/…` (2026-09-06
+  21:21, mid-pass) — and from then on every new controller is frozen, in
+  a new tab and under a trusted press alike. Frozen: every "speaks
   within N s" and every audio-driven count is NOT TESTABLE (machine), the
-  mechanism half of the item still runs, and the run says which. The
-  probe is the controller's `_audioContext.state` and `currentTime`
-  twice ~500 ms apart in one script (rulebook step 5).
+  mechanism half of the item still runs, and the run says which;
+  `skipAhead('sentence')` still moves `_controller._position` and drives
+  the position store, and the end-of-document path (section 5, item 8)
+  cannot be reached at all.
 - The profile's state is read, not assumed: on 2026-09-05 both sync
   switches of section 6 were on, `Zotero.Debug` was already storing, the
   memory named a metered voice, and the library held two fixtures of an
@@ -96,8 +115,10 @@ since where marked.
    every row that carries one (the lowest, after a description,
    measured 22.333 px) and on its row's center within 0.01 px; the gap
    to the control before it is that control's end margin, not the
-   icon's (5 px after a menulist, an input or a button, 6 after a
-   checkbox, 4 after a description); and
+   icon's (5 px after a menulist, an input, a button or a label, 6
+   after a checkbox, 4 after a description — measured against the
+   *visible* note: the hidden platform notes collapse to a zero rect and
+   a naive `previousElementSibling` reads 470.98); and
    `InspectorUtils.getMatchingCSSRules` lists the plugin's
    `label.ztts-help[value]` with `width: 1.25em` and no `font-size`.
    The Build row `Version <build> · Date <date> · Author Xujia Liu`
@@ -332,7 +353,7 @@ since where marked.
     a close and reopen shows them in the new language (`停用`, the run
     `收藏的语音`): a user is asked to restart on a language change, so
     this is by design, not a FAIL (measured 2026-09-04: the pane
-    retranslated in 172 ms; 117 ms on 2026-09-05). Each switch logs one Zotero-own `uncaught
+    retranslated in 172 ms; 117 ms on 2026-09-05; 56 ms on 2026-09-06). Each switch logs one Zotero-own `uncaught
     exception: undefined`, reproduced with no settings window open. After
     the reopen the lines TypeScript writes are Chinese too (issue #43,
     1.11.0): the tier column `标准 (N)` / `高级 (N)` / `本地 (N)`, the
@@ -371,14 +392,17 @@ since where marked.
     `AddonManager.getAddonByID(id)`: `icons` has the keys `48` and `96`,
     both `jar:file:///…/zotero-tts@xujialiu.top.xpi!/content/icons/…`, and
     `iconURL` is non-null; `getIconURI(id, 24)` ends in `favicon@0.5x.png`
-    while `24 × dpr ≤ 48` (dpr 1.5 on Windows → 36) and `getIconURI(id,
+    while `24 × dpr ≤ 48` (36 at dpr 1.5, 24 at dpr 1 — the machine's,
+    not the platform's: 1.5 on 2026-09-05 and 1 on 2026-09-06, both
+    Windows) and `getIconURI(id,
     96)` in `favicon.png`. A `null` anywhere means the manifest icons were
     not read — the version string alone does not prove an upgrade took
     when the beta number did not move. The settings sidebar row labeled
     `Zotero-TTS` carries `favicon@0.5x.png` in the same box and at the
     same x as Zotero's own panes (`cog.svg`, `account.svg`, …; 19.22 px at
-    dpr 1.5). Tools → Plugins resolves the same map at its own ideal size
-    32 — at dpr 1.5 exactly 48 device px, the 48 px file 1:1 — and shows
+    dpr 1.5 and at dpr 1). Tools → Plugins resolves the same map at its
+    own ideal size 32 — at dpr 1.5 exactly 48 device px, the 48 px file
+    1:1; at dpr 1 the same 48 px file — and shows
     `Version <build>` only in the expanded card, never in the collapsed
     row. By eye at 6×: red headphones, three amber bars between the cups,
     crisp at both sizes (verified 2026-09-06).
@@ -427,8 +451,12 @@ since where marked.
    again blocks them. **Since 1.10.2 the switch refuses to go on while
    the default is not a favorite** — the notice names the voice and the
    two ways out (`src/ui/voice-list-switches.ts`), the pref stays false.
-6. **Samples.** ▶ on a Kokoro voice, on a System voice and on a Zotero
-   voice: glyph `▶` → `…` → `■` → `▶` within ~10 s, and the status line
+6. **Samples.** ▶ on a Kokoro voice, on a System voice (on a profile
+   that keeps the provider off, enable it through the pane's switch for
+   the item and disable it after — the switch's own check and the Local
+   tier's 787 ↔ 796 relisting prove it came and went, 2026-09-06) and on
+   a Zotero voice: glyph `▶` → `…` → `■` → `▶` within ~10 s, and the
+   status line
    says how it ended (issue #48): with audio, no `Sample failed:` — the
    default line stays; on a machine with no audio sink the element
    errors ~7 ms after `playing` (`MediaError.code` 3,
@@ -505,7 +533,8 @@ since where marked.
    row height, dropdown width, `scrollWidth` and `scrollHeight` were
    identical (24 / 284 / 282 / 874) and no label was clipped, so the
    16 px cost nothing but the indent. Windows, 2026-09-05: 24 / 284 /
-   282 / 1042 (86 rows), the widest label 199.88 px in the 234 px left
+   282 / 1042 (86 rows; 81 on 2026-09-06 — the row count is the list's,
+   not an expectation), the widest label 199.88 px in the 234 px left
    to it, the same both ways.
 
 ## 3. The Read Aloud integration on a fixture
@@ -516,7 +545,8 @@ since where marked.
    life (rulebook step 5; reader.js:83565-83569, measured 2026-09-05) —
    `_prepareReadAloud()` and poll `allVoices`: under favorites-only exactly the favorites per
    tier, no others; `diagnostics.systemVoices()` → Zotero's own system
-   voices hidden (`hid N system voices` in the log; 191 on this Mac);
+   voices hidden (`hid N system voices` in the log; 191 on this Mac, 9
+   on Windows);
    `diagnostics.multilingualFirst()` → `mulLabel` with the leading space;
    `manager.speed` the memory's speed.
 2. **A remembered default the list does not offer** (issues #35, #36,
@@ -554,8 +584,11 @@ since where marked.
    on `local::am_puck`: the substitute is a voice of the answering
    provider (item 2's order), the `is not offered here. Reading with …`
    toast, the memory unchanged. The pane's voice browser leaves `Listing
-   voices…` at ≈15 s with the answering provider's rows and no `Listing
-   voices failed`; `diagnostics.defaultVoice()` — started in one script,
+   voices…` at ≈15 s on a cold catalog with the answering providers'
+   rows and no `Listing voices failed` (about 4 s when a reader's
+   listing minutes earlier already cached the answering providers — its
+   own Local listing is still aborted at 15 s, 2026-09-06);
+   `diagnostics.defaultVoice()` — started in one script,
    its stored promise awaited in a later one — reports `problems: []`.
    The toast's text is read from the chrome document (a 5 s transient
    the bridge's round trip outlasts — seeing it is a human check); it
@@ -747,7 +780,8 @@ since where marked.
     one; every existing key's `speed` follows it, written exactly once,
     by `persistSpeed` under `setDefaultSpeed` (the spread); the log has
     `read-aloud memory (a speed the pref could not carry): speed 1.1,
-    voice …` then `spread read-aloud speed 1.1 to 1 reader(s)`. Once the
+    voice …` then `spread read-aloud speed 1.1 to N reader(s)`, N the
+    loaded readers open (1 on 2026-09-05, 3 on 2026-09-06). Once the
     list lands the manager is on `en` at that speed with the `en`
     entry's voice. Before the fix the shortcut created `"EN": {"speed":
     …}` and the pref observer, not `learnSpeed`, carried the speed.
@@ -761,8 +795,12 @@ since where marked.
     disappears for a moment (~55 ms measured) and comes back as a
     different function — tag the old one (`fn.__probe = 'x'`) and the
     tag must be gone. The new hook works: `manager.setLanguage('EN')`
-    on the idle manager moves it back to `en` and `resyncs` records the
-    move. No `can't access dead object` in the debug store, nothing of
+    on the idle manager moves it back to `en` with the voice switch on
+    and `resyncs` records the move (with the switch off Zotero lands on
+    the selected tier's `languages[0]` — `ps` measured 2026-09-06,
+    `reader.js` 82412 with `resolveLanguage` 38057-38077 comparing base
+    languages case-sensitively — and the hook restores for that
+    language). No `can't access dead object` in the debug store, nothing of
     ours in `Zotero.getErrors()` (the two `uncaught exception:
     undefined` per in-place install are Zotero's), a tab opened after
     the reload has the own property again, and `diagnostics.patches()`
@@ -905,7 +943,10 @@ float32 AudioParam: 0.7 reads `0.699999988079071`, 0.6 reads
    speaking → the fixture's `stored` a zero-area point at one decimal
    (`{"pageIndex":P,"rects":[[x,y,x,y]]}`, issue #14), moving with the
    sentence; `database.rows` up by one within ~10 s, `store.queued` 0,
-   `lastError` null.
+   `lastError` null. The sampler reads Zotero's `savedPosition`, not the
+   controller's `_position`, so a document that ran to its end keeps the
+   last sentence read as its bookmark while Zotero has already rewound
+   `_position` to the run's start (item 8).
 2. **Close capture.** Popup closed, tab closed: `tabHooks`/`captureHooks`
    back to the baseline's (0 with no other tab open), the `trace`
    `tab.onClose fired` → `reader.uninit fired` →
@@ -947,7 +988,14 @@ float32 AudioParam: 0.7 reads `0.699999988079071`, 0.6 reads
    error. **Since 1.10.3 the open tab is handed the new instance's
    interface** (issue #38, `src/read-aloud/interface-redelivery.ts`):
    its popup reopened lists the plugin's voices from the new instance
-   and the System voices still work; before the fix `system: listing
+   and the System voices still work — proved by the log line
+   `redelivered the Read Aloud interface to N open reader(s); rebuilt M
+   voice list(s)` and by `patches().interfaces` (`hijacked`,
+   `slotsPresent`, `slotsCurrent` all true for every open reader;
+   2026-09-06: 2267 voices = zotero 1480 + azure 691 + local 68 + openai
+   28, and `diagnostics.systemProvider()` with no argument lists 9
+   voices with `voicesError` null, no provider switch needed); before
+   the fix `system: listing
    voices failed: System voices are not available on this platform.`
    was the sign of the old instance answering. The highlight
    re-attaches only if the tab's pages are rendered at that instant — a
@@ -958,7 +1006,33 @@ float32 AudioParam: 0.7 reads `0.699999988079071`, 0.6 reads
    undefined, `startup()` all ok, `stopped` before `started`, the pane
    once, and the push probe (a setter on `_getReadAloudRemoteInterface`,
    a reader pushed and spliced) seeing **one** assignment. Nothing else
-   is driven after a reload — restore everything before it.
+   is driven after a reload — restore everything before it. **A reload
+   leaves the plugin's strings gone** (issue #64, 2026-09-06): Zotero's
+   `onDisabled` tail unregisters the locales the concurrent `onEnabling`
+   registered, so after it `diagnostics.l10n().sample` reads its id, the
+   pane renders 99 of 100 labels blank and every `t()` returns a code —
+   deterministic, silent, and not what an in-place install does (that
+   path is serialized, measured with a 10.9 s shutdown). So the run ends
+   with one more in-place install of the same xpi, and
+   `diagnostics.l10n().sample` reading `Voice browser` again, so the
+   user's pane is not left blank; the pane is never verified after a
+   reload.
+8. **The end of a document, and what a resume does** (2026-09-06, from
+   a surprise in section 4; driven before item 7's reload). A fixture
+   read to its last segment on a plugin voice: at `Complete` the manager
+   stays `active` and goes `paused`, `_activeSegment` null (`reader.js`
+   82687-82692), and the controller rewinds `_position` to
+   `_backwardStopIndex ?? 0` — the **run's** start, not the document's
+   (`reader.js` 39500) — while `_currentIndex` and `_indexAtPause` keep
+   the last segment. `smartKey()` then reports `togglePaused (resume…)`,
+   and Shift+Space replays from the rewind target: `_currentIndex` snaps
+   to it within ~100 ms and the position walks forward one segment at a
+   time (`reader.js` 84210-84228 → 82548-82557; no reposition anywhere),
+   with no `[zotero-tts]` line — the plugin's stored-position restore
+   runs only on an **idle** manager. The store still names the last
+   sentence actually read (item 1), so a popup closed after a completed
+   document and a Shift+Space later resume at the end, not at the run's
+   start. Zotero's own behavior, not a fault.
 
 ## 6. Sync — reading positions and settings over WebDAV (1.10.4)
 
@@ -966,13 +1040,15 @@ Against the user's real WebDAV folder; every test file deleted from the
 server at the end, every switch restored (bool prefs through
 `zotero_execute_js` with `Zotero.Prefs.set(name, false, true)` and a
 read-back — `zotero_set_pref` cannot write false). The profile decides
-the starting state: on 2026-09-05 both switches were on, and the folder
-held five files — the pre-1.11 shared `zotero-tts-settings.json`, this
-machine's, another machine's, an orphan of an earlier rename of this
-machine, and the positions file with 45 entries, 8 of them the erased
-fixtures of earlier runs (issue #51) — all left as found. Those eight
-predate the tombstones of 1.10.12 and leave the file only by one
-hand-clean, which since then sticks. Item 2's "first upload creates the
+the starting state: on 2026-09-05 and 2026-09-06 both switches were on,
+and the folder held five files — the pre-1.11 shared
+`zotero-tts-settings.json`, this machine's `_win11`, another machine's
+`_macos` (live on the folder: it rewrote its own file during the
+2026-09-06 run), an orphan of an earlier rename of this machine, and the
+positions file (45 entries on 09-05, 8 of them the erased fixtures of
+earlier runs, issue #51; 57 on 09-06 with no fixture leftover) — all
+left as found. Those eight predated the tombstones of 1.10.12 and left
+the file by one hand-clean on 2026-09-05, which has stuck. Item 2's "first upload creates the
 file" is not re-run from absence while the file holds other machines'
 entries; the `not-found` branch is proved with a GET of a name that does
 not exist (404). Items 3 and 4's crafted entries name the run's own
@@ -1007,15 +1083,21 @@ key, so items 6 and 7 take their settings change from a sync switch.
    `rows` unchanged. The same erase with the fixture's tab still open
    ends the same way — Zotero closes the tab first, the `trace` shows
    `tab.onClose fired` before the notifier, and the row and the entry are
-   gone afterwards. The tombstone is this machine's alone: the
+   gone afterwards; which of the two syncs drops the entry is a race on
+   where the notifier yields (2026-09-06: the `reader-close` sync logged
+   `1 dropped, uploaded` and the trailing `delete` sync was a no-op), so
+   check the pair, not the trigger name. The tombstone is this machine's
+   alone: the
    downloaded file parses to real entries only. Before 1.10.12 the
    erased key came back from the sampler's map at the next sync.
 5. **Failure.** An unreachable URL: one reported error within the
    timeout, a back-off window, recovery when the URL is back; the local
    store untouched.
 6. **Settings auto-upload, switch off**: a settings change queues
-   nothing (`diagnostics.settingsUpload()` → `autoUpload` idle, the
-   machine file absent).
+   nothing (`diagnostics.settingsUpload()` → `autoUpload.pending` false
+   and `uploads` unmoved 30 s after the change; the machine file absent
+   only on a folder that never had one — on a profile that already holds
+   `zotero-tts-settings_<id>.json` its `lastModified` does not move).
 7. **Switch on**: the change is itself uploaded ~10 s later —
    `autoUpload.uploads` rises, `zotero-tts-settings_<This computer>.json`
    appears in `settingsFiles()` with a `lastModified` matching the
