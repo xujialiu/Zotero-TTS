@@ -11,7 +11,17 @@ documents, settings backup/restore (file or WebDAV), highlight colors.
 - `README.md` — user-facing docs, kept short and scannable (header with
   badges, a GIF, emoji feature list, install, providers table, settings;
   long detail goes into `<details>` blocks or `tutorials/`, never into the
-  body). **After editing any `.md` under the repo, run `npm run docs`** — it
+  body). **It says the effect, never the mechanism** (settled 2026-09-07,
+  the same rule as the settings pane's below): every line answers what the
+  reader gets, or what they have to do — how it is done stays out. Not
+  which Zotero API is patched or hooked, not what a fallback path cannot
+  deliver and why, not the internal numbers behind a default, not a color's
+  hex or an endpoint's path, not the reasoning behind a refusal. A limit
+  the reader will actually meet is an effect and stays: a key stored in
+  plain text, a cache a restart empties, one WebDAV folder per computer,
+  a voice that sounds different at speed. The mechanism goes to
+  `notes/NOTES.md`, which is where a later session reads it.
+  **After editing any `.md` under the repo, run `npm run docs`** — it
   renders every doc to `docs/` (gitignored), the source tree mirrored; tell
   the user which `docs/….html` to open. The README in both languages,
   `PHILOSOPHY.md` and `tutorials/` are also the public site

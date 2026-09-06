@@ -30,16 +30,14 @@ it adds voices to the player's **Local** tier and tunes what is around them.
 - ⌨️ **Keyboard shortcuts** for speed, volume, jumping by sentence or paragraph, reading from the selection, and the player's options panel. All rebindable. [→ Shortcuts](#keyboard-shortcuts)
 - 📌 **One voice and speed everywhere** — every document and every open tab, instead of Zotero's choice per language. [→ Reading](#reading)
 - ⏱️ **The pauses are yours** — how long every voice waits between sentences and before a paragraph, shorter as you read faster. [→ Reading](#reading)
-- 💾 **Backup and sync** — settings and reading positions as files, or through your own WebDAV folder, so your bookmarks follow you between computers. [→ Backup](#backup)
-- 🖥️ **Windows and macOS voices, spoken by the plugin** — the ones Read Aloud already lists, but with samples, favorites, the cache and, on Windows, word-by-word highlighting. [→ System voices](#system-voices)
+- 💾 **Backup and sync** — settings and reading positions as files, or through your own WebDAV folder, so your bookmarks follow you between computers. [→ Backup and sync](#backup-and-sync)
+- 🖥️ **Windows and macOS voices, spoken by the plugin** — the ones Read Aloud already lists, but with samples, favorites, the cache and, on Windows, word-by-word highlighting. [→ Providers](#providers)
 
 ## Install
 
-Download `zotero-tts.xpi` from the [latest release](https://github.com/xujialiu/Zotero-TTS/releases/latest)
-(Firefox: right-click → *Save Link As…*), install it with **Tools → Plugins → ⚙ →
-Install Plugin From File…** and restart Zotero; then enable a provider in
-**Edit → Settings → Zotero-TTS** and pick a voice named after its provider —
-`Kokoro-af_bella`, `Azure-Ava Multilingual` — under the **Local** tier.
+1. Download `zotero-tts.xpi` from the [latest release](https://github.com/xujialiu/Zotero-TTS/releases/latest) — in Firefox, right-click → *Save Link As…*
+2. **Tools → Plugins → ⚙ → Install Plugin From File…**, then restart Zotero.
+3. Enable a provider in **Edit → Settings → Zotero-TTS**, and pick its voice — `Kokoro-af_bella`, `Azure-Ava Multilingual` — under **Local** in the player.
 
 <p align="center"><img src="assets/popup.png" width="640" alt="The Read Aloud player with a plugin voice chosen under the Local tier"></p>
 
@@ -62,7 +60,7 @@ Zotero's preferences in plain text, and they go into the settings backup
 file.
 
 <details>
-<summary><b>OpenAI-compatible servers: the fields</b></summary>
+<summary><b>OpenAI-compatible servers: how to fill the settings in</b></summary>
 
 The **Server** dropdown names the server — *OpenAI*, *Chatterbox-TTS-Server*,
 *Xiaomi MiMo*, or *Other OpenAI-compatible server* — and fills in the
@@ -71,8 +69,8 @@ defaults the first time, and nothing of another server's), graying out the
 fields that server ignores. **Base URL** is the server, with or without
 `/v1`. **Model** is the name it expects; **Test connection**
 fetches the server's model list and says whether yours is on it. Leave
-**Voices** empty to take the voices the server publishes on
-`/v1/audio/voices`, or list voice ids yourself, comma-separated. The API key
+**Voices** empty to take the voices the server offers, or list voice ids
+yourself, comma-separated. The API key
 may stay empty for servers that have none; only api.openai.com insists on
 one. For Kokoro use the **Kokoro-FastAPI** section instead: that is what
 gets you word-level highlighting. *Xiaomi MiMo* takes the key from
@@ -86,7 +84,7 @@ not the server's own — a mirror or a proxy.
 </details>
 
 <details>
-<summary><b>Behind a gateway (Cloudflare Tunnel, reverse proxy)</b></summary>
+<summary><b>Cloudflare Tunnel and other gateways</b></summary>
 
 Put the gateway's headers in **Extra headers** — of the OpenAI section, or
 of the **Kokoro-FastAPI** one — as `Name: value` pairs separated by `;`,
@@ -95,72 +93,39 @@ They go out with every request. [Tutorial](tutorials/remote-access-cloudflare.md
 
 </details>
 
-### System voices
-
-Windows and macOS install voices of their own, and Read Aloud already lists
-them under **Local** — but it reaches them through the browser engine,
-which hands over no audio and no word timings, so the plugin can do nothing
-for them there.
-
-**Enable** in the *System voices* section takes them over: the plugin talks
-to the system's own speech engines — a small helper process on Windows,
-`say` on macOS — and publishes them as ordinary plugin voices called
-`System-Microsoft David`, `System-Samantha` and so on, with the voice
-browser, samples, favorites and the cache. On Windows they come with word
-timings; on macOS the sentence is highlighted.
-
-Zotero's own copies of these voices are hidden from the player either way,
-and a voice you had picked from them is re-pointed at the plugin's
-equivalent, so it keeps playing. On Linux, where the plugin has no helper,
-the player offers Zotero's own voices plus whichever providers you have
-configured.
-
 <details>
-<summary><b>Details</b></summary>
+<summary><b>System voices</b></summary>
 
-On Windows two APIs are needed and together they are exactly the list Read
-Aloud shows: `System.Speech` for the older "… Desktop" voices and
-`Windows.Media.SpeechSynthesis` for the rest. The helper is one
-`powershell.exe` for the whole Zotero session, started at the first
-sentence and stopped with the plugin; a sentence takes 10–100 ms, far
-faster than real time.
+Read Aloud already lists the voices Windows and macOS install, under
+**Local**, but bare: no sample, no favorite, no cache, no word highlight.
 
-On macOS there is nothing to keep running: every sentence is one `say`
-process writing a WAV file, and the voice list comes from `osascript`. A
-sentence takes about half a second, most of it starting the process. Every
-voice installed on the Mac is listed, the novelty ones included, exactly as
-Read Aloud lists them. macOS reports where each word starts only to a
-program speaking through its own speech engine, which `say` is not, so
-these voices have no word timings and the highlight stays on the sentence.
-
-Audio is made at the voice's natural pace, like every other provider's, and
-Read Aloud's slider stretches it — so the same voice sounds a little
-different from Zotero's own path, which changes the engine's rate instead.
-
-Linux is not covered; the section says so, and enabling it there fails
-with a message.
+**Enable** in the *System voices* section gives them all of that. They come
+back as `System-Microsoft David`, `System-Samantha` and so on — the same
+voices, now with the voice browser, samples, favorites and the cache behind
+them, and word-by-word highlighting on Windows. On macOS the highlight
+stays on the sentence, and every sentence takes about half a second to
+start. Zotero's own copies leave the player, so nothing is listed twice,
+and a voice you had already picked keeps playing. At speed these voices
+sound a little different from before. On Windows you may see one
+`powershell.exe` while Zotero is open; Linux is not supported.
 
 </details>
 
 ## Resume where you stopped
 
-Close a document in the middle of listening, open it again later, press
-`Shift+Space` — Read Aloud starts at the sentence you left off on. If the
-document has never been read aloud, it simply starts from the page you are
-looking at.
+Close a document in the middle of listening, quit Zotero, come back days
+later, press `Shift+Space` — Read Aloud goes on from the sentence you
+stopped at. Zotero on its own does not keep that place; the plugin keeps it
+for every document you have listened to.
 
-<details>
-<summary><b>Details</b></summary>
-
-- Zotero remembers a reading position of its own, but drops it as soon as
-  you scroll a few pages away from it. This one is kept.
-- Reading resumes at the **start** of the sentence you were in the middle of.
-- Every document you have listened to. Positions stay on this computer
-  unless *Sync reading positions between computers* is on (see
-  [Backup](#backup)); they are never part of the settings backup file.
+- Reading resumes at the **start** of that sentence, never half way into it.
 - Nothing is drawn in the document and nothing is added to your annotations.
-
-</details>
+- A document you have never listened to starts from the page you are
+  looking at.
+- Positions stay on this computer until you switch on *Sync reading
+  positions between computers* ([Backup and sync](#backup-and-sync)); then
+  they follow you: stop on one, press `Shift+Space` on another, and reading
+  continues at that sentence.
 
 ## Settings
 
@@ -179,8 +144,7 @@ General → Read Aloud → Highlight current → Word**.
 <summary><b>Details</b></summary>
 
 The preview is painted in your reader's theme. The default is a blue word
-on a yellow sentence, both at 70 %; *Restore default colors* brings it back
-(Zotero's own blue is `#4072e5` at 45 % and 30 %).
+on a yellow sentence, both at 70 %; *Restore default colors* brings it back.
 
 </details>
 
@@ -188,16 +152,13 @@ on a yellow sentence, both at 70 %; *Restore default colors* brings it back
 
 <p align="center"><img src="assets/settings-shortcuts.png" width="440" alt="The Keyboard shortcuts group"></p>
 
-`Shift+Space` is the one play key and always does the right thing: it
-pauses and resumes an open session, and otherwise starts reading — from the
-selected text, from where you last stopped (below), or from the visible
-page. `Shift+O` opens and closes the player's options panel — the speed
-slider, the tier, the language and the voice. `Shift+↑` and `Shift+↓` turn
-Read Aloud up and down by 10% — a volume of its own, apart from the
-system's, for every voice; the same number is the **Volume** field in the
-voice browser, and 100% is Zotero's own level. The arrow keys,
-`Shift+Enter` and `Shift+O` act only while Read Aloud is open and keep
-their usual meaning otherwise. Click a field to record another key.
+**`Shift+Space` is the only key you need.** It pauses and resumes an open
+session, and otherwise starts reading — from the selected text, from
+[where you last stopped](#resume-where-you-stopped), or from the visible
+page. One key, whatever the reader is doing.
+
+The others act only while Read Aloud is open and keep their usual meaning
+otherwise; click a field to record another key.
 
 ### Voice browser
 
@@ -214,11 +175,9 @@ with, in every document. The **Speed** slider is the player's own (0.5×–3×);
 
 - **Local** holds the voices your enabled providers publish, **Standard**
   and **Premium** are Zotero's own; multilingual voices sit under "Multiple
-  languages", first in the language column. The language column is the
-  player's own dropdown for the tier — the same entries, named the same way.
-- **▶** — your voices speak a sentence in the voice's own language,
-  synthesized by your provider like any sentence; Zotero's voices speak
-  Zotero's own sample, which spends no credits.
+  languages", first in the language column.
+- **▶** — a sample in the voice's own language: your voices cost one short
+  request, Zotero's own cost nothing.
 - *Offer only favorite voices* trims the Read Aloud player to the marked
   ones **in every tier** — a tier you marked nothing in comes up empty, and
   Zotero grays it out. With nothing marked at all, or when none of the
@@ -231,15 +190,12 @@ with, in every document. The **Speed** slider is the player's own (0.5×–3×);
   rest do not, so a favorite is findable without giving up every other
   voice. A marker, not a button — hearts are set here — and it is gone
   while the switch is on, where every listed voice is one.
-- The status line names the default by tier, language and voice with the
-  speed (`Default voice: Local | Chinese | Azure-晓晓 | 1.8×`); a click on
-  the default row clears it, back to Zotero's own per-language choice. Pick
-  another voice in any tab's player while the settings are open and the
-  highlight moves there.
+- A click on the default row clears the default, back to Zotero's own
+  per-language choice. Pick another voice in any tab's player while the
+  settings are open and the highlight moves there.
 - The **Speed** slider plays the samples at that speed, and releasing it
   makes that the speed Read Aloud starts with — at once in a document that
-  is playing. Zotero stretches its audio, pitch kept, so the slider costs
-  no new request.
+  is playing. Changing the speed costs nothing and leaves the pitch alone.
 - **Volume** (0–200%) applies to every voice, Zotero's Standard and
   Premium included, and to the samples; a change lands on the sentence
   being spoken, in every open tab. Above 100% quiet voices come up and
@@ -247,16 +203,16 @@ with, in every document. The **Speed** slider is the player's own (0.5×–3×);
   while Read Aloud is open.
 - While Read Aloud is open in some tab, every setting that changes what the
   player lists is refused with a message naming the tabs — close them, then
-  try again. Zotero has no way to refresh an open player's list, and two
-  tabs listing different voices would send *Use one voice everywhere* to a
-  voice one of them does not have. The settings: switching a provider on or
-  off, *Offer only favorite voices*, a favorite marked or unmarked while
+  try again. The settings: switching a provider on or off, *Offer only favorite voices*, a favorite marked or unmarked while
   only favorites are offered, and restoring a settings backup from a file or
   from WebDAV.
 
 </details>
 
 ### Reading
+
+<details>
+<summary><b>One voice everywhere, pauses, prefetch, cache</b></summary>
 
 - *Use one voice everywhere* — one voice for every document and every open
   tab, whatever the document's language. Off, Zotero remembers a voice per
@@ -267,78 +223,32 @@ with, in every document. The **Speed** slider is the player's own (0.5×–3×);
 - *Pause between sentences* — how long every voice waits before the next
   sentence, whatever its tier, at 1× speed; reading faster shortens it in
   step. On at 0 by default, so every voice runs sentence to sentence. Off,
-  each voice pauses as Zotero sets it: about 300 ms on a few of Zotero's
-  Premium voices, none elsewhere, and never shorter at speed.
+  each voice pauses as Zotero sets it.
 - *Extra pause between paragraphs* — added on top where a paragraph
   begins, at 1× speed, shortened in step with the speed. On at 200 ms by
-  default, which is what Zotero itself adds. Off, Zotero's 200 ms, the
-  same at every speed.
+  default. Off, Zotero's own pause, the same at every speed.
 - *Prefetch upcoming sentences* — the ones ahead are synthesized while the
-  current one plays, so playback never waits for the server. Zotero fetches
-  3 ahead by itself and your number adds to those. It keeps the cache below
-  switched on, which is where the audio waits.
+  current one plays, so playback never waits for the server. It needs the
+  cache below, and keeps it switched on.
 - *Cache synthesized audio* — skipping back or reopening a document costs no
   new request. In memory (64 MB); a Zotero restart empties it.
 
-<details>
-<summary><b>Details</b></summary>
-
-Pick the one voice in any tab's player and every other tab that is
-reading goes on with it from its current sentence; the rest get it when
-their player opens. The player of a document in another language is switched
-to the voice's language (a Chinese PDF reads with your English voice, its
-sentences split by English rules); multilingual voices (Azure's, OpenAI's)
-sit under the player's "Multiple languages" entry, which the plugin pins to
-the top of the language list. The settings pane names every voice the same
-way the player does.
-
-When the default voice is not offered in a document — its provider switched
-off or not answering, or only favorites offered and the default not among
-them — Read Aloud starts with the first Local voice it does offer, your
-favorites first, and a note in the reader says which. The default itself is
-kept and comes back as soon as it is offered again. With no Local voice
-offered at all, Zotero picks the voice, as it does without the plugin.
-
 </details>
 
-### Backup
+### Backup and sync
 
-*Backup settings…* and *Restore settings…* keep every setting as one JSON
-file; *Export reading positions…* and *Import reading positions…* do the
-same for your bookmarks, as a second file. Restoring settings replaces the
-configuration; importing positions only merges — a position from the file
-is taken where it is newer than this computer's.
+**Your reading positions can follow you between computers.** Switch on
+*Sync reading positions between computers*, give it a WebDAV folder of your
+own, and every computer sharing that folder and the same library stays in
+step: stop listening on one, press `Shift+Space` on another, and reading
+goes on from that sentence. Turning it on loses no bookmark, whichever
+computer it came from. Without a server, *Export reading positions…* and
+*Import reading positions…* carry the same bookmarks as a file.
 
-The **Sync** group connects the same data to a WebDAV folder of your own.
-Each computer writes its own settings file there, named by the **This
-computer** field, so no computer ever overwrites another's:
-
-- **Keep this computer's settings uploaded automatically** (off by
-  default): a few seconds after any setting changes, this computer's file
-  on the server is refreshed — nothing to remember before switching
-  machines. Upload only; nothing is ever applied by itself.
-- **Restore settings from server…** lists what the folder holds — every
-  computer's file, with its date — asks which to take, and restores it.
-- **Upload settings now** does one upload by hand, for whoever leaves the
-  automatic switch off.
-
-Restoring — from a file or from the server — ends by checking every
-provider it switches on, the same check **Enable** runs. One that does not
-work on this machine (a local server that is not running here, a key that
-has since been rotated) is left **off**, with the reason beside it,
-instead of looking enabled and playing nothing.
-
-**Sync reading positions between computers** (off by default) keeps
-[where you stopped](#resume-where-you-stopped) in the same WebDAV folder,
-as one shared file: listen on one computer, press `Shift+Space` on
-another, and reading continues at that sentence. Positions merge — every
-computer contributes the documents it listened to, the newest position
-wins — so turning it on never erases anything. Only deleting a document
-for good removes its bookmark, from the shared file and from every
-computer. It works when both computers hold the same library (synced or
-copied over), and it stays separate from the settings files: restoring
-settings moves no reading positions, and reading positions carry no
-settings.
+Settings need less: *Backup settings…* and *Restore settings…* keep every
+setting as one file, and the same WebDAV folder can hold each computer's
+settings and keep them up to date, to restore on another. A provider that
+cannot work on the computer you restore to stays off and says why.
 
 <details>
 <summary><b>WebDAV URL examples</b></summary>
@@ -363,10 +273,9 @@ password.
   that reports word timings (Azure, Kokoro).
 - **"An unknown error occurred" part-way through a document** with an
   OpenAI-compatible server: the server failed on one segment; check its log.
-- **The plugin's voices are missing after a Zotero update.** Read Aloud has
-  no plugin API, so the plugin hooks Zotero's internal interface per reader
-  tab and an update can drop its voices until the plugin catches up
-  (Zotero's own keep working). Open an
+- **The plugin's voices are missing after a Zotero update.** An update can
+  take them out until the plugin catches up; Zotero's own keep working.
+  Open an
   [issue](https://github.com/xujialiu/Zotero-TTS/issues) with the Zotero
   version.
 
@@ -374,9 +283,8 @@ password.
 
 ## Compatibility
 
-- Zotero 10 on the desktop, pinned to `10.*`, including builds made from
-  source (`10.0.SOURCE.…`). In use on Windows and macOS; Linux should be
-  the same, but is untested.
+- Zotero 10 on the desktop, any 10.x build, source builds included. In use
+  on Windows and macOS; Linux should be the same, but is untested.
 
 ## Development
 
