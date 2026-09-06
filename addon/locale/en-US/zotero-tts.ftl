@@ -218,6 +218,10 @@ ztts-heading-build = Build
 ztts-build-version = Version { $version }
 ztts-build-date = Date { $date }
 ztts-build-author = Author { $author }
+# The line under it, the repository: the link is named, not placed, so the
+# markup's label named github takes the text between the tags wherever a
+# language puts it
+ztts-build-star = If you like Zotero-TTS, give it a ⭐ on <label data-l10n-name="github">GitHub</label>
 
 
 ## What TypeScript writes into the pane (issue #43)

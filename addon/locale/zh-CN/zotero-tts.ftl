@@ -206,6 +206,7 @@ ztts-heading-build = 构建信息
 ztts-build-version = 版本 { $version }
 ztts-build-date = 日期 { $date }
 ztts-build-author = 作者 { $author }
+ztts-build-star = 如果你喜欢 Zotero-TTS，欢迎到 <label data-l10n-name="github">GitHub</label> 给它点个 ⭐
 
 
 ## What TypeScript writes into the pane (issue #43)

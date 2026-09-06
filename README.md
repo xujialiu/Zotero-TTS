@@ -15,6 +15,8 @@
 
 <p align="center"><img src="assets/word-highlight.gif" width="720" alt="Read Aloud reading a paragraph: the word being read in blue, its sentence in yellow"></p>
 
+<p align="center">If you like Zotero-TTS, give it a ⭐ on <a href="https://github.com/xujialiu/Zotero-TTS">GitHub</a> — it helps others find it.</p>
+
 ## What is this?
 
 Zotero 10 reads documents aloud on its own. This plugin does not replace

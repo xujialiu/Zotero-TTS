@@ -101,7 +101,39 @@ since where marked.
    `InspectorUtils.getMatchingCSSRules` lists the plugin's
    `label.ztts-help[value]` with `width: 1.25em` and no `font-size`.
    The Build row `Version <build> · Date <date> · Author Xujia Liu`
-   (`src/ui/build-rows.ts`). The message lines wrap instead of running
+   (`src/ui/build-rows.ts`). Under it the star line (1.11.1):
+   `description[data-l10n-id="ztts-build-star"]`, in the same groupbox as
+   `#ztts-build-line` and after it, `textContent` with whitespace
+   collapsed exactly `If you like Zotero-TTS, give it a ⭐ on GitHub`.
+   The `GitHub` word is Zotero's own `zotero-text-link` label, and that it
+   was upgraded is what the row proves: `getAttribute('is')`
+   `zotero-text-link`, `classList.contains('zotero-text-link')` true,
+   `constructor.name` `ZoteroTextLink`, `role` `link`, `href`
+   `https://github.com/xujialiu/Zotero-TTS`, text `GitHub` (Fluent's
+   overlay fills the child named `github` and leaves the markup's `href`),
+   `typeof link.open === 'function'`. Computed: `text-decoration-line:
+   underline`, `cursor: pointer`, `color` Zotero's `LinkText`
+   (`rgb(65, 156, 255)` in the dark theme) and `margin` `0px` on all four
+   sides — `InspectorUtils.getMatchingCSSRules` lists Zotero's
+   `xul|description, xul|label` (`margin-inline: 6px 5px`,
+   `global-shared.css`) beaten by `.zotero-text-link{…margin:0}` from
+   Zotero's own `preferences.css`, why the word sits in the sentence after
+   one ordinary space; the plugin's sheet adds nothing here. One line, not
+   clipped: `clientHeight` 17 equals the link's height and `scrollWidth <=
+   clientWidth` (578 = 578 in an 800×600 window). The star is U+2B50 with
+   no variation selector; a `Range` over that one character measures
+   13 × 17.5 px (13 × 18.5 in zh-CN) — non-zero, so it is drawn, a color
+   emoji on macOS — and it does not grow the line: `clientHeight` stays
+   17. **The click, with
+   `Zotero.launchURL` stubbed inside a try/finally so no browser opens**:
+   `link.click()` → `seen` is `https://github.com/xujialiu/Zotero-TTS`,
+   `restored` true, `doc.defaultView.Zotero === Zotero` true
+   (`elements/textLink.js:7-11` dispatches to `open()`, `:73-77` calls
+   `Zotero.launchURL(uri.spec)` and `preventDefault`s, so the `win.open`
+   fallback is never reached). Never click it unstubbed.
+   `l10n().pane.elements` is 101 (the file's 102 `data-l10n-id`
+   occurrences less the one in its header comment). The message lines
+   wrap instead of running
    past the window (issue #31): with the not-a-favorite warning on it
    (2.5), `#ztts-voices-status` measures `scrollWidth <= clientWidth`,
    its computed `white-space` is `normal`, its `textContent` ends in
@@ -308,8 +340,18 @@ since where marked.
     api.xiaomimimo.com 的笔误。` and Test connection `未测试：…`; product
     names, voice ids, `1.7×`, ` | ` and `Name (N)` stay as they are, and
     `l10n().pane` is still `{elements: <n>, blank: [], questionless: []}`
-    (100 elements on 2026-09-06). Then
-    the pref back verbatim (an empty snapshot means `requestedLocales = []`)
+    (100 elements on 2026-09-06; 101 since the star line). The Build
+    star line retranslates with the pane, no reopen needed (1.11.1):
+    `如果你喜欢 Zotero-TTS，欢迎到 GitHub 给它点个 ⭐` (63 ms on
+    2026-09-06, 56 ms back). Fluent replaces the named child with a
+    clone, and the clone is upgraded again —
+    `classList.contains('zotero-text-link')` true, `role` `link`, `href`
+    and the text `GitHub` unchanged, still one line — and the stubbed
+    click reports the same `https://github.com/xujialiu/Zotero-TTS`; the
+    product name, `GitHub` and the URL stay English. The group's heading
+    follows Zotero (`构建信息`) while `#ztts-build-line` stays English
+    until the pane is reopened, like the other lines TypeScript paints.
+    Then the pref back verbatim (an empty snapshot means `requestedLocales = []`)
     and `appLocalesAsBCP47` equal to the baseline's.
 13. **The plugin's icon** (issue #60, 1.11.0). The manifest declares
     `icons` 48/96 (`content/icons/favicon@0.5x.png`,
