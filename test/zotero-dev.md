@@ -394,6 +394,31 @@ since where marked.
    `afterSetRate` 2, and `outcome`: `ended` with audio, `error: decoding
    or output failed (OnMediaSinkAudioError)` without a sink; `neither
    ended nor failed within 3 s` is a stall to report.
+   **Switching** (issue #61, 1.11.1): the clicks and a 25 ms poll of
+   every row's glyph in ONE script, with the window's
+   `HTMLMediaElement.prototype.play`/`pause` timed (waive the Xrays,
+   number the elements through a WeakMap, restore in `finally`). With a
+   sample playing, ▶ on another voice: in the click's own task the
+   playing row is `▶` and the new one `…`, and the playing element's
+   `pause()` is stamped 0–2 ms after the click at a `currentTime` below
+   its duration; the pair (old `■`, new `…`) is never seen; the new row's
+   `■` and its element's `play()` come with its fetch (0.3–1 s for a
+   Zotero sample), or at the first poll when the sample is cached
+   (`pause` at 1 ms, `play` at 4 ms). ▶ on a third voice while one
+   loads: the loading row `▶` and the third `…` in that click's task, no
+   `play()` when the superseded fetch lands, and a later ▶ on it is `■`
+   in its own task — the arrival was cached. ▶ on the loading row itself:
+   `▶` at once, nothing when its fetch lands. ▶ on a cached voice while
+   another loads: the loading row `▶` and this one `■` in the same task,
+   on a new element. Two cached rows clicked in one task: exactly one
+   `play()`, on the second's element, and the first's element has no
+   `src`; 5 ms apart, the first's `play` is followed by its `pause` and
+   only the second's element is unpaused at its `■`. At every snapshot
+   at most one row is `…` or `■`, and the status line never reads
+   `Sample failed:`. A sample arriving after the window closed is not
+   observable here (the prototype wrapper dies with the window); the
+   unit test covers it. That the old voice falls silent at the click is
+   the user's to hear.
 7. **The speed slider.** `input` moves only the sample rate; `change`
    commits: memory `speed`, every `reader.readAloudVoices.<lang>.speed`,
    the status line's `N×` — and back, byte-identical after the round

@@ -599,6 +599,148 @@ describe('playing a sample', () => {
   });
 });
 
+// Issue #61: a click supersedes everything before it — the sample playing
+// stops at the click, not when the next one has arrived; the sample loading
+// is dropped on arrival, into the cache and never the player; a click on the
+// loading row cancels it. At most one row is active at a time.
+describe('switching samples (issue #61)', () => {
+  /** A synthesis that resolves when the test says so. */
+  const deferred = () => {
+    let resolve!: (audio: Blob) => void;
+    let reject!: (error: Error) => void;
+    const promise = new Promise<Blob>((res, rej) => ((resolve = res), (reject = rej)));
+    return { promise, resolve, reject };
+  };
+  /** Lets a settled fetch run through onPlay's awaits. */
+  const settle = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
+
+  it('stops the playing sample at the click on another voice, before that one’s synthesis has resolved', async () => {
+    const t = setup();
+    await t.rows.load();
+    await t.play(0).fire('click');
+    expect(t.play(0).textContent).toBe(GLYPHS.stop);
+    const next = deferred();
+    t.deps.synthesizeSample.mockImplementationOnce(() => next.promise);
+    const stops = t.player.stop.mock.calls.length;
+    await t.play(1).fire('click');
+    expect(t.player.stop.mock.calls.length).toBe(stops + 1);
+    expect(t.play(0).textContent).toBe(GLYPHS.play);
+    expect(t.play(1).textContent).toBe(GLYPHS.loading);
+    expect(t.player.play).toHaveBeenCalledTimes(1);
+    next.resolve(new Blob(['second']));
+    await settle();
+    expect(t.play(1).textContent).toBe(GLYPHS.stop);
+    expect(t.player.play).toHaveBeenCalledTimes(2);
+  });
+
+  it('a click on a third voice while one loads supersedes it: the first arrival is cached, never played', async () => {
+    const t = setup();
+    await t.rows.load();
+    const first = deferred();
+    const second = deferred();
+    t.deps.synthesizeSample.mockImplementationOnce(() => first.promise).mockImplementationOnce(() => second.promise);
+    await t.play(0).fire('click');
+    await t.play(1).fire('click');
+    expect(t.play(0).textContent).toBe(GLYPHS.play);
+    expect(t.play(1).textContent).toBe(GLYPHS.loading);
+    first.resolve(new Blob(['first']));
+    await settle();
+    expect(t.player.play).not.toHaveBeenCalled();
+    expect(t.play(0).textContent).toBe(GLYPHS.play);
+    expect(t.play(1).textContent).toBe(GLYPHS.loading);
+    second.resolve(new Blob(['second']));
+    await settle();
+    expect(t.play(1).textContent).toBe(GLYPHS.stop);
+    expect(t.player.play).toHaveBeenCalledTimes(1);
+    // The superseded sample was paid for: it plays from the cache now
+    await t.play(0).fire('click');
+    expect(t.deps.synthesizeSample).toHaveBeenCalledTimes(2);
+    expect(t.player.play).toHaveBeenCalledTimes(2);
+    expect(t.play(0).textContent).toBe(GLYPHS.stop);
+    expect(t.play(1).textContent).toBe(GLYPHS.play);
+  });
+
+  it('a click on the loading row cancels it, and the arrival goes to the cache', async () => {
+    const t = setup();
+    await t.rows.load();
+    const first = deferred();
+    t.deps.synthesizeSample.mockImplementationOnce(() => first.promise);
+    await t.play(0).fire('click');
+    expect(t.play(0).textContent).toBe(GLYPHS.loading);
+    await t.play(0).fire('click');
+    expect(t.play(0).textContent).toBe(GLYPHS.play);
+    first.resolve(new Blob(['first']));
+    await settle();
+    expect(t.player.play).not.toHaveBeenCalled();
+    expect(t.play(0).textContent).toBe(GLYPHS.play);
+    await t.play(0).fire('click');
+    expect(t.deps.synthesizeSample).toHaveBeenCalledTimes(1);
+    expect(t.player.play).toHaveBeenCalledTimes(1);
+    expect(t.play(0).textContent).toBe(GLYPHS.stop);
+  });
+
+  it('a superseded sample’s failure is nobody’s news', async () => {
+    const t = setup();
+    await t.rows.load();
+    const first = deferred();
+    t.deps.synthesizeSample.mockImplementationOnce(() => first.promise);
+    await t.play(0).fire('click');
+    await t.play(1).fire('click');
+    expect(t.play(1).textContent).toBe(GLYPHS.stop);
+    const line = t.status();
+    first.reject(new Error('quota exhausted'));
+    await settle();
+    expect(t.status()).toBe(line);
+    expect(t.play(0).textContent).toBe(GLYPHS.play);
+    expect(t.play(1).textContent).toBe(GLYPHS.stop);
+  });
+
+  // The element rejects a play() that a pause() interrupted; a stop or a
+  // switch during the player's own start provokes exactly that
+  it('a stop during the player’s own start is not a failure', async () => {
+    const t = setup();
+    await t.rows.load();
+    let abort!: (error: Error) => void;
+    t.player.play.mockImplementationOnce(() => new Promise<void>((_resolve, reject) => (abort = reject)));
+    await t.play(0).fire('click');
+    expect(t.play(0).textContent).toBe(GLYPHS.stop);
+    await t.play(0).fire('click');
+    expect(t.play(0).textContent).toBe(GLYPHS.play);
+    abort(new Error('AbortError: The play() request was interrupted by a call to pause()'));
+    await settle();
+    expect(t.status()).not.toContain('Sample failed');
+    expect(t.play(0).textContent).toBe(GLYPHS.play);
+  });
+
+  it('a click on another voice during the player’s own start is not dropped, and the abort it provokes is not a failure', async () => {
+    const t = setup();
+    await t.rows.load();
+    let abort!: (error: Error) => void;
+    t.player.play.mockImplementationOnce(() => new Promise<void>((_resolve, reject) => (abort = reject)));
+    await t.play(0).fire('click');
+    await t.play(1).fire('click');
+    expect(t.play(0).textContent).toBe(GLYPHS.play);
+    expect(t.play(1).textContent).toBe(GLYPHS.stop);
+    expect(t.player.play).toHaveBeenCalledTimes(2);
+    abort(new Error('AbortError: The play() request was interrupted by a call to pause()'));
+    await settle();
+    expect(t.status()).not.toContain('Sample failed');
+    expect(t.play(1).textContent).toBe(GLYPHS.stop);
+  });
+
+  it('does not play a sample that arrives after the pane is disposed', async () => {
+    const t = setup();
+    await t.rows.load();
+    const first = deferred();
+    t.deps.synthesizeSample.mockImplementationOnce(() => first.promise);
+    await t.play(0).fire('click');
+    t.rows.dispose();
+    first.resolve(new Blob(['first']));
+    await settle();
+    expect(t.player.play).not.toHaveBeenCalled();
+  });
+});
+
 describe('the speed slider', () => {
   // The slider is Zotero's own popup slider (0.5–3.0 by 0.1, "1.0×"), set
   // to the speed Read Aloud will start with: the one remembered across
@@ -1523,6 +1665,27 @@ describe('createSamplePlayer', () => {
     expect(onDone).toHaveBeenCalledWith(null);
     player.stop();
     expect(onDone).toHaveBeenCalledOnce();
+  });
+
+  // A stop while the blob is still being read — a click on another voice in
+  // the milliseconds after a cached sample's start (issue #61) — must leave
+  // the abandoned element silent: no source, no play(). The busy guard that
+  // dropped such clicks was, by accident, what kept this unreachable.
+  it('a stop during the blob read leaves the element silent', async () => {
+    const { created, player } = playerWithElements();
+    const onDone = vi.fn();
+    const starting = player.play(new Blob(['x']), 1.5, onDone);
+    player.stop();
+    await starting;
+    expect(created[0].src).toBeUndefined();
+    expect(created[0].play).not.toHaveBeenCalled();
+    expect(onDone).toHaveBeenCalledTimes(1);
+    expect(onDone).toHaveBeenCalledWith(null);
+    // The next sample is unaffected
+    const second = vi.fn();
+    await player.play(new Blob(['y']), 1, second);
+    expect(created[1].play).toHaveBeenCalledOnce();
+    expect(second).not.toHaveBeenCalled();
   });
 
   it('a second play stops the first', async () => {

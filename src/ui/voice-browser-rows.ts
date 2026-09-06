@@ -29,6 +29,10 @@ import { refuseWhileReading } from './reading-guard';
  * the locale's own language (core/sample-text.ts); Zotero's through
  * Zotero's own sample endpoint, which speaks a text of its own and costs no
  * credits. Samples are kept for the pane's lifetime, so replaying is free.
+ * One row is active at a time: a click on another voice stops the sample
+ * playing at the click, not when its own has arrived, and a sample still
+ * loading is dropped on arrival — into the cache, never the player — while
+ * a click on the loading row cancels it (issue #61).
  * The plugin's voices are labeled here exactly as the player labels them
  * (read-aloud/voice-catalog.ts); Zotero's own Local voices are the reader
  * iframe's and never reach this pane, so the Local tier here is ours alone.
@@ -115,10 +119,12 @@ const XHTML = 'http://www.w3.org/1999/xhtml';
 export interface SamplePlayer {
   /**
    * Starts the audio at `rate` times its natural pace, pitch kept; settles
-   * once playback has started, and rejects when it cannot start. onDone
-   * fires once afterwards: with null when the sample ends or is stopped,
-   * with the failure when playback breaks off after it started (issue #48:
-   * an output device the element cannot open, a stream it cannot finish).
+   * once playback has started, and rejects when it cannot start — except
+   * that a stop() during the start settles it with nothing to report, the
+   * caller's own doing (issue #61). onDone fires once afterwards: with null
+   * when the sample ends or is stopped, with the failure when playback
+   * breaks off after it started (issue #48: an output device the element
+   * cannot open, a stream it cannot finish).
    */
   play(audio: Blob, rate: number, onDone: (error: Error | null) => void): Promise<void>;
   /** Changes the pace of whatever is playing right now; nothing to do otherwise. */
@@ -457,6 +463,12 @@ export function initVoiceBrowserRows(
   /** The encoded id being fetched / being played; at most one of each, ever. */
   let busy: string | null = null;
   let playing: string | null = null;
+  /**
+   * Bumped by every stop and cancel: a fetch or a playback start that comes
+   * back to a different number has been overtaken by a click and is dropped
+   * — into the cache, never the player, and never the status line (issue #61).
+   */
+  let request = 0;
   let speed = startingSpeed(deps.prefs);
   /** The remembered voice and the listed rows that are it (defaultVoiceRows); the first row is where the browser opens. */
   let choice = readMemory(deps.prefs).voice;
@@ -479,10 +491,20 @@ export function initVoiceBrowserRows(
 
   /** Resets our state as well as the player: the fake of one must not be trusted to call back the other. */
   const stopPlayback = () => {
+    request++;
     deps.player.stop();
     if (playing) {
       setPlayGlyph(playing, GLYPHS.play);
       playing = null;
+    }
+  };
+
+  /** The sample being fetched is no longer wanted: its row goes back to ▶, and its arrival is cached but not played. */
+  const cancelLoading = () => {
+    request++;
+    if (busy) {
+      setPlayGlyph(busy, GLYPHS.play);
+      busy = null;
     }
   };
 
@@ -504,7 +526,16 @@ export function initVoiceBrowserRows(
       stopPlayback();
       return;
     }
-    if (busy) return;
+    if (busy === voice.encoded) {
+      cancelLoading();
+      return;
+    }
+    // A click supersedes what came before it: the sample playing stops now,
+    // not once this one has arrived, and one still loading is dropped on
+    // arrival (issue #61). At most one row is active at a time.
+    stopPlayback();
+    cancelLoading();
+    const mine = request;
     busy = voice.encoded;
     setPlayGlyph(voice.encoded, GLYPHS.loading);
     try {
@@ -512,9 +543,11 @@ export function initVoiceBrowserRows(
       let audio = samples.get(source.key);
       if (!audio) {
         audio = await source.fetch();
+        // Paid for: kept even when a later click has overtaken this one
         samples.set(source.key, audio);
       }
-      stopPlayback();
+      if (request !== mine) return;
+      busy = null;
       playing = voice.encoded;
       setPlayGlyph(voice.encoded, GLYPHS.stop);
       await deps.player.play(audio, speed, (error) => {
@@ -526,11 +559,14 @@ export function initVoiceBrowserRows(
         if (error) status(t('ztts-sample-stopped', { detail: error.message }));
       });
     } catch (e) {
+      // Overtaken or stopped meanwhile: the row is already ▶, and the
+      // failure is the click's own doing (a pause aborts the element's
+      // play()) or nobody's news any more
+      if (request !== mine) return;
+      busy = null;
       if (playing === voice.encoded) playing = null;
       setPlayGlyph(voice.encoded, GLYPHS.play);
       status(t('ztts-sample-failed', { detail: describeError(e) }));
-    } finally {
-      busy = null;
     }
   }
 
@@ -896,12 +932,13 @@ export function initVoiceBrowserRows(
   // An "everywhere" switch flipped: the line names the voice, the speed, both or neither
   const unwatchSwitches = deps.watchSwitches?.(paintStatus) ?? null;
 
-  /** The pane is closing: stop following the prefs, and stop the sample. */
+  /** The pane is closing: stop following the prefs, stop the sample, and let one still loading arrive to nobody. */
   function dispose(): void {
     unwatch?.();
     unwatchFavoritesOnly?.();
     unwatchSwitches?.();
     stopPlayback();
+    cancelLoading();
   }
 
   /** The label a listed voice is shown under, by the id Read Aloud knows it by; null until listed, or for a voice not listed now. */
@@ -1012,7 +1049,12 @@ export function createSamplePlayer(createAudio: () => HTMLAudioElement): SampleP
       el.addEventListener('error', () => {
         if (el === current && started) finish(new Error(describeMediaError(el.error)));
       });
-      el.src = await blobToDataURL(audio);
+      const url = await blobToDataURL(audio);
+      // Stopped, or replaced, while the blob was read — a click on another
+      // voice right after a cached start (issue #61): the caller's own
+      // doing, and the abandoned element stays silent
+      if (el !== current) return;
+      el.src = url;
       el.preservesPitch = true;
       applyRate(el, rate);
       try {
