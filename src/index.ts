@@ -1730,8 +1730,10 @@ const diagnostics = {
   },
   /**
    * The stored Read Aloud positions and what the sampler sees right now.
-   * `zoteroSaved` is Zotero's own copy — it goes null once the user scrolls
-   * away, which is exactly what `stored` is here to survive.
+   * `zoteroSaved` is Zotero's in-memory copy, what the sampler reads; it
+   * stays until the tab closes. `zoteroPersisted` is Zotero's synced
+   * setting, the copy it nulls once the view is more than five pages away —
+   * the loss `stored` is here to survive (issue #39).
    */
   position: async () => {
     safe(() => positionSync?.sample());
@@ -1746,6 +1748,14 @@ const diagnostics = {
       // list — one such object measured 100 KB (#14)
       zoteroSaved: safe(() => {
         const p = r?._internalReader?._state?.readAloudState?.savedPosition;
+        return p === null || p === undefined ? null : describePosition(p);
+      }),
+      // The synced setting `lastReadAloudPosition`: what the debounced
+      // view-state change nulls when the view is more than five pages from
+      // it, and what the next open is seeded from
+      zoteroPersisted: safe(() => {
+        const item = r?.itemID ? Zotero.Items.get(r.itemID) : null;
+        const p = item?.isFileAttachment?.() ? item.getAttachmentLastReadAloudPosition() : null;
         return p === null || p === undefined ? null : describePosition(p);
       }),
       // Ours is the normalized resume point — small enough to show whole

@@ -5,6 +5,9 @@ language tag of en-US, and one line drawn at font size zero (the shape of the
 LaTeX text-layer garbage issue #15 refuses); Zotero drops it before segmentation,
 so it exercises nothing yet -- a real latexit PDF is needed for that check.
 fixture-b.pdf: one page, different prose, so two tabs can be told apart.
+fixture-c.pdf: eight pages, one short paragraph each, so a reading position on
+page one can be left more than five pages behind (the distance at which Zotero
+drops its own persisted position; checklist item 5.4, issue #39).
 """
 import textwrap
 from pathlib import Path
@@ -38,6 +41,16 @@ A_PAGE2 = [
     "first rectangle of that sentence.",
     "This is the final paragraph of fixture A. It has three sentences. This is the third one, "
     "and the document ends here.",
+]
+
+ORDINALS = ["one", "two", "three", "four", "five", "six", "seven", "eight"]
+C_PAGES = [
+    [
+        f"Zotero-TTS fixture C, page {ORDINALS[i]} of eight. Each page of this document holds one "
+        f"paragraph of three sentences, so that a session paused on page one can be scrolled more "
+        f"than five pages away. Nothing else happens on page {ORDINALS[i]}."
+    ]
+    for i in range(8)
 ]
 
 B_PAGE1 = [
@@ -120,4 +133,5 @@ def build_pdf(pages, title):
     build_pdf([page_stream(A_PAGE1, invisible_after=1), page_stream(A_PAGE2)], "Zotero-TTS fixture A")
 )
 (OUT / "fixture-b.pdf").write_bytes(build_pdf([page_stream(B_PAGE1)], "Zotero-TTS fixture B"))
-print("wrote", OUT / "fixture-a.pdf", OUT / "fixture-b.pdf")
+(OUT / "fixture-c.pdf").write_bytes(build_pdf([page_stream(page) for page in C_PAGES], "Zotero-TTS fixture C"))
+print("wrote", OUT / "fixture-a.pdf", OUT / "fixture-b.pdf", OUT / "fixture-c.pdf")

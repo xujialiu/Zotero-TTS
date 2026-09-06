@@ -124,7 +124,10 @@ function fakePDF(granularity: string) {
   }
   class PDFView {
     _pages: Page[] = [];
-    _readAloudState: any = null;
+    // Zotero draws a highlight only after a state was pushed to the view,
+    // so the tests that draw without pushing one start from a state; a
+    // view nothing was pushed to yet is `undefined`, as in Zotero
+    _readAloudState: any = { popupOpen: true };
     _readAloudHighlightedPosition: unknown = null;
     _readAloudSentenceHighlightedPosition: unknown = null;
     _readAloudSentenceTimeout: unknown = null;
@@ -174,7 +177,7 @@ function fakeDOM(granularity: string) {
     }
   }
   class ReadAloud {
-    state: any = null;
+    state: any = { popupOpen: false }; // Zotero's DOM view pushes the initial state from its constructor
     constructor(public _view: DOMView) {}
     _effectivePrimaryGranularity(_state: unknown) {
       return granularity;
@@ -629,7 +632,7 @@ function fakeRangeDOM(text: string, granularity = 'word') {
     }
   }
   class ReadAloud {
-    state: any = null;
+    state: any = { popupOpen: false }; // Zotero's DOM view pushes the initial state from its constructor
     constructor(public _view: DOMView) {}
     _effectivePrimaryGranularity(_state: unknown) {
       return granularity;
@@ -966,6 +969,37 @@ describe('attach / dispose', () => {
     ]);
     expect(JSON.parse(JSON.stringify(report))).toEqual(report);
     expect(s.inspect(null)).toEqual({ views: [], style: STYLE });
+  });
+
+  it('answers a view that never received a state without calling Zotero, and logs no error (issue #39)', () => {
+    const pdf = fakePDF('word');
+    // Zotero's own method reads the state's fields unguarded, and a PDF
+    // view holds no state until its reader first pushes one (the popup's
+    // open, or a manager state change): it throws on undefined
+    pdf.view._readAloudState = undefined;
+    pdf.view._effectiveReadAloudPrimaryGranularity = (state: any) => (state.highlightGranularity === 'word' ? 'word' : 'sentence');
+    const debug = vi.fn();
+    const { styling: s, deps } = styling({ debug });
+    const report = s.inspect(pdf.reader);
+    expect(report.views).toEqual([
+      {
+        kind: 'pdf',
+        patched: false,
+        pages: 2,
+        method: 'function',
+        granularity: null,
+        activeWordTimestamp: 'real',
+        primaryShown: false,
+        state: null,
+        sentenceSlot: 'empty',
+        secondaryTrim: null,
+      },
+    ]);
+    expect(deps.error).not.toHaveBeenCalled();
+    expect(debug).toHaveBeenCalledWith('highlight: effective granularity null (method function; state missing)');
+    // A second call is as quiet as the first
+    s.inspect(pdf.reader);
+    expect(deps.error).not.toHaveBeenCalled();
   });
 
   it('leaves a view it does not recognize alone', () => {

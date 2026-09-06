@@ -291,3 +291,5 @@ cite `notes/NOTES.md` with a date or a section title resolve through this index.
 - The sample player's `<audio>` reports a failure after `play()` has resolved, and the voice browser now says so (issue #48)
 - The pane's local-server-down sentence predated the System provider, and Gecko's fetch has one word for every way a server is down (issue #47)
 - macOS joined the System provider: a `say` per sentence, an `osascript` per listing, and the sentence highlight (issue #23)
+- The two diagnostics say what they read: a view without a state answers null, and `position()` shows the copy Zotero drops (issue #39)
+- The `"English"` key is 37 publisher PDFs' `/Lang`, and whether a raw tag stands is a race the plugin then writes into the pref (issue #59)

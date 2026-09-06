@@ -272,10 +272,17 @@ export function createHighlightStyling(deps: HighlightStylingDeps): HighlightSty
 
   const granularityOf = (fn: unknown, self: unknown, state: unknown): Granularity | null => {
     let g: unknown = null;
-    try {
-      g = typeof fn === 'function' ? Reflect.apply(fn, self, [state]) : null;
-    } catch (e) {
-      deps.error(e);
+    // A view no reader has pushed a state to yet — its popup never opened,
+    // no manager state change since the tab opened — holds none, and
+    // Zotero's method reads the state's fields unguarded: asked about
+    // nothing, answer null instead of throwing into the error console
+    // (issue #39)
+    if (state) {
+      try {
+        g = typeof fn === 'function' ? Reflect.apply(fn, self, [state]) : null;
+      } catch (e) {
+        deps.error(e);
+      }
     }
     const s = state as { highlightGranularity?: unknown; segmentGranularity?: unknown } | null;
     logChange(
