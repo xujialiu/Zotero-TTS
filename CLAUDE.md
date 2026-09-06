@@ -13,7 +13,12 @@ documents, settings backup/restore (file or WebDAV), highlight colors.
   long detail goes into `<details>` blocks or `tutorials/`, never into the
   body). **After editing any `.md` under the repo, run `npm run docs`** — it
   renders every doc to `docs/` (gitignored), the source tree mirrored; tell
-  the user which `docs/….html` to open.
+  the user which `docs/….html` to open. The README in both languages,
+  `PHILOSOPHY.md` and `tutorials/` are also the public site
+  https://xujialiu.github.io/Zotero-TTS/ — `npm run site` builds it into
+  `site/` (gitignored), `.github/workflows/pages.yml` deploys it on every
+  push to `main` that touches them (issue #57); `notes/` and the test
+  checklist stay off it, and its links to them go to GitHub.
   `PHILOSOPHY.md` — the plugin is an enhancer for Read Aloud, not a
   replacement; the yardstick for new features.
   `tutorials/` — Azure's free tier, Kokoro-FastAPI and Chatterbox-TTS-Server
@@ -204,6 +209,7 @@ npm test              # vitest, ~340 tests, includes test/build.test.ts which ru
 npm run typecheck     # tsc --noEmit
 npm run build         # esbuild → addon/content/zotero-tts.js, zip → build/zotero-tts.xpi
 npm run docs          # pandoc → docs/*.html, the Markdown rendered for the browser
+npm run site          # the public docs site → site/, what .github/workflows/pages.yml deploys
 npm run docs:pin      # record which English revision each .zh.md follows
 ```
 

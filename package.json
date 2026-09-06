@@ -13,6 +13,7 @@
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
     "docs": "node scripts/render-md.mjs",
+    "site": "node scripts/build-site.mjs",
     "docs:pin": "node scripts/pin-docs.mjs"
   },
   "keywords": [],

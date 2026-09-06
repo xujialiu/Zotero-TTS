@@ -3,13 +3,17 @@
 // docs/<same path>.html — the source tree mirrored under docs/, with relative
 // links rewritten so images and cross-links still resolve.
 // Needs pandoc on PATH. docs/ is gitignored.
+// The public site (scripts/build-site.mjs, issue #57) imports the pandoc call
+// and the stylesheet from here; the command line below runs only when this
+// file is the one invoked.
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, readdirSync, writeFileSync } from 'node:fs';
-import { basename, dirname, join, posix } from 'node:path';
+import { basename, dirname, join, posix, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const OUT_DIR = 'docs';
 
-const STYLE = `
+export const STYLE = `
 :root {
   --fg: #1f2328; --muted: #59636e; --bg: #ffffff; --border: #d1d9e0;
   --code-bg: #f6f8fa; --link: #0969da; --quote: #59636e;
@@ -60,14 +64,19 @@ kbd {
 }
 `;
 
-function render(src) {
-  const srcDir = dirname(src).split(/[\\/]/).join('/');
-  const outDir = srcDir === '.' ? OUT_DIR : posix.join(OUT_DIR, srcDir);
-  const body = execFileSync(
+/** The body of a Markdown file as pandoc renders it: GitHub-flavored, lines kept as written. */
+export function pandocHtml(src) {
+  return execFileSync(
     'pandoc',
     ['-f', 'gfm', '-t', 'html', '--wrap=preserve', src],
     { encoding: 'utf8', maxBuffer: 32 * 1024 * 1024 },
-  )
+  );
+}
+
+function render(src) {
+  const srcDir = dirname(src).split(/[\\/]/).join('/');
+  const outDir = srcDir === '.' ? OUT_DIR : posix.join(OUT_DIR, srcDir);
+  const body = pandocHtml(src)
     // docs/ mirrors the source tree, so a link to another rendered .md keeps
     // its path; everything else (images, LICENSE) is re-aimed at the source.
     .replace(/\b(src|href)="([^"]+)"/g, (whole, attr, url) => {
@@ -113,7 +122,16 @@ function defaultFiles() {
   return files;
 }
 
-const files = process.argv.slice(2);
-for (const file of files.length ? files : defaultFiles()) {
-  console.log(render(file));
+/** Whether this file is the script node was started with (Windows paths compare case-blind). */
+export function isMain(metaUrl) {
+  if (!process.argv[1]) return false;
+  const fold = (p) => (process.platform === 'win32' ? p.toLowerCase() : p);
+  return fold(resolve(process.argv[1])) === fold(fileURLToPath(metaUrl));
+}
+
+if (isMain(import.meta.url)) {
+  const files = process.argv.slice(2);
+  for (const file of files.length ? files : defaultFiles()) {
+    console.log(render(file));
+  }
 }

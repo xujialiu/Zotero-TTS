@@ -1,0 +1,61 @@
+# The public docs site (issue #57): README (both languages), PHILOSOPHY and
+# the tutorials, rendered by scripts/build-site.mjs and published to
+# https://xujialiu.github.io/Zotero-TTS/ on every push to main that touches
+# them. Run it by hand (Actions → Docs site → Run workflow) after changing the
+# GOOGLE_SITE_VERIFICATION repository variable.
+name: Docs site
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'README.md'
+      - 'README.zh.md'
+      - 'PHILOSOPHY.md'
+      - 'tutorials/**'
+      - 'assets/**'
+      - 'scripts/render-md.mjs'
+      - 'scripts/build-site.mjs'
+      - '.github/workflows/pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # Full history: the sitemap's <lastmod> is each page's last commit.
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: Install pandoc
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends pandoc
+      - name: Build the site
+        run: node scripts/build-site.mjs
+        env:
+          GOOGLE_SITE_VERIFICATION: ${{ vars.GOOGLE_SITE_VERIFICATION }}
+      - uses: actions/configure-pages@v6
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5

@@ -2,9 +2,10 @@ node_modules/
 build/
 addon/content/zotero-tts.js
 
-# Agent scratch space and the rendered docs (npm run docs) — never committed.
+# Agent scratch space and the rendered docs (npm run docs, npm run site) — never committed.
 .superpowers/
 docs/
+site/
 
 # Private notes (billing account ids, cloud setup) — never committed.
 secrets/
