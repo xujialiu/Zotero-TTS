@@ -1,4 +1,4 @@
-<!-- translated-from: README.md sha256:539f4f6379a1 -->
+<!-- translated-from: README.md sha256:0a9174a54ba9 -->
 <h1 align="center">Zotero-TTS</h1>
 
 <p align="center"><em>Zotero 10 朗读功能的增强插件：本地语音模式里更多语音、按你的颜色逐词与逐句高亮、键盘快捷键。</em></p>
@@ -184,7 +184,7 @@ macOS 和 Linux 还没覆盖；这一节里写明了，在那里启用会报错�
 <details>
 <summary><b>常见问题</b></summary>
 
-- **「本地 TTS 服务器没有在该地址运行。」** 服务器没起来，或者监听在别处——`docker ps` 应该能列出它；见它的教程。
+- **「Cannot reach Kokoro at http://localhost:8880. Is the server running?」** 服务器没起来，或者监听在别的地址——这一行写的就是它试过的地址；`docker ps` 应该能列出服务器；见它的教程。
 - **语音在读，但没有逐词高亮**。把*设置 → 常规 → 朗读 → 高亮当前*设成**单词**，并且用一个会报词级时间戳的语音（Azure、Kokoro）。
 - **用 OpenAI 兼容服务器时，读到一半冒出「发生一个未知错误。」** 服务器在某一段上失败了；查它的日志。
 - **Zotero 更新之后插件的语音不见了**。朗读没有给插件的接口，插件是按阅读器标签页去挂 Zotero 内部接口的，一次更新可能让它的语音消失，直到插件跟上（Zotero 自己的语音照常）。请带上 Zotero 版本号开一个 [issue](https://github.com/xujialiu/Zotero-TTS/issues)。

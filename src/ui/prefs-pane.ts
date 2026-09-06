@@ -130,7 +130,10 @@ export async function testConnection(
     const kind = (e as { kind?: string })?.kind;
     const detail = e instanceof Error ? e.message : String(e);
     if (kind === 'local-server-down') {
-      return { ok: false, message: 'Local TTS server is not running at that address.' };
+      // The throw sites write this detail for this line — the System
+      // provider's platform sentence, the speech helper's last error,
+      // Kokoro's address — and only a bare kind has none (issue #47)
+      return { ok: false, message: detail && detail !== kind ? detail : 'Local TTS server is not running at that address.' };
     }
     if (kind === 'no-key') {
       return { ok: false, message: 'No API key set for this provider.' };

@@ -77,8 +77,11 @@ function createKokoroProvider(rawBaseURL: string, deps: LocalEngineDeps): TTSPro
     } catch (e) {
       // fetch throws outright when the local server isn't up. This must be
       // distinguished here, otherwise the user would just see a "network
-      // error" and go check their own broadband (spec §8).
-      throw new SynthesisError('local-server-down', `Cannot reach Kokoro at ${baseURL}: ${e}`);
+      // error" and go check their own broadband (spec §8). The pane shows
+      // this sentence as it is (issue #47), so it names the address that was
+      // tried and asks the one question there is: Gecko's text is the same
+      // for a refused port, a DNS failure and a TLS error.
+      throw new SynthesisError('local-server-down', `Cannot reach Kokoro at ${baseURL}. Is the server running? (${e})`);
     }
   };
 

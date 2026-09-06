@@ -345,8 +345,9 @@ password.
 <details>
 <summary><b>Common problems</b></summary>
 
-- **"Local TTS server is not running at that address."** The server is down
-  or listening elsewhere — `docker ps` should list it; see its tutorial.
+- **"Cannot reach Kokoro at http://localhost:8880. Is the server running?"**
+  The server is down or listening at another address — the line names the
+  one it tried; `docker ps` should list the server; see its tutorial.
 - **Voices play but nothing is highlighted word by word.** Set *Settings →
   General → Read Aloud → Highlight current* to **Word**, and use a voice
   that reports word timings (Azure, Kokoro).

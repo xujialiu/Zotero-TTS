@@ -124,12 +124,17 @@ describe('kokoroAdapter', () => {
     expect('timestamps' in result).toBe(false);
   });
 
-  it('reports a refused connection as local-server-down, not a generic network error', async () => {
+  // The pane shows this message as it is (issue #47): it names the address
+  // that was tried and asks the one question there is, since Gecko's fetch
+  // rejects with the same text for a refused port, a DNS failure and a TLS
+  // error alike
+  it('reports a refused connection as local-server-down, naming the address', async () => {
     const fetchImpl = vi.fn(async () => {
       throw new TypeError('NetworkError when attempting to fetch resource.');
     });
     await expect(provider(fetchImpl).synthesize('Hello', opts)).rejects.toMatchObject({
       kind: 'local-server-down',
+      message: 'Cannot reach Kokoro at http://localhost:8880. Is the server running? (TypeError: NetworkError when attempting to fetch resource.)',
     });
   });
 

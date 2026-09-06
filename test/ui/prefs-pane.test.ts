@@ -35,7 +35,21 @@ describe('testConnection', () => {
     expect(result.models).toBeUndefined();
   });
 
-  it('surfaces a local server being down as its own message', async () => {
+  // The System provider and the speech helper write their local-server-down
+  // detail for this line; the pane used to replace it with a sentence about
+  // an address that section does not have (issue #47)
+  it('shows the reason a local-server-down error carries, word for word', async () => {
+    const reason = 'System voices need the Windows speech helper; this build has none for macOS or Linux yet.';
+    const result = await testConnection(
+      provider(async () => {
+        throw new SynthesisError('local-server-down', reason);
+      }),
+    );
+    expect(result.ok).toBe(false);
+    expect(result.message).toBe(reason);
+  });
+
+  it('falls back to the generic sentence only for a local-server-down error with no detail', async () => {
     const result = await testConnection(
       provider(async () => {
         throw new SynthesisError('local-server-down');
@@ -43,6 +57,7 @@ describe('testConnection', () => {
     );
     expect(result.ok).toBe(false);
     expect(result.message).toMatch(/not running/i);
+    expect(result.message).not.toContain('local-server-down');
   });
 
   it('surfaces a missing key as its own message', async () => {
