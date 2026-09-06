@@ -368,7 +368,41 @@ it measured, updated for the fixes since where marked.
    the two rows under *Use one speed everywhere*, bound to the four
    prefs; writes through the number inputs and the checkboxes reach the
    prefs; the `?` tooltips open. By ear only: the pacing at 1× and 2×.
-10. **Teardown**: popup closed, tab closed, the item erased, `rows` back.
+10. **The player's language dropdown lands on the language's remembered
+    voice** (issue #49, 1.10.10). With *Use one voice everywhere* on, the
+    memory naming a single-language Local voice V_en under `en`, the
+    `mul` entry naming a Local multilingual voice V_mul — neither the
+    first of its Local pool, or the check proves nothing — and both
+    fixtures paused on V_en: tab 1's dropdown to *Multiple languages*,
+    driven through its own rows (the language `CustomSelect`'s trigger,
+    then `pointerup` on the `…-option-mul` row), read in the same
+    script. Expected `manager._persistedVoices` = the `mul` entry (voice
+    V_mul) right after the click — the mechanism; before the fix it was
+    still the `en` entry — `selectedVoiceID` V_mul, both pref entries as
+    before, the memory V_mul (`mul`), tab 2 on V_mul and still paused,
+    and the log in order: `staged Zotero's entry for the dropdown's mul:
+    voice V_mul`, `read-aloud memory (a pick the pref did not show): …
+    V_mul (mul)`, `applied read-aloud memory: en -> mul, …` (tab 2's
+    lane move), `spread read-aloud voice V_mul (mul): en: resynced`.
+    Back to *English (United States)* (`…-option-en-US`):
+    `_persistedVoices` the `en` entry, `selectedVoiceID` V_en (the first
+    en-US voice of the pool — AIGenerate1 on 2026-09-05 and 2026-09-06,
+    Masaru for `mul` — was the bug), entries untouched, memory V_en
+    (`en`), tab 2 on V_en. The `staged … dropdown's` line appears once
+    per click and never on a popup open, a spread, a pref restore or
+    `_prepareReadAloud()`. With an en-GB Local voice listed, *English
+    (United Kingdom)* loads the `en` entry and Zotero's own region rule
+    then skips V_en for the first en-GB voice (Abbi on 2026-09-06),
+    rewriting the entry with region `GB` — Zotero's design; the pref
+    snapshot restores it. A language with no entry starts on Zotero's
+    own choice, as without the plugin. Drive the dropdown in the
+    **selected** tab: a player opened through the API in a background
+    tab never mounts its DOM (the rulebook). Zotero logs one
+    `selectionRanges[0] is undefined` TypeError (reader.js
+    `_getAnnotationFromSelectionRanges`) per dropdown click, its own
+    noise, nothing of ours in the stack. Measured 2026-09-06 with
+    Andrew / AlloyTurbo at 2.1×, 1.10.10-beta.
+11. **Teardown**: popup closed, tab closed, the item erased, `rows` back.
 
 ## 4. Shortcuts, the toast, the recorder, two tabs
 

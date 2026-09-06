@@ -279,3 +279,4 @@ cite `notes/NOTES.md` with a date or a section title resolve through this index.
 - Xiaomi MiMo's TTS is a chat completion, and the plugin's OpenAI section learned that route (issue #50)
 - The Server dropdown's memory covers the credentials too (issue #52)
 - A typo of a hosted server's address is named before the key goes anywhere (issue #54)
+- The player's language dropdown resolved against the previous language's entry, so the pick hook now hands it the right one first (issue #49)

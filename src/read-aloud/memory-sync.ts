@@ -1,4 +1,4 @@
-import { READ_ALOUD_VOICES_PREF, readReadAloudVoices, resolveVoiceLang, type VoicesMap } from '../core/read-aloud-speed';
+import { READ_ALOUD_VOICES_PREF, readReadAloudVoices, resolveVoiceLang, type VoiceEntry, type VoicesMap } from '../core/read-aloud-speed';
 import type { PrefsBackend } from '../core/settings';
 import { setDefaultSpeed, type SpeedManagerLike } from './default-speed';
 import {
@@ -80,7 +80,11 @@ import { PLUGIN_TIER, type ListedVoice } from './voice-catalog';
  * So the popup's three picks — the manager's selectVoice, selectTier and
  * setLanguage with persist — are shadowed on the manager's prototype too
  * (each reader tab's bundle has its own class), and the voice the manager
- * settled on is learned there when the memory does not hold it yet.
+ * settled on is learned there when the memory does not hold it yet. The
+ * dropdown's setLanguage is also handed, before it runs, the entry of the
+ * language chosen: Zotero resolves it against `_persistedVoices`, which
+ * only its restore writes, so the switch would otherwise land on the first
+ * voice of the list and persist that over the entry (issue #49).
  *
  * The internal reader exists once the iframe has rendered, so readers are
  * attached from the renderToolbar event and, as the safety net, from the
@@ -327,6 +331,8 @@ export function createReadAloudMemorySync(deps: ReadAloudMemoryDeps): ReadAloudM
 
   /** The reader each internal reader belongs to (attach), for the announcement. */
   const owners = new WeakMap<object, unknown>();
+  /** The reader each manager belongs to (attach), for the entry cloned into its compartment before a dropdown pick resolves. */
+  const readerOf = new WeakMap<object, unknown>();
   /** The untrimmed list the last reconcile carried, per internal reader: how a voice the favorites trimmed out is named. */
   const published = new WeakMap<object, readonly ListedVoice[]>();
   /** What the current popup open has announced, per internal reader (`missing>instead`), so the syncs within one open say it once. */
@@ -451,6 +457,25 @@ export function createReadAloudMemorySync(deps: ReadAloudMemoryDeps): ReadAloudM
   }
 
   /**
+   * The entry Zotero's own restore would read for `lane` — from the pref,
+   * the truth even while the reader's own copy lags behind (refreshVoices),
+   * resolved as Zotero resolves it (resolveVoiceLang, issue #26) — set as
+   * the manager's `_persistedVoices`, cloned into the reader's compartment:
+   * `_findFallbackVoice` destructures it, which the reader's code may not
+   * do to a sandbox object.
+   */
+  function loadEntry(reader: unknown, manager: any, lane: string): VoiceEntry {
+    const voices = readReadAloudVoices(deps.prefs);
+    const preferred = deps.preferredLanguages?.() ?? [];
+    const key = resolveVoiceLang(lane, Object.keys(voices), preferred) ?? lane;
+    const entry = voices[key] ?? {};
+    waive(manager)._persistedVoices = deps.cloneForReader ? deps.cloneForReader(reader, entry) : entry;
+    return entry;
+  }
+
+  const voiceOfEntry = (entry: VoiceEntry): string => (typeof entry.voice === 'string' && entry.voice ? entry.voice : '-');
+
+  /**
    * The manager staged for the resolution `loadVoices` runs once the list
    * lands: what `_syncPersistedVoicesToManager` and `applyPersistedVoices`
    * would set, minus the resolution — the lane's entry as
@@ -460,16 +485,54 @@ export function createReadAloudMemorySync(deps: ReadAloudMemoryDeps): ReadAloudM
    */
   function stage(reader: unknown, internal: any, lane: string): void {
     const manager = internal._readAloudManager;
-    const voices = readReadAloudVoices(deps.prefs);
-    const preferred = deps.preferredLanguages?.() ?? [];
-    const key = resolveVoiceLang(lane, Object.keys(voices), preferred) ?? lane;
-    const entry = voices[key] ?? {};
+    const entry = loadEntry(reader, manager, lane);
     const m = waive(manager);
-    m._persistedVoices = deps.cloneForReader ? deps.cloneForReader(reader, entry) : entry;
     m._voiceID = null;
     m._selectedTier = null;
     if (validSpeed(entry.speed) && typeof manager.setSpeed === 'function') manager.setSpeed(entry.speed);
-    deps.debug?.(`staged read-aloud memory for the list about to land: ${lane}, voice ${typeof entry.voice === 'string' ? entry.voice : '-'}`);
+    deps.debug?.(`staged read-aloud memory for the list about to land: ${lane}, voice ${voiceOfEntry(entry)}`);
+  }
+
+  /** The reader a manager belongs to: as attach recorded it, else the open reader whose manager it is (the manager arrives behind a wrapper of its own). */
+  function readerForManager(manager: any): unknown {
+    const known = readerOf.get(manager);
+    if (known) return known;
+    const target = waive(manager);
+    for (const reader of deps.readers()) {
+      try {
+        const candidate = (reader as any)?._internalReader?._readAloudManager;
+        if (candidate && (candidate === manager || waive(candidate) === target)) return reader;
+      } catch (e) {
+        deps.error(e);
+      }
+    }
+    return null;
+  }
+
+  /**
+   * The popup's language dropdown — Zotero's `setLanguage` with `persist` —
+   * resolves at once and persists what it lands on, against
+   * `_persistedVoices` as it stands: the entry of the language the manager
+   * was on, since only Zotero's restore writes that field and nothing on the
+   * dropdown's path runs it for the language chosen. The remembered voice
+   * for that language was therefore never in the running: Zotero took the
+   * first voice of its list, wrote it over the language's entry, and this
+   * sync learned it as the pick and spread it (issue #49). The entry of the
+   * language being chosen is loaded first, so Zotero's own resolution finds
+   * its voice, and its region rule (a region chosen that differs from the
+   * entry's skips the entry's voice) compares against the right entry. A
+   * language with no entry is left to Zotero, as without the plugin.
+   */
+  function stageLanguagePick(manager: any, lang: unknown): void {
+    if (typeof lang !== 'string' || !lang) return;
+    const lane = memoryLangForLocale(lang);
+    const reader = readerForManager(manager);
+    if (!reader) {
+      deps.debug?.(`the dropdown picked ${lane} on a manager no reader was attached with; Zotero resolves it against the previous entry`);
+      return;
+    }
+    const entry = loadEntry(reader, manager, lane);
+    deps.debug?.(`staged Zotero's entry for the dropdown's ${lane}: voice ${voiceOfEntry(entry)}`);
   }
 
   function reconcile(reader: any, voices: ListedVoices): void {
@@ -524,8 +587,10 @@ export function createReadAloudMemorySync(deps: ReadAloudMemoryDeps): ReadAloudM
    * The popup's three picks, shadowed where Zotero defined them — the
    * manager's prototype, one per reader tab bundle (system-voices.ts does
    * the same to `_resolveVoice`). `setLanguage` counts only with
-   * `persist`: Zotero's own calls and this sync's pass none. `this` and the
-   * options object arrive behind Xray wrappers and are waived.
+   * `persist`: Zotero's own calls and this sync's pass none — and with it,
+   * the entry of the language chosen goes in before Zotero resolves
+   * (stageLanguagePick). `this` and the options object arrive behind Xray
+   * wrappers and are waived.
    */
   function attachPicks(manager: any): void {
     const proto = manager ? ownerOf(manager, 'selectVoice') : null;
@@ -534,9 +599,15 @@ export function createReadAloudMemorySync(deps: ReadAloudMemoryDeps): ReadAloudM
       if (typeof proto[name] !== 'function') continue;
       pickPatches.shadow(proto, name, (original) =>
         function (this: any, ...args: unknown[]) {
+          let persist = false;
+          try {
+            persist = name !== 'setLanguage' || !!waive(args[1])?.persist;
+            if (persist && name === 'setLanguage') stageLanguagePick(this, args[0]);
+          } catch (e) {
+            deps.error(e);
+          }
           const result = Reflect.apply(original, this, args);
           try {
-            const persist = name !== 'setLanguage' || !!waive(args[1])?.persist;
             if (persist) notePick(waive(this));
           } catch (e) {
             deps.error(e);
@@ -612,7 +683,9 @@ export function createReadAloudMemorySync(deps: ReadAloudMemoryDeps): ReadAloudM
     if (!internal || typeof internal._syncPersistedVoicesToManager !== 'function') return false;
     owners.set(internal, reader);
     try {
-      attachPicks(internal._readAloudManager);
+      const manager = internal._readAloudManager;
+      if (manager && typeof manager === 'object') readerOf.set(manager, reader);
+      attachPicks(manager);
     } catch (e) {
       deps.error(e);
     }

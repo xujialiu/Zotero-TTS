@@ -162,6 +162,7 @@ function fakeReader(
     selectedTier: { get: () => manager._selectedTier },
   });
   const tierOf = (id: string | null): string | null => manager.allVoices.find((v: FakeVoice) => v.id === id)?.tier ?? null;
+  const regionOf = (language: string): string | null => (language.includes('-') ? language.slice(language.indexOf('-') + 1) : null);
   /** ReadAloudManager._resolveVoice in miniature (see above). */
   const resolve = () => {
     // No language yet: nothing to resolve, as Zotero's returns at once
@@ -174,7 +175,10 @@ function fakeReader(
       manager._region = null;
       manager._voiceID = null;
     }
-    const forLang = tierVoices.filter((v) => baseOf(v.language) === baseOf(manager._lang));
+    // Zotero's isLanguageSupported: the base language, and with a region set, that region or none
+    const forLang = tierVoices.filter(
+      (v) => baseOf(v.language) === baseOf(manager._lang) && (!manager._region || !regionOf(v.language) || regionOf(v.language) === manager._region),
+    );
     if (manager._voiceID && forLang.some((v) => v.id === manager._voiceID)) {
       manager._selectedTier = tierOf(manager._voiceID);
       return;
@@ -183,14 +187,23 @@ function fakeReader(
       manager._voiceID = null;
       return;
     }
-    const persisted = (manager._persistedVoices ?? {}) as { voice?: unknown; tierVoices?: Record<string, unknown> };
+    // Zotero's _findFallbackVoice, from `_persistedVoices` as it stands — whatever last wrote it (issue #49)
+    const persisted = (manager._persistedVoices ?? {}) as { voice?: unknown; region?: unknown; tierVoices?: Record<string, unknown> };
     const tiers = Object.keys(persisted.tierVoices ?? {});
     const target: string | null = manager._selectedTier ?? tiers[tiers.length - 1] ?? null;
     let pool = target ? forLang.filter((v) => v.tier === target) : forLang;
     if (!pool.length) pool = forLang;
     const available = (id: unknown): id is string => typeof id === 'string' && pool.some((v) => v.id === id);
+    // A region chosen in the dropdown that differs from the entry's skips the entry's voices (regionChanged)
+    const persistedRegion = typeof persisted.region === 'string' ? persisted.region : null;
+    const regionChanged = !!(manager._region && persistedRegion && manager._region !== persistedRegion);
     const tierVoice = target ? persisted.tierVoices?.[target] : undefined;
-    const pick = available(tierVoice) ? tierVoice : available(persisted.voice) ? persisted.voice : pool[0].id;
+    let pick: string | null = !regionChanged && available(tierVoice) ? tierVoice : !regionChanged && available(persisted.voice) ? persisted.voice : null;
+    if (pick === null) {
+      // The first voice of the selected or the entry's region, else the first of the pool
+      const region = manager._region || persistedRegion;
+      pick = (region && pool.find((v) => regionOf(v.language) === region)?.id) || pool[0].id;
+    }
     manager._voiceID = pick;
     manager._selectedTier = tierOf(pick);
   };
@@ -210,14 +223,13 @@ function fakeReader(
     manager._region = options?.region ?? null;
     manager._voiceID = null;
     log.push(`setLanguage:${l}`);
-    if (options?.persist) {
-      // The popup's dropdown persists whatever voice the new language resolves to: the fake takes the entry's, else the first listed
-      manager._voiceID = parse()[l]?.voice ?? manager.allVoices[0]?.id ?? null;
-      persist();
-    } else if (manager.allVoices.length) {
-      // Zotero's own call resolves under the tier still selected (issue #36)
-      resolve();
-    }
+    if (!manager.allVoices.length) return;
+    // One resolution at once, under the tier still selected (issue #36) and
+    // from `_persistedVoices` as it stands — Zotero never re-reads the entry
+    // here (issue #49); the popup's dropdown, which passes persist, then
+    // persists whatever that landed on
+    resolve();
+    if (options?.persist) persist();
   });
   proto.selectVoice = vi.fn((id: string) => {
     manager._voiceID = id;
@@ -911,6 +923,72 @@ describe('a pick the pref does not show', () => {
     sync.attach(tab1.reader);
     tab1.manager.setLanguage('zh');
     expect(sync.memory()).toEqual(brian);
+  });
+
+  // Issue #49: Zotero's setLanguage resolves against `_persistedVoices` as
+  // it stands — the entry of the language the manager was on, since only
+  // its restore writes that field and nothing on the dropdown's path runs
+  // the restore for the language chosen — and, with persist, writes what it
+  // lands on (the first of its list) over the entry of the language chosen.
+  // The hook loads that entry first, so Zotero's own resolution finds the
+  // remembered voice, and the pick learned and spread is that voice.
+  it('lands the dropdown on the voice remembered for the language chosen, and leaves Zotero’s entries as they were (issue #49)', () => {
+    const z = fakeZotero(before, brian);
+    const cloneForReader = vi.fn<(reader: unknown, value: unknown) => unknown>((_reader, value) => value);
+    const sync = createReadAloudMemorySync({ ...z.deps, cloneForReader });
+    const tab1 = fakeReader('en', z, reading(BRIAN, { persisted: before.en }));
+    const tab2 = fakeReader('en', z, reading(BRIAN, { persisted: before.en }));
+    z.readers.push(tab1.reader, tab2.reader);
+    sync.attach(tab1.reader);
+    sync.attach(tab2.reader);
+    // To Multiple languages: Ada, the mul entry's — not Isabella, the first of the list
+    tab1.manager.setLanguage(MULTILINGUAL, { region: null, persist: true });
+    expect(tab1.manager._persistedVoices).toEqual(before[MULTILINGUAL]);
+    expect(cloneForReader).toHaveBeenCalledWith(tab1.reader, before[MULTILINGUAL]);
+    expect(tab1.manager.selectedVoiceID).toBe(ADA);
+    expect(z.voices()).toEqual(before);
+    expect(sync.memory().voice).toEqual({ id: ADA, lang: MULTILINGUAL });
+    expect(tab2.manager.selectedVoiceID).toBe(ADA);
+    // And back to English (United States): Brian, the en entry's — not Aoede
+    tab1.manager.setLanguage('en', { region: 'US', persist: true });
+    expect(tab1.manager._persistedVoices).toEqual(before.en);
+    expect(tab1.manager.selectedVoiceID).toBe(BRIAN);
+    expect(z.voices()).toEqual(before);
+    expect(sync.memory()).toEqual(brian);
+    expect(tab2.manager.selectedVoiceID).toBe(BRIAN);
+    // The hook stages the entry; the restore itself is Zotero's setLanguage
+    expect(tab1.original).not.toHaveBeenCalled();
+    expect(z.deps.debug).toHaveBeenCalledWith(expect.stringContaining('dropdown'));
+    expect(z.deps.error).not.toHaveBeenCalled();
+  });
+
+  // Zotero's own rule, working now that the entry it compares against is the right one
+  it('lets a region chosen that differs from the entry’s skip the entry’s voice, as Zotero has it', () => {
+    const SONIA = 'azure::en-GB-SoniaNeural';
+    const z = fakeZotero(before, brian);
+    const sync = createReadAloudMemorySync(z.deps);
+    const tab1 = fakeReader(MULTILINGUAL, z, reading(ADA, { persisted: before[MULTILINGUAL], voices: [...listed, SONIA] }));
+    sync.attach(tab1.reader);
+    tab1.manager.setLanguage('en', { region: 'GB', persist: true });
+    expect(tab1.manager._persistedVoices).toEqual(before.en);
+    expect(tab1.manager.selectedVoiceID).toBe(SONIA);
+    expect(z.voices().en).toEqual({ region: 'GB', voice: SONIA, speed: 1.6, tierVoices: { local: SONIA } });
+    expect(sync.memory().voice).toEqual({ id: SONIA, lang: 'en' });
+  });
+
+  // A language never used has no entry to load: Zotero's own choice for it
+  // stands, as without the plugin, and is learned like any other pick
+  it('starts a language with no entry on Zotero’s own choice, and learns it', () => {
+    const XIAOXIAO = 'azure::zh-CN-XiaoxiaoNeural';
+    const z = fakeZotero(before, brian);
+    const sync = createReadAloudMemorySync(z.deps);
+    const tab1 = fakeReader('en', z, reading(BRIAN, { persisted: before.en, voices: [...listed, XIAOXIAO] }));
+    sync.attach(tab1.reader);
+    tab1.manager.setLanguage('zh', { region: 'CN', persist: true });
+    expect(tab1.manager._persistedVoices).toEqual({});
+    expect(tab1.manager.selectedVoiceID).toBe(XIAOXIAO);
+    expect(z.voices().zh).toEqual({ region: 'CN', voice: XIAOXIAO, speed: 1.6, tierVoices: { local: XIAOXIAO } });
+    expect(sync.memory().voice).toEqual({ id: XIAOXIAO, lang: 'zh' });
   });
 
   // The pref did change: the observer learned and spread inside the persist,
