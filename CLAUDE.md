@@ -91,6 +91,13 @@ documents, settings backup/restore (file or WebDAV), highlight colors.
 - Architecture-level forks: present the options with concrete costs and a
   recommendation, then wait. Implementation details: pick the sane default,
   state it in one line, move on.
+- **A solution put to the user is said in plain words** (settled
+  2026-09-06, issue #62): what it does for them, what it costs, and what
+  they have to decide, in everyday language — no internals, no
+  identifiers, no jargon, no file or line. A reader who does not know the
+  code must be able to say yes or no to it. The mechanism, the Zotero
+  internals and the files it touches go on the issue's plan comment and
+  into NOTES.md, which is where a later session reads them.
 - Research first when asked to: report findings, do not change code.
 - **Issues** (settled 2026-08-29): a bug always gets a GitHub issue, even
   one fixed in ten minutes — the issue is the public record of a
