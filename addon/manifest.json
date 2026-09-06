@@ -3,7 +3,7 @@
   "name": "Zotero-TTS",
   "version": "1.11.2-beta3",
   "author": "Xujia Liu",
-  "description": "Enhances Read Aloud: more voices in its Local tier (Azure Speech, Kokoro-FastAPI, OpenAI-compatible servers), highlight colors, keyboard shortcuts",
+  "description": "Enhances Read Aloud: more voices in its Local tier, highlight colors, keyboard shortcuts, settings backup and reading-position sync",
   "icons": {
     "48": "content/icons/favicon@0.5x.png",
     "96": "content/icons/favicon.png"
