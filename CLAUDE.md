@@ -96,6 +96,15 @@ documents, settings backup/restore (file or WebDAV), highlight colors.
   approach nobody has weighed. The plan comes later, as the comment
   below. NOTES.md, afterwards, holds what was learned and what broke, and
   names the issue number. Neither copies the other.
+  **Issue work starts with the list** (settled 2026-09-06): before opening
+  one, and before touching one the user asks for, read every title with
+  `gh issue list --state all` — closed as much as open, since a closed
+  issue holds the evidence and the plan that already settled the same
+  ground. When one looks related, open it, read it with its comments, and
+  say so before doing anything else: the number, how it relates, and
+  whether it makes a new issue a duplicate. A second issue over ground an
+  old one covers splits the record in two, and the work then starts
+  without the reasoning that was already written down.
   Everything that leaves the plugin's behavior alone — docs, the settings
   pane's wording and layout, refactors, housekeeping — gets a `chore`
   issue instead, when the change is worth a public record: a couple of
