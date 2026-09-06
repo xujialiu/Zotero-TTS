@@ -31,7 +31,8 @@ const head = (page: string) => read(page).split('</head>')[0];
 beforeAll(() => {
   out = mkdtempSync(join(tmpdir(), 'zotero-tts-site-'));
   buildSite({ outDir: out, verification: 'test-token' });
-});
+  // A build is a dozen pandoc and git runs; ~6 s here under load (2026-09-06).
+}, 60_000);
 
 afterAll(() => {
   rmSync(out, { recursive: true, force: true });
@@ -136,5 +137,5 @@ describe('build-site', () => {
     } finally {
       rmSync(plain, { recursive: true, force: true });
     }
-  });
+  }, 60_000);
 });
