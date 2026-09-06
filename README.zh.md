@@ -1,4 +1,4 @@
-<!-- translated-from: README.md sha256:9ffb40aba652 -->
+<!-- translated-from: README.md sha256:96b138597837 -->
 <p align="center"><img src="assets/icon.png" width="80" alt="Zotero-TTS 图标"></p>
 <h1 align="center">Zotero-TTS</h1>
 
@@ -18,11 +18,9 @@
 
 <p align="center">如果你喜欢 Zotero-TTS，欢迎到 <a href="https://github.com/xujialiu/Zotero-TTS">GitHub</a> 给它点个 ⭐——让更多人发现它。</p>
 
-## 这是什么
-
-Zotero 10 自己就会朗读（Read Aloud）文档。本插件不取代它，而是增强它。朗读的活儿仍旧由 Zotero 干：播放器、断句、跳转按钮、高亮，以及它自己的标准语音和高级语音。插件只是往它的**本地**语音模式里添语音，再在边角处调整几件事。为什么这样做：[PHILOSOPHY.md](PHILOSOPHY.md)（英文）。
-
 ## 它增加了什么
+
+Zotero 10 自己就会朗读（Read Aloud），本插件不取代它的播放器——只是往播放器的**本地**语音模式里添语音，并把周边调得更顺手。[为什么这样做](PHILOSOPHY.md)（英文）。
 
 - 🗣️ **本地语音模式里更多语音**——朗读播放器里，Azure Speech、装在你机器上的 [Kokoro-FastAPI](https://github.com/remsky/Kokoro-FastAPI)、OpenAI 或任何 OpenAI 兼容服务器，与 Zotero 自己的标准、高级语音并列。[→ 服务商](#服务商)
 - 🖥️ **系统自带的语音，升一等**——Windows 和 macOS 上朗读本来就列出它们，但改由插件接管，于是它们也有语音浏览器、试听、收藏、缓存——在 Windows 上还有逐词高亮，这是 Zotero 自己那条路给不了的。[→ 系统语音](#系统语音)

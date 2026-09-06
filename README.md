@@ -17,15 +17,11 @@
 
 <p align="center">If you like Zotero-TTS, give it a ⭐ on <a href="https://github.com/xujialiu/Zotero-TTS">GitHub</a> — it helps others find it.</p>
 
-## What is this?
-
-Zotero 10 reads documents aloud on its own. This plugin does not replace
-that — it enhances it. Zotero keeps doing the reading: the player, the
-sentence segmentation, the skip buttons, the highlighting, its Standard and
-Premium voices. The plugin adds voices to its Local tier and adjusts a few
-things around the edges. Why it is built this way: [PHILOSOPHY.md](PHILOSOPHY.md).
-
 ## What it adds
+
+Zotero 10 already reads aloud, and this plugin does not replace its player —
+it adds voices to the player's **Local** tier and tunes what is around them.
+[Why it is built this way](PHILOSOPHY.md).
 
 - 🗣️ **More voices in the Local tier** of the Read Aloud player — Azure Speech, a [Kokoro-FastAPI](https://github.com/remsky/Kokoro-FastAPI) on your machine, OpenAI or any OpenAI-compatible server — next to Zotero's Standard and Premium voices. [→ Providers](#providers)
 - 🖥️ **Your system's voices, promoted** — the ones Read Aloud already lists on Windows and macOS, but taken over by the plugin so they get the voice browser, samples, favorites and the cache — and, on Windows, word-level highlighting, which Zotero's own path cannot do for them. [→ System voices](#system-voices)

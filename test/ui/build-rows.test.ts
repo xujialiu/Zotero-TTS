@@ -96,6 +96,6 @@ describe('addon/', () => {
     const readme = readFileSync(new URL('../../README.md', import.meta.url), 'utf8');
     const star = readme.indexOf(`give it a ⭐ on <a href="${REPOSITORY_URL}">GitHub</a> — it helps others find it.`);
     expect(star).toBeGreaterThan(readme.indexOf('word-highlight.gif'));
-    expect(star).toBeLessThan(readme.indexOf('## What is this?'));
+    expect(star).toBeLessThan(readme.indexOf('## What it adds'));
   });
 });
