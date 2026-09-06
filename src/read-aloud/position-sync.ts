@@ -115,6 +115,14 @@ export interface PositionSync {
    * and an actively read one reclaims the entry with its next sentence.
    */
   adopt(entry: PositionEntry): boolean;
+  /**
+   * The deletion observer's call (#51): a permanently deleted attachment's
+   * entry leaves the map at once, so no sync of this session re-uploads it,
+   * and the key stays dead for the session — neither a lingering reader's
+   * read nor a remote entry can bring it back. Returns what was held, or
+   * null; the store's row and tombstone are the observer's next call.
+   */
+  remove(lib: number, key: string): PositionEntry | null;
 }
 
 export function createPositionSync(deps: PositionSyncDeps): PositionSync {
@@ -135,6 +143,10 @@ export function createPositionSync(deps: PositionSyncDeps): PositionSync {
   // The last position seen per attachment, already serialized: an unchanged
   // sentence then costs one stringify and no parse.
   const lastSeen = new Map<string, string>();
+  // Attachments permanently deleted this session: never recorded or adopted
+  // again, however long the closing reader lingers in _readers — the row is
+  // gone, and the map must not put it back (#51)
+  const erased = new Set<string>();
 
   // One broken reader must not stop the pass: a reader torn down mid-tick
   // throws on any property read.
@@ -173,6 +185,7 @@ export function createPositionSync(deps: PositionSyncDeps): PositionSync {
     const active = !!manager?.active;
     const seen: Seen = { ...attachment, active };
     const id = attachment.lib + '/' + attachment.key;
+    if (erased.has(id)) return seen;
     if (active) wasActive.add(id);
     // Ticks read open sessions only. The one forced read at close also
     // takes a session deactivated earlier (savedPosition frozen by
@@ -270,6 +283,7 @@ export function createPositionSync(deps: PositionSyncDeps): PositionSync {
     anyActive = false;
     lastSeen.clear();
     wasActive.clear();
+    erased.clear();
     if (tick !== null) {
       guard(() => deps.clearTimeout(tick), undefined);
       tick = null;
@@ -288,6 +302,7 @@ export function createPositionSync(deps: PositionSyncDeps): PositionSync {
 
   function adopt(entry: PositionEntry): boolean {
     const id = entry.lib + '/' + entry.key;
+    if (erased.has(id)) return false;
     const existing = entries.get(id);
     if (existing && existing.ts >= entry.ts) return false;
     const taken: PositionEntry = { lib: entry.lib, key: entry.key, pos: normalizePosition(entry.pos), ts: entry.ts };
@@ -296,5 +311,15 @@ export function createPositionSync(deps: PositionSyncDeps): PositionSync {
     return true;
   }
 
-  return { start, stop, sample, captureClose, lookup, list, adopt };
+  function remove(lib: number, key: string): PositionEntry | null {
+    const id = lib + '/' + key;
+    const held = entries.get(id) ?? null;
+    entries.delete(id);
+    lastSeen.delete(id);
+    wasActive.delete(id);
+    erased.add(id);
+    return held;
+  }
+
+  return { start, stop, sample, captureClose, lookup, list, adopt, remove };
 }

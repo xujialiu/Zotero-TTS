@@ -453,4 +453,44 @@ describe('list and adopt', () => {
     // Above the future stamp, so every other machine takes this one over it
     expect(entry.ts).toBe(1000000);
   });
+
+  // #51: a permanent deletion takes the bookmark out of the map at once,
+  // and the key stays dead for the rest of the session
+  it('remove() drops the held entry and returns it', () => {
+    const h = harness([], {}, [{ lib: 1, key: 'ABCD1234', pos: PDF_POINT, ts: 1000 }]);
+    expect(h.sync.remove(1, 'ABCD1234')).toEqual({ lib: 1, key: 'ABCD1234', pos: PDF_POINT, ts: 1000 });
+    expect(h.sync.list()).toEqual([]);
+    expect(h.sync.lookup(reader())).toBeNull();
+    // The row is the store's business, through the deletion observer
+    expect(h.saved).toEqual([]);
+  });
+
+  it('remove() of a key never held returns null', () => {
+    const h = harness([]);
+    expect(h.sync.remove(1, 'NOTHERE0')).toBeNull();
+    expect(h.sync.list()).toEqual([]);
+  });
+
+  it('a removed key is not recorded again this session, however the reader lingers', () => {
+    const readers = [reader()];
+    const h = harness(readers);
+    h.sync.start();
+    h.advance(IDLE_TICK_MS);
+    expect(h.sync.list()).toHaveLength(1);
+    h.sync.remove(1, 'ABCD1234');
+    // The tab is still open with its session active, and the close capture comes after
+    readers[0].saved = LATER_POS;
+    h.advance(ACTIVE_TICK_MS);
+    h.sync.captureClose(readers[0]);
+    expect(h.sync.list()).toEqual([]);
+    expect(h.saved).toHaveLength(1);
+  });
+
+  it('adopt() refuses a removed key', () => {
+    const h = harness([], {}, [{ lib: 1, key: 'ABCD1234', pos: PDF_POINT, ts: 1000 }]);
+    h.sync.remove(1, 'ABCD1234');
+    expect(h.sync.adopt({ lib: 1, key: 'ABCD1234', pos: LATER_POS, ts: 5000 })).toBe(false);
+    expect(h.sync.list()).toEqual([]);
+    expect(h.saved).toEqual([]);
+  });
 });

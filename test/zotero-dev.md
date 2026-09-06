@@ -541,13 +541,14 @@ the starting state: on 2026-09-05 both switches were on, and the folder
 held five files — the pre-1.11 shared `zotero-tts-settings.json`, this
 machine's, another machine's, an orphan of an earlier rename of this
 machine, and the positions file with 45 entries, 8 of them the erased
-fixtures of earlier runs (issue #51) — all left as found. Item 2's
-"first upload creates the file" is not re-run from absence while the
-file holds other machines' entries; the `not-found` branch is proved with
-a GET of a name that does not exist (404). Item 3's crafted entry names
-the run's own fixture, never a user document. `readAloud.memory` is not
-a settings key, so items 5 and 6 take their settings change from a sync
-switch.
+fixtures of earlier runs (issue #51) — all left as found. Those eight
+predate the tombstones of 1.10.12 and leave the file only by one
+hand-clean, which since then sticks. Item 2's "first upload creates the
+file" is not re-run from absence while the file holds other machines'
+entries; the `not-found` branch is proved with a GET of a name that does
+not exist (404). Items 3 and 4's crafted entries name the run's own
+fixture, never a user document. `readAloud.memory` is not a settings
+key, so items 6 and 7 take their settings change from a sync switch.
 
 1. **Positions, switch off** (the default): every trigger runs and
    sends nothing — `diagnostics.positionSync()` → `enabled: false`;
@@ -565,29 +566,44 @@ switch.
    it); a crafted entry for an attachment this machine lacks survives
    every merge in the file and never enters the local store (`rows`
    unchanged).
-4. **Failure.** An unreachable URL: one reported error within the
+4. **Deletion leaves the file** (issue #51, 1.10.12). With the switch on
+   and the run's fixture read, closed and in the file: `eraseTx()` → at
+   once `positionSync().localEntries` down by one and `tombstones` up by
+   one (`position().store.deletions` the same count); the erase itself
+   pokes one sync — `transport.lastTrigger` `delete`, `dropped` 1,
+   `uploaded` true, the log line `… 1 dropped, uploaded` — and the file
+   no longer holds the key; `database.rows` down by one within ~10 s.
+   Then a copy of the entry put back into the file by hand: the next sync
+   (a tab open or close) drops it again, `dropped` 1, `uploaded` true,
+   `rows` unchanged. The same erase with the fixture's tab still open
+   ends the same way — Zotero closes the tab first, the `trace` shows
+   `tab.onClose fired` before the notifier, and the row and the entry are
+   gone afterwards. The tombstone is this machine's alone: the
+   downloaded file parses to real entries only. Before 1.10.12 the
+   erased key came back from the sampler's map at the next sync.
+5. **Failure.** An unreachable URL: one reported error within the
    timeout, a back-off window, recovery when the URL is back; the local
    store untouched.
-5. **Settings auto-upload, switch off**: a settings change queues
+6. **Settings auto-upload, switch off**: a settings change queues
    nothing (`diagnostics.settingsUpload()` → `autoUpload` idle, the
    machine file absent).
-6. **Switch on**: the change is itself uploaded ~10 s later —
+7. **Switch on**: the change is itself uploaded ~10 s later —
    `autoUpload.uploads` rises, `zotero-tts-settings_<This computer>.json`
    appears in `settingsFiles()` with a `lastModified` matching the
    upload, the backup's `meta.machine` the id; a two-change burst is one
    upload carrying the settled value; *Upload settings now* writes the
    same file without moving the auto-upload counter.
-7. **This computer.** Renaming writes a fresh file and leaves the old
+8. **This computer.** Renaming writes a fresh file and leaves the old
    machine's untouched; renaming back restores; the pre-1.11 unsuffixed
    `zotero-tts-settings.json` is listed as the shared file.
-8. **Modal flows** — *Restore settings from server…* (the picker and the
+9. **Modal flows** — *Restore settings from server…* (the picker and the
    confirm), *Export/Import reading positions…*, *Backup/Restore
    settings…* — cannot be driven from the bridge (native dialogs block
    its event loop): their substrate is proved headlessly
    (`settingsFiles()` runs the very `list()` the button runs) and the
    click paths are section 8's.
-9. **The shutdown flush** (both transports) needs a real quit: not
-   testable here; unit-tested.
+10. **The shutdown flush** (both transports) needs a real quit: not
+    testable here; unit-tested.
 
 ## 7. Errors and the end of a pass
 

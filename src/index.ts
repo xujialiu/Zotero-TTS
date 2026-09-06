@@ -1029,6 +1029,7 @@ async function startPositionTracking(): Promise<void> {
   // read-merge-write against the shared positions file; with the switch off
   // it costs a boolean read. Deps close over this generation's sampler, so
   // a shutdown flush still sees the final captures after the global clears.
+  const store = positionStore;
   positionTransport = createPositionTransport({
     enabled: () => loadSettings(prefs).webdav.syncPositions,
     client: () => createWebDAVClient(loadSettings(prefs).webdav, { fetch }),
@@ -1036,6 +1037,8 @@ async function startPositionTracking(): Promise<void> {
     adopt: (entry) => sync.adopt(entry),
     itemExists: (lib, key) => !!Zotero.Items.getIDFromLibraryAndKey(lib, key),
     libraryExists: (lib) => !!Zotero.Libraries.exists(lib),
+    // This machine's tombstones (#51): what it permanently deleted leaves the file
+    deletedAt: (lib, key) => store?.deletedAt(lib, key) ?? null,
     now: () => Date.now(),
     error: (e) => Zotero.logError(e),
     debug: (message) => Zotero.debug('[zotero-tts] ' + message),
@@ -1104,19 +1107,37 @@ async function stopPositionTracking(): Promise<void> {
 }
 
 /**
- * Rows follow permanent deletion. Zotero queues `('delete', 'item', ids,
- * extraData)` with `extraData[id] = { libraryID, key }` — exactly the
+ * Bookmarks follow permanent deletion. Zotero queues `('delete', 'item',
+ * ids, extraData)` with `extraData[id] = { libraryID, key }` — exactly the
  * store's primary key, put there because the object is gone by notification
  * time (xpcom/data/dataObject.js:1446-1489). Erasing a parent item erases
  * each child attachment through its own `erase()`, so children notify too
- * (item.js:5573-5583); Empty Trash and sync-driven deletions take the same
- * path. Trashing is a different event and clears nothing — a trashed item
- * can be restored, and its bookmark must survive.
+ * (item.js:5573-5583); Empty Trash and sync-driven deletions
+ * (sync/syncLocal.js:464-469) take the same path. Trashing is a different
+ * event and clears nothing — a trashed item can be restored, and its
+ * bookmark must survive. Removing a library from this machine deletes its
+ * rows without item notifications (data/library.js:667), so nothing here
+ * runs for it: those rows go at the next start's sweep, tombstone-less.
+ *
+ * Three things per deleted attachment this machine held a bookmark for
+ * (#51): the sampler's map drops the entry, so no sync of this session
+ * re-uploads it; the store's row goes, with a tombstone stamped above
+ * whatever was held; and one poke sends the transport to take the entry
+ * out of the shared file now, rather than at the next tab event. A
+ * deletion of something never read aloud — a note, an annotation, a
+ * parent item's other children — costs a map miss and writes nothing.
  *
  * `notify` stays synchronous: Zotero awaits every observer
  * (xpcom/notifier.js:167), so the deletion goes into the store's write
- * queue — the same serialized queue as saves, so a captureClose racing the
- * deletion cannot resurrect the row.
+ * queue — the same serialized queue as saves. `Zotero.Reader`'s own
+ * observer, registered at init with the same priority, runs first and
+ * closes the attachment's tab (xpcom/reader.js:2831), so a close capture's
+ * save is queued before this remove; and the sampler marks the key erased
+ * for the session, so a lingering reader cannot put the entry back. The
+ * notifier yields between observers, though, so the close's own sync can
+ * read the map before this remove and upload the entry — measured live
+ * 2026-09-06 — which is why the poke below runs on every held removal
+ * rather than trusting the close: its trailing sync takes the entry out.
  */
 function startDeletionObserver(): void {
   if (deleteNotifierID !== null) return;
@@ -1125,16 +1146,24 @@ function startDeletionObserver(): void {
       {
         notify: (event: string, _type: string, ids: unknown[], extraData: any) => {
           if (event !== 'delete') return;
+          let held = 0;
           for (const id of ids ?? []) {
             try {
               const gone = extraData?.[id as never];
               const lib = gone?.libraryID;
               const key = gone?.key;
-              if (typeof lib === 'number' && typeof key === 'string' && key) positionStore?.remove(lib, key);
+              if (typeof lib === 'number' && typeof key === 'string' && key) {
+                const entry = positionSync?.remove(lib, key) ?? null;
+                if (entry) held++;
+                // Stamped above what was held: an entry adopted from a machine
+                // with a fast clock must not outlive its own deletion
+                positionStore?.remove(lib, key, entry ? Math.max(Date.now(), entry.ts) : undefined);
+              }
             } catch (e) {
               Zotero.logError(e);
             }
           }
+          if (held > 0) positionTransport?.poke('delete');
         },
       },
       ['item'],
@@ -1732,7 +1761,8 @@ const diagnostics = {
   /**
    * The WebDAV side of the bookmarks (#40): whether the switch and the
    * server are set, and what the last sync did — trigger, outcome, counts.
-   * `adopted` counts entries taken from other machines; `uploaded` says
+   * `adopted` counts entries taken from other machines, `dropped` the ones
+   * this machine's tombstones took out of the file (#51); `uploaded` says
    * whether the merged union went back up. A build is proved by this report
    * changing across a poke, never by the server's file looking right.
    */
@@ -1743,6 +1773,9 @@ const diagnostics = {
         enabled: webdav.syncPositions,
         configured: !!webdav.url,
         localEntries: safe(() => positionSync?.list().length ?? null),
+        // Attachments permanently deleted here whose bookmark this machine
+        // held (#51): what the transport drops from the shared file
+        tombstones: safe(() => positionStore?.stats().deletions ?? null),
         transport: safe(() => positionTransport?.stats() ?? 'not started'),
       },
       null,

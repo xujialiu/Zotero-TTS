@@ -49,6 +49,7 @@ function harness(over: Partial<PositionTransportDeps> = {}) {
     },
     itemExists: () => true,
     libraryExists: () => true,
+    deletedAt: () => null,
     now: () => clock,
     error: (e) => errors.push(e),
     debug: () => {},
@@ -251,5 +252,51 @@ describe('createPositionTransport', () => {
     // Both forced through: the running one and the trailing shutdown flush
     expect(h.downloads).toHaveLength(3);
     expect(h.transport.stats().lastOutcome).toBe('ok');
+  });
+
+  // #51: a tombstone on this machine takes the entry out of the shared file
+  it('drops an entry this machine deleted from the adopt loop and the file', async () => {
+    const h = harness({ deletedAt: (_lib, key) => (key === 'GONE0000' ? 5000 : null) });
+    const gone = entry({ key: 'GONE0000', ts: 4000 });
+    const kept = entry({ ts: 3000 });
+    h.setLocal([kept]);
+    h.setRemote(serializePositions([gone, kept]));
+    await h.transport.flush('delete');
+    expect(h.adopted).toEqual([kept]);
+    expect(h.uploads).toEqual([{ name: POSITIONS_FILENAME, text: serializePositions([kept]) }]);
+    expect(h.transport.stats()).toMatchObject({ lastOutcome: 'ok', dropped: 1, uploaded: true });
+  });
+
+  it('an entry stamped exactly at the deletion is dropped too', async () => {
+    const h = harness({ deletedAt: () => 5000 });
+    h.setRemote(serializePositions([entry({ ts: 5000 })]));
+    await h.transport.flush('startup');
+    expect(h.adopted).toEqual([]);
+    expect(h.uploads).toEqual([{ name: POSITIONS_FILENAME, text: serializePositions([]) }]);
+    expect(h.transport.stats().dropped).toBe(1);
+  });
+
+  it('keeps an entry stamped after the deletion — a document restored and read again', async () => {
+    const h = harness({ deletedAt: () => 5000 });
+    const revived = entry({ ts: 5001 });
+    h.setRemote(serializePositions([revived]));
+    await h.transport.flush('startup');
+    expect(h.adopted).toEqual([revived]);
+    expect(h.uploads).toEqual([]);
+    expect(h.transport.stats().dropped).toBe(0);
+  });
+
+  it('a tombstone check that throws keeps the entry and reports once — never drop on an error', async () => {
+    const h = harness({
+      deletedAt: () => {
+        throw new Error('store closed');
+      },
+    });
+    const mine = entry();
+    h.setLocal([mine]);
+    await h.transport.flush('startup');
+    expect(h.errors).toHaveLength(1);
+    expect(h.uploads).toEqual([{ name: POSITIONS_FILENAME, text: serializePositions([mine]) }]);
+    expect(h.transport.stats()).toMatchObject({ lastOutcome: 'ok', dropped: 0 });
   });
 });

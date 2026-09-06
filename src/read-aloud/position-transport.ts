@@ -20,6 +20,15 @@ import type { PositionEntry } from './read-aloud-position';
  * fire-and-forget and single-flight — a burst of tab opens coalesces into
  * the running sync plus one trailing one — so nothing ever blocks a tab.
  *
+ * The one thing that leaves the file is a bookmark of a document this
+ * machine permanently deleted (#51): the store's tombstone for it, stamped
+ * when the deletion was learned of, drops every entry stamped no later than
+ * that from the merge — out of the adopt loop and out of the upload — so the
+ * next sync takes the orphan out of the file instead of keeping it forever.
+ * Tombstones never travel: every machine that held the bookmark hears the
+ * same deletion through Zotero's own sync and drops the entry on its own,
+ * and a machine that never held it never re-adds it.
+ *
  * Failures follow the store's pattern (#14): report once per window, back
  * off, and never treat a failed write as done — the local store is the
  * source of truth and the next healthy sync carries everything. Two remote
@@ -50,6 +59,12 @@ export interface PositionTransportDeps {
   itemExists(lib: number, key: string): boolean;
   /** `Zotero.Libraries.exists`. */
   libraryExists(lib: number): boolean;
+  /**
+   * When this machine permanently deleted the attachment — the store's
+   * tombstone (#51) — or null. An entry stamped no later than that is
+   * dropped from the merge.
+   */
+  deletedAt(lib: number, key: string): number | null;
   now(): number;
   error(e: unknown): void;
   debug(message: string): void;
@@ -65,6 +80,8 @@ export interface PositionTransportStats {
   /** The last completed sync's numbers; null before one completes. */
   remoteEntries: number | null;
   adopted: number | null;
+  /** Entries dropped from the file for this machine's tombstones (#51). */
+  dropped: number | null;
   uploaded: boolean | null;
   running: boolean;
 }
@@ -85,6 +102,7 @@ export function createPositionTransport(deps: PositionTransportDeps): PositionTr
   let lastError: string | null = null;
   let remoteEntries: number | null = null;
   let adoptedCount: number | null = null;
+  let droppedCount: number | null = null;
   let uploadedFlag: boolean | null = null;
   let lastFailureAt = Number.NEGATIVE_INFINITY;
   let lastReportAt = Number.NEGATIVE_INFINITY;
@@ -139,7 +157,21 @@ export function createPositionTransport(deps: PositionTransportDeps): PositionTr
           remoteText = null;
         }
       }
-      const merged = mergePositions(deps.local(), remote);
+      // This machine's tombstones (#51): an entry stamped no later than the
+      // deletion leaves the file here. The check failing keeps the entry —
+      // a wrongly kept orphan costs bytes, a wrongly dropped one is a bookmark
+      let dropped = 0;
+      const merged = mergePositions(deps.local(), remote).filter((entry) => {
+        let gone = false;
+        try {
+          const at = deps.deletedAt(entry.lib, entry.key);
+          gone = at !== null && entry.ts <= at;
+        } catch (e) {
+          reportGated(e);
+        }
+        if (gone) dropped++;
+        return !gone;
+      });
       let adopted = 0;
       for (const entry of merged) {
         // Only bookmarks this machine can resolve go into its store; the
@@ -160,11 +192,12 @@ export function createPositionTransport(deps: PositionTransportDeps): PositionTr
       }
       remoteEntries = remote.length;
       adoptedCount = adopted;
+      droppedCount = dropped;
       uploadedFlag = uploaded;
       lastOutcome = 'ok';
       lastError = null;
       lastFailureAt = Number.NEGATIVE_INFINITY;
-      deps.debug(`position sync (${trigger}): ${remote.length} remote, ${merged.length} merged, ${adopted} adopted${uploaded ? ', uploaded' : ''}`);
+      deps.debug(`position sync (${trigger}): ${remote.length} remote, ${merged.length} merged, ${adopted} adopted, ${dropped} dropped${uploaded ? ', uploaded' : ''}`);
     } catch (e) {
       lastOutcome = 'error';
       lastError = String(e);
@@ -215,6 +248,7 @@ export function createPositionTransport(deps: PositionTransportDeps): PositionTr
       lastError,
       remoteEntries,
       adopted: adoptedCount,
+      dropped: droppedCount,
       uploaded: uploadedFlag,
       running: inFlight !== null,
     }),

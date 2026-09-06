@@ -80,6 +80,7 @@ function fakeDB(raw = new DatabaseSync(':memory:')) {
     db,
     raw,
     rows: () => raw.prepare('SELECT libraryID, key, pos, ts FROM positions ORDER BY key').all() as { libraryID: number; key: string; pos: string; ts: number }[],
+    deletions: () => raw.prepare('SELECT libraryID, key, ts FROM deletions ORDER BY key').all() as { libraryID: number; key: string; ts: number }[],
     userVersion: () => Number((raw.prepare('PRAGMA user_version').get() as { user_version: number }).user_version),
     fail: (message: string | null) => void (failing = message),
     hold: (promise: Promise<void> | null) => void (holdTransaction = promise),
@@ -391,5 +392,99 @@ describe('createPositionStore', () => {
       writing: false,
       lastError: null,
     });
+  });
+
+  // #51: a permanent deletion leaves a tombstone, so the transport can take
+  // the entry out of the shared file — and keep it out
+  it('remove() with a deletion time records a tombstone in the same write, and deletedAt() answers at once', async () => {
+    const h = harness();
+    await h.store.open();
+    h.store.save(entry({ ts: 100 }));
+    await h.store.drain();
+    h.store.remove(1, 'ABCD1234', 150);
+    // Known before the write lands: the delete-triggered sync runs first
+    expect(h.store.deletedAt(1, 'ABCD1234')).toBe(150);
+    await h.store.drain();
+    expect(h.fake.rows()).toEqual([]);
+    expect(h.fake.deletions()).toEqual([{ libraryID: 1, key: 'ABCD1234', ts: 150 }]);
+    expect(h.store.stats().deletions).toBe(1);
+  });
+
+  it('remove() without a deletion time records nothing', async () => {
+    const h = harness();
+    await h.store.open();
+    h.store.save(entry());
+    await h.store.drain();
+    h.store.remove(1, 'ABCD1234');
+    await h.store.drain();
+    expect(h.fake.rows()).toEqual([]);
+    expect(h.fake.deletions()).toEqual([]);
+    expect(h.store.deletedAt(1, 'ABCD1234')).toBeNull();
+    expect(h.store.stats().deletions).toBe(0);
+  });
+
+  it('a save behind a tombstoned remove does not swallow the tombstone', async () => {
+    const h = harness();
+    await h.store.open();
+    h.store.remove(1, 'ABCD1234', 150);
+    h.store.save(entry({ ts: 200 }));
+    await h.store.drain();
+    expect(h.fake.rows()).toEqual([{ libraryID: 1, key: 'ABCD1234', pos: JSON.stringify(PDF_POINT), ts: 200 }]);
+    expect(h.fake.deletions()).toEqual([{ libraryID: 1, key: 'ABCD1234', ts: 150 }]);
+  });
+
+  it('open() loads the tombstones of earlier sessions', async () => {
+    const first = harness();
+    await first.store.open();
+    first.store.remove(1, 'GONE0000', 77);
+    await first.store.drain();
+    const again = fakeDB(first.fake.raw);
+    const h = harness({ db: again.db });
+    await h.store.open();
+    expect(h.store.deletedAt(1, 'GONE0000')).toBe(77);
+    expect(h.store.deletedAt(1, 'OTHER000')).toBeNull();
+    expect(h.store.stats().deletions).toBe(1);
+  });
+
+  it('open() migrates a schema-1 file: rows kept, the deletions table added', async () => {
+    const raw = new DatabaseSync(':memory:');
+    raw.exec('CREATE TABLE positions (libraryID INTEGER NOT NULL, key TEXT NOT NULL, pos TEXT NOT NULL, ts INTEGER NOT NULL, PRIMARY KEY (libraryID, key))');
+    raw.prepare('INSERT INTO positions (libraryID, key, pos, ts) VALUES (?, ?, ?, ?)').run(1, 'KEEP0000', JSON.stringify(CFI), 5);
+    raw.exec('PRAGMA user_version = 1');
+    const fake = fakeDB(raw);
+    const h = harness({ db: fake.db });
+    const loaded = await h.store.open();
+    expect(fake.userVersion()).toBe(SCHEMA_VERSION);
+    expect(loaded).toEqual([{ lib: 1, key: 'KEEP0000', pos: CFI, ts: 5 }]);
+    expect(fake.deletions()).toEqual([]);
+    expect(h.store.stats().deletions).toBe(0);
+  });
+
+  it('the sweep tombstones a row whose item is gone while its library remains, never one whose library is gone', async () => {
+    const first = harness();
+    await first.store.open();
+    const put = first.fake.raw.prepare('REPLACE INTO positions (libraryID, key, pos, ts) VALUES (?, ?, ?, ?)');
+    put.run(1, 'ALIVE000', JSON.stringify(CFI), 1);
+    put.run(1, 'GONE0000', JSON.stringify(CFI), 2);
+    // Stamped by a machine whose clock ran ahead of this one's
+    put.run(1, 'FAST0000', JSON.stringify(CFI), 5000);
+    put.run(9, 'DEADLIB0', JSON.stringify(CFI), 3);
+    const again = fakeDB(first.fake.raw);
+    const h = harness({
+      db: again.db,
+      itemExists: (_lib, key) => key === 'ALIVE000',
+      libraryExists: (lib) => lib === 1,
+    });
+    h.tick(1000);
+    await h.store.open();
+    // Stamped at open or at the row's own time, whichever is later, so the
+    // tombstone beats the file's copy of exactly this row
+    expect(again.deletions()).toEqual([
+      { libraryID: 1, key: 'FAST0000', ts: 5000 },
+      { libraryID: 1, key: 'GONE0000', ts: 1000 },
+    ]);
+    expect(h.store.deletedAt(1, 'GONE0000')).toBe(1000);
+    expect(h.store.deletedAt(9, 'DEADLIB0')).toBeNull();
+    expect(h.store.stats()).toMatchObject({ swept: 3, deletions: 2 });
   });
 });

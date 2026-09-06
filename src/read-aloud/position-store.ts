@@ -26,6 +26,17 @@ import { normalizePosition, type PositionEntry } from './read-aloud-position';
  * overtaken by it — and the notifier observer stays synchronous, which
  * matters because Zotero awaits every observer (xpcom/notifier.js:167).
  *
+ * A second table, `deletions`, holds this machine's tombstones (#51): one
+ * row per attachment permanently deleted here whose bookmark this machine
+ * held, stamped when it learned of the deletion. The WebDAV transport
+ * (position-transport.ts) drops an entry stamped no later than its
+ * tombstone from the merge, so the shared file loses the orphan instead of
+ * keeping it forever; the tombstones themselves never leave the machine.
+ * The startup sweep records one for every row whose library is still here
+ * but whose item is not — a deletion that happened while the plugin was
+ * not running — and none for a row whose library is gone, since a library
+ * removed from this machine is not a deleted document.
+ *
  * The connection MUST be closed permanently at shutdown: Gecko's
  * Sqlite.sys.mjs blocks `profile-before-change` on every open connection,
  * so a leaked one turns quitting Zotero into a 60-second AsyncShutdown hang
@@ -33,7 +44,7 @@ import { normalizePosition, type PositionEntry } from './read-aloud-position';
  * any write would throw "Database permanently closed".
  */
 
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
 
 /** A failed write retries at most once per window — the pref store's cadence. */
 export const RETRY_MS = 10000;
@@ -78,6 +89,8 @@ export interface PositionStoreStats {
   queued: number;
   writing: boolean;
   lastError: string | null;
+  /** Tombstones held in memory — loaded at open, plus those recorded since. */
+  deletions: number;
 }
 
 export interface PositionStore {
@@ -89,8 +102,16 @@ export interface PositionStore {
   open(): Promise<PositionEntry[]>;
   /** Queue one row write; coalesced per attachment, safe before open and after close. */
   save(entry: PositionEntry): void;
-  /** Queue one row's removal — permanent item deletion; same queue, last op per attachment wins. */
-  remove(lib: number, key: string): void;
+  /**
+   * Queue one row's removal — permanent item deletion; same queue, last op
+   * per attachment wins. With `deletedAt`, a tombstone is recorded too
+   * (#51): the same transaction writes it to `deletions`, and `deletedAt()`
+   * answers it at once, so the delete-triggered sync drops the entry from
+   * the shared file before the write has even landed.
+   */
+  remove(lib: number, key: string, deletedAt?: number): void;
+  /** When this machine permanently deleted the attachment — its tombstone — or null. Synchronous, from memory. */
+  deletedAt(lib: number, key: string): number | null;
   /** Retry a failed flush; a no-op while healthy, gated to one attempt per RETRY_MS. */
   retry(): void;
   /** One forced flush of whatever is queued — no retry loop; the caller bounds the wait. */
@@ -100,7 +121,10 @@ export interface PositionStore {
   stats(): PositionStoreStats;
 }
 
-type Op = { kind: 'put'; entry: PositionEntry } | { kind: 'remove'; lib: number; key: string };
+type Op =
+  | { kind: 'put'; entry: PositionEntry }
+  | { kind: 'remove'; lib: number; key: string }
+  | { kind: 'tombstone'; lib: number; key: string; ts: number };
 
 export function createPositionStore(deps: PositionStoreDeps): PositionStore {
   let state: PositionStoreStats['state'] = 'new';
@@ -110,8 +134,14 @@ export function createPositionStore(deps: PositionStoreDeps): PositionStore {
   let loaded: number | null = null;
   let lastError: string | null = null;
   let lastFailureAt = 0;
-  /** Pending ops by `lib/key`, last op per attachment wins; Map order is arrival order. */
+  /**
+   * Pending ops by `lib/key`, last op per attachment wins; Map order is
+   * arrival order. A tombstone rides under its own key, so a save queued
+   * behind the remove cannot swallow it.
+   */
   const queue = new Map<string, Op>();
+  /** This machine's tombstones by `lib/key`: loaded at open, plus those recorded since. */
+  const tombstones = new Map<string, number>();
   /** The running flush, so drain() can wait it out; never rejects. */
   let pumping: Promise<void> | null = null;
 
@@ -137,8 +167,10 @@ export function createPositionStore(deps: PositionStoreDeps): PositionStore {
             JSON.stringify(op.entry.pos),
             op.entry.ts,
           ]);
-        } else {
+        } else if (op.kind === 'remove') {
           await deps.db.queryAsync('DELETE FROM positions WHERE libraryID = ? AND key = ?', [op.lib, op.key]);
+        } else {
+          await deps.db.queryAsync('REPLACE INTO deletions (libraryID, key, ts) VALUES (?, ?, ?)', [op.lib, op.key, op.ts]);
         }
       }
     });
@@ -181,7 +213,9 @@ export function createPositionStore(deps: PositionStoreDeps): PositionStore {
   }
 
   async function open(): Promise<PositionEntry[]> {
-    // Schema, keyed off PRAGMA user_version; 0 is a fresh file
+    // Schema, keyed off PRAGMA user_version; 0 is a fresh file. Every
+    // step is additive and idempotent, so one pass brings any older file
+    // up: 1 (#16) the rows, 2 (#51) the tombstones
     const version = Number(await deps.db.valueQueryAsync('PRAGMA user_version')) || 0;
     if (version < SCHEMA_VERSION) {
       await deps.db.executeTransaction(async () => {
@@ -190,6 +224,13 @@ export function createPositionStore(deps: PositionStoreDeps): PositionStore {
             'libraryID INTEGER NOT NULL, ' +
             'key TEXT NOT NULL, ' +
             'pos TEXT NOT NULL, ' +
+            'ts INTEGER NOT NULL, ' +
+            'PRIMARY KEY (libraryID, key))',
+        );
+        await deps.db.queryAsync(
+          'CREATE TABLE IF NOT EXISTS deletions (' +
+            'libraryID INTEGER NOT NULL, ' +
+            'key TEXT NOT NULL, ' +
             'ts INTEGER NOT NULL, ' +
             'PRIMARY KEY (libraryID, key))',
         );
@@ -241,14 +282,16 @@ export function createPositionStore(deps: PositionStoreDeps): PositionStore {
     }[];
     let checksBroken = false;
     const alive: PositionEntry[] = [];
-    const dead: { lib: number; key: string }[] = [];
+    const dead: { lib: number; key: string; tombstone: number | null }[] = [];
     for (const row of rows) {
       const lib = Number(row.libraryID);
       const key = String(row.key);
       let keep = true;
+      let libraryHere = true;
       if (!checksBroken) {
         try {
-          keep = deps.libraryExists(lib) && deps.itemExists(lib, key);
+          libraryHere = deps.libraryExists(lib);
+          keep = libraryHere && deps.itemExists(lib, key);
         } catch (e) {
           checksBroken = true;
           keep = true;
@@ -256,7 +299,11 @@ export function createPositionStore(deps: PositionStoreDeps): PositionStore {
         }
       }
       if (!keep) {
-        dead.push({ lib, key });
+        // A tombstone only for a document deleted while the plugin was not
+        // running — the library still here, the item not — stamped at open
+        // or at the row's own time, whichever is later, so it beats the
+        // shared file's copy of exactly this row (#51)
+        dead.push({ lib, key, tombstone: libraryHere ? Math.max(deps.now(), Number(row.ts) || 0) : null });
         continue;
       }
       try {
@@ -272,11 +319,25 @@ export function createPositionStore(deps: PositionStoreDeps): PositionStore {
       await deps.db.executeTransaction(async () => {
         for (const d of dead) {
           await deps.db.queryAsync('DELETE FROM positions WHERE libraryID = ? AND key = ?', [d.lib, d.key]);
+          if (d.tombstone !== null) {
+            await deps.db.queryAsync('REPLACE INTO deletions (libraryID, key, ts) VALUES (?, ?, ?)', [d.lib, d.key, d.tombstone]);
+          }
         }
       });
+      for (const d of dead) {
+        if (d.tombstone !== null) tombstones.set(opKey(d.lib, d.key), d.tombstone);
+      }
     }
     swept = dead.length;
     loaded = alive.length;
+
+    // The tombstones of earlier sessions. One recorded while the database
+    // was still opening is newer than anything on disk and stays
+    const stones = ((await deps.db.queryAsync('SELECT libraryID, key, ts FROM deletions')) ?? []) as { libraryID: unknown; key: unknown; ts: unknown }[];
+    for (const row of stones) {
+      const id = opKey(Number(row.libraryID), String(row.key));
+      if (!tombstones.has(id)) tombstones.set(id, Number(row.ts));
+    }
 
     state = 'open';
     // Saves that arrived while the database was opening go out now
@@ -299,11 +360,16 @@ export function createPositionStore(deps: PositionStoreDeps): PositionStore {
       queue.set(opKey(entry.lib, entry.key), { kind: 'put', entry });
       void pump();
     },
-    remove: (lib, key) => {
+    remove: (lib, key, deletedAt) => {
       if (state === 'closed') return;
       queue.set(opKey(lib, key), { kind: 'remove', lib, key });
+      if (deletedAt !== undefined) {
+        tombstones.set(opKey(lib, key), deletedAt);
+        queue.set('tombstone:' + opKey(lib, key), { kind: 'tombstone', lib, key, ts: deletedAt });
+      }
       void pump();
     },
+    deletedAt: (lib, key) => tombstones.get(opKey(lib, key)) ?? null,
     retry: () => {
       void pump();
     },
@@ -330,6 +396,7 @@ export function createPositionStore(deps: PositionStoreDeps): PositionStore {
       queued: queue.size,
       writing: pumping !== null,
       lastError,
+      deletions: tombstones.size,
     }),
   };
 }

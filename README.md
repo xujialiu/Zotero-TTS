@@ -323,10 +323,12 @@ instead of looking enabled and playing nothing.
 as one shared file: listen on one computer, press `Shift+Space` on
 another, and reading continues at that sentence. Positions merge — every
 computer contributes the documents it listened to, the newest position
-wins — so turning it on never erases anything. It works when both
-computers hold the same library (synced or copied over), and it stays
-separate from the settings files: restoring settings moves no reading
-positions, and reading positions carry no settings.
+wins — so turning it on never erases anything. Only deleting a document
+for good removes its bookmark, from the shared file and from every
+computer. It works when both computers hold the same library (synced or
+copied over), and it stays separate from the settings files: restoring
+settings moves no reading positions, and reading positions carry no
+settings.
 
 <details>
 <summary><b>WebDAV URL examples</b></summary>
