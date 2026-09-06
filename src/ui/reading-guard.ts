@@ -1,3 +1,5 @@
+import { t } from '../core/l10n';
+
 /**
  * Editing the Read Aloud player's voice list while a tab is reading.
  *
@@ -41,9 +43,8 @@
 
 /** Which tabs, and what to do — nothing about why (the user's call: no implementation detail in the dialog). */
 export function readingTabsMessage(titles: readonly string[]): string {
-  const one = titles.length === 1;
   const list = titles.map((title) => `  • ${title}`).join('\n');
-  return `Read Aloud is open in ${one ? 'a tab' : `${titles.length} tabs`}:\n${list}\n\nClose ${one ? 'that tab' : 'those tabs'}, then try again.`;
+  return t('ztts-reading-tabs', { count: titles.length, list });
 }
 
 export interface ReadingGuardDeps {
@@ -124,7 +125,7 @@ export function showPaneNotice(
   dialog.appendChild(body);
 
   const buttons = el('div', 'display: flex; justify-content: flex-end; padding: 10px 14px 14px;');
-  const ok = el('button', 'min-width: 6.5em; padding: 5px 14px; font: inherit;', 'OK');
+  const ok = el('button', 'min-width: 6.5em; padding: 5px 14px; font: inherit;', t('ztts-ok'));
   ok.addEventListener('click', () => dialog.close());
   buttons.appendChild(ok);
   dialog.appendChild(buttons);

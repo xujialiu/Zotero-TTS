@@ -16,6 +16,8 @@
  * line simply leaves it out.
  */
 
+import { t } from '../core/l10n';
+
 /** The pane's row for the line (addon/content/preferences.xhtml). */
 export const BUILD_LINE_ID = 'ztts-build-line';
 
@@ -46,12 +48,14 @@ export interface BuildInfo {
 
 /** `Version 1.8.6-beta4 · Date 2026-08-29 · Author Xujia Liu`, without the parts this build lacks. */
 export function buildLine(info: BuildInfo): string {
-  const fields: Array<[string, string]> = [
-    ['Version', info.version],
-    ['Date', info.date ?? BUILD_DATE],
-    ['Author', info.author ?? PLUGIN_AUTHOR],
-  ];
-  const parts = fields.filter(([, value]) => value.trim()).map(([name, value]) => `${name} ${value.trim()}`);
+  const version = info.version.trim();
+  const date = (info.date ?? BUILD_DATE).trim();
+  const author = (info.author ?? PLUGIN_AUTHOR).trim();
+  const parts = [
+    version ? t('ztts-build-version', { version }) : '',
+    date ? t('ztts-build-date', { date }) : '',
+    author ? t('ztts-build-author', { author }) : '',
+  ].filter(Boolean);
   return parts.length ? parts.join(SEPARATOR) : UNKNOWN;
 }
 

@@ -1,3 +1,4 @@
+import { sentences, t } from '../core/l10n';
 import type { PrefsBackend } from '../core/settings';
 import { applyBackup, BACKUP_FILENAME, createBackup, parseBackup, serializeBackup } from '../core/settings-backup';
 import { parsePositions, POSITIONS_FILENAME, serializePositions } from '../read-aloud/position-file';
@@ -75,8 +76,8 @@ interface RowsDocument {
 
 const describe = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
-/** What the pane says while the providers are being checked. */
-export const CHECKING_PROVIDERS = 'Checking the providers it turns on…';
+/** What the pane says while the providers are being checked — a function, since the strings are installed after this module loads (core/l10n.ts). */
+export const checkingProviders = (): string => t('ztts-checking-providers');
 
 /**
  * The restore's closing check (issue #21), tolerant of its own failure: the
@@ -88,7 +89,7 @@ export async function verifyRestoredProviders(deps: { verifyProviders?(): Promis
   try {
     return (await deps.verifyProviders()) || '';
   } catch (e) {
-    return `The providers could not be checked: ${describe(e)}`;
+    return t('ztts-providers-uncheckable', { detail: describe(e) });
   }
 }
 
@@ -108,9 +109,9 @@ export function initBackupRows(doc: RowsDocument, deps: BackupRowsDeps): void {
       }
       const backup = createBackup(deps.prefs, { pluginVersion: deps.pluginVersion, exportedAt: deps.now?.() });
       await deps.writeFile(path, serializeBackup(backup));
-      message(`Saved to ${path}. The file holds every setting, the API keys, gateway headers and WebDAV password included — keep it private.`);
+      message(t('ztts-backup-saved', { path }));
     } catch (e) {
-      message(`Backup failed: ${describe(e)}`);
+      message(t('ztts-backup-failed', { detail: describe(e) }));
     }
   });
 
@@ -123,7 +124,7 @@ export function initBackupRows(doc: RowsDocument, deps: BackupRowsDeps): void {
       }
       const parsed = parseBackup(await deps.readFile(path));
       const count = Object.keys(parsed.settings).length;
-      if (deps.confirm && !deps.confirm(`Replace the current settings with the ${count} in ${path}?`)) {
+      if (deps.confirm && !deps.confirm(t('ztts-restore-confirm', { count, path }))) {
         message('');
         return;
       }
@@ -135,17 +136,17 @@ export function initBackupRows(doc: RowsDocument, deps: BackupRowsDeps): void {
       }
       const applied = applyBackup(deps.prefs, parsed);
       deps.onRestored?.();
-      const skipped = parsed.ignored.length ? ` Skipped ${parsed.ignored.length}: ${parsed.ignored.join(', ')}.` : '';
-      const restored = `Restored ${applied} settings from ${path}.${skipped}`;
+      const skipped = parsed.ignored.length ? t('ztts-skipped', { count: parsed.ignored.length, keys: parsed.ignored.join(', ') }) : '';
+      const restored = sentences(t('ztts-restored', { count: applied, path }), skipped);
       if (!deps.verifyProviders) {
         message(restored);
         return;
       }
-      message(`${restored} ${CHECKING_PROVIDERS}`);
+      message(sentences(restored, checkingProviders()));
       const verdict = await verifyRestoredProviders(deps);
-      message(verdict ? `${restored} ${verdict}` : restored);
+      message(sentences(restored, verdict));
     } catch (e) {
-      message(`Restore failed: ${describe(e)}`);
+      message(t('ztts-restore-failed', { detail: describe(e) }));
     }
   });
 
@@ -159,9 +160,10 @@ export function initBackupRows(doc: RowsDocument, deps: BackupRowsDeps): void {
         return;
       }
       await deps.writeFile(path, serializePositions(entries));
-      message(`Saved ${entries.length} reading positions to ${path}.`);
+      // Counts as text: a number would come back with a grouping separator (1,914)
+      message(t('ztts-positions-saved', { count: String(entries.length), path }));
     } catch (e) {
-      message(`Export failed: ${describe(e)}`);
+      message(t('ztts-export-failed', { detail: describe(e) }));
     }
   });
 
@@ -175,9 +177,9 @@ export function initBackupRows(doc: RowsDocument, deps: BackupRowsDeps): void {
       }
       const entries = parsePositions(await deps.readFile(path));
       const taken = deps.positions.importEntries(entries);
-      message(`Merged ${entries.length} reading positions from ${path}; ${taken} were newer and were taken.`);
+      message(t('ztts-positions-merged', { count: String(entries.length), path, taken: String(taken) }));
     } catch (e) {
-      message(`Import failed: ${describe(e)}`);
+      message(t('ztts-import-failed', { detail: describe(e) }));
     }
   });
 }

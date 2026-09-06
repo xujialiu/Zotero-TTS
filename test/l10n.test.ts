@@ -1,6 +1,7 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { FluentBundle, FluentResource } from '@fluent/bundle';
 import { parse, type Attribute, type Message, type Pattern, type Resource } from '@fluent/syntax';
 import { describe, expect, it } from 'vitest';
 
@@ -147,6 +148,63 @@ describe('addon/locale', () => {
       const bold = attribute(m, 'bold');
       if (!bold) continue;
       expect(text(attribute(m, 'label')?.value ?? null), `${m.id.name}.label`).toContain(text(bold.value));
+    }
+  });
+});
+
+/** A locale's file rendered by Fluent's reference implementation, the way test/setup.ts renders en-US for t(). */
+function renderer(locale: string): (id: string, args?: Record<string, string | number>) => string {
+  const bundle = new FluentBundle(locale, { useIsolating: false });
+  const errors = bundle.addResource(new FluentResource(readFileSync(join(localeDir, locale, FTL), 'utf8')));
+  if (errors.length) throw errors[0];
+  return (id, args) => {
+    const message = bundle.getMessage(id);
+    if (!message?.value) throw new Error(`${locale} has no value for ${id}`);
+    const failures: Error[] = [];
+    const out = bundle.formatPattern(message.value, args, failures);
+    if (failures.length) throw failures[0];
+    return out;
+  };
+}
+
+/** The variables that arrive as numbers — a plural rule reads them; every other one arrives as text (issue #43). */
+const NUMBER_ARGS = new Set(['count', 'seconds', 'code']);
+
+describe('the strings TypeScript writes (issue #43)', () => {
+  const en = renderer('en-US');
+  const zh = renderer('zh-CN');
+
+  it('joins two sentences with a space in English and with nothing in Chinese', () => {
+    expect(en('ztts-join', { first: 'Connected.', second: 'Synthesis works.' })).toBe('Connected. Synthesis works.');
+    expect(zh('ztts-join', { first: '已连接。', second: '合成正常。' })).toBe('已连接。合成正常。');
+  });
+
+  it('shows a count handed over as text verbatim, without a grouping separator', () => {
+    expect(en('ztts-voices-available', { count: '1914' })).toBe('1914 voices available.');
+    expect(zh('ztts-voices-available', { count: '1914' })).toContain('1914');
+    // What a number would do — why the counts that can pass a thousand travel as text
+    expect(en('ztts-voices-available', { count: 1914 })).toBe('1,914 voices available.');
+  });
+
+  it('reads the reading guard\'s plural from the count in both languages, the blank line kept', () => {
+    const one = { count: 1, list: '  • Deep learning' };
+    const two = { count: 2, list: '  • Deep learning\n  • Another paper' };
+    expect(en('ztts-reading-tabs', one)).toBe('Read Aloud is open in a tab:\n  • Deep learning\n\nClose that tab, then try again.');
+    expect(en('ztts-reading-tabs', two)).toBe('Read Aloud is open in 2 tabs:\n  • Deep learning\n  • Another paper\n\nClose those tabs, then try again.');
+    expect(zh('ztts-reading-tabs', two)).toContain('  • Deep learning\n  • Another paper\n\n');
+    // One tab is worded differently from two, not only by the digit
+    expect(zh('ztts-reading-tabs', two).replace(/2/g, '1')).not.toBe(zh('ztts-reading-tabs', one));
+  });
+
+  it.each(LOCALES)('%s formats every message that takes arguments, and shows every text argument', (locale) => {
+    const render = renderer(locale);
+    for (const [id, m] of source) {
+      if (!m.value) continue;
+      const names = [...references(m.value)].filter((r) => r.startsWith('$')).map((r) => r.slice(1));
+      if (!names.length) continue;
+      const args = Object.fromEntries(names.map((name) => [name, NUMBER_ARGS.has(name) ? 2 : `«${name}»`]));
+      const out = render(id, args);
+      for (const name of names) if (!NUMBER_ARGS.has(name)) expect(out, `${locale} ${id} shows $${name}`).toContain(`«${name}»`);
     }
   });
 });

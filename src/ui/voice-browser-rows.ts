@@ -1,3 +1,4 @@
+import { t } from '../core/l10n';
 import { MULTILINGUAL, type ProviderId } from '../core/providers/types';
 import { clampSpeed, readPersistedSpeed } from '../core/read-aloud-speed';
 import { sampleTextForLocale } from '../core/sample-text';
@@ -93,8 +94,17 @@ export const GLYPHS = { play: '▶', stop: '■', loading: '…', favorite: '♥
 export type VoiceTier = 'standard' | 'premium' | 'local';
 export const TIERS: readonly VoiceTier[] = ['standard', 'premium', 'local'];
 
-/** Zotero's own words for them (reader.ftl `reader-read-aloud-voice-tier-*`). */
-export const TIER_LABELS: Record<VoiceTier, string> = { standard: 'Standard', premium: 'Premium', local: 'Local' };
+/** Zotero's own words for them, in the app's language (reader.ftl `reader-read-aloud-voice-tier-*`; the zh-CN file copies Zotero's). */
+export function tierLabel(tier: VoiceTier): string {
+  switch (tier) {
+    case 'standard':
+      return t('ztts-tier-standard');
+    case 'premium':
+      return t('ztts-tier-premium');
+    default:
+      return t('ztts-tier-local');
+  }
+}
 
 /** Which tier to open on: the plugin's own first — this is the plugin's pane — then whichever has voices at all. */
 const TIER_PREFERENCE: readonly VoiceTier[] = ['local', 'standard', 'premium'];
@@ -295,14 +305,14 @@ export function defaultVoiceLine(choice: VoiceChoice | null, home: BrowserVoice 
   const voice = !sameVoice
     ? null
     : !choice
-      ? 'Zotero’s own choice per language'
+      ? t('ztts-zotero-own-choice')
       : home
-        ? [TIER_LABELS[home.tier], languageNameOf(tiers, home), home.label].join(' | ')
-        : `${choice.id} (not listed now)`;
+        ? [tierLabel(home.tier), languageNameOf(tiers, home), home.label].join(' | ')
+        : t('ztts-not-listed-now', { id: choice.id });
   const pace = speed === null ? null : formatSpeed(speed);
-  if (voice) return `Default voice: ${voice}` + (pace ? ` | ${pace}` : '');
-  if (pace) return `Default speed: ${pace}`;
-  return 'No default voice or speed: Zotero keeps both per language';
+  if (voice) return pace ? t('ztts-default-voice-speed', { voice, speed: pace }) : t('ztts-default-voice', { voice });
+  if (pace) return t('ztts-default-speed', { speed: pace });
+  return t('ztts-no-default');
 }
 
 const describeError = (e: unknown) => (e instanceof Error ? e.message : String(e));
@@ -348,11 +358,6 @@ const ROW_LABEL_STYLE =
   BUTTON_RESET + ` flex: 1; min-width: 0; height: ${LINE_HEIGHT}em; text-align: start; padding: 0 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;`;
 /** A row that cannot be the default while only favorites are offered. */
 const ROW_LABEL_BLOCKED_STYLE = ROW_LABEL_STYLE + ' opacity: 0.5; cursor: default;';
-const DEFAULT_ROW_TITLE = 'The default voice: Read Aloud starts with it. Click to clear it';
-const PICK_ROW_TITLE = 'Click to make it the default voice';
-const BLOCKED_ROW_TITLE = 'Only a favorite can be the default while “Offer only favorite voices” is on';
-/** Appended to the status line while the default is not a favorite and only favorites are offered. */
-const NOT_A_FAVORITE = ' — not a favorite, while only favorites are offered: Read Aloud cannot start with it';
 
 /**
  * Both catalogs, each failing on its own: a provider that cannot list must
@@ -364,14 +369,14 @@ const NOT_A_FAVORITE = ' — not a favorite, while only favorites are offered: R
  */
 export async function listBrowserVoices(deps: Pick<VoiceBrowserDeps, 'listCatalog' | 'listZoteroVoices'>): Promise<{ voices: BrowserVoice[]; problems: string[] }> {
   const problems: string[] = [];
-  const failed = (what: string) => (e: unknown) => {
-    problems.push(what ? `${what}: ${describeError(e)}` : describeError(e));
+  const failed = (ours: boolean) => (e: unknown) => {
+    problems.push(ours ? t('ztts-plugin-voices-problem', { detail: describeError(e) }) : describeError(e));
     return [];
   };
   const [catalog, zoteroVoices] = await Promise.all([
-    deps.listCatalog().catch(failed('the plugin’s voices')),
+    deps.listCatalog().catch(failed(true)),
     // Zotero's own failures already name Zotero (read-aloud/zotero-voices.ts)
-    deps.listZoteroVoices?.().catch(failed('')) ?? Promise.resolve([]),
+    deps.listZoteroVoices?.().catch(failed(false)) ?? Promise.resolve([]),
   ]);
   return { voices: browserVoices(catalog, zoteroVoices), problems };
 }
@@ -404,10 +409,11 @@ export interface StatusInput {
  * and `diagnostics.defaultVoice()` reports it (issue #32).
  */
 export function statusLine({ voices, problems, choice, home, tiers, speed, sameVoice, favoritesOnly, favorites }: StatusInput): string {
-  if (!voices.length) return problems.length ? `Listing voices failed: ${problems.join('; ')}` : 'No voices. Enable a provider above.';
-  const trouble = problems.length ? ` — ${problems.join('; ')}` : '';
-  const warning = sameVoice && choice && favoritesOnly && !favorites.includes(choice.id) ? NOT_A_FAVORITE : '';
-  return defaultVoiceLine(choice, home, tiers, speed, sameVoice) + warning + trouble;
+  if (!voices.length) return problems.length ? t('ztts-listing-failed', { problems: problems.join('; ') }) : t('ztts-no-voices');
+  let line = defaultVoiceLine(choice, home, tiers, speed, sameVoice);
+  if (sameVoice && choice && favoritesOnly && !favorites.includes(choice.id)) line = t('ztts-status-not-a-favorite', { line });
+  if (problems.length) line = t('ztts-status-trouble', { line, problems: problems.join('; ') });
+  return line;
 }
 
 /**
@@ -489,7 +495,7 @@ export function initVoiceBrowserRows(
     const sample = deps.sampleZoteroVoice;
     return {
       key: voice.encoded + '\nzotero-sample',
-      fetch: () => (sample ? sample(voice.id) : Promise.reject(new Error('Zotero cannot play its own voices here'))),
+      fetch: () => (sample ? sample(voice.id) : Promise.reject(new Error(t('ztts-zotero-sample-unavailable')))),
     };
   }
 
@@ -517,12 +523,12 @@ export function initVoiceBrowserRows(
         setPlayGlyph(voice.encoded, GLYPHS.play);
         // The sample was synthesized and cached before playback began: what
         // failed is on the way out, not the voice (issue #48)
-        if (error) status(`Sample failed: the audio arrived, but playback stopped: ${error.message}`);
+        if (error) status(t('ztts-sample-stopped', { detail: error.message }));
       });
     } catch (e) {
       if (playing === voice.encoded) playing = null;
       setPlayGlyph(voice.encoded, GLYPHS.play);
-      status(`Sample failed: ${describeError(e)}`);
+      status(t('ztts-sample-failed', { detail: describeError(e) }));
     } finally {
       busy = null;
     }
@@ -549,7 +555,7 @@ export function initVoiceBrowserRows(
     const unmarkedDefault = defaults.includes(voice) && !next.includes(voice.encoded);
     if (unmarkedDefault) setDefault(null);
     renderVoices();
-    if (unmarkedDefault) status(`Default cleared: ${voice.label} is no longer a favorite, and only favorites are offered`);
+    if (unmarkedDefault) status(t('ztts-default-cleared', { label: voice.label }));
     else paintStatus();
   }
 
@@ -601,7 +607,7 @@ export function initVoiceBrowserRows(
     column.replaceChildren(
       ...tiers.map((group) =>
         columnEntry(
-          `${TIER_LABELS[group.tier]} (${group.count})`,
+          `${tierLabel(group.tier)} (${group.count})`,
           group.tier === selectedTier ? 'selected' : group.count ? 'normal' : 'empty',
           () => {
             selectedTier = group.tier;
@@ -650,13 +656,13 @@ export function initVoiceBrowserRows(
         const play = doc.createElementNS(XHTML, 'button');
         play.textContent = busy === voice.encoded ? GLYPHS.loading : playing === voice.encoded ? GLYPHS.stop : GLYPHS.play;
         play.setAttribute('style', ROW_BUTTON_STYLE);
-        play.setAttribute('title', voice.provider ? 'Play a sample' : 'Play Zotero’s own sample');
+        play.setAttribute('title', voice.provider ? t('ztts-play-sample') : t('ztts-play-zotero-sample'));
         play.addEventListener('click', () => void onPlay(voice));
         playButtons.set(voice.encoded, play);
         row.appendChild(play);
 
         const heart = doc.createElementNS(XHTML, 'button');
-        heart.setAttribute('title', 'Favorite');
+        heart.setAttribute('title', t('ztts-favorite'));
         paintHeart(heart, favorites.includes(voice.encoded));
         heart.addEventListener('click', () => onHeart(voice, heart));
         row.appendChild(heart);
@@ -665,7 +671,7 @@ export function initVoiceBrowserRows(
         label.textContent = voice.label;
         const blocked = !isDefault && onlyFavorites && !favorites.includes(voice.encoded);
         label.setAttribute('style', blocked ? ROW_LABEL_BLOCKED_STYLE : ROW_LABEL_STYLE);
-        label.setAttribute('title', isDefault ? DEFAULT_ROW_TITLE : blocked ? BLOCKED_ROW_TITLE : PICK_ROW_TITLE);
+        label.setAttribute('title', isDefault ? t('ztts-row-default') : blocked ? t('ztts-row-blocked') : t('ztts-row-pick'));
         label.addEventListener('click', () => onPick(voice));
         row.appendChild(label);
 
@@ -863,7 +869,7 @@ export function initVoiceBrowserRows(
       return;
     }
     loading = true;
-    status('Listing voices…');
+    status(t('ztts-listing-voices'));
     try {
       const listing = await listBrowserVoices(deps);
       listed = listing.voices;
@@ -918,12 +924,20 @@ export async function blobToDataURL(blob: Blob): Promise<string> {
 }
 
 /** MediaError.code in plain words (1–4 are the four the spec defines). */
-const MEDIA_ERROR_WORDS: Record<number, string> = {
-  1: 'playback aborted',
-  2: 'a network error',
-  3: 'decoding or output failed',
-  4: 'format not supported',
-};
+function mediaErrorWords(code: number): string {
+  switch (code) {
+    case 1:
+      return t('ztts-media-aborted');
+    case 2:
+      return t('ztts-media-network');
+    case 3:
+      return t('ztts-media-decode');
+    case 4:
+      return t('ztts-media-format');
+    default:
+      return t('ztts-media-code', { code });
+  }
+}
 
 /**
  * What an <audio> element's MediaError says, for the status line: the code
@@ -932,8 +946,8 @@ const MEDIA_ERROR_WORDS: Record<number, string> = {
  * output device it could not open, and looks like nothing else.
  */
 export function describeMediaError(error: { code: number; message?: string } | null | undefined): string {
-  if (!error) return 'unknown error';
-  const words = MEDIA_ERROR_WORDS[error.code] ?? `media error ${error.code}`;
+  if (!error) return t('ztts-media-unknown');
+  const words = mediaErrorWords(error.code);
   // Read once: every read of MediaError.message puts a resistFingerprinting
   // warning on the error console, signed with the plugin's line
   const message = error.message;

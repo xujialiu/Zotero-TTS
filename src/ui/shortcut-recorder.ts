@@ -1,3 +1,4 @@
+import { t } from '../core/l10n';
 import { allowsBareArrows, SHORTCUT_ACTIONS, type ShortcutAction } from '../core/shortcut-actions';
 import {
   formatShortcut,
@@ -43,7 +44,7 @@ export function recorderOutcome(
 
 /** Button label for a stored binding. */
 export function shortcutLabel(text: string, metaLabel = 'Meta'): string {
-  if (!text.trim()) return 'Not set';
+  if (!text.trim()) return t('ztts-key-not-set');
   const parsed = parseShortcut(text);
-  return parsed ? formatShortcut(parsed, metaLabel) : `${text} (invalid)`;
+  return parsed ? formatShortcut(parsed, metaLabel) : t('ztts-key-invalid', { text });
 }

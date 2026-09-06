@@ -6,6 +6,7 @@ import { addressHint, addressHintText } from '../core/server-presets';
 import { machineId, renameMachineId } from '../core/machine-id';
 import { getChromeWebSocket, newRequestId } from '../core/providers/azure';
 import { SynthesisError } from '../core/providers/errors';
+import { sentences, t } from '../core/l10n';
 import { withTimeout } from '../core/timeout';
 import { createWebDAVClient } from '../core/webdav';
 import { CATALOG_CAP_MS, listNamedCatalog } from '../read-aloud/catalog';
@@ -77,7 +78,7 @@ export async function testConnection(
   options: { timeoutMs?: number; model?: string; synthesisVoice?: string; probeSynthesis?: boolean } = {},
 ): Promise<ConnectionResult> {
   const timeoutMs = options.timeoutMs ?? TEST_CONNECTION_TIMEOUT_MS;
-  const timeout = () => new SynthesisError('network', `No reply within ${Math.round(timeoutMs / 1000)} s`);
+  const timeout = () => new SynthesisError('network', t('ztts-no-reply', { seconds: Math.round(timeoutMs / 1000) }));
   let models: string[] | undefined;
   try {
     const listed = await withTimeout(
@@ -97,12 +98,12 @@ export async function testConnection(
     if (probeVoice && provider.checkSynthesis) {
       try {
         await withTimeout(provider.checkSynthesis(probeVoice), timeoutMs, timeout);
-        synthesisPart = ' Synthesis works.';
+        synthesisPart = t('ztts-synthesis-works');
       } catch (e) {
         // The server answered; what failed is spending, not connecting —
         // say so instead of the generic "Connection failed".
         const detail = e instanceof Error ? e.message : String(e);
-        return { ok: false, models, message: `Connected, but synthesis failed: ${detail}` };
+        return { ok: false, models, message: t('ztts-synthesis-failed', { detail }) };
       }
     }
     // A provider that can prove word timestamps (Kokoro) does so here: any
@@ -113,19 +114,21 @@ export async function testConnection(
     if (timestampsVoice && provider.checkWordTimestamps) {
       try {
         const probed = await withTimeout(provider.checkWordTimestamps(timestampsVoice), timeoutMs, timeout);
-        timestampsPart = probed.ok ? ' Word timestamps available.' : ` No word timestamps: ${probed.detail ?? 'the server did not return any'}.`;
+        timestampsPart = probed.ok ? t('ztts-word-timestamps') : t('ztts-no-word-timestamps', { detail: probed.detail ?? t('ztts-no-word-timestamps-detail') });
       } catch (e) {
         const detail = e instanceof Error ? e.message : String(e);
-        return { ok: false, models, message: `Connected, but the word-timestamp check failed: ${detail}` };
+        return { ok: false, models, message: t('ztts-timestamp-check-failed', { detail }) };
       }
     }
-    const voicesPart = `${listed.voices.length} voices available.`;
-    if (models?.length && options.model) {
-      return models.includes(options.model)
-        ? { ok: true, models, message: `Connected. Model ${options.model} available. ${voicesPart}${synthesisPart}${timestampsPart}` }
-        : { ok: true, models, message: `Connected, but model "${options.model}" is not listed by this server. ${voicesPart}${synthesisPart}${timestampsPart}` };
-    }
-    return { ok: true, models, message: `Connected. ${voicesPart}${synthesisPart}${timestampsPart}` };
+    // The count as text: a number would come back with a grouping separator (1,914)
+    const voicesPart = t('ztts-voices-available', { count: String(listed.voices.length) });
+    const opening =
+      models?.length && options.model
+        ? models.includes(options.model)
+          ? t('ztts-connected-model', { model: options.model })
+          : t('ztts-connected-model-missing', { model: options.model })
+        : t('ztts-connected');
+    return { ok: true, models, message: sentences(opening, voicesPart, synthesisPart, timestampsPart) };
   } catch (e) {
     const kind = (e as { kind?: string })?.kind;
     const detail = e instanceof Error ? e.message : String(e);
@@ -133,18 +136,18 @@ export async function testConnection(
       // The throw sites write this detail for this line — the System
       // provider's platform sentence, the speech helper's last error,
       // Kokoro's address — and only a bare kind has none (issue #47)
-      return { ok: false, message: detail && detail !== kind ? detail : 'Local TTS server is not running at that address.' };
+      return { ok: false, message: detail && detail !== kind ? detail : t('ztts-local-server-down') };
     }
     if (kind === 'no-key') {
-      return { ok: false, message: 'No API key set for this provider.' };
+      return { ok: false, message: t('ztts-no-key') };
     }
     if (kind === 'auth') {
-      return { ok: false, message: `The server rejected the API key. (${detail})` };
+      return { ok: false, message: t('ztts-key-rejected', { detail }) };
     }
     if (kind === 'network') {
-      return { ok: false, message: `Cannot connect: ${detail}` };
+      return { ok: false, message: t('ztts-cannot-connect', { detail }) };
     }
-    return { ok: false, message: `Connection failed: ${detail}` };
+    return { ok: false, message: t('ztts-connection-failed', { detail }) };
   }
 }
 
@@ -216,8 +219,8 @@ function backupFileIO(win: any): BackupFileIO {
     return typeof chosen === 'string' && chosen ? chosen : null;
   };
   return {
-    pickSavePath: (defaultName) => pick('Backup Zotero-TTS settings', 'save', defaultName),
-    pickOpenPath: () => pick('Restore Zotero-TTS settings', 'open'),
+    pickSavePath: (defaultName) => pick(t('ztts-picker-backup'), 'save', defaultName),
+    pickOpenPath: () => pick(t('ztts-picker-restore'), 'open'),
     // IOUtils is handed to the plugin scope by Zotero's plugin loader
     writeFile: async (path, text) => {
       await IOUtils.writeUTF8(path, text);
@@ -244,7 +247,7 @@ async function synthesizeSample(win: any, prefs: PrefsBackend, id: ProviderId, v
   const result = await withTimeout(
     provider.synthesize(text, { voice: voiceId, signal }),
     TEST_CONNECTION_TIMEOUT_MS,
-    () => new SynthesisError('network', `No audio within ${Math.round(TEST_CONNECTION_TIMEOUT_MS / 1000)} s`),
+    () => new SynthesisError('network', t('ztts-no-audio', { seconds: Math.round(TEST_CONNECTION_TIMEOUT_MS / 1000) })),
     () => controller?.abort(),
   );
   return result.audio;
@@ -332,7 +335,7 @@ function readingTabTitles(): string[] {
       const item = Zotero.Items.get(reader.itemID);
       const named = item?.parentItem ?? item;
       const title = typeof named?.getDisplayTitle === 'function' ? named.getDisplayTitle() : '';
-      titles.push(title || `item ${reader.itemID}`);
+      titles.push(title || t('ztts-item', { id: String(reader.itemID) }));
     } catch (e) {
       Zotero.logError(e);
     }
@@ -359,7 +362,7 @@ function readingTabTitles(): string[] {
 export function addressGate(openai: Pick<Settings['openai'], 'server' | 'baseURL'>): { refusal?: string; note?: string } {
   const hint = addressHint(openai);
   if (!hint) return {};
-  return hint.kind === 'typo' ? { refusal: `Not tested: ${addressHintText(hint)}` } : { note: addressHintText(hint) };
+  return hint.kind === 'typo' ? { refusal: t('ztts-not-tested', { reason: addressHintText(hint) }) } : { note: addressHintText(hint) };
 }
 
 async function checkProvider(doc: Document, prefs: PrefsBackend, id: ProviderId, deps: ProviderDeps): Promise<ConnectionResult> {
@@ -382,9 +385,9 @@ async function checkProvider(doc: Document, prefs: PrefsBackend, id: ProviderId,
       probeSynthesis: id === 'openai' || id === 'system',
     });
   } catch (e) {
-    outcome = { ok: false, message: `Connection failed: ${String(e)}` };
+    outcome = { ok: false, message: t('ztts-connection-failed', { detail: String(e) }) };
   }
-  if (gate.note) outcome = { ...outcome, message: `${outcome.message} ${gate.note}` };
+  if (gate.note) outcome = { ...outcome, message: sentences(outcome.message, gate.note) };
   const suggestions = doc.getElementById(`ztts-${id}-models`);
   if (suggestions && outcome.models) {
     suggestions.replaceChildren(
@@ -533,7 +536,7 @@ export function onPaneLoad(doc: Document, hooks: PaneHooks = {}): void {
           newAbortController: () => (typeof win?.AbortController === 'function' ? new win.AbortController() : null),
         }),
         CATALOG_CAP_MS,
-        () => new SynthesisError('network', `No voice list within ${Math.round(CATALOG_CAP_MS / 1000)} s`),
+        () => new SynthesisError('network', t('ztts-no-voice-list', { seconds: Math.round(CATALOG_CAP_MS / 1000) })),
       );
     },
     synthesizeSample: (id, voiceId, text) => synthesizeSample(win, prefs, id, voiceId, text, providerDeps()),

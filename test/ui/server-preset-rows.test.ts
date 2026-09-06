@@ -63,7 +63,7 @@ describe('initServerPresetRows', () => {
     const fresh = setup();
     expect(fresh.menu.value).toBe('openai');
     expect(fresh.disabled()).toEqual({ apiKey: false, baseURL: false, model: false, voices: false, headers: true });
-    expect(fresh.note()).toBe(PRESETS.openai.note);
+    expect(fresh.note()).toBe(PRESETS.openai.note());
 
     const custom = setup({ [key('baseURL')]: 'http://localhost:8004' });
     expect(custom.menu.value).toBe('other');
@@ -80,7 +80,7 @@ describe('initServerPresetRows', () => {
     expect(t.prefs.store[key('baseURL')]).toBe('http://localhost:8004');
     expect(t.prefs.store[key('model')]).toBe('tts-1');
     expect(t.disabled()).toEqual({ apiKey: true, baseURL: false, model: true, voices: true, headers: false });
-    expect(t.note()).toBe(PRESETS.chatterbox.note);
+    expect(t.note()).toBe(PRESETS.chatterbox.note());
   });
 
   it('"other" re-enables everything and overwrites nothing', () => {

@@ -6,7 +6,7 @@ import { encodeCommand, WINDOWS_DAEMON_SCRIPT, WINDOWS_POWERSHELL, windowsComman
 import { createMacBackend, type MacProcess } from './core/providers/system/mac';
 import { listSystemVoiceRecords, systemUnavailableReason, type SystemProviderDeps } from './core/providers/system';
 import { zoteroVoiceId } from './core/providers/system/voices';
-import { FTL_FILE, hasMessageSource, setMessageSource, t } from './core/l10n';
+import { FTL_FILE, hasMessageSource, sentences, setMessageSource, t } from './core/l10n';
 import { createMemoryCache } from './core/memory-cache';
 import { audioCacheOn, createZoteroPrefs, DEFAULTS, loadSettings, migrateLegacyProviderPref } from './core/settings';
 import { createBackup, flattenSettings, machineSettingsFilename, serializeBackup, SETTINGS_FILE_PATTERN } from './core/settings-backup';
@@ -51,7 +51,7 @@ import {
 } from './ui/read-aloud-shortcuts';
 import { findOptionsButton, hasPlayer, isOptionsPanelOpen } from './ui/player-options';
 import { removeSpeedToast, showSpeedToast, showToast } from './ui/speed-toast';
-import { browserVoices, createSamplePlayer, defaultVoiceRows, groupVoicesByTier, languageNameOf, listBrowserVoices, startingSpeed, statusLine } from './ui/voice-browser-rows';
+import { browserVoices, createSamplePlayer, defaultVoiceRows, groupVoicesByTier, languageNameOf, listBrowserVoices, startingSpeed, statusLine, tierLabel } from './ui/voice-browser-rows';
 import { silentWav } from './core/silence';
 import { withTimeout } from './core/timeout';
 
@@ -135,7 +135,7 @@ let speechFileSeq = 0;
 /** Why this platform gets no system voices, or null when it does: Windows and macOS have a backend, Linux has none. */
 function speechUnsupportedReason(): string | null {
   if (Zotero.isWin || Zotero.isMac) return null;
-  return 'System voices are available on Windows and macOS only; this build has no speech helper for Linux.';
+  return t('ztts-system-unsupported');
 }
 
 /**
@@ -1587,6 +1587,17 @@ const diagnostics = {
         source: hasMessageSource(),
         sample: t('ztts-heading-voice-browser'),
         fallback: t(probe),
+        // The strings TypeScript writes (issue #43): a count handed over as
+        // text, the plural at one and at two, the joiner, a tier name, and
+        // whether any bidi isolation mark (U+2066–U+2069) surrounds a placeable
+        formatted: {
+          voices: t('ztts-voices-available', { count: '2267' }),
+          oneTab: t('ztts-reading-tabs', { count: 1, list: '  • A' }),
+          twoTabs: t('ztts-reading-tabs', { count: 2, list: '  • A\n  • B' }),
+          joined: sentences(t('ztts-connected'), t('ztts-synthesis-works')),
+          tier: tierLabel('local'),
+          isolationMarks: /[\u2066-\u2069]/.test(t('ztts-voices-available', { count: '2267' }) + t('ztts-reading-tabs', { count: 2, list: 'x' })),
+        },
         pane: paneReport,
       },
       null,

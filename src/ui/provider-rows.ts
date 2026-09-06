@@ -114,7 +114,7 @@ export function initProviderRows(
     try {
       return await deps.check(id);
     } catch (e) {
-      return { ok: false, message: `Connection failed: ${e instanceof Error ? e.message : String(e)}` };
+      return { ok: false, message: t('ztts-connection-failed', { detail: e instanceof Error ? e.message : String(e) }) };
     }
   }
 
@@ -208,11 +208,11 @@ export function initProviderRows(
         paint(id);
       }),
     );
-    if (!turnedOff.length) return `Checked ${wanted.length} provider${wanted.length === 1 ? '' : 's'}: all working.`;
+    if (!turnedOff.length) return t('ztts-providers-checked', { count: wanted.length });
     // The switches moved, so the voice browser lists again — once, after all of them
     deps.onVoicesChanged();
     const named = PROVIDER_IDS.filter((id) => turnedOff.includes(id)).join(', ');
-    return `Turned off ${named}: the restored settings do not work here — see the message beside ${turnedOff.length === 1 ? 'it' : 'each'}.`;
+    return t('ztts-providers-turned-off', { named, count: turnedOff.length });
   }
 
   return { refresh, verifyEnabled };

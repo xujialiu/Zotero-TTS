@@ -1,3 +1,4 @@
+import { t } from '../core/l10n';
 import { MULTILINGUAL } from '../core/providers/types';
 import { isZoteroLangKey, resolveVoiceLang, type VoiceEntry, type VoicesMap } from '../core/read-aloud-speed';
 import { PREF_PREFIX, type PrefsBackend } from '../core/settings';
@@ -201,8 +202,8 @@ export function pickSubstitute(listed: readonly ListedVoice[], favorites: readon
  * document's language (`paidOffered`). The effect, never the mechanism.
  */
 export function substitutionMessage(missing: string, instead: string | null, paidOffered: boolean): string {
-  if (instead) return `Zotero-TTS: ${missing} is not offered here. Reading with ${instead} instead.`;
-  return `Zotero-TTS: ${missing} is not offered here, and no Local voice is. Zotero picks the voice${paidOffered ? '; it may use credits' : ''}.`;
+  if (instead) return t('ztts-substitute', { missing, instead });
+  return paidOffered ? t('ztts-substitute-paid', { missing }) : t('ztts-substitute-none', { missing });
 }
 
 /**

@@ -178,7 +178,7 @@ since where marked.
    MiMo* → Base URL `https://api.xiaomimimo.com` and Model
    `mimo-v2.5-tts` written, Extra headers grayed and nothing else (as
    for OpenAI), the `?` carrying the
-   preset's note (derive from `PRESETS.mimo.note`), Voices empty. Test
+   preset's note (derive from `PRESETS.mimo.note()`), Voices empty. Test
    connection → `Connected. Model mimo-v2.5-tts available. 9 voices
    available. Synthesis works.` — the probe is one two-character chat
    completion, and the model list also names `mimo-v2.5-tts-voiceclone`
@@ -246,7 +246,21 @@ since where marked.
     heading in the app's language (derive from
     `addon/locale/<locale>/zotero-tts.ftl`: `Voice browser` under en-US,
     `语音浏览器` under zh-CN), `fallback: "ztts-no-such-message"` — the id
-    itself, never blank, never a throw.
+    itself, never blank, never a throw. **The strings TypeScript writes**
+    (issue #43, 1.11.0): `formatted.voices` is the `ztts-voices-available`
+    message with the count `2267` verbatim — `2267 voices available.` /
+    `2267 个语音可用。`, never `2,267` (a count that can pass a thousand is
+    handed over as text; Fluent groups a number); `oneTab` and `twoTabs`
+    the reading guard's message at 1 and at 2 with the blank line before
+    its last sentence — `Read Aloud is open in a tab:\n  • A\n\nClose that
+    tab, then try again.` / `以下 1 个标签页打开了朗读：\n  • A\n\n关闭该标签页后再试。`,
+    and `2 tabs` … `those tabs` / `2 个标签页` … `这些标签页`; `joined`
+    two sentences through `ztts-join` — `Connected. Synthesis works.` with
+    the space, `已连接。合成正常。` without; `tier` `Local` / `本地`
+    (Zotero's own word, reader.ftl); `isolationMarks: false` — no bidi
+    isolation mark (U+2066–U+2069) around a placeable (all measured
+    2026-09-06 on 1.11.0-beta5; a build without `formatted` is older than
+    #43).
 11. **The pane is translated by Zotero, not by the plugin.** With the
     settings window open on the pane, `diagnostics.l10n().pane` →
     `elements` the count of `data-l10n-id` in `preferences.xhtml` (derive),
@@ -257,8 +271,18 @@ since where marked.
     (`#ztts-highlight-preview-sentence`, `-word-before`, `-word`,
     `-word-after`) with the message's text in them; the four provider
     switches read `Enable` or `Disable` (the `ztts-switch-*` messages
-    through `t()`), none blank. Screenshots of every group in the app's
-    language.
+    through `t()`), none blank; and the lines TypeScript writes read as
+    they did before #43: the tier column `Standard (N)` / `Premium (N)` /
+    `Local (N)` in that order (28 / 1452 / 787 = the 2267 of a
+    2026-09-06 listing), `#ztts-voices-status` beginning `Default voice: ` (or
+    `Default speed: ` / `No default voice or speed:` per the two
+    "everywhere" switches), `#ztts-build-line` `Version <build> · Date
+    <date> · Author Xujia Liu`, Test connection's `Connected. N voices
+    available. …` (1.5), a shortcut field clicked `Press the new keys…
+    (Esc cancels)` and Escape (4.8), the `#ztts-notice` dialog (2.9) with
+    its `OK`. Run item 7's address-hint flow before the fixture session of
+    2.9 opens or after it closes: the guard refuses a provider switch
+    while a tab reads. Screenshots of every group in the app's language.
 12. **Chinese without a restart.** Snapshot `intl.locale.requested`, then
     `Services.locale.requestedLocales = ['zh-CN']`: `diagnostics.l10n().sample`
     becomes `语音浏览器`, and the open pane retranslates itself — the
@@ -272,7 +296,19 @@ since where marked.
     `收藏的语音`): a user is asked to restart on a language change, so
     this is by design, not a FAIL (measured 2026-09-04: the pane
     retranslated in 172 ms; 117 ms on 2026-09-05). Each switch logs one Zotero-own `uncaught
-    exception: undefined`, reproduced with no settings window open. Then
+    exception: undefined`, reproduced with no settings window open. After
+    the reopen the lines TypeScript writes are Chinese too (issue #43,
+    1.11.0): the tier column `标准 (N)` / `高级 (N)` / `本地 (N)`, the
+    status line `默认语音：…` / `默认速度：…`, the Build line `版本
+    <build> · 日期 <date> · 作者 Xujia Liu`, Test connection on the local
+    engine `已连接。N 个语音可用。有单词时间戳。` — no space between the
+    sentences (`ztts-join`), the recorder `请按新的按键…（Esc 取消）`, the
+    `#ztts-notice` dialog `以下 1 个标签页打开了朗读：` … `关闭该标签页后再试。`
+    with `确定`, the address typo hint under MiMo `api.xiaomimim.com 像是
+    api.xiaomimimo.com 的笔误。` and Test connection `未测试：…`; product
+    names, voice ids, `1.7×`, ` | ` and `Name (N)` stay as they are, and
+    `l10n().pane` is still `{elements: <n>, blank: [], questionless: []}`
+    (100 elements on 2026-09-06). Then
     the pref back verbatim (an empty snapshot means `requestedLocales = []`)
     and `appLocalesAsBCP47` equal to the baseline's.
 13. **The plugin's icon** (issue #60, 1.11.0). The manifest declares

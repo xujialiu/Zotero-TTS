@@ -1,3 +1,4 @@
+import { t } from './l10n';
 import type { Settings } from './settings';
 
 /**
@@ -45,8 +46,8 @@ export interface PresetSpec {
   defaults: PresetFields;
   /** Fields the server reads. A field marked false is disabled in the pane and not sent. */
   uses: Record<OpenAIField, boolean>;
-  /** The tooltip of the ? beside the dropdown. */
-  note: string;
+  /** The tooltip of the ? beside the dropdown, in the app's language — a function, since the strings are installed after this module loads (core/l10n.ts). */
+  note(): string;
   /** The route the server synthesizes on (core/providers/openai.ts). */
   synthesis: SynthesisRoute;
   /** The voices the server documents, for one that publishes no list on /v1/audio/voices; absent, OpenAI's own list is the last resort. */
@@ -64,7 +65,7 @@ export const PRESETS: Record<ServerPreset, PresetSpec> = {
     defaults: { baseURL: 'https://api.openai.com', model: 'gpt-4o-mini-tts' },
     host: 'api.openai.com',
     uses: { apiKey: true, baseURL: true, model: true, voices: true, headers: false },
-    note: "Key and model from platform.openai.com; Voices may stay empty (OpenAI's own) or list newer ones. Extra headers are not needed for api.openai.com.",
+    note: () => t('ztts-preset-note-openai'),
     synthesis: 'speech',
   },
   chatterbox: {
@@ -72,7 +73,7 @@ export const PRESETS: Record<ServerPreset, PresetSpec> = {
     label: 'Chatterbox-TTS-Server',
     defaults: { baseURL: 'http://localhost:8004', model: 'tts-1' },
     uses: { apiKey: false, baseURL: true, model: false, voices: false, headers: true },
-    note: 'Chatterbox has no key, ignores the model and publishes its own voices: only the address matters, plus Extra headers behind a gateway.',
+    note: () => t('ztts-preset-note-chatterbox'),
     synthesis: 'speech',
   },
   mimo: {
@@ -84,7 +85,7 @@ export const PRESETS: Record<ServerPreset, PresetSpec> = {
     // sits in front of it, and a token typed for another server must not
     // travel with every request (issue #52)
     uses: { apiKey: true, baseURL: true, model: true, voices: true, headers: false },
-    note: "Key from platform.xiaomimimo.com; free for now. Voices may stay empty for MiMo's built-in voices (Chinese and English) or list your own. Sentences are highlighted, not words: MiMo reports no word timings. Extra headers are not needed for api.xiaomimimo.com.",
+    note: () => t('ztts-preset-note-mimo'),
     synthesis: 'chat',
     // The built-in voices of mimo-v2.5-tts, from the platform's documentation
     // (verified live 2026-09-06); the server has no /v1/audio/voices.
@@ -96,7 +97,7 @@ export const PRESETS: Record<ServerPreset, PresetSpec> = {
     label: 'Other OpenAI-compatible server',
     defaults: {},
     uses: { apiKey: true, baseURL: true, model: true, voices: true, headers: true },
-    note: 'Fill in what the server wants; Test connection says which of these it uses.',
+    note: () => t('ztts-preset-note-other'),
     synthesis: 'speech',
   },
 };
@@ -237,5 +238,6 @@ export function addressHint(openai: Pick<Settings['openai'], 'server' | 'baseURL
 
 /** The hint as the one sentence the status line shows. */
 export function addressHintText(hint: AddressHint): string {
-  return hint.kind === 'typo' ? `${hint.host} looks like a typo of ${hint.known}.` : `${hint.host} is not ${hint.known}: a mirror or a proxy?`;
+  const { host, known } = hint;
+  return hint.kind === 'typo' ? t('ztts-address-typo', { host, known }) : t('ztts-address-different', { host, known });
 }

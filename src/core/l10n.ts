@@ -49,3 +49,15 @@ export function t(id: string, args?: L10nArgs): string {
     return id;
   }
 }
+
+/**
+ * Sentences put side by side on one line — a connection result, a restore's
+ * report — through the `ztts-join` message, which is what knows whether the
+ * language puts a space between them (English) or nothing (Chinese). Empty
+ * parts are left out; a single part comes back as it is (issue #43).
+ */
+export function sentences(...parts: Array<string | null | undefined>): string {
+  const kept = parts.filter((part): part is string => typeof part === 'string' && part !== '');
+  if (!kept.length) return '';
+  return kept.reduce((first, second) => t('ztts-join', { first, second }));
+}

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { hasMessageSource, setMessageSource, t, type MessageSource } from '../../src/core/l10n';
+import { hasMessageSource, sentences, setMessageSource, t, type MessageSource } from '../../src/core/l10n';
 import { installEnglishStrings } from '../setup';
 
 // test/setup.ts installs the en-US file before every test file; a test that
@@ -41,5 +41,18 @@ describe('t', () => {
     expect(hasMessageSource()).toBe(true);
     expect(t('ztts-heading-voice-browser')).toBe('Voice browser');
     expect(t('ztts-switch-enable')).toBe('Enable');
+  });
+});
+
+describe('sentences', () => {
+  it('puts sentences side by side through the joiner message, empty parts left out', () => {
+    expect(sentences('Connected.', '', 'Synthesis works.', null, undefined)).toBe('Connected. Synthesis works.');
+    expect(sentences('Connected.')).toBe('Connected.');
+    expect(sentences('', null)).toBe('');
+  });
+
+  it('follows the language: a joiner without the space joins with nothing', () => {
+    setMessageSource({ formatValueSync: (id, args) => (id === 'ztts-join' ? `${args?.first}${args?.second}` : id) });
+    expect(sentences('已连接。', '合成正常。')).toBe('已连接。合成正常。');
   });
 });

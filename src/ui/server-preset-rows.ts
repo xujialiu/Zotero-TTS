@@ -49,7 +49,7 @@ export function initServerPresetRows(doc: RowsDocument, prefs: PrefsBackend): { 
       const el = doc.getElementById(elementId);
       if (el) el.disabled = !spec.uses[field];
     }
-    doc.getElementById(SERVER_HELP_ID)?.setAttribute(HELP_ATTRIBUTE, spec.note);
+    doc.getElementById(SERVER_HELP_ID)?.setAttribute(HELP_ATTRIBUTE, spec.note());
     // The right address stays in view: clearing the field shows it (issue #54)
     doc.getElementById(FIELD_IDS.baseURL)?.setAttribute('placeholder', spec.defaults.baseURL ?? '');
   };

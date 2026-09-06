@@ -1,3 +1,4 @@
+import { t } from '../core/l10n';
 import { FAVORITES_ONLY_OBSERVER } from '../read-aloud/favorites';
 import { PREF_PREFIX, type PrefsBackend } from '../core/settings';
 import { refuseWhileReading, type ReadingGuardDeps } from './reading-guard';
@@ -54,7 +55,7 @@ const FAVORITES_ONLY_PREF = 'readAloud.favoritesOnly';
 
 /** What the user is told when the switch stays off over such a default: the voice, and the two ways out. */
 export function unmarkedDefaultMessage(name: string): string {
-  return `${name} is the default voice but not a favorite.\n\nWhile only favorites are offered, Read Aloud could not start with it. Mark it ♥, or make a favorite the default, then switch this on.`;
+  return t('ztts-unmarked-default', { name });
 }
 
 export function initVoiceListSwitches(

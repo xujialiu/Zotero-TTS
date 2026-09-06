@@ -214,3 +214,185 @@ ztts-restore-from-server =
 ## Build
 
 ztts-heading-build = Build
+# The Build line's three fields (ui/build-rows.ts): `Version 1.11.0 · Date 2026-09-06 · Author Xujia Liu`
+ztts-build-version = Version { $version }
+ztts-build-date = Date { $date }
+ztts-build-author = Author { $author }
+
+
+## What TypeScript writes into the pane (issue #43)
+#
+# Two conventions. A line made of several sentences — a connection result,
+# a restore's report — is put together through ztts-join (core/l10n.ts
+# sentences): a space between the sentences in English, nothing in Chinese.
+# A count that can pass a thousand — voices, reading positions, an item id —
+# arrives as text, so it reads 1914, never 1,914; only the counts a plural
+# rule reads (tabs, providers) arrive as numbers.
+
+ztts-join = { $first } { $second }
+
+## Connection results (ui/prefs-pane.ts testConnection, checkProvider; ui/provider-rows.ts)
+
+ztts-connected = Connected.
+ztts-connected-model = Connected. Model { $model } available.
+ztts-connected-model-missing = Connected, but model "{ $model }" is not listed by this server.
+ztts-voices-available = { $count } voices available.
+ztts-synthesis-works = Synthesis works.
+ztts-word-timestamps = Word timestamps available.
+ztts-no-word-timestamps = No word timestamps: { $detail }.
+ztts-no-word-timestamps-detail = the server did not return any
+ztts-synthesis-failed = Connected, but synthesis failed: { $detail }
+ztts-timestamp-check-failed = Connected, but the word-timestamp check failed: { $detail }
+ztts-no-reply = No reply within { $seconds } s
+ztts-no-audio = No audio within { $seconds } s
+ztts-no-voice-list = No voice list within { $seconds } s
+ztts-local-server-down = Local TTS server is not running at that address.
+ztts-no-key = No API key set for this provider.
+ztts-key-rejected = The server rejected the API key. ({ $detail })
+ztts-cannot-connect = Cannot connect: { $detail }
+ztts-connection-failed = Connection failed: { $detail }
+ztts-not-tested = Not tested: { $reason }
+# The Base URL of a hosted preset on another host (core/server-presets.ts addressHintText)
+ztts-address-typo = { $host } looks like a typo of { $known }.
+ztts-address-different = { $host } is not { $known }: a mirror or a proxy?
+# After a settings restore: the providers it turned on, checked (issue #21)
+ztts-providers-checked =
+    Checked { $count ->
+        [one] { $count } provider
+       *[other] { $count } providers
+    }: all working.
+ztts-providers-turned-off =
+    Turned off { $named }: the restored settings do not work here — see the message beside { $count ->
+        [one] it
+       *[other] each
+    }.
+ztts-system-unsupported = System voices are available on Windows and macOS only; this build has no speech helper for Linux.
+
+## The ? beside the Server dropdown, one note per preset (core/server-presets.ts)
+
+ztts-preset-note-openai = Key and model from platform.openai.com; Voices may stay empty (OpenAI's own) or list newer ones. Extra headers are not needed for api.openai.com.
+ztts-preset-note-chatterbox = Chatterbox has no key, ignores the model and publishes its own voices: only the address matters, plus Extra headers behind a gateway.
+ztts-preset-note-mimo = Key from platform.xiaomimimo.com; free for now. Voices may stay empty for MiMo's built-in voices (Chinese and English) or list your own. Sentences are highlighted, not words: MiMo reports no word timings. Extra headers are not needed for api.xiaomimimo.com.
+ztts-preset-note-other = Fill in what the server wants; Test connection says which of these it uses.
+
+## The voice browser (ui/voice-browser-rows.ts)
+
+# Zotero's own words for its three tiers (reader.ftl reader-read-aloud-voice-tier-*)
+ztts-tier-standard = Standard
+ztts-tier-premium = Premium
+ztts-tier-local = Local
+ztts-listing-voices = Listing voices…
+ztts-no-voices = No voices. Enable a provider above.
+ztts-listing-failed = Listing voices failed: { $problems }
+ztts-plugin-voices-problem = the plugin’s voices: { $detail }
+# The status line: the voice as `<tier> | <language> | <label>`, the speed as `1.7×`
+ztts-default-voice = Default voice: { $voice }
+ztts-default-voice-speed = Default voice: { $voice } | { $speed }
+ztts-default-speed = Default speed: { $speed }
+ztts-no-default = No default voice or speed: Zotero keeps both per language
+ztts-zotero-own-choice = Zotero’s own choice per language
+ztts-not-listed-now = { $id } (not listed now)
+ztts-status-not-a-favorite = { $line } — not a favorite, while only favorites are offered: Read Aloud cannot start with it
+ztts-status-trouble = { $line } — { $problems }
+ztts-default-cleared = Default cleared: { $label } is no longer a favorite, and only favorites are offered
+ztts-sample-failed = Sample failed: { $detail }
+ztts-sample-stopped = Sample failed: the audio arrived, but playback stopped: { $detail }
+ztts-zotero-sample-unavailable = Zotero cannot play its own voices here
+# The tooltips of a voice row's three buttons
+ztts-play-sample = Play a sample
+ztts-play-zotero-sample = Play Zotero’s own sample
+ztts-favorite = Favorite
+ztts-row-default = The default voice: Read Aloud starts with it. Click to clear it
+ztts-row-pick = Click to make it the default voice
+ztts-row-blocked = Only a favorite can be the default while “Offer only favorite voices” is on
+# What an <audio> element's MediaError says; the engine's own message is kept beside it in parentheses
+ztts-media-unknown = unknown error
+ztts-media-code = media error { $code }
+ztts-media-aborted = playback aborted
+ztts-media-network = a network error
+ztts-media-decode = decoding or output failed
+ztts-media-format = format not supported
+
+## The reading guard's dialog and the favorites-only refusal (ui/reading-guard.ts, ui/voice-list-switches.ts)
+
+# $list is the tabs, one `  • <title>` per line; the blank line before the last sentence is kept
+ztts-reading-tabs =
+    Read Aloud is open in { $count ->
+        [one] a tab
+       *[other] { $count } tabs
+    }:
+    { $list }
+
+    Close { $count ->
+        [one] that tab
+       *[other] those tabs
+    }, then try again.
+ztts-ok = OK
+# A tab whose item has no title
+ztts-item = item { $id }
+ztts-unmarked-default =
+    { $name } is the default voice but not a favorite.
+
+    While only favorites are offered, Read Aloud could not start with it. Mark it ♥, or make a favorite the default, then switch this on.
+
+## The shortcut recorder (ui/shortcut-rows.ts, ui/shortcut-recorder.ts)
+
+ztts-recording = Press the new keys… (Esc cancels)
+ztts-key-not-set = Not set
+ztts-key-invalid = { $text } (invalid)
+ztts-key-conflict = Already used by "{ $action }".
+ztts-key-needs-modifier-or-arrow = Add a modifier (Ctrl, Alt, Shift or Cmd) or use an arrow key: a bare key would type instead.
+ztts-key-needs-modifier = Add a modifier (Ctrl, Alt, Shift or Cmd): a bare key would type instead.
+# The actions as the conflict message names them
+ztts-action-speed-reset = Reset speed
+ztts-action-slower = Slower
+ztts-action-faster = Faster
+ztts-action-previous-sentence = Previous sentence
+ztts-action-next-sentence = Next sentence
+ztts-action-previous-paragraph = Previous paragraph
+ztts-action-next-paragraph = Next paragraph
+ztts-action-play = Play / pause / resume
+ztts-action-return = Go to reading position
+ztts-action-options = Player options
+
+## Backup and Sync (ui/backup-rows.ts, ui/webdav-rows.ts)
+
+# The file dialogs' titles
+ztts-picker-backup = Backup Zotero-TTS settings
+ztts-picker-restore = Restore Zotero-TTS settings
+ztts-backup-saved = Saved to { $path }. The file holds every setting, the API keys, gateway headers and WebDAV password included — keep it private.
+ztts-backup-failed = Backup failed: { $detail }
+ztts-restore-confirm = Replace the current settings with the { $count } in { $path }?
+ztts-restored = Restored { $count } settings from { $path }.
+ztts-skipped = Skipped { $count }: { $keys }.
+ztts-checking-providers = Checking the providers it turns on…
+ztts-providers-uncheckable = The providers could not be checked: { $detail }
+ztts-restore-failed = Restore failed: { $detail }
+ztts-positions-saved = Saved { $count } reading positions to { $path }.
+ztts-export-failed = Export failed: { $detail }
+ztts-positions-merged = Merged { $count } reading positions from { $path }; { $taken } were newer and were taken.
+ztts-import-failed = Import failed: { $detail }
+ztts-webdav-testing = Testing…
+ztts-webdav-uploading = Uploading…
+ztts-webdav-looking = Looking…
+ztts-webdav-connected = Connected to { $url }.
+ztts-upload-failed = Upload failed: { $detail }
+ztts-webdav-uploaded = Uploaded { $count } settings to { $file }. The file holds every setting, the API keys, gateway headers and WebDAV password included — keep the folder private.
+ztts-webdav-none = No settings backup on { $url } yet.
+# The picker when the server holds several computers' files: its title, and one line per file
+ztts-webdav-pick-title = Restore settings from which computer?
+ztts-shared-file = shared file (before 1.11)
+ztts-date-unknown = date unknown
+ztts-settings-file-label = { $who } — { $when }
+# The confirm before a restore from the server, with the file's machine and date when it carries them
+ztts-webdav-restore-confirm = Replace the current settings with the { $count } on { $url }?
+ztts-webdav-restore-confirm-machine = Replace the current settings with the { $count } of { $machine } on { $url }?
+ztts-webdav-restore-confirm-saved = Replace the current settings with the { $count } on { $url }, saved { $time }?
+ztts-webdav-restore-confirm-machine-saved = Replace the current settings with the { $count } of { $machine } on { $url }, saved { $time }?
+ztts-webdav-machine-file = This computer's settings upload as { $file }.
+
+## The reader: the line shown when Read Aloud does not start with the remembered voice (read-aloud/read-aloud-memory.ts, issue #35)
+
+ztts-substitute = Zotero-TTS: { $missing } is not offered here. Reading with { $instead } instead.
+ztts-substitute-none = Zotero-TTS: { $missing } is not offered here, and no Local voice is. Zotero picks the voice.
+ztts-substitute-paid = Zotero-TTS: { $missing } is not offered here, and no Local voice is. Zotero picks the voice; it may use credits.

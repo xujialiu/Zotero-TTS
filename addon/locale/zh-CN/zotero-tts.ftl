@@ -203,3 +203,158 @@ ztts-restore-from-server =
 ## Build
 
 ztts-heading-build = 构建信息
+ztts-build-version = 版本 { $version }
+ztts-build-date = 日期 { $date }
+ztts-build-author = 作者 { $author }
+
+
+## What TypeScript writes into the pane (issue #43)
+#
+# 句与句之间不加空格：ztts-join 把两句直接相连。数量以文本传入的地方
+# 原样显示（1914），以数字传入的地方（标签页、服务商）可按 [1] 选词。
+
+ztts-join = { $first }{ $second }
+
+## Connection results
+
+ztts-connected = 已连接。
+ztts-connected-model = 已连接。模型 { $model } 可用。
+ztts-connected-model-missing = 已连接，但此服务器没有列出模型“{ $model }”。
+ztts-voices-available = { $count } 个语音可用。
+ztts-synthesis-works = 合成正常。
+ztts-word-timestamps = 有单词时间戳。
+ztts-no-word-timestamps = 没有单词时间戳：{ $detail }。
+ztts-no-word-timestamps-detail = 服务器没有返回
+ztts-synthesis-failed = 已连接，但合成失败：{ $detail }
+ztts-timestamp-check-failed = 已连接，但单词时间戳检查失败：{ $detail }
+ztts-no-reply = { $seconds } 秒内没有回应
+ztts-no-audio = { $seconds } 秒内没有收到音频
+ztts-no-voice-list = { $seconds } 秒内没有收到语音列表
+ztts-local-server-down = 该地址上没有运行本地 TTS 服务器。
+ztts-no-key = 此服务商没有设置 API 密钥。
+ztts-key-rejected = 服务器拒绝了 API 密钥。({ $detail })
+ztts-cannot-connect = 无法连接：{ $detail }
+ztts-connection-failed = 连接失败：{ $detail }
+ztts-not-tested = 未测试：{ $reason }
+ztts-address-typo = { $host } 像是 { $known } 的笔误。
+ztts-address-different = { $host } 不是 { $known }：镜像还是代理？
+ztts-providers-checked = 已检查 { $count } 个服务商：全部正常。
+ztts-providers-turned-off = 已停用 { $named }（共 { $count } 个）：恢复的设置在这台电脑上不可用，见各自旁边的提示。
+ztts-system-unsupported = 系统语音只在 Windows 和 macOS 上可用；此构建没有 Linux 的语音助手程序。
+
+## The ? beside the Server dropdown
+
+ztts-preset-note-openai = 密钥和模型来自 platform.openai.com；语音可留空（用 OpenAI 自己的）或填写更新的语音。api.openai.com 不需要额外请求头。
+ztts-preset-note-chatterbox = Chatterbox 没有密钥，忽略模型，并发布自己的语音：只有地址重要，经网关访问时再加额外请求头。
+ztts-preset-note-mimo = 密钥来自 platform.xiaomimimo.com；目前免费。语音可留空（用 MiMo 内置的中英文语音）或填写你自己的。按句高亮而非逐词：MiMo 不报告单词时间。api.xiaomimimo.com 不需要额外请求头。
+ztts-preset-note-other = 填写服务器需要的项；测试连接会告诉你它用到哪些。
+
+## The voice browser
+
+# Zotero 自己的词（reader.ftl）：本地 / 标准 / 高级
+ztts-tier-standard = 标准
+ztts-tier-premium = 高级
+ztts-tier-local = 本地
+ztts-listing-voices = 正在列出语音…
+ztts-no-voices = 没有语音。请在上方启用一个服务商。
+ztts-listing-failed = 列出语音失败：{ $problems }
+ztts-plugin-voices-problem = 插件的语音：{ $detail }
+ztts-default-voice = 默认语音：{ $voice }
+ztts-default-voice-speed = 默认语音：{ $voice } | { $speed }
+ztts-default-speed = 默认速度：{ $speed }
+ztts-no-default = 没有默认语音和速度：Zotero 按语言各记各的
+ztts-zotero-own-choice = 由 Zotero 按语言自行选择
+ztts-not-listed-now = { $id }（当前未列出）
+ztts-status-not-a-favorite = { $line }——不是收藏的语音，而当前只提供收藏的语音：朗读无法用它开始
+ztts-status-trouble = { $line }——{ $problems }
+ztts-default-cleared = 已清除默认语音：{ $label } 不再是收藏的语音，而当前只提供收藏的语音
+ztts-sample-failed = 试听失败：{ $detail }
+ztts-sample-stopped = 试听失败：音频已收到，但播放中断：{ $detail }
+ztts-zotero-sample-unavailable = 这里无法播放 Zotero 自己的语音
+ztts-play-sample = 试听
+ztts-play-zotero-sample = 试听 Zotero 自己的示例
+ztts-favorite = 收藏
+ztts-row-default = 默认语音：朗读从它开始。点击可清除
+ztts-row-pick = 点击设为默认语音
+ztts-row-blocked = 开启“朗读播放器中只提供收藏的语音”时，只有收藏的语音才能设为默认
+ztts-media-unknown = 未知错误
+ztts-media-code = 媒体错误 { $code }
+ztts-media-aborted = 播放被中止
+ztts-media-network = 网络错误
+ztts-media-decode = 解码或输出失败
+ztts-media-format = 不支持的格式
+
+## The reading guard's dialog and the favorites-only refusal
+
+ztts-reading-tabs =
+    以下 { $count } 个标签页打开了朗读：
+    { $list }
+
+    关闭{ $count ->
+        [1] 该标签页
+       *[other] 这些标签页
+    }后再试。
+ztts-ok = 确定
+ztts-item = 条目 { $id }
+ztts-unmarked-default =
+    { $name } 是默认语音，但不是收藏的语音。
+
+    只提供收藏的语音时，朗读无法用它开始。请先把它标为 ♥，或把一个收藏的语音设为默认，再开启此项。
+
+## The shortcut recorder
+
+ztts-recording = 请按新的按键…（Esc 取消）
+ztts-key-not-set = 未设置
+ztts-key-invalid = { $text }（无效）
+ztts-key-conflict = 已被“{ $action }”使用。
+ztts-key-needs-modifier-or-arrow = 请加上修饰键（Ctrl、Alt、Shift 或 Cmd）或使用方向键：单独的按键会输入字符。
+ztts-key-needs-modifier = 请加上修饰键（Ctrl、Alt、Shift 或 Cmd）：单独的按键会输入字符。
+ztts-action-speed-reset = 重置速度
+ztts-action-slower = 减速
+ztts-action-faster = 加速
+ztts-action-previous-sentence = 上一句
+ztts-action-next-sentence = 下一句
+ztts-action-previous-paragraph = 上一段
+ztts-action-next-paragraph = 下一段
+ztts-action-play = 播放 / 暂停 / 继续
+ztts-action-return = 回到朗读位置
+ztts-action-options = 播放器选项
+
+## Backup and Sync
+
+ztts-picker-backup = 备份 Zotero-TTS 设置
+ztts-picker-restore = 恢复 Zotero-TTS 设置
+ztts-backup-saved = 已保存到 { $path }。文件包含全部设置，其中有 API 密钥、网关请求头和 WebDAV 密码——请妥善保管。
+ztts-backup-failed = 备份失败：{ $detail }
+ztts-restore-confirm = 用 { $path } 中的 { $count } 项设置替换当前设置？
+ztts-restored = 已从 { $path } 恢复 { $count } 项设置。
+ztts-skipped = 跳过 { $count } 项：{ $keys }。
+ztts-checking-providers = 正在检查它启用的服务商…
+ztts-providers-uncheckable = 无法检查服务商：{ $detail }
+ztts-restore-failed = 恢复失败：{ $detail }
+ztts-positions-saved = 已把 { $count } 个朗读位置保存到 { $path }。
+ztts-export-failed = 导出失败：{ $detail }
+ztts-positions-merged = 已从 { $path } 合并 { $count } 个朗读位置；其中 { $taken } 个更新，已采用。
+ztts-import-failed = 导入失败：{ $detail }
+ztts-webdav-testing = 正在测试…
+ztts-webdav-uploading = 正在上传…
+ztts-webdav-looking = 正在查找…
+ztts-webdav-connected = 已连接到 { $url }。
+ztts-upload-failed = 上传失败：{ $detail }
+ztts-webdav-uploaded = 已把 { $count } 项设置上传到 { $file }。文件包含全部设置，其中有 API 密钥、网关请求头和 WebDAV 密码——请把文件夹设为私有。
+ztts-webdav-none = { $url } 上还没有设置备份。
+ztts-webdav-pick-title = 恢复哪台电脑的设置？
+ztts-shared-file = 共享文件（1.11 之前）
+ztts-date-unknown = 日期未知
+ztts-settings-file-label = { $who } — { $when }
+ztts-webdav-restore-confirm = 用 { $url } 上的 { $count } 项设置替换当前设置？
+ztts-webdav-restore-confirm-machine = 用 { $url } 上 { $machine } 的 { $count } 项设置替换当前设置？
+ztts-webdav-restore-confirm-saved = 用 { $url } 上的 { $count } 项设置（保存于 { $time }）替换当前设置？
+ztts-webdav-restore-confirm-machine-saved = 用 { $url } 上 { $machine } 的 { $count } 项设置（保存于 { $time }）替换当前设置？
+ztts-webdav-machine-file = 本机的设置将上传为 { $file }。
+
+## The reader: the line shown when Read Aloud does not start with the remembered voice
+
+ztts-substitute = Zotero-TTS：这里没有提供 { $missing }，改用 { $instead } 朗读。
+ztts-substitute-none = Zotero-TTS：这里没有提供 { $missing }，也没有任何本地语音。由 Zotero 选择语音。
+ztts-substitute-paid = Zotero-TTS：这里没有提供 { $missing }，也没有任何本地语音。由 Zotero 选择语音，可能会消耗额度。

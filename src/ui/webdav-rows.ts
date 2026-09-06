@@ -1,7 +1,8 @@
+import { sentences, t } from '../core/l10n';
 import { loadSettings, type PrefsBackend } from '../core/settings';
 import { applyBackup, createBackup, machineSettingsFilename, parseBackup, serializeBackup, SETTINGS_FILE_PATTERN } from '../core/settings-backup';
 import type { WebDAVClient, WebDAVConfig, WebDAVFile } from '../core/webdav';
-import { CHECKING_PROVIDERS, verifyRestoredProviders } from './backup-rows';
+import { checkingProviders, verifyRestoredProviders } from './backup-rows';
 import { refuseWhileReading, type ReadingGuardDeps } from './reading-guard';
 
 /**
@@ -73,7 +74,7 @@ function newestFirst(a: WebDAVFile, b: WebDAVFile): number {
 /** The picker's line for one settings file: whose it is, and how fresh. */
 export function settingsFileLabel(file: WebDAVFile): string {
   const id = SETTINGS_FILE_PATTERN.exec(file.name)?.[1];
-  return `${id ?? 'shared file (before 1.11)'} — ${file.lastModified ?? 'date unknown'}`;
+  return t('ztts-settings-file-label', { who: id ?? t('ztts-shared-file'), when: file.lastModified ?? t('ztts-date-unknown') });
 }
 
 export function initWebDAVRows(doc: RowsDocument, deps: WebDAVRowsDeps): void {
@@ -86,59 +87,69 @@ export function initWebDAVRows(doc: RowsDocument, deps: WebDAVRowsDeps): void {
   // to the server would only produce a second dialog or a second upload
   let busy = false;
 
-  const button = (id: string, failure: string, progress: string, action: (client: WebDAVClient) => Promise<string>) => {
+  const button = (id: string, failure: (detail: string) => string, progress: () => string, action: (client: WebDAVClient) => Promise<string>) => {
     doc.getElementById(id)?.addEventListener('command', async () => {
       if (busy) return;
       busy = true;
       try {
-        message(progress);
+        message(progress());
         const client = deps.createClient(loadSettings(deps.prefs).webdav);
         message(await action(client));
       } catch (e) {
-        message(`${failure}: ${describe(e)}`);
+        message(failure(describe(e)));
       } finally {
         busy = false;
       }
     });
   };
 
-  button(WEBDAV_IDS.test, 'Connection failed', 'Testing…', async (client) => {
+  button(WEBDAV_IDS.test, (detail) => t('ztts-connection-failed', { detail }), () => t('ztts-webdav-testing'), async (client) => {
     await client.check();
-    return `Connected to ${client.url}.`;
+    return t('ztts-webdav-connected', { url: client.url });
   });
 
-  button(WEBDAV_IDS.upload, 'Upload failed', 'Uploading…', async (client) => {
+  button(WEBDAV_IDS.upload, (detail) => t('ztts-upload-failed', { detail }), () => t('ztts-webdav-uploading'), async (client) => {
     const id = deps.machineId.get();
     const name = machineSettingsFilename(id);
     const backup = createBackup(deps.prefs, { pluginVersion: deps.pluginVersion, exportedAt: deps.now?.(), machine: id });
     await client.upload(name, serializeBackup(backup));
     const count = Object.keys(backup.settings).length;
-    return `Uploaded ${count} settings to ${client.url}${name}. The file holds every setting, the API keys, gateway headers and WebDAV password included — keep the folder private.`;
+    return t('ztts-webdav-uploaded', { count, file: `${client.url}${name}` });
   });
 
-  button(WEBDAV_IDS.download, 'Restore failed', 'Looking…', async (client) => {
+  button(WEBDAV_IDS.download, (detail) => t('ztts-restore-failed', { detail }), () => t('ztts-webdav-looking'), async (client) => {
     const files = (await client.list()).filter((f) => SETTINGS_FILE_PATTERN.test(f.name)).sort(newestFirst);
-    if (files.length === 0) return `No settings backup on ${client.url} yet.`;
+    if (files.length === 0) return t('ztts-webdav-none', { url: client.url });
     let file = files[0];
     if (files.length > 1) {
-      const at = deps.select ? deps.select('Restore settings from which computer?', files.map(settingsFileLabel)) : 0;
+      const at = deps.select ? deps.select(t('ztts-webdav-pick-title'), files.map(settingsFileLabel)) : 0;
       if (at === null || files[at] === undefined) return '';
       file = files[at];
     }
     const parsed = parseBackup(await client.download(file.name));
     const count = Object.keys(parsed.settings).length;
-    const from = parsed.machine ? ` of ${parsed.machine}` : '';
-    const saved = parsed.exportedAt ? `, saved ${parsed.exportedAt}` : '';
-    if (deps.confirm && !deps.confirm(`Replace the current settings with the ${count}${from} on ${client.url}${saved}?`)) return '';
+    const url = client.url;
+    const machine = parsed.machine;
+    const time = parsed.exportedAt;
+    // Four whole sentences rather than optional clauses: a language orders them its own way
+    const question =
+      machine && time
+        ? t('ztts-webdav-restore-confirm-machine-saved', { count, machine, url, time })
+        : machine
+          ? t('ztts-webdav-restore-confirm-machine', { count, machine, url })
+          : time
+            ? t('ztts-webdav-restore-confirm-saved', { count, url, time })
+            : t('ztts-webdav-restore-confirm', { count, url });
+    if (deps.confirm && !deps.confirm(question)) return '';
     if (refuseWhileReading(deps)) return '';
     const applied = applyBackup(deps.prefs, parsed);
     deps.onRestored?.();
-    const skipped = parsed.ignored.length ? ` Skipped ${parsed.ignored.length}: ${parsed.ignored.join(', ')}.` : '';
-    const restored = `Restored ${applied} settings from ${client.url}${file.name}.${skipped}`;
+    const skipped = parsed.ignored.length ? t('ztts-skipped', { count: parsed.ignored.length, keys: parsed.ignored.join(', ') }) : '';
+    const restored = sentences(t('ztts-restored', { count: applied, path: `${client.url}${file.name}` }), skipped);
     if (!deps.verifyProviders) return restored;
-    message(`${restored} ${CHECKING_PROVIDERS}`);
+    message(sentences(restored, checkingProviders()));
     const verdict = await verifyRestoredProviders(deps);
-    return verdict ? `${restored} ${verdict}` : restored;
+    return sentences(restored, verdict);
   });
 
   // This computer's name: shown as stored, sanitized on the way back in; a
@@ -150,7 +161,7 @@ export function initWebDAVRows(doc: RowsDocument, deps: WebDAVRowsDeps): void {
     field.addEventListener('change', () => {
       const stored = deps.machineId.set(field.value ?? '');
       field.value = stored;
-      message(`This computer's settings upload as ${machineSettingsFilename(stored)}.`);
+      message(t('ztts-webdav-machine-file', { file: machineSettingsFilename(stored) }));
       deps.onMachineRenamed?.();
     });
   }

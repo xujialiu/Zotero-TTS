@@ -29,6 +29,8 @@ describe('PRESETS', () => {
     for (const id of SERVER_PRESETS) {
       expect(PRESETS[id].id).toBe(id);
       expect(PRESETS[id].label).not.toBe('');
+      // The ? note is a sentence from the Fluent file, never a bare id (issue #43)
+      expect(PRESETS[id].note()).toMatch(/^[A-Z]/);
       expect(PRESETS[id].uses.baseURL).toBe(true);
     }
     // "Other" may be anything, so nothing is taken away

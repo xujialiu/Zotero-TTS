@@ -1,3 +1,4 @@
+import { t } from '../core/l10n';
 import { allowsBareArrows, SHORTCUT_ACTIONS, type ShortcutAction } from '../core/shortcut-actions';
 import { DEFAULTS, loadSettings, PREF_PREFIX, type PrefsBackend } from '../core/settings';
 import type { KeyEventLike } from '../core/shortcuts';
@@ -20,17 +21,18 @@ export interface RowsDocument {
 
 type RecorderEvent = KeyEventLike & { preventDefault(): void; stopPropagation(): void };
 
-const ACTION_NAMES: Record<ShortcutAction, string> = {
-  speedReset: 'Reset speed',
-  speedDown: 'Slower',
-  speedUp: 'Faster',
-  previousSentence: 'Previous sentence',
-  nextSentence: 'Next sentence',
-  previousParagraph: 'Previous paragraph',
-  nextParagraph: 'Next paragraph',
-  startFromSelection: 'Play / pause / resume',
-  returnToSpoken: 'Go to reading position',
-  toggleOptions: 'Player options',
+/** The actions as the conflict message names them; thunks, since the strings are installed after this module loads (core/l10n.ts). */
+const ACTION_NAMES: Record<ShortcutAction, () => string> = {
+  speedReset: () => t('ztts-action-speed-reset'),
+  speedDown: () => t('ztts-action-slower'),
+  speedUp: () => t('ztts-action-faster'),
+  previousSentence: () => t('ztts-action-previous-sentence'),
+  nextSentence: () => t('ztts-action-next-sentence'),
+  previousParagraph: () => t('ztts-action-previous-paragraph'),
+  nextParagraph: () => t('ztts-action-next-paragraph'),
+  startFromSelection: () => t('ztts-action-play'),
+  returnToSpoken: () => t('ztts-action-return'),
+  toggleOptions: () => t('ztts-action-options'),
 };
 
 /**
@@ -56,7 +58,7 @@ export function initShortcutRows(doc: RowsDocument, prefs: PrefsBackend, metaLab
       const el = button(action);
       if (!el) continue;
       const active = recording?.action === action;
-      el.setAttribute('label', active ? 'Press the new keys… (Esc cancels)' : shortcutLabel(bindings[action], metaLabel));
+      el.setAttribute('label', active ? t('ztts-recording') : shortcutLabel(bindings[action], metaLabel));
       el.classList.toggle('ztts-recording', active);
     }
   };
@@ -82,10 +84,10 @@ export function initShortcutRows(doc: RowsDocument, prefs: PrefsBackend, metaLab
       } else if (outcome.kind === 'reject') {
         setMessage(
           outcome.reason === 'conflict'
-            ? `Already used by "${ACTION_NAMES[outcome.conflictsWith]}".`
+            ? t('ztts-key-conflict', { action: ACTION_NAMES[outcome.conflictsWith]() })
             : allowsBareArrows(action)
-              ? 'Add a modifier (Ctrl, Alt, Shift or Cmd) or use an arrow key: a bare key would type instead.'
-              : 'Add a modifier (Ctrl, Alt, Shift or Cmd): a bare key would type instead.',
+              ? t('ztts-key-needs-modifier-or-arrow')
+              : t('ztts-key-needs-modifier'),
         );
       }
       stop();
