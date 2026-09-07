@@ -237,11 +237,13 @@ describe('readAloud pauses', () => {
 describe('readAloud.volume', () => {
   const key = (k: string) => PREF_PREFIX + k;
 
-  it('defaults to 100, Zotero’s own level, and is read clamped to 0–200', () => {
+  it('defaults to 100, Zotero’s own level and the most, and is read clamped to 0–100', () => {
     expect(DEFAULTS.readAloud.volume).toBe(100);
     expect(loadSettings(fakePrefs()).readAloud.volume).toBe(100);
     expect(loadSettings(fakePrefs({ [key('readAloud.volume')]: 80 })).readAloud.volume).toBe(80);
-    expect(loadSettings(fakePrefs({ [key('readAloud.volume')]: 999 })).readAloud.volume).toBe(200);
+    // What 1.11.1's 0–200 field could store (issue #66)
+    expect(loadSettings(fakePrefs({ [key('readAloud.volume')]: 150 })).readAloud.volume).toBe(100);
+    expect(loadSettings(fakePrefs({ [key('readAloud.volume')]: 999 })).readAloud.volume).toBe(100);
     expect(loadSettings(fakePrefs({ [key('readAloud.volume')]: -5 })).readAloud.volume).toBe(0);
     expect(loadSettings(fakePrefs({ [key('readAloud.volume')]: '80' })).readAloud.volume).toBe(100);
     expect(loadSettings(fakePrefs({ [key('readAloud.volume')]: NaN })).readAloud.volume).toBe(100);

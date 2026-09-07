@@ -68,7 +68,7 @@ ztts-volume-percent =
     .value = %
 ztts-help-volume =
     .value = ?
-    .help = How loud Read Aloud plays, for every voice, and the samples here. 100% is Zotero's own level; above it, quiet voices come up and loud ones change little. The volume keys below change it by 10% while Read Aloud is open, and a change lands on the sentence being spoken.
+    .help = How loud Read Aloud plays, for every voice, and the samples here. 100% is Zotero's own level, and the most. The volume keys below change it by 10% while Read Aloud is open, and a change lands on the sentence being spoken.
 
 
 ## Reading

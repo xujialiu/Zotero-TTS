@@ -419,10 +419,10 @@ describe('the volume keys (actions volumeDown / volumeUp)', () => {
     // An unset pref counts as 100
     expect(prefs.store[VOLUME_PREF]).toBe(90);
     expect(showVolumeToast).toHaveBeenCalledWith(reader, 90);
+    expect(shortcuts.handleKeyDown(down(), resolve)).toBe(true);
     expect(shortcuts.handleKeyDown(up(), resolve)).toBe(true);
-    expect(shortcuts.handleKeyDown(up(), resolve)).toBe(true);
-    expect(prefs.store[VOLUME_PREF]).toBe(110);
-    expect(showVolumeToast).toHaveBeenLastCalledWith(reader, 110);
+    expect(prefs.store[VOLUME_PREF]).toBe(90);
+    expect(showVolumeToast).toHaveBeenLastCalledWith(reader, 90);
     // Nothing of the speed's is touched
     expect(manager.setSpeed).not.toHaveBeenCalled();
     expect(showToast).not.toHaveBeenCalled();
@@ -432,11 +432,13 @@ describe('the volume keys (actions volumeDown / volumeUp)', () => {
   it('works while paused: the level is a setting, not a playback state', () => {
     const { shortcuts, prefs, manager, resolve } = setup();
     manager.paused = true;
-    expect(shortcuts.handleKeyDown(up(), resolve)).toBe(true);
-    expect(prefs.store[VOLUME_PREF]).toBe(110);
+    expect(shortcuts.handleKeyDown(down(), resolve)).toBe(true);
+    expect(prefs.store[VOLUME_PREF]).toBe(90);
   });
 
-  it('stops at 0 and at 200', () => {
+  // 100 is Zotero's own level and the most (issue #66): the up key at the
+  // ceiling writes the same 100 and still shows it
+  it('stops at 0 and at 100', () => {
     const { shortcuts, prefs, reader, showVolumeToast, resolve } = setup();
     prefs.store[VOLUME_PREF] = 5;
     expect(shortcuts.handleKeyDown(down(), resolve)).toBe(true);
@@ -444,10 +446,20 @@ describe('the volume keys (actions volumeDown / volumeUp)', () => {
     expect(shortcuts.handleKeyDown(down(), resolve)).toBe(true);
     expect(prefs.store[VOLUME_PREF]).toBe(0);
     expect(showVolumeToast).toHaveBeenLastCalledWith(reader, 0);
-    prefs.store[VOLUME_PREF] = 195;
+    prefs.store[VOLUME_PREF] = 95;
     shortcuts.handleKeyDown(up(), resolve);
+    expect(prefs.store[VOLUME_PREF]).toBe(100);
     shortcuts.handleKeyDown(up(), resolve);
-    expect(prefs.store[VOLUME_PREF]).toBe(200);
+    expect(prefs.store[VOLUME_PREF]).toBe(100);
+    expect(showVolumeToast).toHaveBeenLastCalledWith(reader, 100);
+  });
+
+  it('brings a level 1.11.1 stored above 100 down to 100 at the first key', () => {
+    const { shortcuts, prefs, reader, showVolumeToast, resolve } = setup();
+    prefs.store[VOLUME_PREF] = 150;
+    expect(shortcuts.handleKeyDown(up(), resolve)).toBe(true);
+    expect(prefs.store[VOLUME_PREF]).toBe(100);
+    expect(showVolumeToast).toHaveBeenLastCalledWith(reader, 100);
   });
 
   it('leaves the keys to the reader when no Read Aloud session is open', () => {
@@ -496,8 +508,9 @@ describe('the volume keys (actions volumeDown / volumeUp)', () => {
 
   it('adjustVolume() reports the level it set', () => {
     const { shortcuts, reader } = setup();
-    expect(shortcuts.adjustVolume(reader, 'volumeUp')).toBe(110);
-    expect(shortcuts.adjustVolume(reader, 'volumeDown')).toBe(100);
+    expect(shortcuts.adjustVolume(reader, 'volumeDown')).toBe(90);
+    expect(shortcuts.adjustVolume(reader, 'volumeUp')).toBe(100);
+    expect(shortcuts.adjustVolume(reader, 'volumeUp')).toBe(100);
   });
 });
 

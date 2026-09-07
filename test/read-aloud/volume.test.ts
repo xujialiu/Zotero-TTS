@@ -187,11 +187,11 @@ describe('createVolumeControl', () => {
     const sample = new b.RemoteSampleReadAloudController();
     const closed = new a.RemoteSampleReadAloudController();
     closed.destroy();
-    set(130);
+    set(70);
     volume.apply();
-    expect(gainAt(a.manager._controller).gain.value).toBe(1.3);
-    expect(gainAt(b.manager._controller).gain.value).toBe(1.3);
-    expect(gainAt(sample).gain.value).toBe(1.3);
+    expect(gainAt(a.manager._controller).gain.value).toBe(0.7);
+    expect(gainAt(b.manager._controller).gain.value).toBe(0.7);
+    expect(gainAt(sample).gain.value).toBe(0.7);
     // A closed context is left alone and forgotten
     expect(gainAt(closed).gain.value).toBe(1);
     expect((volume.inspect(a.reader) as any).chains).toHaveLength(1);

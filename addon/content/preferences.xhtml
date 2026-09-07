@@ -167,12 +167,12 @@
     </hbox>
     <!-- How loud Read Aloud plays, for every voice in the player and the
          samples below: a gain ahead of Zotero's own filter chain, at this
-         percent of Zotero's level (read-aloud/volume.ts, issue #62). Bound:
-         the observer behind the pref moves every open chain at once, and
-         the volume keys write the same pref -->
+         percent of Zotero's level, 100 the most (read-aloud/volume.ts,
+         issues #62 and #66). Bound: the observer behind the pref moves
+         every open chain at once, and the volume keys write the same pref -->
     <hbox align="center">
       <label data-l10n-id="ztts-volume" control="ztts-volume"/>
-      <html:input type="number" id="ztts-volume" min="0" max="200" step="10" style="width: 5em"
+      <html:input type="number" id="ztts-volume" min="0" max="100" step="10" style="width: 5em"
                   preference="extensions.zotero.zotero-tts.readAloud.volume"/>
       <label data-l10n-id="ztts-volume-percent"/>
       <label class="ztts-help" value="?" data-l10n-id="ztts-help-volume" data-l10n-attrs="help"/>

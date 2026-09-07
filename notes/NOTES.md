@@ -309,3 +309,4 @@ cite `notes/NOTES.md` with a date or a section title resolve through this index.
 
 - The plugin carries its own copy of its strings in the registry, since Zotero's reload deletes the shared one after the successor has started (issue #64)
 - Azure's Dragon Latest voices time only the first ten seconds of a segment, and Zotero's word timers leave the last word lit (issue #69)
+- The boost above 100 lands in Zotero's compressor and comes out halved, so the volume stops at 100 (issue #66)

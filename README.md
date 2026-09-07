@@ -204,11 +204,10 @@ language, voice.
 - The **Speed** slider plays the samples at that speed, and releasing it
   makes that the speed Read Aloud starts with — at once in a document that
   is playing. Changing the speed costs nothing and leaves the pitch alone.
-- **Volume** (0–200%) applies to every voice, Zotero's Standard and
+- **Volume** (0–100%) applies to every voice, Zotero's Standard and
   Premium included, and to the samples; a change lands on the sentence
-  being spoken, in every open tab. Above 100% quiet voices come up and
-  loud ones change little. `Shift+↑` / `Shift+↓` move the same number
-  while Read Aloud is open.
+  being spoken, in every open tab. `Shift+↑` / `Shift+↓` move the same
+  number while Read Aloud is open.
 - While Read Aloud is open in some tab, every setting that changes what the
   player lists is refused with a message naming the tabs — close them, then
   try again. The settings: switching a provider on or off, *Offer only favorite voices*, a favorite marked or unmarked while

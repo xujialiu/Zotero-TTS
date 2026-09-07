@@ -882,10 +882,11 @@ key. Two fixtures open, A speaking.
 ## 4a. The volume (issue #62)
 
 A gain ahead of Zotero's own filter chain in every controller, at the
-percent in `readAloud.volume` (0–200, default 100 = Zotero unchanged).
-Two fixtures open; the level back at 100 at the end. `gainValue` is a
-float32 AudioParam: 0.7 reads `0.699999988079071`, 0.6 reads
-`0.6000000238418579`; 1, 0.5 and 1.5 read exactly.
+percent in `readAloud.volume` (0–100, default 100 = Zotero unchanged and
+the most; the boost above 100 went with issue #66). Two fixtures open;
+the level back at 100 at the end. `gainValue` is a float32 AudioParam:
+0.7 reads `0.699999988079071`, 0.6 reads `0.6000000238418579`; 1 and 0.5
+read exactly.
 
 1. **A session's chain carries the gain.** Fixture A reading on a plugin
    voice: `diagnostics.volume()` for that reader → `patched: {manager:
@@ -907,13 +908,17 @@ float32 AudioParam: 0.7 reads `0.699999988079071`, 0.6 reads
    same chain moved to the new gain with `count` unchanged and
    `current` / `inChain` still true: the level lands in the chain being
    spoken, no controller is rebuilt. Works with the session `paused` too.
+   At 100, Shift+ArrowUp leaves the pref at 100, still shows `Volume
+   100%`, and the chain stays at `gainValue: 1` with `count` unchanged:
+   the ceiling is the model's, not the field's, and the key is consumed
+   either way (issue #66).
 3. **No session: the key falls through.** Popup closed (`active: false`,
    `chains: []`): the press leaves the pref and the toast untouched.
    `keydown()` still returns 1 — the reader takes the arrow itself — so
    the pref and the unchanged toast are the evidence, never the return
    value.
 4. **The pane's field is the same number.** `#ztts-volume` (type number,
-   min 0, max 200, step 10, bound to the pref) redraws to whatever the
+   min 0, max 100, step 10, bound to the pref) redraws to whatever the
    keys wrote; setting `.value` and dispatching `input` writes the pref at
    the `input` event, and every open chain follows with `count`
    unchanged. The row sits between the Speed slider and the voice
@@ -954,11 +959,28 @@ float32 AudioParam: 0.7 reads `0.699999988079071`, 0.6 reads
    inserts its own node ahead of the chain the stopped instance left at
    1); the log repeats `volume attached` per tab. No `can't access dead
    object`, nothing from `zotero-tts.js`.
-9. **Not testable here.** The Windows output-device rebuild
-   (`_handleDeviceChange` → `_initAudioContext`, reader.js:39956-39985):
-   the shadow covers it, the unit test simulates it. The settings pane's
-   own sample player following the level: its `<audio>` never enters the
-   DOM; unit-tested.
+9. **A stored level outside the range settles at the first start**
+   (issue #66).
+   `Zotero.Prefs.set('extensions.zotero.zotero-tts.readAloud.volume', 150, true)`
+   — what 1.11.1's field could write — before an in-place install:
+   afterwards the pref reads 100, the debug log carries exactly one
+   `[zotero-tts] volume settled to 100 from 150`, `startup()` lists
+   `Read Aloud volume` with `failed: []`, and the pane's field shows 100.
+   A second in-place install with the pref already at 100 logs no settle
+   line: the settle writes only for a level outside 0–100 or not a whole
+   percent.
+10. **A level above the range never reaches the audio.** With a session
+    speaking, `Zotero.Prefs.set(pref, 200, true)` by hand: `volume()`
+    stays `level: 100, gain: 1` and the live chain's `gainValue` stays 1
+    with `count` unchanged. With the settings pane open the field shows
+    the raw `200` until the next start — the clamp sits under the field,
+    so a pref edited outside the plugin cannot boost. Put the pref back
+    to 100 afterwards.
+11. **Not testable here.** The Windows output-device rebuild
+    (`_handleDeviceChange` → `_initAudioContext`, reader.js:39956-39985):
+    the shadow covers it, the unit test simulates it. The settings pane's
+    own sample player following the level: its `<audio>` never enters the
+    DOM; unit-tested.
 
 ## 5. Reading positions, colors, the lifecycle
 

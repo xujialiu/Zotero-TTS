@@ -22,7 +22,7 @@ import { createMultilingualFirst, type MultilingualFirst } from './read-aloud/mu
 import { createFavoriteMarks, type FavoriteMarks } from './read-aloud/favorite-marks';
 import { createPauses, pauseSettingsOf, type Pauses } from './read-aloud/pauses';
 import { createVolumeControl, type VolumeControl } from './read-aloud/volume';
-import { VOLUME_OBSERVER } from './core/read-aloud-volume';
+import { settleVolumePref, VOLUME_OBSERVER } from './core/read-aloud-volume';
 import { createPositionSync, ACTIVE_TICK_MS, IDLE_TICK_MS, type PositionSync } from './read-aloud/position-sync';
 import { createPositionStore, type PositionStore } from './read-aloud/position-store';
 import { createPositionTransport, type PositionTransport } from './read-aloud/position-transport';
@@ -1430,6 +1430,14 @@ function stopPauses(): void {
 
 function startVolume(): void {
   stopVolume();
+  // A level 1.11.1's 0–200 field stored above 100 is brought to 100 once,
+  // before the observer is up, so the pane's field shows what plays (issue #66)
+  try {
+    const settled = settleVolumePref(prefs);
+    if (settled) Zotero.debug(`[zotero-tts] volume settled to ${settled.to} from ${settled.from}`);
+  } catch (e) {
+    Zotero.logError(e);
+  }
   volumeControl = createVolumeControl({
     getLevel: () => loadSettings(prefs).readAloud.volume,
     exportFunction: (fn, target) => Components.utils.exportFunction(fn, target),
