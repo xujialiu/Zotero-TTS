@@ -832,6 +832,49 @@ describe('EPUB and snapshot: the sentence is drawn around the word', () => {
   });
 });
 
+describe('a document stored decomposed (NFD), issue #74', () => {
+  // Zotero hands the segment text NFC-normalized (reader.js, the deltaMap);
+  // the DOM keeps the document's own form, so the two spell "începe"
+  // differently while showing the same letters
+  const NFC = 'Această poveste începe.';
+  const NFD = NFC.normalize('NFD');
+  const SEGMENT = { selector: { from: 0, to: NFD.length }, text: NFC };
+  const INCEPE = { from: NFD.indexOf('i\u0302ncepe'), to: NFD.indexOf('i\u0302ncepe') + 'i\u0302ncepe'.length };
+  const CHARS: [number, number] = [NFC.indexOf('începe'), NFC.indexOf('începe') + 'începe'.length];
+
+  function reader() {
+    const dom = fakeRangeDOM(NFD, 'word');
+    const { styling: s } = styling();
+    s.attach(dom.reader);
+    const read = (word: unknown) => {
+      dom.manager.activeTimestamp = { start: 0.1, end: 0.4, charStart: CHARS[0], charEnd: CHARS[1] };
+      return dom.helper.setState({ popupOpen: true, activeSegment: SEGMENT, activeWordSourcePosition: word });
+    };
+    return { ...dom, read };
+  }
+
+  it('keeps the word in the word color and the sentence around it, though the forms differ', () => {
+    expect(NFD).not.toBe(NFC);
+    expect(INCEPE.from).toBeGreaterThan(0);
+    const dom = reader();
+    dom.read(INCEPE);
+    expect(dom.view._getSpotlightColor('ReadAloudActiveSegment')).toBe(WORD);
+    expect(dom.drawn(HEAD)).toBe('Această poveste '.normalize('NFD'));
+    expect(dom.drawn(TAIL)).toBe('.');
+  });
+
+  it('shows the primary again as soon as the granularity leaves word, without a popup close', () => {
+    const dom = reader();
+    // A word position that resolves to nothing is painted transparent, rightly
+    dom.read({ nothing: true });
+    expect(dom.view._getSpotlightColor('ReadAloudActiveSegment')).toBe('#00000000');
+    // Settings → Highlight current → Sentence, the popup still open: the primary is the sentence now
+    dom.helper._effectivePrimaryGranularity = () => 'sentence';
+    dom.read(SEGMENT.selector);
+    expect(dom.view._getSpotlightColor('ReadAloudActiveSegment')).toBe(SENTENCE);
+  });
+});
+
 // ---- what the reader hands an exported function ---------------------------------
 
 /**

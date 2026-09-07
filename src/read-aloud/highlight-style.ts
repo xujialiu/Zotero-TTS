@@ -470,7 +470,11 @@ export function createHighlightStyling(deps: HighlightStylingDeps): HighlightSty
    * final text step through the resolver's own convention and keep the
    * first rewrite whose displayed text is exactly the segment's text.
    */
-  const normText = (s: unknown) => String(s ?? '').replace(/\s+/g, ' ').trim();
+  // NFC first: Zotero hands the segment text NFC-normalized while
+  // toDisplayedRange() returns the document's own form, so a document stored
+  // decomposed spelled every word differently from its segment and failed
+  // every check below (issue #74). Both sides go through here.
+  const normText = (s: unknown) => String(s ?? '').normalize('NFC').replace(/\s+/g, ' ').trim();
   /** The selector's displayed text (normalized), or null when it does not resolve. */
   const displayedText = (view: any, sel: any): string | null => {
     try {
@@ -588,7 +592,13 @@ export function createHighlightStyling(deps: HighlightStylingDeps): HighlightSty
     }
     const segment = state.activeSegment;
     const selector = state.activeWordSourcePosition;
-    if (!segment || !selector || domRawGranularity(helper) !== 'word') return;
+    if (domRawGranularity(helper) !== 'word') {
+      // At sentence the primary IS the sentence: a transparent flag left over
+      // from word would hide it until the popup closed (issue #74)
+      hiddenPrimary.set(helper, false);
+      return;
+    }
+    if (!segment || !selector) return;
     const { kind, timestamp } = activeWordInfo(reader);
     if (kind === 'none') return;
     const wholeText = String(segment.text ?? '');

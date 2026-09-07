@@ -317,3 +317,4 @@ cite `notes/NOTES.md` with a date or a section title resolve through this index.
 ### [2026-09-08](NOTES_2026-09-08.md)
 
 - Zotero NFC-normalizes an EPUB's text, and the highlight patch's === check goes dark on a document stored decomposed (issue #74)
+- The highlight patch normalizes both sides to NFC before comparing, and the transparent flag clears when Word is left (issue #74)
