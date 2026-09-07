@@ -313,3 +313,7 @@ cite `notes/NOTES.md` with a date or a section title resolve through this index.
 - The boost above 100 lands in Zotero's compressor and comes out halved, so the volume stops at 100 (issue #66)
 - Cloudflare Workers AI joined as a provider of its own: an account id in the URL, Aura's raw MP3 against MeloTTS's base64 WAV, and no timestamps from either (issue #72)
 - Azure's MAI-Voice-2 voices carry no word timing, and the only Ioana in the player is Azure's (issue #73)
+
+### [2026-09-08](NOTES_2026-09-08.md)
+
+- Zotero NFC-normalizes an EPUB's text, and the highlight patch's === check goes dark on a document stored decomposed (issue #74)
