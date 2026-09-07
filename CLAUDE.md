@@ -181,6 +181,18 @@ documents, settings backup/restore (file or WebDAV), highlight colors.
   actually released so they can install it. It sits beside the closing
   summary, not instead of it, and nothing in it reads like a generated
   changelog.
+  **One that was investigated gets two comments, in this order** (settled
+  2026-09-07, issue #73): first the evidence, in the project's own shape —
+  what goes wrong, what it costs, the measurements and the Zotero
+  internals cited by file and line, no solution; then, as a comment of its
+  own, the reply to the reporter: it opens `@<reporter> Thanks for the
+  report, …`, says in plain words what was found, what to use meanwhile
+  and the one thing still to confirm, and ends with "If you like the
+  plugin, a star would mean a lot." The evidence is for the record and the
+  next session, the reply is for a person, and the two never share a
+  comment. The labels follow the cause, not the report: a fault that turns
+  out to be the docs' is `chore`, whatever the title says. The closing
+  reply above still follows once the fix is out.
   **Never hard-wrap an issue or comment body** (settled 2026-08-30):
   GitHub renders issue, PR and comment Markdown with `breaks: true`, so
   every single newline becomes a `<br>` and a paragraph wrapped at 80

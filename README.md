@@ -45,7 +45,7 @@ it adds voices to the player's **Local** tier and tunes what is around them.
 
 | Provider | What you need | Cost | Highlighting |
 |---|---|---|---|
-| **Azure Speech** | Speech resource key + region · [tutorial](tutorials/azure-speech-free-tier.md) | Free tier: 500,000 characters a month | word |
+| **Azure Speech** | Speech resource key + region · [tutorial](tutorials/azure-speech-free-tier.md) | Free tier: 500,000 characters a month | word; sentence for the voices named *MAI-Voice-2* |
 | **Cloudflare Workers AI** | Account ID + API token · [tutorial](tutorials/cloudflare-workers-ai.md) | 10,000 free Neurons a day: a few pages with an Aura voice, hours with MeloTTS | sentence |
 | **Kokoro-FastAPI** | A server on your machine or LAN · [tutorial](tutorials/kokoro-fastapi.md) | Free; CPU works, a GPU is faster | word |
 | **OpenAI-compatible** | Base URL and model; an API key if the server wants one | OpenAI bills per character; self-hosted servers such as [Chatterbox](tutorials/chatterbox-tts-server.md) are free | sentence |
@@ -284,7 +284,8 @@ password.
   one it tried; `docker ps` should list the server; see its tutorial.
 - **Voices play but nothing is highlighted word by word.** Set *Settings →
   General → Read Aloud → Highlight current* to **Word**, and use a voice
-  that reports word timings (Azure, Kokoro).
+  that reports word timings: Kokoro, or an Azure voice without
+  *MAI-Voice-2* in its name (those highlight by sentence).
 - **"An unknown error occurred" part-way through a document** with an
   OpenAI-compatible server: the server failed on one segment; check its log.
 - **The plugin's voices are missing after a Zotero update.** An update can

@@ -1,4 +1,4 @@
-<!-- translated-from: README.md sha256:259b3e3286ed -->
+<!-- translated-from: README.md sha256:d90aba4f405e -->
 <p align="center"><img src="assets/icon.png" width="80" alt="Zotero-TTS 图标"></p>
 <h1 align="center">Zotero-TTS</h1>
 
@@ -44,7 +44,7 @@ Zotero 10 自己就会朗读（Read Aloud），本插件不取代它的播放器
 
 | 服务商 | 需要什么 | 费用 | 高亮 |
 |---|---|---|---|
-| **Azure Speech** | 语音资源的密钥和区域 · [教程](tutorials/azure-speech-free-tier.zh.md) | 免费额度：每月 50 万字符 | 逐词 |
+| **Azure Speech** | 语音资源的密钥和区域 · [教程](tutorials/azure-speech-free-tier.zh.md) | 免费额度：每月 50 万字符 | 逐词；名字里带 *MAI-Voice-2* 的语音逐句 |
 | **Cloudflare Workers AI** | 账户 ID 和 API 令牌 · [教程](tutorials/cloudflare-workers-ai.zh.md) | 每天 10,000 个免费 Neurons：Aura 语音够读几页，MeloTTS 够读几个小时 | 逐句 |
 | **Kokoro-FastAPI** | 一台跑在本机或局域网里的服务器 · [教程](tutorials/kokoro-fastapi.zh.md) | 免费；CPU 也能跑，有 GPU 更快 | 逐词 |
 | **OpenAI 兼容服务器** | API 地址和模型；服务器若要密钥再加一个 | OpenAI 按字符计费；自建的服务器，例如 [Chatterbox](tutorials/chatterbox-tts-server.zh.md)，不花钱 | 逐句 |
@@ -191,7 +191,7 @@ Zotero 10 自己就会朗读（Read Aloud），本插件不取代它的播放器
 <summary><b>常见问题</b></summary>
 
 - **「Cannot reach Kokoro at http://localhost:8880. Is the server running?」** 服务器没起来，或者监听在别的地址——这一行写的就是它试过的地址；`docker ps` 应该能列出服务器；见它的教程。
-- **语音在读，但没有逐词高亮**。把*设置 → 常规 → 朗读 → 高亮当前*设成**单词**，并且用一个会报词级时间戳的语音（Azure、Kokoro）。
+- **语音在读，但没有逐词高亮**。把*设置 → 常规 → 朗读 → 高亮当前*设成**单词**，并且用一个会报词级时间戳的语音：Kokoro，或者名字里不带 *MAI-Voice-2* 的 Azure 语音（那些按句高亮）。
 - **用 OpenAI 兼容服务器时，读到一半冒出「发生一个未知错误。」** 服务器在某一段上失败了；查它的日志。
 - **Zotero 更新之后插件的语音不见了**。一次更新可能让它们消失，直到插件跟上；Zotero 自己的语音照常。请带上 Zotero 版本号开一个 [issue](https://github.com/xujialiu/Zotero-TTS/issues)。
 
