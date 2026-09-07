@@ -1,4 +1,4 @@
-<!-- translated-from: README.md sha256:d90aba4f405e -->
+<!-- translated-from: README.md sha256:66c6a68797d2 -->
 <p align="center"><img src="assets/icon.png" width="80" alt="Zotero-TTS 图标"></p>
 <h1 align="center">Zotero-TTS</h1>
 
@@ -192,6 +192,7 @@ Zotero 10 自己就会朗读（Read Aloud），本插件不取代它的播放器
 
 - **「Cannot reach Kokoro at http://localhost:8880. Is the server running?」** 服务器没起来，或者监听在别的地址——这一行写的就是它试过的地址；`docker ps` 应该能列出服务器；见它的教程。
 - **语音在读，但没有逐词高亮**。把*设置 → 常规 → 朗读 → 高亮当前*设成**单词**，并且用一个会报词级时间戳的语音：Kokoro，或者名字里不带 *MAI-Voice-2* 的 Azure 语音（那些按句高亮）。
+- **用名字里带 *Dragon Latest* 的 Azure 语音时，逐词高亮会在大约十秒后跳到本段最后一个词**，并停在那里，直到下一段开始。这是语音本身的问题，不是插件的：Azure 的其他语音——*Dragon HD Flash*、Multilingual、普通的那些——每个词都跟得上。
 - **用 OpenAI 兼容服务器时，读到一半冒出「发生一个未知错误。」** 服务器在某一段上失败了；查它的日志。
 - **Zotero 更新之后插件的语音不见了**。一次更新可能让它们消失，直到插件跟上；Zotero 自己的语音照常。请带上 Zotero 版本号开一个 [issue](https://github.com/xujialiu/Zotero-TTS/issues)。
 

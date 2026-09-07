@@ -286,6 +286,11 @@ password.
   General → Read Aloud → Highlight current* to **Word**, and use a voice
   that reports word timings: Kokoro, or an Azure voice without
   *MAI-Voice-2* in its name (those highlight by sentence).
+- **With an Azure voice named *Dragon Latest*, the word highlight jumps
+  to the paragraph's last word about ten seconds in** and stays there
+  until the next paragraph. It is the voice, not the plugin: Azure's other
+  voices — *Dragon HD Flash*, Multilingual, the plain ones — track every
+  word.
 - **"An unknown error occurred" part-way through a document** with an
   OpenAI-compatible server: the server failed on one segment; check its log.
 - **The plugin's voices are missing after a Zotero update.** An update can
