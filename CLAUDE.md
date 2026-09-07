@@ -274,6 +274,12 @@ over the other in the middle of a verification): before naming one, check
 which build a profile runs by a grep of its bundle or by a diagnostic field
 the build adds — never by the version string alone.
 
+**The next version is a patch bump unless said otherwise** (settled
+2026-09-07): a test build and a release take `X.Y.(Z+1)` — `1.11.2` →
+`1.11.3-beta`, then `1.11.3` — whatever the change is, a feature
+included. A minor bump, `+0.1.0`, happens only when the user says
+`+0.1.0` or names the version; never because the change looks big.
+
 **Every build is verified by its mechanism, not only by its visible
 effect** — a diagnostic that proves the code path ran, with the expected
 output stated before it runs. A fix that merely looks right may be working
