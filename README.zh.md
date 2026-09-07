@@ -1,4 +1,4 @@
-<!-- translated-from: README.md sha256:e1e0db9cf967 -->
+<!-- translated-from: README.md sha256:259b3e3286ed -->
 <p align="center"><img src="assets/icon.png" width="80" alt="Zotero-TTS 图标"></p>
 <h1 align="center">Zotero-TTS</h1>
 
@@ -22,7 +22,7 @@
 
 Zotero 10 自己就会朗读（Read Aloud），本插件不取代它的播放器——只是往播放器的**本地**语音模式里添语音，并把周边调得更顺手。[为什么这样做](PHILOSOPHY.md)（英文）。
 
-- 🗣️ **本地语音模式里更多语音**——朗读播放器里，Azure Speech、装在你机器上的 [Kokoro-FastAPI](https://github.com/remsky/Kokoro-FastAPI)、OpenAI 或任何 OpenAI 兼容服务器。[→ 服务商](#服务商)
+- 🗣️ **本地语音模式里更多语音**——朗读播放器里，Azure Speech、Cloudflare Workers AI、装在你机器上的 [Kokoro-FastAPI](https://github.com/remsky/Kokoro-FastAPI)、OpenAI 或任何 OpenAI 兼容服务器。[→ 服务商](#服务商)
 - 🔖 **从上次停下的地方接着读**——关掉文档，过些天再打开，按 `Shift+Space`，朗读就从你上次停下的那一句开始。[→ 从上次停下的地方接着读](#从上次停下的地方接着读)
 - 🎧 **设置里的语音浏览器**：按语音模式和语言列出每一个语音，一个播放按钮试听，一颗心收藏，还有一个开关让播放器只提供收藏的语音。[→ 语音浏览器](#语音浏览器)
 - ✨ **逐词高亮和逐句高亮同时进行**，颜色和不透明度都由你定——Zotero 自己的语音也一样。[→ 高亮](#高亮)
@@ -45,6 +45,7 @@ Zotero 10 自己就会朗读（Read Aloud），本插件不取代它的播放器
 | 服务商 | 需要什么 | 费用 | 高亮 |
 |---|---|---|---|
 | **Azure Speech** | 语音资源的密钥和区域 · [教程](tutorials/azure-speech-free-tier.zh.md) | 免费额度：每月 50 万字符 | 逐词 |
+| **Cloudflare Workers AI** | 账户 ID 和 API 令牌 · [教程](tutorials/cloudflare-workers-ai.zh.md) | 每天 10,000 个免费 Neurons：Aura 语音够读几页，MeloTTS 够读几个小时 | 逐句 |
 | **Kokoro-FastAPI** | 一台跑在本机或局域网里的服务器 · [教程](tutorials/kokoro-fastapi.zh.md) | 免费；CPU 也能跑，有 GPU 更快 | 逐词 |
 | **OpenAI 兼容服务器** | API 地址和模型；服务器若要密钥再加一个 | OpenAI 按字符计费；自建的服务器，例如 [Chatterbox](tutorials/chatterbox-tts-server.zh.md)，不花钱 | 逐句 |
 | **Xiaomi MiMo** | 一个 platform.xiaomimimo.com 的 API 密钥，在 OpenAI 那一节的**服务器**下拉框里选 | 限时免费 | 逐句 |

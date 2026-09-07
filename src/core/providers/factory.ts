@@ -1,5 +1,6 @@
 import type { Settings } from '../settings';
 import { createAzureProvider } from './azure';
+import { createCloudflareProvider } from './cloudflare';
 import { SynthesisError } from './errors';
 import { getLocalEngine } from './local/registry';
 import { createOpenAIProvider } from './openai';
@@ -40,6 +41,9 @@ export function createProvider(id: ProviderId, settings: Settings, deps: Provide
 
     case 'azure':
       return createAzureProvider(settings.azure, deps);
+
+    case 'cloudflare':
+      return createCloudflareProvider(settings.cloudflare, { fetch: deps.fetch });
 
     case 'system':
       return createSystemProvider(

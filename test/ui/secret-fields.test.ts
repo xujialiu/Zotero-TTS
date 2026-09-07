@@ -20,7 +20,7 @@ describe('addon/content/preferences.xhtml', () => {
   const prefOf = (markup: string) => attr(markup, 'preference')?.replace(/^extensions\.zotero\.zotero-tts\./, '');
 
   /** Every field of the pane whose value is a secret: the keys, the gateway headers, the WebDAV password. */
-  const SECRETS = ['openai.apiKey', 'openai.headers', 'azure.apiKey', 'local.headers', 'webdav.password'];
+  const SECRETS = ['openai.apiKey', 'openai.headers', 'azure.apiKey', 'cloudflare.apiToken', 'local.headers', 'webdav.password'];
 
   it('masks every secret field', () => {
     for (const name of SECRETS) {
@@ -35,7 +35,7 @@ describe('addon/content/preferences.xhtml', () => {
   it('leaves no field whose name says secret unmasked', () => {
     for (const markup of inputs) {
       const name = prefOf(markup);
-      if (!name || !/key|password|headers/i.test(name)) continue;
+      if (!name || !/key|token|password|headers/i.test(name)) continue;
       expect(SECRETS, `${name} looks like a secret`).toContain(name);
     }
   });

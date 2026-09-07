@@ -347,10 +347,10 @@ function readingTabTitles(): string[] {
  * The provider's connection check as the pane runs it, for Test connection
  * and for Enable alike (ui/provider-rows.ts): the provider built from the
  * prefs as they are, and testConnection with the probes each provider
- * gets — Azure and OpenAI cost money and have quotas, so theirs also
- * proves the account can spend (Azure with its configured voice,
- * OpenAI-compatible servers with the first voice they list, since a fixed
- * name would be wrong); the local engine has neither. The server's
+ * gets — Azure, OpenAI and Cloudflare cost money and have quotas, so
+ * theirs also proves the account can spend (Azure with its configured
+ * voice, OpenAI-compatible servers and Cloudflare with the first voice they
+ * list, since a fixed name would be wrong); the local engine has neither. The server's
  * models, when it lists them, become the Model field's suggestions.
  */
 /**
@@ -382,7 +382,8 @@ async function checkProvider(doc: Document, prefs: PrefsBackend, id: ProviderId,
       synthesisVoice: id === 'azure' ? settings.azure.voice : undefined,
       // The System provider defines checkSynthesis only where it has no
       // word marks to probe (macOS): one real `say`, caught here not mid-sentence
-      probeSynthesis: id === 'openai' || id === 'system',
+      // Cloudflare's first listed voice is a MeloTTS one, the cheapest probe it has
+      probeSynthesis: id === 'openai' || id === 'system' || id === 'cloudflare',
     });
   } catch (e) {
     outcome = { ok: false, message: t('ztts-connection-failed', { detail: String(e) }) };

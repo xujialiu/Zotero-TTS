@@ -16,7 +16,8 @@ the end of today's file, its heading stamped with the date and the time
 A Zotero 10 plugin that replaces the audio backend of Zotero's built-in Read
 Aloud. The native player, sentence segmentation, prefetching, and word/sentence
 highlighting are all Zotero's; the plugin only supplies voices and audio (plus
-word timestamps) from the user's own TTS services: OpenAI, Azure Speech, and a
+word timestamps) from the user's own TTS services: OpenAI, Azure Speech,
+Cloudflare Workers AI, and a
 local Kokoro-FastAPI server.
 
 Mechanism: intercept `Zotero.Reader._readers.push`, and on each new reader
@@ -310,3 +311,4 @@ cite `notes/NOTES.md` with a date or a section title resolve through this index.
 - The plugin carries its own copy of its strings in the registry, since Zotero's reload deletes the shared one after the successor has started (issue #64)
 - Azure's Dragon Latest voices time only the first ten seconds of a segment, and Zotero's word timers leave the last word lit (issue #69)
 - The boost above 100 lands in Zotero's compressor and comes out halved, so the volume stops at 100 (issue #66)
+- Cloudflare Workers AI joined as a provider of its own: an account id in the URL, Aura's raw MP3 against MeloTTS's base64 WAV, and no timestamps from either (issue #72)

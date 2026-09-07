@@ -1,4 +1,4 @@
-export type ProviderId = 'openai' | 'azure' | 'local' | 'system';
+export type ProviderId = 'openai' | 'azure' | 'cloudflare' | 'local' | 'system';
 
 /**
  * Shape copied verbatim from native Zotero (spec §2.2), so hijack mode

@@ -2,7 +2,7 @@ import type { ProviderId } from './providers/types';
 import type { ShortcutAction } from './shortcut-actions';
 import { VOLUME_DEFAULT, VOLUME_MAX, VOLUME_MIN } from './read-aloud-volume';
 
-export const PROVIDER_IDS: readonly ProviderId[] = ['openai', 'azure', 'local', 'system'];
+export const PROVIDER_IDS: readonly ProviderId[] = ['openai', 'azure', 'cloudflare', 'local', 'system'];
 
 export interface Settings {
   /** Each provider is switched on independently; every enabled one contributes voices. */
@@ -22,6 +22,13 @@ export interface Settings {
     presetValues: string;
   };
   azure: { enabled: boolean; apiKey: string; region: string; voice: string };
+  /**
+   * Cloudflare Workers AI (core/providers/cloudflare.ts, issue #72): the
+   * account id is part of every request's URL, the token its
+   * Authorization header. No address and no model: every text-to-speech
+   * model the account lists contributes its voices.
+   */
+  cloudflare: { enabled: boolean; accountId: string; apiToken: string };
   /** `headers`: extra request headers for a gateway in front of the server, same format as openai.headers. */
   local: { enabled: boolean; engine: string; baseURL: string; voice: string; headers: string };
   /**
@@ -122,6 +129,7 @@ export const DEFAULTS: Settings = {
     presetValues: '',
   },
   azure: { enabled: false, apiKey: '', region: 'eastasia', voice: 'zh-CN-XiaoxiaoNeural' },
+  cloudflare: { enabled: false, accountId: '', apiToken: '' },
   local: { enabled: false, engine: 'kokoro', baseURL: 'http://localhost:8880', voice: 'af_bella', headers: '' },
   system: { enabled: false },
   webdav: { url: '', username: '', password: '', syncPositions: false, autoUploadSettings: false },
@@ -206,6 +214,11 @@ export function loadSettings(prefs: PrefsBackend): Settings {
       region: str(prefs, 'azure.region', DEFAULTS.azure.region),
       voice: str(prefs, 'azure.voice', DEFAULTS.azure.voice),
     },
+    cloudflare: {
+      enabled: bool(prefs, 'cloudflare.enabled', DEFAULTS.cloudflare.enabled),
+      accountId: str(prefs, 'cloudflare.accountId', DEFAULTS.cloudflare.accountId),
+      apiToken: str(prefs, 'cloudflare.apiToken', DEFAULTS.cloudflare.apiToken),
+    },
     local: {
       enabled: bool(prefs, 'local.enabled', DEFAULTS.local.enabled),
       engine: str(prefs, 'local.engine', DEFAULTS.local.engine),
@@ -282,6 +295,7 @@ export function enabledProviders(s: Settings): ProviderId[] {
 export function saveSettings(prefs: PrefsBackend, s: Settings): void {
   for (const [k, v] of Object.entries(s.openai)) prefs.set(PREF_PREFIX + 'openai.' + k, v);
   for (const [k, v] of Object.entries(s.azure)) prefs.set(PREF_PREFIX + 'azure.' + k, v);
+  for (const [k, v] of Object.entries(s.cloudflare)) prefs.set(PREF_PREFIX + 'cloudflare.' + k, v);
   for (const [k, v] of Object.entries(s.local)) prefs.set(PREF_PREFIX + 'local.' + k, v);
   for (const [k, v] of Object.entries(s.system)) prefs.set(PREF_PREFIX + 'system.' + k, v);
   for (const [k, v] of Object.entries(s.webdav)) prefs.set(PREF_PREFIX + 'webdav.' + k, v);

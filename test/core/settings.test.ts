@@ -121,11 +121,12 @@ describe('enabledProviders', () => {
     const all = {
       ...DEFAULTS,
       azure: { ...DEFAULTS.azure, enabled: true },
+      cloudflare: { ...DEFAULTS.cloudflare, enabled: true },
       local: { ...DEFAULTS.local, enabled: true },
       system: { ...DEFAULTS.system, enabled: true },
     };
     expect(enabledProviders(all)).toEqual(PROVIDER_IDS);
-    expect(enabledProviders({ ...all, openai: { ...DEFAULTS.openai, enabled: false } })).toEqual(['azure', 'local', 'system']);
+    expect(enabledProviders({ ...all, openai: { ...DEFAULTS.openai, enabled: false } })).toEqual(['azure', 'cloudflare', 'local', 'system']);
   });
 });
 

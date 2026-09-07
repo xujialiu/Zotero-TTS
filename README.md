@@ -23,7 +23,7 @@ Zotero 10 already reads aloud, and this plugin does not replace its player —
 it adds voices to the player's **Local** tier and tunes what is around them.
 [Why it is built this way](PHILOSOPHY.md).
 
-- 🗣️ **More voices in the Local tier** of the Read Aloud player — Azure Speech, a [Kokoro-FastAPI](https://github.com/remsky/Kokoro-FastAPI) on your machine, OpenAI or any OpenAI-compatible server. [→ Providers](#providers)
+- 🗣️ **More voices in the Local tier** of the Read Aloud player — Azure Speech, Cloudflare Workers AI, a [Kokoro-FastAPI](https://github.com/remsky/Kokoro-FastAPI) on your machine, OpenAI or any OpenAI-compatible server. [→ Providers](#providers)
 - 🔖 **Resume where you stopped** — close a document, open it again later, press `Shift+Space`, and Read Aloud starts at the sentence you left off on. [→ Resume where you stopped](#resume-where-you-stopped)
 - 🎧 **A voice browser** in the settings: every voice by tier and language, a play button for a short sample, hearts for favorites, and a switch to offer only the favorites. [→ Voice browser](#voice-browser)
 - ✨ **Word *and* sentence highlighting at once**, in your own colors and opacities — for Zotero's voices too. [→ Highlight](#highlight)
@@ -46,6 +46,7 @@ it adds voices to the player's **Local** tier and tunes what is around them.
 | Provider | What you need | Cost | Highlighting |
 |---|---|---|---|
 | **Azure Speech** | Speech resource key + region · [tutorial](tutorials/azure-speech-free-tier.md) | Free tier: 500,000 characters a month | word |
+| **Cloudflare Workers AI** | Account ID + API token · [tutorial](tutorials/cloudflare-workers-ai.md) | 10,000 free Neurons a day: a few pages with an Aura voice, hours with MeloTTS | sentence |
 | **Kokoro-FastAPI** | A server on your machine or LAN · [tutorial](tutorials/kokoro-fastapi.md) | Free; CPU works, a GPU is faster | word |
 | **OpenAI-compatible** | Base URL and model; an API key if the server wants one | OpenAI bills per character; self-hosted servers such as [Chatterbox](tutorials/chatterbox-tts-server.md) are free | sentence |
 | **Xiaomi MiMo** | An API key from platform.xiaomimimo.com, picked in the OpenAI section's **Server** dropdown | Free for a limited time | sentence |

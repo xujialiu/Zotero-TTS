@@ -99,6 +99,28 @@
     </hbox>
   </groupbox>
 
+  <!-- Cloudflare Workers AI (issue #72): the account id and an API token,
+       both from the dashboard's Workers AI page. No address and no model:
+       every text-to-speech model the account lists contributes its
+       voices. The token is masked like the keys. -->
+  <groupbox id="ztts-provider-cloudflare">
+    <label><html:h2>Cloudflare Workers AI</html:h2></label>
+    <hbox align="center">
+      <label data-l10n-id="ztts-field-account-id" style="width: 8em"/>
+      <html:input type="text" preference="extensions.zotero.zotero-tts.cloudflare.accountId"/>
+    </hbox>
+    <hbox align="center">
+      <label data-l10n-id="ztts-field-api-token" style="width: 8em"/>
+      <html:input type="password" preference="extensions.zotero.zotero-tts.cloudflare.apiToken"/>
+      <label class="ztts-help" value="?" data-l10n-id="ztts-help-cloudflare" data-l10n-attrs="help"/>
+    </hbox>
+    <hbox align="center">
+      <button id="ztts-enable-cloudflare"/>
+      <button id="ztts-test-cloudflare" data-l10n-id="ztts-test-connection"/>
+      <description id="ztts-test-result-cloudflare"/>
+    </hbox>
+  </groupbox>
+
   <groupbox id="ztts-provider-local">
     <!-- One block per engine: its own switch and address. Only Kokoro
          exists today; the heading is filled from the engine registry in
