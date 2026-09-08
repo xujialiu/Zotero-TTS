@@ -1081,12 +1081,67 @@ key. Two fixtures open, A speaking.
    playing → `togglePaused (pause)`; paused → resume; idle with nothing
    stored → `startReadAloud (plain start)` (the press supplies the
    activation itself); idle with a stored position → section 5.
-4. **Shift+Enter.** Consumed only with a session open; the lock flips
-   true and `_readAloudState` is re-emitted. The visible scroll back is
-   Zotero's smooth follow, which did not animate in this window — eyes
-   only. Without a session Shift+Enter is not consumed and the arrows
-   keep paging (the page number changes — a two-page document, fixture A,
-   not B).
+4. **Shift+Enter — go to reading position** (issue #76, 1.11.5).
+   Consumed only with a session open. The key locks the view, forgets a
+   DOM view's Read Aloud state and re-emits the manager's, so the view
+   navigates on that push, playing or paused; the PDF view is left
+   alone. `diagnostics.returnKey()` is the mechanism, a trusted press
+   the behavior, and one `[zotero-tts] return to spoken: …` line per
+   press names the branch. Force the lock false before every press
+   (`Components.utils.waiveXrays(view)._readAloud.positionLocked =
+   false`; `._readAloudPositionLocked` on a PDF): it is already true
+   when a session starts, and a scroll only unlocks while
+   `_readAloud.state?.active && !_readAloud.scrolling`
+   (reader.js:55153), so a scroll during Zotero's own follow is
+   absorbed and proves nothing. Scroll away and press in **one**
+   script: a playing document's own follow puts the view back between
+   two calls.
+   - **EPUB, scrolled flow** (`test/fixtures/return-key/return-key.epub`
+     as a standalone attachment), playing and paused, 3.5 screens away.
+     The log line `dom view, state forgotten`; in the first sample
+     `locked: true` and `stateHeld: false`; then `scrolling: true` with
+     `stateHeld` and `sameSegment` true and the spoken paragraph's rect
+     back inside the viewport — 19 ms playing, 27 ms paused (scrollY
+     5212 → 1158, 5631 → 1498) — and `scrolling: false` by ~150 ms.
+     The controller is the same object and its clock and `_position`
+     go on: no restart, no second `word timestamps` line. Paused,
+     `paused` stays true in every sample. Was: playing, the view
+     returned only at the next sentence (5468 ms); paused, never.
+   - **EPUB, paginated flow** (`view.setFlowMode('paginated')`), five
+     pages away by `navigateToNextPage()`, which unlocks by itself. The
+     same flags, and `view.flow._offsetLeft` back to the exact page it
+     left at 17 ms playing / 29 ms paused (64794 → 10799,
+     75593 → 21598).
+   - **The lock survives, and still lets go.** After a return the next
+     segment change raises `scrolling` again with `locked` kept; ≥
+     500 ms later a scroll drops `locked` within 20 ms — the press
+     leaves no stuck scroll flag to eat the next manual scroll.
+   - **PDF** (fixture A, paused, page 1 → the bottom of page 2). The
+     log line `pdf view, state kept`, `view: "pdf"`, `locked: true`
+     after the press and `scrolling` up ~29 ms in. The page does not
+     come back in this window: Zotero's PDF follow scrolls
+     `viewerContainer` with `behavior: 'smooth'` (reader.js:76470),
+     which does not move here (the same call with `'auto'` lands at
+     once) — eyes only for that scroll; the EPUB's smooth navigate
+     (53243) does move, in both flows.
+   - **HTML snapshot** (`return-key.html`, imported the way §9 says),
+     playing and paused, 3.5 screens away: the same flags on the same
+     timings as the EPUB — `dom view, state forgotten`, `locked: true`
+     and `stateHeld: false` at once, `scrolling: true` with the state
+     re-held on the same segment by ~25 ms, `scrolling: false` by
+     ~125 ms, the controller and `_position` unmoved, paused stays
+     paused. Like the PDF and unlike the EPUB, the scroll itself does
+     not move here: `SnapshotView.navigateToSelector` ends in a smooth
+     `scrollIntoView` of the iframe, and the same selector with
+     `behavior: 'auto'` centers the paragraph at once while `'smooth'`
+     holds one scrollY for 900 ms. Eyes only for the scroll.
+   - **No session.** Shift+Enter is not consumed (`keydown()` 0, the
+     event not `defaultPrevented` at the main window), no log line,
+     and ArrowRight still pages by exactly one page.
+   Each DOM press also logs, from the null state, `highlight:
+   effective granularity null (… state missing)` and `the sentence
+   goes back to one piece` before the push restores them — within one
+   task, before any paint; whether anything flickers is §8.
 5. **Shift+O.** `diagnostics.playerOptions(true)` flips `expanded`; the
    real press flips it back, on the picked reader only. The diagnostic
    presses the button of **every** reader with a player, so with two
@@ -1491,18 +1546,37 @@ screen, the complete Run JavaScript code, the expected output.
 - How a voice sounds; whether the word highlight keeps pace with the
   audio (Azure, Kokoro, System on Windows) and the sentence highlight
   with OpenAI and with the System voices on macOS.
-- Shift+Enter bringing the view back to the spoken sentence; the popup
-  in motion; the speed toast's fade.
+- Shift+Enter's scroll-back as it looks on screen — the EPUB's and the
+  snapshot's smooth navigate, and the PDF's, which the bridge cannot
+  move (§4.4) — and whether the sentence highlight flickers on the
+  press; the popup in motion; the speed toast's fade.
 - The pane in a Chinese Zotero after a restart (issue #30): how the
   wording reads, whether the labels fit their 8em / 12em columns, the
   `?` tooltips' text; and the English pane unchanged from before.
 
 ## 9. Not covered, and why
 
-- EPUB and snapshot readers: the fixtures are PDFs. HTML snapshots
-  cannot be read aloud at all here (`Zotero.SDT.getPack` unavailable,
-  notes/NOTES_2026-08-31.md 02:25); an EPUB fixture would cover the
-  `dc:language` path of issue #26.
+- EPUB and snapshot readers: `test/fixtures/return-key/` holds an EPUB
+  and an HTML snapshot of the same sixty numbered paragraphs (issue
+  #76, `build.py`), and §4.4 drives both. The snapshot reads aloud only
+  when imported as a real snapshot: `Zotero.SDT._getProcessorType`
+  takes `isPDFAttachment()`, `isEPUBAttachment()` or
+  `isSnapshotAttachment()` (sdt.js:405-416), the last being
+  `LINK_MODE_IMPORTED_URL` + `text/html` (`xpcom/data/item.js`); an
+  `importFromFile()` of the .html gives `imported_file`, the reader
+  logs `SDT pack unavailable: unavailable` (reader.js:83984) and the
+  manager activates with `_segments: null` and no controller — what
+  the 2026-08-31 note recorded. Import it with
+  `Zotero.Attachments.importSnapshotFromFile({ file, url, title,
+  contentType: 'text/html', charset: 'utf-8', parentItemID })`
+  (`xpcom/attachments.js:293`; `text/html` requires a parent, lines
+  310-317), then `await Zotero.SDT.ensure(id, { isPriority: true })` →
+  `true` (68 ms measured 2026-09-08), and Read Aloud segments it (241
+  segments). The pack lives in the attachment's storage directory and
+  goes with the item. The EPUB needs none of this and also covers the
+  `dc:language` path of issue #26. Reading Mode (`SDTView`) is a
+  PDF-only toggle (reader.js:30199, 36720), so that third DOM view is
+  not reachable from these fixtures.
 - Linux: the System provider has no backend there, and §1.8's platform
   sentence is all it does; everything else is the same code. Windows and
   macOS each have their own System backend (issue #23), so §1.8 runs on

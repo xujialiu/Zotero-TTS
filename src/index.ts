@@ -15,6 +15,7 @@ import { createSettingsAutoUpload, type SettingsAutoUpload } from './core/settin
 import { machineId } from './core/machine-id';
 import { installHijack, nativeInterfaceOf } from './read-aloud';
 import { createPlayerStop, isPlayerOpen } from './read-aloud/player-stop';
+import { forgetViewReadAloudState, readAloudViewKind, type ReadAloudViewKind } from './read-aloud/return-to-spoken';
 import { redeliverInterfaces, restoreInterfaces } from './read-aloud/interface-redelivery';
 import { createReadAloudMemorySync, type ReadAloudMemorySync } from './read-aloud/memory-sync';
 import { createHighlightStyling, type HighlightStyling } from './read-aloud/highlight-style';
@@ -863,6 +864,13 @@ function preferredLanguages(): string[] {
   return [];
 }
 
+/** What the Go to reading position key did to the view, for the debug log and diagnostics.returnKey() (issue #76). */
+const RETURN_KEY_BRANCH: Record<ReadAloudViewKind, string> = {
+  dom: 'dom view, state forgotten',
+  pdf: 'pdf view, state kept',
+  none: 'no view',
+};
+
 function startReadAloudShortcuts(pluginID: string): void {
   stopReadAloudShortcuts();
   readAloudShortcuts = createReadAloudShortcuts({
@@ -902,9 +910,16 @@ function startReadAloudShortcuts(pluginID: string): void {
     // The popup's play button; unpausing with a selection restarts from it
     // (Zotero native, reader.js ~83595)
     togglePaused: (reader: any) => reader?._internalReader?.toggleReadAloudPaused?.(),
+    // Zotero's EPUB, snapshot and Reading Mode views act on the push below
+    // only when it is their first: forget the state they hold (issue #76).
+    // The line in the debug log is the proof the path ran, and which branch
+    forgetViewState: (reader: any) => {
+      const kind = forgetViewReadAloudState(reader, waived);
+      Zotero.debug('[zotero-tts] return to spoken: ' + RETURN_KEY_BRANCH[kind]);
+    },
     // A queued onStateChange with no audio side effects; with the position
-    // just locked, the PDF view scrolls back on this push (EPUB and
-    // snapshot views wait for the next segment change)
+    // just locked, the PDF view scrolls back on this push, and so does a
+    // DOM view that has just forgotten its state
     emitState: (reader: any) => reader?._internalReader?._readAloudManager?._stateChanged?.(),
     // Zotero's own resume path. Idle: the popup opens, the position becomes
     // the manager's target and the reader auto-activates once a voice
@@ -1893,6 +1908,46 @@ const diagnostics = {
       return { itemID: safe(() => r?.itemID), canReadAloud, active, paused, hasSelection, stored, wouldDo };
     });
     return JSON.stringify({ shortcut: loadSettings(prefs).shortcuts.startFromSelection, readers }, null, 1);
+  },
+  /**
+   * The Go to reading position key (Shift+Enter) as the plugin sees it
+   * (issue #76): for every reader, which of Zotero's view classes its
+   * current view is — `dom` (EPUB, snapshot, Reading Mode) or `pdf` — and
+   * that view's own lock and scroll flags, whether it holds a state and
+   * whether that state's segment is the manager's. Right after a press on
+   * a DOM view the scroll flag is up while Zotero's navigate runs (until
+   * 100 ms after its last scroll event), the lock is true and the state is
+   * held again on the manager's segment; the debug log carries `return to
+   * spoken: dom view, state forgotten`. Before the fix the flag never went
+   * up on a press. Read-only: the press itself is the key's.
+   */
+  returnKey: () => {
+    const read = (fn: () => unknown): any => {
+      try {
+        return fn() ?? null;
+      } catch {
+        return null;
+      }
+    };
+    const readers = (Zotero.Reader._readers ?? []).map((r: any) => {
+      const view = read(() => r?._internalReader?._lastView);
+      const manager = read(() => r?._internalReader?._readAloudManager);
+      const kind = readAloudViewKind(view);
+      const held = read(() => (kind === 'dom' ? view._readAloud.state : kind === 'pdf' ? view._readAloudState : null));
+      return {
+        itemID: safe(() => r?.itemID),
+        view: kind,
+        branch: RETURN_KEY_BRANCH[kind],
+        active: safe(() => !!manager?.active),
+        paused: safe(() => !!manager?.paused),
+        locked: safe(() => (kind === 'dom' ? !!view._readAloud.positionLocked : kind === 'pdf' ? !!view._readAloudPositionLocked : null)),
+        scrolling: safe(() => (kind === 'dom' ? !!view._readAloud.scrolling : kind === 'pdf' ? !!view._readAloudScrolling : null)),
+        stateHeld: safe(() => !!held),
+        sameSegment: safe(() => !!held && !!manager?.activeSegment && held.activeSegment === manager.activeSegment),
+        segment: safe(() => String(manager?.activeSegment?.text ?? '').slice(0, 60)),
+      };
+    });
+    return JSON.stringify({ shortcut: loadSettings(prefs).shortcuts.returnToSpoken, readers }, null, 1);
   },
   /**
    * The Options key (Shift+O) as the plugin sees it: for every reader,

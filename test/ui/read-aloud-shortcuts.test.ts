@@ -86,6 +86,7 @@ function setup(over: Partial<ReadAloudShortcutsDeps> = {}) {
   const startReadAloud = vi.fn();
   const togglePaused = vi.fn();
   const emitState = vi.fn();
+  const forgetViewState = vi.fn();
   const resumeLastPosition = vi.fn(() => true);
   const optionsButton = { click: vi.fn() };
   const findOptionsButton = vi.fn((_reader: unknown) => optionsButton as { click(): void } | null);
@@ -107,6 +108,7 @@ function setup(over: Partial<ReadAloudShortcutsDeps> = {}) {
     startReadAloud,
     togglePaused,
     emitState,
+    forgetViewState,
     resumeLastPosition,
     findOptionsButton,
     rememberSpeed,
@@ -130,6 +132,7 @@ function setup(over: Partial<ReadAloudShortcutsDeps> = {}) {
     startReadAloud,
     togglePaused,
     emitState,
+    forgetViewState,
     resumeLastPosition,
     optionsButton,
     findOptionsButton,
@@ -684,10 +687,11 @@ describe('return to spoken position', () => {
   // Locking makes the view follow the reading again; re-emitting the state
   // gives it a push to navigate on right away instead of at the next segment
   it('locks the view to the spoken position and re-emits the manager state', () => {
-    const { shortcuts, reader, lockPosition, emitState, resolve } = setup();
+    const { shortcuts, reader, lockPosition, forgetViewState, emitState, resolve } = setup();
     const event = enter();
     expect(shortcuts.handleKeyDown(event, resolve)).toBe(true);
     expect(lockPosition).toHaveBeenCalledWith(reader);
+    expect(forgetViewState).toHaveBeenCalledWith(reader);
     expect(emitState).toHaveBeenCalledWith(reader);
     expect(event.preventDefault).toHaveBeenCalled();
     expect(event.stopPropagation).toHaveBeenCalled();
@@ -726,6 +730,45 @@ describe('return to spoken position', () => {
     const { shortcuts, lockPosition, resolve } = setup({ emitState: undefined });
     expect(shortcuts.handleKeyDown(enter(), resolve)).toBe(true);
     expect(lockPosition).toHaveBeenCalled();
+  });
+
+  // Zotero's EPUB, snapshot and Reading Mode views navigate only on a
+  // segment change: forgetting the view's last state makes the re-emitted
+  // push count as the session's first, and only in this order (issue #76)
+  it('forgets the view state between the lock and the re-emit', () => {
+    const order: string[] = [];
+    const { shortcuts, resolve } = setup({
+      lockPosition: () => {
+        order.push('lock');
+      },
+      forgetViewState: () => {
+        order.push('forget');
+      },
+      emitState: () => {
+        order.push('emit');
+      },
+    });
+    expect(shortcuts.handleKeyDown(enter(), resolve)).toBe(true);
+    expect(order).toEqual(['lock', 'forget', 'emit']);
+  });
+
+  // The PDF view needs no forgetting; unwired, the key is what it was
+  it('still acts without forgetViewState', () => {
+    const { shortcuts, lockPosition, emitState, resolve } = setup({ forgetViewState: undefined });
+    expect(shortcuts.handleKeyDown(enter(), resolve)).toBe(true);
+    expect(lockPosition).toHaveBeenCalled();
+    expect(emitState).toHaveBeenCalled();
+  });
+
+  it('logs a forget that throws and still re-emits the state', () => {
+    const forgetViewState = vi.fn(() => {
+      throw new Error('Permission denied to access property "state"');
+    });
+    const { shortcuts, emitState, log, resolve } = setup({ forgetViewState });
+    expect(shortcuts.handleKeyDown(enter(), resolve)).toBe(true);
+    expect(forgetViewState).toHaveBeenCalled();
+    expect(emitState).toHaveBeenCalled();
+    expect(log).toHaveBeenCalledWith(expect.any(Error));
   });
 
   it('logs a lock that throws and still re-emits the state', () => {

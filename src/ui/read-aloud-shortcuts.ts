@@ -115,11 +115,20 @@ export interface ReadAloudShortcutsDeps {
    */
   togglePaused?(reader: unknown): void;
   /**
+   * Make the reader's current view take the next state push as the
+   * session's first (read-aloud/return-to-spoken.ts, issue #76). Zotero's
+   * EPUB, snapshot and Reading Mode views navigate only on a segment
+   * change, which a re-emitted state never is; forgetting the state they
+   * hold, between the lock and the re-emit, has them re-lock and navigate
+   * on that push through Zotero's own code. The PDF view is left alone.
+   */
+  forgetViewState?(reader: unknown): void;
+  /**
    * Re-emit the manager's state (`manager._stateChanged()`, a queued
    * onStateChange with no audio side effects), so a view just locked by
    * lockPosition gets a push to scroll back on right away. The PDF view
-   * navigates on any push while locked; EPUB and snapshot views only on a
-   * segment change, so there the view returns at the next sentence.
+   * navigates on any push while locked; the DOM views on this one, which
+   * forgetViewState made their first.
    */
   emitState?(reader: unknown): void;
   /**
@@ -341,6 +350,13 @@ export function createReadAloudShortcuts(deps: ReadAloudShortcutsDeps): ReadAlou
     if (!canReturnToSpoken(reader)) return false;
     try {
       deps.lockPosition?.(reader);
+    } catch (e) {
+      log(e);
+    }
+    // Between the lock and the push: the DOM views act on a push only when
+    // it is their first (issue #76)
+    try {
+      deps.forgetViewState?.(reader);
     } catch (e) {
       log(e);
     }
