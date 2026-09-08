@@ -132,7 +132,11 @@ backup/restore (file or WebDAV), highlight colors.
   one fixed in ten minutes — the issue is the public record of a
   production incident, and NOTES.md still gets its entry. A feature gets
   one when it needs a design decision or spans more than one session
-  (what used to be a README TODO step; issues have replaced it). Such an
+  (what used to be a README TODO step; issues have replaced it). **None
+  is opened without the user's yes** (settled 2026-09-08): a session
+  that finds one due — bug, feature or chore — proposes the title and
+  the one-line why, and waits; the one opened unasked on 2026-09-08
+  was deleted. Such an
   issue is written **before** the fix and holds the bug and its impact —
   what goes wrong, when, and what it costs the user — plus the evidence,
   the Zotero internals dug out and cited by file and line (`#6` is the
@@ -225,9 +229,14 @@ backup/restore (file or WebDAV), highlight colors.
   pref you need, never print whole lines.
 - **Delegation is decided per agent** (settled 2026-08-28, gated
   2026-08-28, widened 2026-08-30, split 2026-09-04, a third agent
-  2026-09-06): the `git-chores`, `zotero-tester` and `docs-translator`
-  agents run Opus at maximum reasoning effort, and who hands work to them
-  is decided agent by agent. **Every run of the
+  2026-09-06, a model per agent 2026-09-08): `zotero-tester` runs Opus
+  at maximum reasoning effort; `git-chores` runs Sonnet at high and
+  `docs-translator` Sonnet at maximum — rule-book work the session
+  checks anyway, at 40% less per token. A tester verification brief may
+  be tried on Sonnet through the `Agent` call's `model` override, and
+  the file changes only once the transcript measurement of #58 says it
+  paid. Who hands work to them is decided agent by agent.
+  **Every run of the
   zotero-dev bridge goes to `zotero-tester`**, from a session running
   Fable *or* Opus, research as much as verification — a bridge run floods
   a context with traces, DOM dumps and unpacked Zotero source whatever
@@ -265,8 +274,8 @@ backup/restore (file or WebDAV), highlight colors.
   line endings, which `core.autocrlf` gives every fresh Orca worktree
   (issue #27): keep the descriptions quoted and the files LF
   (`.gitattributes`). One added mid-session is "not found" until the
-  next session. Either way, use `general-purpose` with `model: "opus"`
-  and the agent file's rules pasted into the prompt.
+  next session. Either way, use `general-purpose` with the `model` the
+  agent file names and its rules pasted into the prompt.
 
 ## Commands (Node 22, ESM)
 
