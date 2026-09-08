@@ -20,7 +20,7 @@ describe('shortcut actions', () => {
     expect(VOLUME_ACTIONS).toEqual(['volumeDown', 'volumeUp']);
     expect(NAVIGATION_ACTIONS).toEqual(['previousSentence', 'nextSentence', 'previousParagraph', 'nextParagraph']);
     expect(POSITION_ACTIONS).toEqual(['startFromSelection', 'returnToSpoken']);
-    expect(PLAYER_ACTIONS).toEqual(['toggleOptions']);
+    expect(PLAYER_ACTIONS).toEqual(['toggleOptions', 'stopReading']);
   });
 
   it("maps each navigation action to a direction and a granularity Zotero's manager understands", () => {
@@ -61,13 +61,16 @@ describe('shortcut actions', () => {
     expect(allowsBareArrows('volumeDown')).toBe(false);
   });
 
-  it('tells the player action apart from every other group, and keeps it off bare arrow keys', () => {
+  it('tells the player actions apart from every other group, and keeps them off bare arrow keys', () => {
     expect(isPlayerAction('toggleOptions')).toBe(true);
+    expect(isPlayerAction('stopReading')).toBe(true);
     expect(isPlayerAction('returnToSpoken')).toBe(false);
     expect(isPlayerAction('nextSentence')).toBe(false);
     expect(isPlayerAction('speedUp')).toBe(false);
     expect(isPositionAction('toggleOptions')).toBe(false);
+    expect(isPositionAction('stopReading')).toBe(false);
     expect(isNavigationAction('toggleOptions')).toBe(false);
     expect(allowsBareArrows('toggleOptions')).toBe(false);
+    expect(allowsBareArrows('stopReading')).toBe(false);
   });
 });

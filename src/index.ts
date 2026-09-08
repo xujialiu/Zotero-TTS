@@ -54,7 +54,7 @@ import {
   type ReadAloudShortcuts,
 } from './ui/read-aloud-shortcuts';
 import { findOptionsButton, hasPlayer, isOptionsPanelOpen } from './ui/player-options';
-import { removeSpeedToast, showSpeedToast, showToast } from './ui/speed-toast';
+import { removeSpeedToast, showSpeedToast, showToast, SPEED_TOAST_ID } from './ui/speed-toast';
 import { browserVoices, createSamplePlayer, defaultVoiceRows, groupVoicesByTier, languageNameOf, listBrowserVoices, startingSpeed, statusLine, tierLabel } from './ui/voice-browser-rows';
 import { silentWav } from './core/silence';
 import { withTimeout } from './core/timeout';
@@ -78,6 +78,13 @@ let hijackPatched = new WeakSet<object>();
 const interfaceInstanceToken = 'instance-' + Math.random().toString(36).slice(2, 10);
 let pluginVersion = '0.0.0';
 let readAloudShortcuts: ReadAloudShortcuts | null = null;
+/**
+ * Every player that is open, in every window (read-aloud/player-stop.ts):
+ * what the stop key closes and the `players` diagnostic reports. The pane
+ * builds its own for the reading guard (ui/prefs-pane.ts); neither holds
+ * state.
+ */
+const playerStop = createPlayerStop<any>({ readers: () => Zotero.Reader._readers ?? [], log: (e) => Zotero.logError(e) });
 let readerOpenedListener: ((event: any) => void) | null = null;
 let readAloudMemory: ReadAloudMemorySync | null = null;
 /** What startup() installed and what it could not (core/startup-steps.ts); null until it has run. */
@@ -865,6 +872,16 @@ function startReadAloudShortcuts(pluginID: string): void {
     showVolumeToast: (reader: any, level: number) => {
       const doc = toastDoc(reader);
       if (doc) showToast(doc, t('ztts-volume-toast', { percent: level }));
+    },
+    // The stop key (issue #71): every player in every window, the reading
+    // guard's own close. The toast goes where the key was pressed — the
+    // reader, or the window the listener sits on when no reader was picked
+    // (the library tab selected, a player paused in another tab)
+    anyPlayerOpen: () => playerStop.open().length > 0,
+    stopAllPlayers: () => playerStop.stopAll().length,
+    showStopToast: (reader: any, count: number, fallbackDoc: any) => {
+      const doc = reader ? toastDoc(reader) : fallbackDoc;
+      if (doc) showToast(doc, t('ztts-stopped-toast', { count }));
     },
     // After a skip, what the popup's own buttons do: the view follows the spoken position again
     lockPosition: (reader: any) => reader?._internalReader?._lockPositionToReadAloud?.(),
@@ -1901,12 +1918,35 @@ const diagnostics = {
     const readers = () => (Zotero.Reader._readers ?? []) as any[];
     const before = readers().map(state);
     if (!stop) return JSON.stringify({ before }, null, 1);
-    const playerStop = createPlayerStop<any>({ readers, log: (e) => Zotero.logError(e) });
     const stopped = playerStop.stopAll().map((r: any) => safe(() => r?.itemID));
     const after = readers().map(state);
     await new Promise((resolve) => setTimeout(resolve, 1000));
     const later = readers().map(state);
     return JSON.stringify({ before, stopped, after, later }, null, 1);
+  },
+  /**
+   * The stop key (issue #71) as the plugin sees it: its binding, whether a
+   * press would be taken right now — a player open somewhere — and which
+   * players. `stopKey(true)` runs the very `stopReading()` the key runs,
+   * routed as a press on the main window is, and reports the count it
+   * returned, the players left open, and the toast's text in the document
+   * it landed in — proved by the count and the flags, never by the players
+   * looking closed.
+   */
+  stopKey: async (press = false) => {
+    const open = () => playerStop.open().map((r: any) => safe(() => r?.itemID));
+    const before = open();
+    const shortcut = loadSettings(prefs).shortcuts.stopReading;
+    // `taken`: a press would be consumed — the key is bound and there is something to stop
+    const result: Record<string, unknown> = { shortcut, taken: shortcut !== '' && before.length > 0, open: before };
+    if (!press) return JSON.stringify(result, null, 1);
+    const win = mainWindows()[0];
+    const reader = pickReader(Zotero.Reader._readers ?? [], win, win?.Zotero_Tabs ? win.Zotero_Tabs.selectedID : null, (r: any) => isSpeaking(readAloudManager(r)));
+    result.count = safe(() => readAloudShortcuts?.stopReading(reader, win?.document));
+    result.after = open();
+    const doc = reader ? toastDoc(reader) : win?.document;
+    result.toast = safe(() => doc?.getElementById(SPEED_TOAST_ID)?.textContent ?? null);
+    return JSON.stringify(result, null, 1);
   },
   /**
    * The stored Read Aloud positions and what the sampler sees right now.

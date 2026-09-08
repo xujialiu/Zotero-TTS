@@ -157,6 +157,8 @@ export const DEFAULTS: Settings = {
     returnToSpoken: 'Shift+Enter',
     // The player's Options panel; taken only while the player is on screen
     toggleOptions: 'Shift+O',
+    // Every player in every window; taken only while one is open somewhere (issue #71)
+    stopReading: 'Shift+S',
   },
   readAloud: {
     sameForAllDocuments: true,
@@ -252,6 +254,7 @@ export function loadSettings(prefs: PrefsBackend): Settings {
       startFromSelection: str(prefs, 'shortcuts.startFromSelection', DEFAULTS.shortcuts.startFromSelection),
       returnToSpoken: str(prefs, 'shortcuts.returnToSpoken', DEFAULTS.shortcuts.returnToSpoken),
       toggleOptions: str(prefs, 'shortcuts.toggleOptions', DEFAULTS.shortcuts.toggleOptions),
+      stopReading: str(prefs, 'shortcuts.stopReading', DEFAULTS.shortcuts.stopReading),
     },
     readAloud: {
       sameForAllDocuments: bool(prefs, 'readAloud.sameForAllDocuments', DEFAULTS.readAloud.sameForAllDocuments),

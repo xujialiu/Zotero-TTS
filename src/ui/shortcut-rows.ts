@@ -35,6 +35,7 @@ const ACTION_NAMES: Record<ShortcutAction, () => string> = {
   startFromSelection: () => t('ztts-action-play'),
   returnToSpoken: () => t('ztts-action-return'),
   toggleOptions: () => t('ztts-action-options'),
+  stopReading: () => t('ztts-action-stop'),
 };
 
 /**

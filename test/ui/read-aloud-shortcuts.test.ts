@@ -70,6 +70,7 @@ const BINDINGS = {
   startFromSelection: 'Shift+Space',
   returnToSpoken: 'Shift+Enter',
   toggleOptions: 'Shift+O',
+  stopReading: 'Shift+S',
 };
 const voicesPref = (prefs: { store: Record<string, unknown> }) => JSON.parse(prefs.store[READ_ALOUD_VOICES_PREF] as string);
 
@@ -89,6 +90,10 @@ function setup(over: Partial<ReadAloudShortcutsDeps> = {}) {
   const optionsButton = { click: vi.fn() };
   const findOptionsButton = vi.fn((_reader: unknown) => optionsButton as { click(): void } | null);
   const rememberSpeed = vi.fn((_speed: number) => {});
+  // The stop key's players (issue #71): two open, both closed by a press
+  const anyPlayerOpen = vi.fn(() => true);
+  const stopAllPlayers = vi.fn(() => 2);
+  const showStopToast = vi.fn((_reader: unknown, _count: number, _doc: unknown) => {});
   const log = vi.fn();
   const shortcuts = createReadAloudShortcuts({
     getBindings: () => BINDINGS,
@@ -105,6 +110,9 @@ function setup(over: Partial<ReadAloudShortcutsDeps> = {}) {
     resumeLastPosition,
     findOptionsButton,
     rememberSpeed,
+    anyPlayerOpen,
+    stopAllPlayers,
+    showStopToast,
     log,
     ...over,
   });
@@ -125,6 +133,9 @@ function setup(over: Partial<ReadAloudShortcutsDeps> = {}) {
     resumeLastPosition,
     optionsButton,
     findOptionsButton,
+    anyPlayerOpen,
+    stopAllPlayers,
+    showStopToast,
     log,
     resolve: () => reader,
   };
@@ -836,6 +847,83 @@ describe("the player's options key (action toggleOptions)", () => {
     expect(optionsButton.click).toHaveBeenCalledTimes(1);
     const none = setup({ findOptionsButton: () => null });
     expect(none.shortcuts.toggleOptions(none.reader)).toBe(false);
+  });
+});
+
+describe('the stop key (action stopReading)', () => {
+  const letterS = (partial: Partial<ShortcutKeyEvent> = {}) => keyEvent({ key: 'S', code: 'KeyS', shiftKey: true, ...partial });
+  const windowDoc = { title: 'the chrome window' };
+  /** A press on a chrome window's capturing listener: `currentTarget` is the window. */
+  const fromWindow = (partial: Partial<ShortcutKeyEvent> = {}) => letterS({ currentTarget: { document: windowDoc }, ...partial });
+
+  it('closes every player, says how many, and consumes the key', () => {
+    const { shortcuts, stopAllPlayers, showStopToast, reader, resolve } = setup();
+    const event = fromWindow();
+    expect(shortcuts.handleKeyDown(event, resolve)).toBe(true);
+    expect(stopAllPlayers).toHaveBeenCalledTimes(1);
+    expect(showStopToast).toHaveBeenCalledWith(reader, 2, windowDoc);
+    expect(event.preventDefault).toHaveBeenCalled();
+    expect(event.stopPropagation).toHaveBeenCalled();
+  });
+
+  // The one key that takes no reader: with the library tab selected
+  // pickReader finds none, and the players in the other tabs still close
+  it('acts without a reader, the toast going to the window the key came from', () => {
+    const { shortcuts, stopAllPlayers, showStopToast } = setup();
+    const event = fromWindow();
+    expect(shortcuts.handleKeyDown(event, () => null)).toBe(true);
+    expect(stopAllPlayers).toHaveBeenCalledTimes(1);
+    expect(showStopToast).toHaveBeenCalledWith(null, 2, windowDoc);
+  });
+
+  it('falls through while no player is open anywhere', () => {
+    const { shortcuts, stopAllPlayers, showStopToast, resolve } = setup({ anyPlayerOpen: () => false });
+    const event = letterS();
+    expect(shortcuts.handleKeyDown(event, resolve)).toBe(false);
+    expect(stopAllPlayers).not.toHaveBeenCalled();
+    expect(showStopToast).not.toHaveBeenCalled();
+    expect(event.preventDefault).not.toHaveBeenCalled();
+  });
+
+  it('falls through when the players are not wired at all', () => {
+    const { shortcuts, resolve } = setup({ anyPlayerOpen: undefined });
+    const event = letterS();
+    expect(shortcuts.handleKeyDown(event, resolve)).toBe(false);
+    expect(event.preventDefault).not.toHaveBeenCalled();
+  });
+
+  it('lets typing through in editable fields', () => {
+    const { shortcuts, stopAllPlayers, resolve } = setup();
+    const event = letterS({ target: { tagName: 'INPUT', type: 'text' } });
+    expect(shortcuts.handleKeyDown(event, resolve)).toBe(false);
+    expect(stopAllPlayers).not.toHaveBeenCalled();
+  });
+
+  it('swallows auto-repeat: one stop per press', () => {
+    const { shortcuts, stopAllPlayers, resolve } = setup();
+    expect(shortcuts.handleKeyDown(letterS({ repeat: true }), resolve)).toBe(true);
+    expect(stopAllPlayers).not.toHaveBeenCalled();
+  });
+
+  it('logs a stop that throws, having consumed the key, and the toast says none', () => {
+    const { shortcuts, showStopToast, log, reader, resolve } = setup({
+      stopAllPlayers: () => {
+        throw new Error('dead object');
+      },
+    });
+    const event = letterS();
+    expect(shortcuts.handleKeyDown(event, resolve)).toBe(true);
+    expect(log).toHaveBeenCalledWith(expect.any(Error));
+    expect(showStopToast).toHaveBeenCalledWith(reader, 0, null);
+  });
+
+  it('stopReading() returns the count closed and shows the toast where it is told', () => {
+    const { shortcuts, reader, showStopToast } = setup();
+    expect(shortcuts.stopReading(reader, windowDoc)).toBe(2);
+    expect(showStopToast).toHaveBeenCalledWith(reader, 2, windowDoc);
+    const none = setup({ stopAllPlayers: undefined });
+    expect(none.shortcuts.stopReading(none.reader)).toBe(0);
+    expect(none.showStopToast).toHaveBeenCalledWith(none.reader, 0, null);
   });
 });
 

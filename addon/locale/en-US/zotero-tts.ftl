@@ -165,6 +165,8 @@ ztts-key-return =
     .value = Go to reading position
 ztts-key-options =
     .value = Player options
+ztts-key-stop =
+    .value = Stop reading everywhere
 ztts-clear =
     .label = Clear
 ztts-help-key-skip =
@@ -179,6 +181,9 @@ ztts-help-key-return =
 ztts-help-key-options =
     .value = ?
     .help = Opens and closes the player's options panel — the speed slider, the tier, the language and the voice. Acts only while Read Aloud is open; otherwise the key keeps its usual meaning in the reader.
+ztts-help-key-stop =
+    .value = ?
+    .help = Closes the Read Aloud player in every tab at once. Each tab keeps its place, and Read Aloud picks up there when you start it again. While no player is open the key keeps its usual meaning.
 ztts-help-key-volume =
     .value = ?
     .help = Changes the Volume setting above by 10%, for every voice, within the sentence being spoken. Acts only while Read Aloud is open; otherwise the key keeps its usual meaning in the reader.
@@ -395,8 +400,14 @@ ztts-action-next-paragraph = Next paragraph
 ztts-action-play = Play / pause / resume
 ztts-action-return = Go to reading position
 ztts-action-options = Player options
+ztts-action-stop = Stop reading everywhere
 # The toast the volume keys show, where the speed's shows `1.3×`
 ztts-volume-toast = Volume { $percent }%
+# The stop key's toast (issue #71): how many players it closed
+ztts-stopped-toast = Stopped Read Aloud in { $count ->
+        [one] one tab
+       *[other] { $count } tabs
+    }
 
 ## Backup and Sync (ui/backup-rows.ts, ui/webdav-rows.ts)
 

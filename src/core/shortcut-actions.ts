@@ -24,8 +24,12 @@ export type PositionAction = 'startFromSelection' | 'returnToSpoken';
  * Actions on the player popup itself. `toggleOptions` presses its Options
  * button, the one control of the player that had no key; it is a DOM click
  * because the panel's state never leaves Zotero's React component.
+ * `stopReading` closes the player in every tab of every window at once
+ * (read-aloud/player-stop.ts, issue #71) — the one action that takes no
+ * reader, so the routing to the speaking or selected reader does not
+ * apply to it.
  */
-export type PlayerAction = 'toggleOptions';
+export type PlayerAction = 'toggleOptions' | 'stopReading';
 
 export type ShortcutAction = SpeedAction | VolumeAction | NavigationAction | PositionAction | PlayerAction;
 
@@ -33,7 +37,7 @@ export const NAVIGATION_ACTIONS: readonly NavigationAction[] = ['previousSentenc
 
 export const POSITION_ACTIONS: readonly PositionAction[] = ['startFromSelection', 'returnToSpoken'];
 
-export const PLAYER_ACTIONS: readonly PlayerAction[] = ['toggleOptions'];
+export const PLAYER_ACTIONS: readonly PlayerAction[] = ['toggleOptions', 'stopReading'];
 
 export const SHORTCUT_ACTIONS: readonly ShortcutAction[] = [
   ...SPEED_ACTIONS,

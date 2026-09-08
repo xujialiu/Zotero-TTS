@@ -56,6 +56,8 @@ export interface ShortcutKeyEvent extends KeyEventLike {
   repeat?: boolean;
   defaultPrevented?: boolean;
   target?: unknown;
+  /** The window the listener sits on — where the stop key's toast goes when no reader was picked. */
+  currentTarget?: unknown;
   preventDefault(): void;
   stopPropagation(): void;
 }
@@ -134,6 +136,21 @@ export interface ReadAloudShortcutsDeps {
    * never leaves Zotero's React component.
    */
   findOptionsButton?(reader: unknown): { click(): void } | null;
+  /**
+   * Whether a Read Aloud player is open in any tab of any window
+   * (read-aloud/player-stop.ts `open()`, issue #71). The stop key is taken
+   * only then and falls through otherwise; unwired, it is never taken.
+   */
+  anyPlayerOpen?(): boolean;
+  /** Closes every open player the headphone button's way and returns how many it closed (`stopAll().length`). */
+  stopAllPlayers?(): number;
+  /**
+   * The stop key's toast — "Stopped Read Aloud in N tabs" — where the key
+   * was pressed: `reader` is the picked reader, null when the window had
+   * none to pick (the library tab selected); `fallbackDoc` is then the
+   * document the key was pressed in.
+   */
+  showStopToast?(reader: unknown, count: number, fallbackDoc: unknown): void;
   log?(e: unknown): void;
 }
 
@@ -157,6 +174,8 @@ export interface ReadAloudShortcuts {
   returnToSpoken(reader: unknown): boolean;
   /** Unfold or fold the player's options panel; false when no player is on screen. */
   toggleOptions(reader: unknown): boolean;
+  /** The stop key: close every open player and say how many; returns the count closed (0 unwired). */
+  stopReading(reader: unknown, fallbackDoc?: unknown): number;
   /** Attach a capturing keydown listener to a window; idempotent per window, detaches itself on unload. */
   listen(target: EventTargetLike, resolveReader: () => unknown, options?: HandleOptions): void;
   unlisten(target: EventTargetLike): void;
@@ -354,6 +373,31 @@ export function createReadAloudShortcuts(deps: ReadAloudShortcutsDeps): ReadAlou
     return true;
   }
 
+  /** Whether the stop key has anything to do; false when the players are not wired or the lookup throws. */
+  const anyPlayerOpen = (): boolean => {
+    try {
+      return deps.anyPlayerOpen?.() ?? false;
+    } catch (e) {
+      log(e);
+      return false;
+    }
+  };
+
+  function stopReading(reader: unknown, fallbackDoc: unknown = null): number {
+    let count = 0;
+    try {
+      count = deps.stopAllPlayers?.() ?? 0;
+    } catch (e) {
+      log(e);
+    }
+    try {
+      deps.showStopToast?.(reader, count, fallbackDoc);
+    } catch (e) {
+      log(e);
+    }
+    return count;
+  }
+
   function handleKeyDown(event: ShortcutKeyEvent, resolveReader: () => unknown, options: HandleOptions = {}): boolean {
     if (event.defaultPrevented) return false;
     const action = actionFor(event);
@@ -361,6 +405,17 @@ export function createReadAloudShortcuts(deps: ReadAloudShortcutsDeps): ReadAlou
     const isEditable = options.isEditable ?? ((e: ShortcutKeyEvent) => isEditableTarget(e.target));
     if (isEditable(event)) return false;
     const reader = resolveReader();
+    // The stop key takes no reader: it closes every player in every window,
+    // and is the one key that works with the library tab selected. Taken
+    // only while a player is open somewhere, else left alone (issue #71)
+    if (action === 'stopReading') {
+      if (!anyPlayerOpen()) return false;
+      event.preventDefault();
+      event.stopPropagation();
+      if (event.repeat) return true;
+      stopReading(reader, documentOf(event));
+      return true;
+    }
     if (!reader) return false;
     // The arrow keys page and scroll the reader: a sentence or paragraph key
     // is borrowed only while a Read Aloud session is open (playing or
@@ -421,7 +476,17 @@ export function createReadAloudShortcuts(deps: ReadAloudShortcutsDeps): ReadAlou
     for (const target of [...listeners.keys()]) unlisten(target);
   }
 
-  return { handleKeyDown, adjust, adjustVolume, navigate, smartPlay, returnToSpoken, toggleOptions, listen, unlisten, dispose };
+  return { handleKeyDown, adjust, adjustVolume, navigate, smartPlay, returnToSpoken, toggleOptions, stopReading, listen, unlisten, dispose };
+}
+
+/** The document a key was pressed in: the listening window's, else the target's own; null when neither is reachable. */
+function documentOf(event: ShortcutKeyEvent): unknown {
+  const e = event as { currentTarget?: { document?: unknown } | null; target?: { ownerDocument?: unknown } | null };
+  try {
+    return e.currentTarget?.document ?? e.target?.ownerDocument ?? null;
+  } catch {
+    return null;
+  }
 }
 
 /**

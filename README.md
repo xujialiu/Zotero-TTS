@@ -27,7 +27,7 @@ it adds voices to the player's **Local** tier and tunes what is around them.
 - 🔖 **Resume where you stopped** — close a document, open it again later, press `Shift+Space`, and Read Aloud starts at the sentence you left off on. [→ Resume where you stopped](#resume-where-you-stopped)
 - 🎧 **A voice browser** in the settings: every voice by tier and language, a play button for a short sample, hearts for favorites, and a switch to offer only the favorites. [→ Voice browser](#voice-browser)
 - ✨ **Word *and* sentence highlighting at once**, in your own colors and opacities — for Zotero's voices too. [→ Highlight](#highlight)
-- ⌨️ **Keyboard shortcuts** for speed, volume, jumping by sentence or paragraph, reading from the selection, and the player's options panel. All rebindable. [→ Shortcuts](#keyboard-shortcuts)
+- ⌨️ **Keyboard shortcuts** for speed, volume, jumping by sentence or paragraph, reading from the selection, the player's options panel, and stopping Read Aloud in every tab at once. All rebindable. [→ Shortcuts](#keyboard-shortcuts)
 - 📌 **One voice and speed everywhere** — every document and every open tab, instead of Zotero's choice per language. [→ Reading](#reading)
 - ⏱️ **The pauses are yours** — how long every voice waits between sentences and before a paragraph, shorter as you read faster. [→ Reading](#reading)
 - 💾 **Backup and sync** — settings and reading positions as files, or through your own WebDAV folder, so your bookmarks follow you between computers. [→ Backup and sync](#backup-and-sync)
@@ -165,6 +165,10 @@ doing:
 - Read Aloud already playing: it pauses; pressed again it goes on from the
   same sentence — or from the selection, if you made one while it was
   paused.
+
+**`Shift+S` stops Read Aloud everywhere** — every tab's player closes at
+once, a short message says how many, and each tab keeps its place for the
+next time. While no player is open the key keeps its usual meaning.
 
 ### Voice browser
 
