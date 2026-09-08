@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
+import { HIGHLIGHT_ACTIONS } from '../../src/core/highlight-level';
 import { SPEED_ACTIONS } from '../../src/core/read-aloud-speed';
 import { VOLUME_ACTIONS } from '../../src/core/read-aloud-volume';
 import {
   allowsBareArrows,
+  isHighlightAction,
   isNavigationAction,
   isPlayerAction,
   isPositionAction,
@@ -15,8 +17,9 @@ import {
 } from '../../src/core/shortcut-actions';
 
 describe('shortcut actions', () => {
-  it('lists the speed actions first, then the volume ones, then navigation, position and the player', () => {
-    expect(SHORTCUT_ACTIONS).toEqual([...SPEED_ACTIONS, ...VOLUME_ACTIONS, ...NAVIGATION_ACTIONS, ...POSITION_ACTIONS, ...PLAYER_ACTIONS]);
+  it('lists the speed actions first, then the volume ones, then navigation, position, the player and the highlight', () => {
+    expect(SHORTCUT_ACTIONS).toEqual([...SPEED_ACTIONS, ...VOLUME_ACTIONS, ...NAVIGATION_ACTIONS, ...POSITION_ACTIONS, ...PLAYER_ACTIONS, ...HIGHLIGHT_ACTIONS]);
+    expect(HIGHLIGHT_ACTIONS).toEqual(['toggleWordHighlight']);
     expect(VOLUME_ACTIONS).toEqual(['volumeDown', 'volumeUp']);
     expect(NAVIGATION_ACTIONS).toEqual(['previousSentence', 'nextSentence', 'previousParagraph', 'nextParagraph']);
     expect(POSITION_ACTIONS).toEqual(['startFromSelection', 'returnToSpoken']);
@@ -72,5 +75,17 @@ describe('shortcut actions', () => {
     expect(isNavigationAction('toggleOptions')).toBe(false);
     expect(allowsBareArrows('toggleOptions')).toBe(false);
     expect(allowsBareArrows('stopReading')).toBe(false);
+  });
+
+  it('tells the highlight action apart from every other group, and keeps it off bare arrow keys', () => {
+    expect(isHighlightAction('toggleWordHighlight')).toBe(true);
+    expect(isHighlightAction('toggleOptions')).toBe(false);
+    expect(isHighlightAction('volumeUp')).toBe(false);
+    expect(isHighlightAction('nextSentence')).toBe(false);
+    expect(isPlayerAction('toggleWordHighlight')).toBe(false);
+    expect(isVolumeAction('toggleWordHighlight')).toBe(false);
+    expect(isPositionAction('toggleWordHighlight')).toBe(false);
+    expect(isNavigationAction('toggleWordHighlight')).toBe(false);
+    expect(allowsBareArrows('toggleWordHighlight')).toBe(false);
   });
 });

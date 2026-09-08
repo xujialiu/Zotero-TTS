@@ -156,6 +156,8 @@ ztts-key-options =
     .value = 播放器选项
 ztts-key-stop =
     .value = 停止所有朗读
+ztts-key-word-highlight =
+    .value = 单词高亮 开 / 关
 ztts-clear =
     .label = 清除
 ztts-help-key-skip =
@@ -173,6 +175,9 @@ ztts-help-key-options =
 ztts-help-key-stop =
     .value = ?
     .help = 一次关闭所有标签页里的朗读播放器。每个标签页的阅读位置都会保留，再次开始朗读时从原处继续。没有播放器打开时，这个键保持原来的作用。
+ztts-help-key-word-highlight =
+    .value = ?
+    .help = 在高亮正在朗读的单词和高亮整句之间切换——和 Zotero 自己的“高亮当前”设置是同一个选择，对所有标签页生效，并一直保留到下次更改。没有单词时间的语音无论怎么选都按整句高亮。
 ztts-help-key-volume =
     .value = ?
     .help = 把上面的“音量”设置调 10%，对每个语音有效，正在读的这一句立刻生效。仅在朗读打开时生效；否则这个键在阅读器里保持原来的作用。
@@ -359,9 +364,13 @@ ztts-action-play = 播放 / 暂停 / 继续
 ztts-action-return = 回到朗读位置
 ztts-action-options = 播放器选项
 ztts-action-stop = 停止所有朗读
+ztts-action-word-highlight = 单词高亮 开 / 关
 # The toast the volume keys show, where the speed's shows `1.3×`
 ztts-volume-toast = 音量 { $percent }%
 ztts-stopped-toast = 已停止 { $count } 个标签页的朗读
+ztts-highlight-toast-word = 高亮：单词
+ztts-highlight-toast-sentence = 高亮：句子
+ztts-highlight-toast-word-no-timing = 高亮：单词（此语音没有单词时间，仍按整句高亮）
 
 ## Backup and Sync
 

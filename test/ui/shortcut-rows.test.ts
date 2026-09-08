@@ -76,6 +76,8 @@ const IDS = [
   'ztts-key-clear-startFromSelection',
   'ztts-key-clear-returnToSpoken',
   'ztts-key-clear-toggleOptions',
+  'ztts-key-toggleWordHighlight',
+  'ztts-key-clear-toggleWordHighlight',
   'ztts-key-defaults',
   'ztts-key-message',
 ];

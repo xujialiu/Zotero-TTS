@@ -56,8 +56,9 @@ export interface Settings {
   cacheAudio: boolean;
   /**
    * Keyboard shortcuts that drive Zotero's own Read Aloud — the playback
-   * speed and volume, and skipping by sentence or paragraph (core/shortcut-actions.ts)
-   * — as text understood by core/shortcuts.ts ("Shift+Z"). Empty disables one.
+   * speed and volume, skipping by sentence or paragraph, the highlight level
+   * (core/shortcut-actions.ts) — as text understood by core/shortcuts.ts
+   * ("Shift+Z"). Empty disables one.
    */
   shortcuts: Record<ShortcutAction, string>;
   readAloud: {
@@ -159,6 +160,9 @@ export const DEFAULTS: Settings = {
     toggleOptions: 'Shift+O',
     // Every player in every window; taken only while one is open somewhere (issue #71)
     stopReading: 'Shift+S',
+    // Zotero's own highlight level, word on / off (issue #67); taken on any
+    // reader, idle included — the level is a setting, set before play too
+    toggleWordHighlight: 'Shift+W',
   },
   readAloud: {
     sameForAllDocuments: true,
@@ -255,6 +259,7 @@ export function loadSettings(prefs: PrefsBackend): Settings {
       returnToSpoken: str(prefs, 'shortcuts.returnToSpoken', DEFAULTS.shortcuts.returnToSpoken),
       toggleOptions: str(prefs, 'shortcuts.toggleOptions', DEFAULTS.shortcuts.toggleOptions),
       stopReading: str(prefs, 'shortcuts.stopReading', DEFAULTS.shortcuts.stopReading),
+      toggleWordHighlight: str(prefs, 'shortcuts.toggleWordHighlight', DEFAULTS.shortcuts.toggleWordHighlight),
     },
     readAloud: {
       sameForAllDocuments: bool(prefs, 'readAloud.sameForAllDocuments', DEFAULTS.readAloud.sameForAllDocuments),

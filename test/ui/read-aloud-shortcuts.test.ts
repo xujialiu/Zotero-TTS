@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { HIGHLIGHT_LEVEL_PREF } from '../../src/core/highlight-level';
 import { READ_ALOUD_VOICES_PREF } from '../../src/core/read-aloud-speed';
 import { VOLUME_PREF } from '../../src/core/read-aloud-volume';
 import type { PrefsBackend } from '../../src/core/settings';
@@ -71,6 +72,7 @@ const BINDINGS = {
   returnToSpoken: 'Shift+Enter',
   toggleOptions: 'Shift+O',
   stopReading: 'Shift+S',
+  toggleWordHighlight: 'Shift+W',
 };
 const voicesPref = (prefs: { store: Record<string, unknown> }) => JSON.parse(prefs.store[READ_ALOUD_VOICES_PREF] as string);
 
@@ -95,6 +97,9 @@ function setup(over: Partial<ReadAloudShortcutsDeps> = {}) {
   const anyPlayerOpen = vi.fn(() => true);
   const stopAllPlayers = vi.fn(() => 2);
   const showStopToast = vi.fn((_reader: unknown, _count: number, _doc: unknown) => {});
+  // The highlight key (issue #67): the toast and what the manager's active word timestamp is
+  const showHighlightToast = vi.fn((_reader: unknown, _level: string, _timing: string) => {});
+  const wordTiming = vi.fn((_reader: unknown): 'real' | 'stand-in' | 'none' => 'real');
   const log = vi.fn();
   const shortcuts = createReadAloudShortcuts({
     getBindings: () => BINDINGS,
@@ -115,6 +120,8 @@ function setup(over: Partial<ReadAloudShortcutsDeps> = {}) {
     anyPlayerOpen,
     stopAllPlayers,
     showStopToast,
+    showHighlightToast,
+    wordTiming,
     log,
     ...over,
   });
@@ -139,6 +146,8 @@ function setup(over: Partial<ReadAloudShortcutsDeps> = {}) {
     anyPlayerOpen,
     stopAllPlayers,
     showStopToast,
+    showHighlightToast,
+    wordTiming,
     log,
     resolve: () => reader,
   };
@@ -967,6 +976,124 @@ describe('the stop key (action stopReading)', () => {
     const none = setup({ stopAllPlayers: undefined });
     expect(none.shortcuts.stopReading(none.reader)).toBe(0);
     expect(none.showStopToast).toHaveBeenCalledWith(none.reader, 0, null);
+  });
+});
+
+describe('the word highlight key (action toggleWordHighlight, issue #67)', () => {
+  const letterW = (partial: Partial<ShortcutKeyEvent> = {}) => keyEvent({ key: 'W', code: 'KeyW', shiftKey: true, ...partial });
+
+  it("turns the word highlight on by writing Zotero's own pref, says so, and consumes the key", () => {
+    const { shortcuts, prefs, reader, showHighlightToast, resolve } = setup();
+    prefs.store[HIGHLIGHT_LEVEL_PREF] = 'sentence';
+    const event = letterW();
+    expect(shortcuts.handleKeyDown(event, resolve)).toBe(true);
+    expect(prefs.store[HIGHLIGHT_LEVEL_PREF]).toBe('word');
+    expect(showHighlightToast).toHaveBeenCalledWith(reader, 'word', 'real');
+    expect(event.preventDefault).toHaveBeenCalled();
+    expect(event.stopPropagation).toHaveBeenCalled();
+  });
+
+  it('turns it off again, back to the sentence', () => {
+    const { shortcuts, prefs, reader, showHighlightToast, resolve } = setup();
+    prefs.store[HIGHLIGHT_LEVEL_PREF] = 'word';
+    expect(shortcuts.handleKeyDown(letterW(), resolve)).toBe(true);
+    expect(prefs.store[HIGHLIGHT_LEVEL_PREF]).toBe('sentence');
+    expect(showHighlightToast).toHaveBeenLastCalledWith(reader, 'sentence', 'real');
+  });
+
+  it("goes to word from paragraph and from an unset pref: Zotero's default is the sentence", () => {
+    const { shortcuts, prefs, resolve } = setup();
+    prefs.store[HIGHLIGHT_LEVEL_PREF] = 'paragraph';
+    shortcuts.handleKeyDown(letterW(), resolve);
+    expect(prefs.store[HIGHLIGHT_LEVEL_PREF]).toBe('word');
+    const unset = setup();
+    unset.shortcuts.handleKeyDown(letterW(), unset.resolve);
+    expect(unset.prefs.store[HIGHLIGHT_LEVEL_PREF]).toBe('word');
+  });
+
+  it('tells the toast when the voice has no word timing, so a switch that shows nothing is explained', () => {
+    const { shortcuts, reader, showHighlightToast, resolve } = setup({ wordTiming: () => 'stand-in' });
+    shortcuts.handleKeyDown(letterW(), resolve);
+    expect(showHighlightToast).toHaveBeenCalledWith(reader, 'word', 'stand-in');
+  });
+
+  it('reports no timing when the lookup is not wired or throws, and still flips', () => {
+    const unwired = setup({ wordTiming: undefined });
+    unwired.shortcuts.handleKeyDown(letterW(), unwired.resolve);
+    expect(unwired.showHighlightToast).toHaveBeenCalledWith(unwired.reader, 'word', 'none');
+    const throwing = setup({
+      wordTiming: () => {
+        throw new Error('dead object');
+      },
+    });
+    throwing.shortcuts.handleKeyDown(letterW(), throwing.resolve);
+    expect(throwing.prefs.store[HIGHLIGHT_LEVEL_PREF]).toBe('word');
+    expect(throwing.showHighlightToast).toHaveBeenCalledWith(throwing.reader, 'word', 'none');
+    expect(throwing.log).toHaveBeenCalledWith(expect.any(Error));
+  });
+
+  // The level is a setting: it can be set before pressing play
+  it('works with no Read Aloud session open, and without a manager at all', () => {
+    const idle = setup();
+    idle.manager.active = false;
+    expect(idle.shortcuts.handleKeyDown(letterW(), idle.resolve)).toBe(true);
+    expect(idle.prefs.store[HIGHLIGHT_LEVEL_PREF]).toBe('word');
+    const none = setup({ getManager: () => null });
+    expect(none.shortcuts.handleKeyDown(letterW(), none.resolve)).toBe(true);
+    expect(none.prefs.store[HIGHLIGHT_LEVEL_PREF]).toBe('word');
+  });
+
+  it('does nothing without a reader: the library tab keeps the key', () => {
+    const { shortcuts, prefs, showHighlightToast } = setup();
+    const event = letterW();
+    expect(shortcuts.handleKeyDown(event, () => null)).toBe(false);
+    expect(event.preventDefault).not.toHaveBeenCalled();
+    expect(prefs.store[HIGHLIGHT_LEVEL_PREF]).toBeUndefined();
+    expect(showHighlightToast).not.toHaveBeenCalled();
+  });
+
+  it('lets typing through in editable fields', () => {
+    const { shortcuts, prefs, resolve } = setup();
+    expect(shortcuts.handleKeyDown(letterW({ target: { tagName: 'INPUT', type: 'text' } }), resolve)).toBe(false);
+    expect(prefs.store[HIGHLIGHT_LEVEL_PREF]).toBeUndefined();
+  });
+
+  it('swallows auto-repeat: one flip per press', () => {
+    const { shortcuts, prefs, resolve } = setup();
+    expect(shortcuts.handleKeyDown(letterW({ repeat: true }), resolve)).toBe(true);
+    expect(prefs.store[HIGHLIGHT_LEVEL_PREF]).toBeUndefined();
+  });
+
+  it('logs a pref write that throws, shows no toast, and still consumes the key', () => {
+    const { shortcuts, log, showHighlightToast, resolve } = setup({
+      prefs: {
+        get: () => 'sentence',
+        set: () => {
+          throw new Error('pref refused');
+        },
+      },
+    });
+    const event = letterW();
+    expect(shortcuts.handleKeyDown(event, resolve)).toBe(true);
+    expect(event.preventDefault).toHaveBeenCalled();
+    expect(log).toHaveBeenCalledTimes(1);
+    expect(showHighlightToast).not.toHaveBeenCalled();
+  });
+
+  it('toggleWordHighlight() reports the level it set, or null when the write failed', () => {
+    const { shortcuts, reader, prefs } = setup();
+    expect(shortcuts.toggleWordHighlight(reader)).toBe('word');
+    expect(shortcuts.toggleWordHighlight(reader)).toBe('sentence');
+    expect(prefs.store[HIGHLIGHT_LEVEL_PREF]).toBe('sentence');
+    const refused = setup({
+      prefs: {
+        get: () => 'word',
+        set: () => {
+          throw new Error('pref refused');
+        },
+      },
+    });
+    expect(refused.shortcuts.toggleWordHighlight(refused.reader)).toBeNull();
   });
 });
 

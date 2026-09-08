@@ -82,7 +82,7 @@ describe('loadSettings', () => {
     expect(loadSettings(fakePrefs({ 'extensions.zotero.zotero-tts.highlight.sentenceAlpha': -1 })).highlight.sentenceAlpha).toBe(0);
   });
 
-  it('ships Shift+Z / X / C for the speed, Shift+↓ / ↑ for the volume, the arrow keys for skipping, Shift+Space / Shift+Enter for the position, Shift+O for the options panel and Shift+S to stop everywhere', () => {
+  it('ships Shift+Z / X / C for the speed, Shift+↓ / ↑ for the volume, the arrow keys for skipping, Shift+Space / Shift+Enter for the position, Shift+O for the options panel, Shift+S to stop everywhere and Shift+W for the word highlight', () => {
     expect(DEFAULTS.shortcuts).toEqual({
       speedReset: 'Shift+Z',
       speedDown: 'Shift+X',
@@ -97,6 +97,7 @@ describe('loadSettings', () => {
       returnToSpoken: 'Shift+Enter',
       toggleOptions: 'Shift+O',
       stopReading: 'Shift+S',
+      toggleWordHighlight: 'Shift+W',
     });
   });
 

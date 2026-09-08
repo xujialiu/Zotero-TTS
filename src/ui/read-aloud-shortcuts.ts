@@ -1,7 +1,9 @@
+import { HIGHLIGHT_LEVEL_PREF, nextHighlightLevel, readHighlightLevel, type HighlightLevel, type WordTiming } from '../core/highlight-level';
 import { nextSpeed, persistSpeed, readPersistedSpeed, type SpeedAction } from '../core/read-aloud-speed';
 import { clampVolume, nextVolume, VOLUME_PREF, type VolumeAction } from '../core/read-aloud-volume';
 import type { PrefsBackend } from '../core/settings';
 import {
+  isHighlightAction,
   isNavigationAction,
   isVolumeAction,
   NAVIGATION,
@@ -160,6 +162,15 @@ export interface ReadAloudShortcutsDeps {
    * document the key was pressed in.
    */
   showStopToast?(reader: unknown, count: number, fallbackDoc: unknown): void;
+  /**
+   * The highlight key's toast (issue #67): the level the pref now holds, in
+   * Zotero's own words for it, and what the reader's active word timestamp
+   * is — a stand-in means the voice has no word timing, so a switch to
+   * word changes nothing on screen and the toast has to say so.
+   */
+  showHighlightToast?(reader: unknown, level: HighlightLevel, timing: WordTiming): void;
+  /** What the manager's active word timestamp is (read-aloud/highlight-style.ts `wordTiming`). Unwired reads as none. */
+  wordTiming?(reader: unknown): WordTiming;
   log?(e: unknown): void;
 }
 
@@ -185,6 +196,8 @@ export interface ReadAloudShortcuts {
   toggleOptions(reader: unknown): boolean;
   /** The stop key: close every open player and say how many; returns the count closed (0 unwired). */
   stopReading(reader: unknown, fallbackDoc?: unknown): number;
+  /** Word highlight on / off, through Zotero's own pref; the level set, or null when the write failed. */
+  toggleWordHighlight(reader: unknown): HighlightLevel | null;
   /** Attach a capturing keydown listener to a window; idempotent per window, detaches itself on unload. */
   listen(target: EventTargetLike, resolveReader: () => unknown, options?: HandleOptions): void;
   unlisten(target: EventTargetLike): void;
@@ -414,6 +427,34 @@ export function createReadAloudShortcuts(deps: ReadAloudShortcutsDeps): ReadAlou
     return count;
   }
 
+  /**
+   * The highlight level is Zotero's own setting (core/highlight-level.ts):
+   * the pref is the one thing written, and Zotero's own observer repaints
+   * every open reader inside the write. Like the volume, a write that fails
+   * shows no toast — the level did not move.
+   */
+  function toggleWordHighlight(reader: unknown): HighlightLevel | null {
+    const next = nextHighlightLevel(readHighlightLevel(deps.prefs));
+    try {
+      deps.prefs.set(HIGHLIGHT_LEVEL_PREF, next);
+    } catch (e) {
+      log(e);
+      return null;
+    }
+    let timing: WordTiming = 'none';
+    try {
+      timing = deps.wordTiming?.(reader) ?? 'none';
+    } catch (e) {
+      log(e);
+    }
+    try {
+      deps.showHighlightToast?.(reader, next, timing);
+    } catch (e) {
+      log(e);
+    }
+    return next;
+  }
+
   function handleKeyDown(event: ShortcutKeyEvent, resolveReader: () => unknown, options: HandleOptions = {}): boolean {
     if (event.defaultPrevented) return false;
     const action = actionFor(event);
@@ -440,7 +481,9 @@ export function createReadAloudShortcuts(deps: ReadAloudShortcutsDeps): ReadAlou
     // startReadAloudAtPosition leaves Shift+Space paging. The options key
     // needs the player itself on screen: the button is all there is to press.
     // The volume keys follow the skip keys: only with a session open, since
-    // the reader grows a selection and resizes an annotation with them.
+    // the reader grows a selection and resizes an annotation with them. The
+    // highlight key is taken on any reader, idle included: the level is a
+    // setting, and setting it before pressing play is the natural order.
     if (isNavigationAction(action) && !canSkip(managerOf(reader))) return false;
     if (isVolumeAction(action) && !managerOf(reader)?.active) return false;
     if (action === 'startFromSelection' && !canSmartPlay(reader)) return false;
@@ -455,6 +498,7 @@ export function createReadAloudShortcuts(deps: ReadAloudShortcutsDeps): ReadAlou
     else if (action === 'startFromSelection') smartPlay(reader);
     else if (action === 'returnToSpoken') returnToSpoken(reader);
     else if (action === 'toggleOptions') toggleOptions(reader);
+    else if (isHighlightAction(action)) toggleWordHighlight(reader);
     else adjust(reader, action);
     return true;
   }
@@ -492,7 +536,7 @@ export function createReadAloudShortcuts(deps: ReadAloudShortcutsDeps): ReadAlou
     for (const target of [...listeners.keys()]) unlisten(target);
   }
 
-  return { handleKeyDown, adjust, adjustVolume, navigate, smartPlay, returnToSpoken, toggleOptions, stopReading, listen, unlisten, dispose };
+  return { handleKeyDown, adjust, adjustVolume, navigate, smartPlay, returnToSpoken, toggleOptions, stopReading, toggleWordHighlight, listen, unlisten, dispose };
 }
 
 /** The document a key was pressed in: the listening window's, else the target's own; null when neither is reachable. */

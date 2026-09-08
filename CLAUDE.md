@@ -6,9 +6,10 @@ local Kokoro-FastAPI.
 Zotero's own Standard/Premium voices keep working; ours join the Local tier as
 `<Provider>-<voice>` (`Kokoro-af_bella`; issue #9 retired the old `TTS-`
 prefix). Also: shortcuts for the speed (Shift+Z/X/C), for skipping by
-sentence / paragraph (arrows / Shift+arrows) and for stopping Read Aloud
-in every tab (Shift+S), one voice and speed across documents, settings
-backup/restore (file or WebDAV), highlight colors.
+sentence / paragraph (arrows / Shift+arrows), for the word highlight on
+or off (Shift+W) and for stopping Read Aloud in every tab (Shift+S), one
+voice and speed across documents, settings backup/restore (file or
+WebDAV), highlight colors.
 
 - `README.md` — user-facing docs, kept short and scannable (header with
   badges, a GIF, emoji feature list, install, providers table, settings;

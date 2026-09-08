@@ -167,6 +167,8 @@ ztts-key-options =
     .value = Player options
 ztts-key-stop =
     .value = Stop reading everywhere
+ztts-key-word-highlight =
+    .value = Word highlight on / off
 ztts-clear =
     .label = Clear
 ztts-help-key-skip =
@@ -184,6 +186,9 @@ ztts-help-key-options =
 ztts-help-key-stop =
     .value = ?
     .help = Closes the Read Aloud player in every tab at once. Each tab keeps its place, and Read Aloud picks up there when you start it again. While no player is open the key keeps its usual meaning.
+ztts-help-key-word-highlight =
+    .value = ?
+    .help = Switches the Read Aloud highlight between the word being spoken and the whole sentence — the same choice as Zotero's own Highlight current setting, for every tab, and it stays until changed again. A voice without word timing keeps highlighting the sentence either way.
 ztts-help-key-volume =
     .value = ?
     .help = Changes the Volume setting above by 10%, for every voice, within the sentence being spoken. Acts only while Read Aloud is open; otherwise the key keeps its usual meaning in the reader.
@@ -401,6 +406,7 @@ ztts-action-play = Play / pause / resume
 ztts-action-return = Go to reading position
 ztts-action-options = Player options
 ztts-action-stop = Stop reading everywhere
+ztts-action-word-highlight = Word highlight on / off
 # The toast the volume keys show, where the speed's shows `1.3×`
 ztts-volume-toast = Volume { $percent }%
 # The stop key's toast (issue #71): how many players it closed
@@ -408,6 +414,11 @@ ztts-stopped-toast = Stopped Read Aloud in { $count ->
         [one] one tab
        *[other] { $count } tabs
     }
+# The highlight key's toast (issue #67): the level it set, in Zotero's own words for it
+ztts-highlight-toast-word = Highlight: word
+ztts-highlight-toast-sentence = Highlight: sentence
+# The word toast on a voice without word timing: the setting changed, the screen did not
+ztts-highlight-toast-word-no-timing = Highlight: word (this voice has no word timing, so the sentence stays highlighted)
 
 ## Backup and Sync (ui/backup-rows.ts, ui/webdav-rows.ts)
 

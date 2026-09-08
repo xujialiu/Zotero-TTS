@@ -324,3 +324,5 @@ cite `notes/NOTES.md` with a date or a section title resolve through this index.
 - Zotero's two views read the Read Aloud position lock differently, and a re-emitted state can never satisfy the DOM view's gate (issue #76)
 - Driving a real Shift+Enter into a reader from the bridge, and why pixels are the wrong measure here (issue #76)
 - The return key forgets the DOM view's last state before the re-emit, and Zotero's own first-push path brings the view back (issue #76)
+- A write of Zotero's highlight-level pref repaints every open reader inside the write, and a bare h during a session annotates (issue #67)
+- The word highlight key writes Zotero's own level, and its toast says when the voice cannot show it (issue #67)

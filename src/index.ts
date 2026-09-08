@@ -26,6 +26,7 @@ import { createPauses, pauseSettingsOf, type Pauses } from './read-aloud/pauses'
 import { createUnchangedVoice, type UnchangedVoice } from './read-aloud/unchanged-voice';
 import { createVolumeControl, type VolumeControl } from './read-aloud/volume';
 import { settleVolumePref, VOLUME_OBSERVER } from './core/read-aloud-volume';
+import { HIGHLIGHT_LEVEL_PREF, type HighlightLevel, type WordTiming } from './core/highlight-level';
 import { createPositionSync, ACTIVE_TICK_MS, IDLE_TICK_MS, type PositionSync } from './read-aloud/position-sync';
 import { createPositionStore, type PositionStore } from './read-aloud/position-store';
 import { createPositionTransport, type PositionTransport } from './read-aloud/position-transport';
@@ -950,6 +951,16 @@ function startReadAloudShortcuts(pluginID: string): void {
     // (ui/player-options.ts). No player on screen, no button — the key
     // falls through.
     findOptionsButton: (reader: any) => findOptionsButton(reader?._iframeWindow?.document),
+    // The highlight key's toast (issue #67): the level in Zotero's own words,
+    // and, on a voice without word timing, why nothing on screen changed —
+    // that one stays up long enough to be read
+    showHighlightToast: (reader: any, level: HighlightLevel, timing: WordTiming) => {
+      const doc = toastDoc(reader);
+      if (!doc) return;
+      if (level === 'word' && timing === 'stand-in') showToast(doc, t('ztts-highlight-toast-word-no-timing'), undefined, ANNOUNCEMENT_TOAST_MS);
+      else showToast(doc, level === 'word' ? t('ztts-highlight-toast-word') : t('ztts-highlight-toast-sentence'));
+    },
+    wordTiming: (reader: any) => highlightStyling?.wordTiming(reader) ?? 'none',
     log: (e) => Zotero.logError(e),
   });
   for (const win of mainWindows()) watchWindow(win);
@@ -2040,6 +2051,37 @@ const diagnostics = {
     result.count = safe(() => readAloudShortcuts?.stopReading(reader, win?.document));
     result.after = open();
     const doc = reader ? toastDoc(reader) : win?.document;
+    result.toast = safe(() => doc?.getElementById(SPEED_TOAST_ID)?.textContent ?? null);
+    return JSON.stringify(result, null, 1);
+  },
+  /**
+   * The highlight key (issue #67) as the plugin sees it: its binding, the
+   * level Zotero's pref holds, and per reader the level the reader's own
+   * state carries — what its views draw by — with the word timing the toast
+   * would report. `highlightKey(true)` runs the very `toggleWordHighlight`
+   * the key runs, on the reader a press on the main window would pick, and
+   * reports the pref, every reader's state and the toast's text afterwards
+   * — proved by the pref and the states flipping in the same call, never by
+   * the highlight looking different.
+   */
+  highlightKey: (press = false) => {
+    const state = () => ({
+      pref: safe(() => Zotero.Prefs.get(HIGHLIGHT_LEVEL_PREF, true)),
+      readers: (Zotero.Reader._readers ?? []).map((r: any) => ({
+        itemID: safe(() => r?.itemID),
+        state: safe(() => r?._internalReader?._state?.readAloudState?.highlightGranularity ?? null),
+        wordTiming: safe(() => highlightStyling?.wordTiming(r) ?? 'none'),
+      })),
+    });
+    const shortcut = loadSettings(prefs).shortcuts.toggleWordHighlight;
+    const result: Record<string, unknown> = { shortcut, before: state() };
+    if (!press) return JSON.stringify(result, null, 1);
+    const win = mainWindows()[0];
+    const reader = pickReader(Zotero.Reader._readers ?? [], win, win?.Zotero_Tabs ? win.Zotero_Tabs.selectedID : null, (r: any) => isSpeaking(readAloudManager(r)));
+    result.picked = safe(() => reader?.itemID ?? null);
+    result.level = reader ? safe(() => readAloudShortcuts?.toggleWordHighlight(reader)) : 'no reader';
+    result.after = state();
+    const doc = reader ? toastDoc(reader) : null;
     result.toast = safe(() => doc?.getElementById(SPEED_TOAST_ID)?.textContent ?? null);
     return JSON.stringify(result, null, 1);
   },

@@ -1102,6 +1102,20 @@ describe('word mode with the whole-segment stand-in timestamp', () => {
     styling().styling.attach(dom.reader);
     expect(dom.view._getSpotlightColor('ReadAloudActiveSegment')).toBe(WORD);
   });
+
+  // What the highlight key's toast asks (issue #67): the same reading demote() makes
+  it('wordTiming() says what the manager holds: a real word, the stand-in, or nothing', () => {
+    const pdf = fakePDF('word');
+    const { styling: s } = styling();
+    pdf.reader._internalReader._readAloudManager.activeTimestamp = real;
+    expect(s.wordTiming(pdf.reader)).toBe('real');
+    pdf.reader._internalReader._readAloudManager.activeTimestamp = whole;
+    expect(s.wordTiming(pdf.reader)).toBe('stand-in');
+    pdf.reader._internalReader._readAloudManager.activeTimestamp = null;
+    expect(s.wordTiming(pdf.reader)).toBe('none');
+    expect(s.wordTiming(null)).toBe('none');
+    expect(s.wordTiming({})).toBe('none');
+  });
 });
 
 // ---- issue #2: the gap between segments -----------------------------------

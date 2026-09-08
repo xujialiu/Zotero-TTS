@@ -1,3 +1,4 @@
+import { HIGHLIGHT_ACTIONS, type HighlightAction } from './highlight-level';
 import { SPEED_ACTIONS, type SpeedAction } from './read-aloud-speed';
 import { VOLUME_ACTIONS, type VolumeAction } from './read-aloud-volume';
 
@@ -9,11 +10,12 @@ import { VOLUME_ACTIONS, type VolumeAction } from './read-aloud-volume';
  * `skipAhead`, granularity `'sentence' | 'paragraph'`), act on the
  * reading position (`reader.startReadAloudAtPosition`, the context menu's
  * "Read Aloud from Here"), or drive the player itself (its Options panel,
- * which has no method at all — ui/player-options.ts). Bindings live in the
- * `shortcuts.<action>` prefs (settings.ts).
+ * which has no method at all — ui/player-options.ts), or switch Zotero's
+ * highlight between the word and the sentence (highlight-level.ts, a pref of
+ * Zotero's own). Bindings live in the `shortcuts.<action>` prefs (settings.ts).
  */
 
-export type { SpeedAction, VolumeAction };
+export type { HighlightAction, SpeedAction, VolumeAction };
 
 export type NavigationAction = 'previousSentence' | 'nextSentence' | 'previousParagraph' | 'nextParagraph';
 
@@ -31,7 +33,7 @@ export type PositionAction = 'startFromSelection' | 'returnToSpoken';
  */
 export type PlayerAction = 'toggleOptions' | 'stopReading';
 
-export type ShortcutAction = SpeedAction | VolumeAction | NavigationAction | PositionAction | PlayerAction;
+export type ShortcutAction = SpeedAction | VolumeAction | NavigationAction | PositionAction | PlayerAction | HighlightAction;
 
 export const NAVIGATION_ACTIONS: readonly NavigationAction[] = ['previousSentence', 'nextSentence', 'previousParagraph', 'nextParagraph'];
 
@@ -45,6 +47,7 @@ export const SHORTCUT_ACTIONS: readonly ShortcutAction[] = [
   ...NAVIGATION_ACTIONS,
   ...POSITION_ACTIONS,
   ...PLAYER_ACTIONS,
+  ...HIGHLIGHT_ACTIONS,
 ];
 
 /** Zotero's own granularities: a paragraph is the run of segments from one `paragraphStart` anchor to the next. */
@@ -71,6 +74,10 @@ export function isPositionAction(action: ShortcutAction): action is PositionActi
 
 export function isPlayerAction(action: ShortcutAction): action is PlayerAction {
   return (PLAYER_ACTIONS as readonly string[]).includes(action);
+}
+
+export function isHighlightAction(action: ShortcutAction): action is HighlightAction {
+  return (HIGHLIGHT_ACTIONS as readonly string[]).includes(action);
 }
 
 /**

@@ -85,6 +85,7 @@
  */
 
 import { createProtoPatches } from './proto-patches';
+import type { WordTiming } from '../core/highlight-level';
 import { WHOLE_SEGMENT_END_SECONDS } from './remote-interface';
 
 export interface HighlightStyle {
@@ -201,6 +202,8 @@ export interface HighlightStyling {
   attach(reader: unknown): boolean;
   /** What this module sees in a reader, as plain data, for Tools → Developer → Run JavaScript (`Zotero.ZoteroTTS.diagnostics.highlight()`). */
   inspect(reader: unknown): Record<string, unknown>;
+  /** What the reader's active word timestamp is — the reading `demote()` makes, for the highlight key's toast (issue #67). */
+  wordTiming(reader: unknown): WordTiming;
   /** Prototypes held, and how many of them a closed tab has not taken with it. */
   patchCounts(): { total: number; live: number };
   /** Put every patched prototype back. */
@@ -292,8 +295,8 @@ export function createHighlightStyling(deps: HighlightStylingDeps): HighlightSty
     return isGranularity(g) ? g : null;
   };
   /** What the manager's active word timestamp is: a real word, the whole-segment stand-in of a wordless voice, or none (the gap between segments, system voices). */
-  const activeWordInfo = (reader: any): { kind: 'real' | 'stand-in' | 'none'; timestamp: any } => {
-    let kind: 'real' | 'stand-in' | 'none' = 'none';
+  const activeWordInfo = (reader: any): { kind: WordTiming; timestamp: any } => {
+    let kind: WordTiming = 'none';
     let timestamp: any = null;
     try {
       timestamp = reader?._internalReader?._readAloudManager?.activeTimestamp ?? null;
@@ -304,7 +307,7 @@ export function createHighlightStyling(deps: HighlightStylingDeps): HighlightSty
     logChange('word-timestamp', `highlight: active word timestamp ${kind}`);
     return { kind, timestamp };
   };
-  const activeWordTimestamp = (reader: any): 'real' | 'stand-in' | 'none' => activeWordInfo(reader).kind;
+  const activeWordTimestamp = (reader: any): WordTiming => activeWordInfo(reader).kind;
   const demote = (g: Granularity | null, reader: unknown): Granularity | null => (g === 'word' && activeWordTimestamp(reader) !== 'real' ? 'sentence' : g);
   const pdfRawGranularity = (view: any) => granularityOf(view?._effectiveReadAloudPrimaryGranularity, view, view?._readAloudState);
   const domRawGranularity = (helper: any) => granularityOf(helper?._effectivePrimaryGranularity, helper, helper?.state);
@@ -952,5 +955,5 @@ export function createHighlightStyling(deps: HighlightStylingDeps): HighlightSty
     patches.restoreAll();
   }
 
-  return { attach, inspect, patchCounts: patches.counts, dispose };
+  return { attach, inspect, wordTiming: activeWordTimestamp, patchCounts: patches.counts, dispose };
 }
