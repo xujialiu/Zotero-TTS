@@ -320,3 +320,4 @@ cite `notes/NOTES.md` with a date or a section title resolve through this index.
 - The highlight patch normalizes both sides to NFC before comparing, and the transparent flag clears when Word is left (issue #74)
 - The reading guard's dialog closes the players itself: the headphone button's close from the pane, an html:dialog with two buttons, and "open" widened to the popup (issue #71)
 - The stop key takes no reader, its toast has two homes, and the recorder's Escape rules out Shift+Esc as a default (issue #71)
+- Zotero rebuilds the controller when its voice list lands, even onto the voice already playing, and the plugin's catalog makes that land mid-sentence (issue #75)

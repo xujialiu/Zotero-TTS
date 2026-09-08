@@ -22,6 +22,7 @@ import { createSystemVoiceHiding, type SystemVoiceHiding } from './read-aloud/sy
 import { createMultilingualFirst, type MultilingualFirst } from './read-aloud/multilingual-first';
 import { createFavoriteMarks, type FavoriteMarks } from './read-aloud/favorite-marks';
 import { createPauses, pauseSettingsOf, type Pauses } from './read-aloud/pauses';
+import { createUnchangedVoice, type UnchangedVoice } from './read-aloud/unchanged-voice';
 import { createVolumeControl, type VolumeControl } from './read-aloud/volume';
 import { settleVolumePref, VOLUME_OBSERVER } from './core/read-aloud-volume';
 import { createPositionSync, ACTIVE_TICK_MS, IDLE_TICK_MS, type PositionSync } from './read-aloud/position-sync';
@@ -110,6 +111,8 @@ let favoriteMarkObservers: unknown[] = [];
 let pauses: Pauses | null = null;
 /** How loud Read Aloud plays, for every voice (read-aloud/volume.ts, issue #62), and the pref observer that moves every open chain. */
 let volumeControl: VolumeControl | null = null;
+/** A voice list landing on the voice already playing keeps the controller (read-aloud/unchanged-voice.ts, issue #75). */
+let unchangedVoice: UnchangedVoice | null = null;
 let volumeObserver: unknown = null;
 
 const prefs = createZoteroPrefs();
@@ -386,6 +389,7 @@ function buildReaderInterface(reader: any, targetWindow: any, native: () => unkn
           // prototype is patched from the first one this session builds
           pauses?.attach(reader);
           volumeControl?.attach(reader);
+          unchangedVoice?.attach(reader);
         },
         // The list this reader is about to receive: the remembered voice is
         // planned against it before Zotero resolves from it (issue #35)
@@ -606,6 +610,7 @@ function watchReader(reader: any): void {
   favoriteMarks?.attach(reader);
   pauses?.attach(reader);
   volumeControl?.attach(reader);
+  unchangedVoice?.attach(reader);
   const iframe = reader._iframeWindow;
   if (iframe) {
     readAloudShortcuts.listen(iframe, () => reader, {
@@ -1481,6 +1486,29 @@ function stopVolume(): void {
   volumeControl = null;
 }
 
+// ---- The voice kept through a voice-list reload ---------------------------
+//
+// Zotero rebuilds the controller when its voice list lands, even onto the
+// voice already playing, which restarts the sentence on every popup reopen;
+// see read-aloud/unchanged-voice.ts for the shadow (issue #75).
+
+function startUnchangedVoice(): void {
+  stopUnchangedVoice();
+  unchangedVoice = createUnchangedVoice({
+    exportFunction: (fn, target) => Components.utils.exportFunction(fn, target),
+    waiveXrays: (value) => ((value && typeof value === 'object') || typeof value === 'function' ? Components.utils.waiveXrays(value) : value),
+    isDead: (value) => Components.utils.isDeadWrapper(value),
+    error: (e) => Zotero.logError(e),
+    debug: (message) => Zotero.debug('[zotero-tts] ' + message),
+  });
+  for (const reader of Zotero.Reader._readers ?? []) unchangedVoice.attach(reader);
+}
+
+function stopUnchangedVoice(): void {
+  unchangedVoice?.dispose();
+  unchangedVoice = null;
+}
+
 /**
  * Gecko's Fluent globals — L10nRegistry and L10nFileSource — from the scope
  * Zotero's own modules run in (issue #64): the plugin sandbox is handed
@@ -1568,6 +1596,7 @@ async function startup({ id, version, rootURI }: StartupParams): Promise<void> {
       ['favorite marks in the player', startFavoriteMarks],
       ['sentence and paragraph pauses', startPauses],
       ['Read Aloud volume', startVolume],
+      ['the voice kept through a list reload', startUnchangedVoice],
       ['Read Aloud hook', startHijack],
       ['Read Aloud shortcuts', () => startReadAloudShortcuts(id)],
     ],
@@ -1626,6 +1655,7 @@ async function shutdown(reason?: number): Promise<void> {
   stopFavoriteMarks();
   stopPauses();
   stopVolume();
+  stopUnchangedVoice();
   // The plugin's copy of its strings leaves with it; a reload's successor
   // registers its own (issue #64)
   removeOwnStrings();
@@ -1789,6 +1819,15 @@ const diagnostics = {
    */
   volume: () => JSON.stringify((Zotero.Reader._readers ?? []).map((r: any) => volumeControl?.inspect(r) ?? null), null, 1),
   /**
+   * The voice kept through a voice-list reload (issue #75), per open
+   * reader: whether the manager's prototype is patched, the session state,
+   * the voice in use, `kept` — how many rebuilds onto the voice already
+   * playing the shadow skipped in that tab — and `last`. `kept` going up by
+   * one on a popup reopen, with one `volume gain inserted` line per start
+   * in the log, is what proves the hook ran.
+   */
+  unchangedVoice: () => JSON.stringify((Zotero.Reader._readers ?? []).map((r: any) => unchangedVoice?.inspect(r) ?? null), null, 1),
+  /**
    * The undo logs of the five modules that shadow a reader-side prototype
    * (read-aloud/proto-patches.ts): `total` entries held, `live` of them
    * belonging to a tab that is still open. They used to drift apart by one
@@ -1805,6 +1844,7 @@ const diagnostics = {
         readAloudMemory: safe(() => readAloudMemory?.patchCounts()) ?? null,
         pauses: safe(() => pauses?.patchCounts()) ?? null,
         volume: safe(() => volumeControl?.patchCounts()) ?? null,
+        unchangedVoice: safe(() => unchangedVoice?.patchCounts()) ?? null,
         // Which instance serves each tab (issue #38): `hijacked` — the
         // reader carries this instance's own method; `slotsCurrent` — both
         // stored slots hold a clone stamped by this instance. A tab
