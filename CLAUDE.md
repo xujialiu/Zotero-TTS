@@ -341,11 +341,18 @@ before the issue is written.
   **verification brief** names the xpi path, the behaviors to verify, the
   diagnostics with their expected output, and what state it may touch; a
   **research brief** names the question to settle and what state it may
-  touch, and leaves the expected output to the agent. Follow-ups go to
-  that same agent through `SendMessage`, never a fresh `Agent` call:
-  research is look → guess → look again, and a new agent has lost the
-  thread. What comes back is evidence — the issue, the fix and the commit
-  stay in the main session. A smaller model drives the bridge here, by
+  touch, and leaves the expected output to the agent. A follow-up **on
+  the same question** goes to that same agent through `SendMessage`,
+  never a fresh `Agent` call: research is look → guess → look again, and
+  a new agent has lost the thread. **A new question gets a fresh agent**
+  (settled 2026-09-08): the next issue, another bug, a verification
+  after a research run. A resumed agent re-reads its whole transcript
+  on every call, so its cost is its context times its calls — the
+  2026-09-08 tester's fourth brief, a few state reads, cost 204k tokens
+  where a fresh agent starts from 60k — and what the new brief needs
+  from the last (the state hashes, the precautions, the fixture) is
+  written into it. What comes back is evidence — the issue, the fix and
+  the commit stay in the main session. A smaller model drives the bridge here, by
   those same rules, and budgets for the traces and screenshots landing in
   this context.
 - **Plan first.** List every new behavior on the branch and the check that
@@ -520,6 +527,11 @@ assets/             README media (the word-highlight GIF, popup and settings scr
   methods are invisible and assignments land on the wrapper — waive them
   (`Components.utils.waiveXrays`) or use references captured on our side;
   objects reached from our side (`reader._internalReader…`) are fine.
+  A reader-realm array's `find` / `some` / `filter` given a sandbox
+  callback never calls it and answers `undefined` / `false` / `[]`
+  without a throw (2026-09-08, issue #75: a guard inert live and green
+  in a same-realm unit test) — walk such arrays by index, and give the
+  unit test a list whose `find` / `some` answer nothing.
 - **`Zotero.Prefs.set`** writes through the type the pref is declared with in
   `prefs.js`: an int pref goes through `setIntPref`, which cannot hold a
   fraction — a `preference=`-bound number input hands it "1.5" and the pref
