@@ -116,6 +116,16 @@ documents, settings backup/restore (file or WebDAV), highlight colors.
   code must be able to say yes or no to it. The mechanism, the Zotero
   internals and the files it touches go on the issue's plan comment and
   into NOTES.md, which is where a later session reads them.
+- **Every issue research ends with a recommendation** (settled
+  2026-09-08, issue #71): once an issue has been researched — a new one
+  written, or an existing one read up for a session — the reply closes
+  with the solution the session recommends, in the plain words of the
+  bullet above: which option it would take and why, what the user gets,
+  what it costs, and what is left for them to decide; an option it
+  rejects gets a line. Findings alone hand the decision to someone who
+  has not read the evidence. The recommendation is what the user says yes
+  or no to; the plan comment on the issue, with the mechanism and the
+  files, follows once they have.
 - Research first when asked to: report findings, do not change code.
 - **Issues** (settled 2026-08-29): a bug always gets a GitHub issue, even
   one fixed in ten minutes — the issue is the public record of a
