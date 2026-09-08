@@ -321,3 +321,5 @@ cite `notes/NOTES.md` with a date or a section title resolve through this index.
 - The reading guard's dialog closes the players itself: the headphone button's close from the pane, an html:dialog with two buttons, and "open" widened to the popup (issue #71)
 - The stop key takes no reader, its toast has two homes, and the recorder's Escape rules out Shift+Esc as a default (issue #71)
 - Zotero rebuilds the controller when its voice list lands, even onto the voice already playing, and the plugin's catalog makes that land mid-sentence (issue #75)
+- Zotero's two views read the Read Aloud position lock differently, and a re-emitted state can never satisfy the DOM view's gate (issue #76)
+- Driving a real Shift+Enter into a reader from the bridge, and why pixels are the wrong measure here (issue #76)
