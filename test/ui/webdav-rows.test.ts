@@ -37,6 +37,9 @@ function setup(
     url?: string;
     confirm?: boolean;
     reading?: string[];
+    /** The reading guard's question and its Stop (issue #71); absent, the guard only refuses. */
+    askToStop?: (message: string) => Promise<boolean>;
+    stopReading?: () => string[];
     verify?: () => Promise<string>;
     files?: WebDAVFile[];
     select?: (title: string, options: string[]) => number | null;
@@ -72,6 +75,8 @@ function setup(
     onMachineRenamed: vi.fn(),
     readingTabs: vi.fn(() => options.reading ?? []),
     warn: vi.fn((_message: string) => {}),
+    ...(options.askToStop ? { askToStop: vi.fn(options.askToStop) } : {}),
+    ...(options.stopReading ? { stopReading: vi.fn(options.stopReading) } : {}),
     ...(options.select ? { select: vi.fn(options.select) } : {}),
     ...(options.verify ? { verifyProviders: options.verify } : {}),
   } satisfies WebDAVRowsDeps;
@@ -279,6 +284,26 @@ describe('Restore settings from server', () => {
     expect(t.prefs.store[PREF_PREFIX + 'azure.region']).toBe('eastasia');
     expect(t.deps.onRestored).not.toHaveBeenCalled();
     expect(t.message()).toBe('');
+  });
+
+  // Issue #71: the dialog's Stop closes the players, and the restore follows
+  it('restores once the user stops the reading, and not on Cancel', async () => {
+    const reading = ['Deep learning'];
+    const stopReading = vi.fn(() => reading.splice(0));
+    const cancel = setup({ reading, askToStop: async () => false, stopReading, prefs: { [PREF_PREFIX + 'azure.region']: 'eastasia' } });
+    cancel.client.download.mockResolvedValueOnce(file);
+    await cancel.el(WEBDAV_IDS.download).fire('command');
+    expect(stopReading).not.toHaveBeenCalled();
+    expect(cancel.prefs.store[PREF_PREFIX + 'azure.region']).toBe('eastasia');
+    expect(cancel.deps.onRestored).not.toHaveBeenCalled();
+    const stop = setup({ reading, askToStop: async () => true, stopReading, prefs: { [PREF_PREFIX + 'azure.region']: 'eastasia' } });
+    stop.client.download.mockResolvedValueOnce(file);
+    await stop.el(WEBDAV_IDS.download).fire('command');
+    expect(stop.deps.askToStop).toHaveBeenCalledWith(expect.stringContaining('Deep learning'));
+    expect(stopReading).toHaveBeenCalledTimes(1);
+    expect(stop.deps.onRestored).toHaveBeenCalledTimes(1);
+    expect(stop.message()).toContain('Restored');
+    expect(stop.deps.warn).not.toHaveBeenCalled();
   });
 
   it('reports a folder that does not exist yet', async () => {

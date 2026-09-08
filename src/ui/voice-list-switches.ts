@@ -75,18 +75,20 @@ export function initVoiceListSwitches(
 
   /**
    * The box has flipped itself by the time `command` fires, so `checked` is
-   * what the user asked for and the pref is still what it was. Refused —
-   * a tab reading, or only favorites asked for over a default that is not
-   * one — the box goes back to the pref; nothing else moved.
+   * what the user asked for and the pref is still what it was — and what
+   * the box shows while the reading guard's question is up. Refused — a
+   * tab reading that the user did not stop, or only favorites asked for
+   * over a default that is not one — the box goes back to the pref;
+   * nothing else moved.
    */
-  function onCommand(row: VoiceListSwitch): void {
+  async function onCommand(row: VoiceListSwitch): Promise<void> {
     const box = doc.getElementById(row.id);
     const wanted = !!box?.checked;
     if (wanted === value(row)) return;
     const refuse = () => {
       if (box) box.checked = value(row);
     };
-    if (refuseWhileReading(deps)) return refuse();
+    if (await refuseWhileReading(deps)) return refuse();
     if (wanted && row.pref === FAVORITES_ONLY_PREF) {
       const name = deps.unmarkedDefault?.();
       if (name) {

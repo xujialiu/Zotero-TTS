@@ -33,7 +33,8 @@ import { createSamplePlayer, initVoiceBrowserRows } from './voice-browser-rows';
 import { initVoiceListSwitches } from './voice-list-switches';
 import { GLOBAL_SPEED_OBSERVER } from '../read-aloud/default-speed';
 import { SAME_VOICE_OBSERVER } from '../read-aloud/default-voice';
-import { showPaneNotice } from './reading-guard';
+import { askPaneQuestion, showPaneNotice } from './reading-guard';
+import { createPlayerStop } from '../read-aloud/player-stop';
 import { resolveReaderTheme, type ResolvedReaderTheme } from '../core/reader-theme';
 
 const XHTML = 'http://www.w3.org/1999/xhtml';
@@ -323,24 +324,38 @@ function currentReaderTheme(win: any): ResolvedReaderTheme {
 }
 
 /**
- * The tabs Read Aloud is open in (paused counts), by the title of the item
- * being read — the attachment's parent where there is one — for the
- * reading guard's message (ui/reading-guard.ts).
+ * Every player that is open, in every window — a popup on screen, or a
+ * session open behind it, paused included (read-aloud/player-stop.ts):
+ * what the reading guard asks about, and what its Stop button closes.
  */
-function readingTabTitles(): string[] {
-  const titles: string[] = [];
-  for (const reader of (Zotero.Reader._readers ?? []) as any[]) {
-    try {
-      if (!reader?._internalReader?._readAloudManager?.active) continue;
-      const item = Zotero.Items.get(reader.itemID);
-      const named = item?.parentItem ?? item;
-      const title = typeof named?.getDisplayTitle === 'function' ? named.getDisplayTitle() : '';
-      titles.push(title || t('ztts-item', { id: String(reader.itemID) }));
-    } catch (e) {
-      Zotero.logError(e);
-    }
+const playerStop = createPlayerStop<any>({ readers: () => Zotero.Reader._readers ?? [], log: (e) => Zotero.logError(e) });
+
+/**
+ * A reading tab by the title of the item being read — the attachment's
+ * parent where there is one — for the reading guard's message
+ * (ui/reading-guard.ts).
+ */
+function readingTabTitle(reader: any): string {
+  try {
+    const item = Zotero.Items.get(reader.itemID);
+    const named = item?.parentItem ?? item;
+    const title = typeof named?.getDisplayTitle === 'function' ? named.getDisplayTitle() : '';
+    if (title) return title;
+  } catch (e) {
+    Zotero.logError(e);
   }
-  return titles;
+  return t('ztts-item', { id: String(reader?.itemID) });
+}
+
+/**
+ * The OS prompt's version of the reading guard's question, where the
+ * pane's own dialog cannot be shown: the Stop label on the first button,
+ * Cancel on the second and the default, so Enter cancels there too.
+ */
+function confirmStop(win: any, message: string): boolean {
+  const ps = Services.prompt;
+  const flags = ps.BUTTON_POS_0 * ps.BUTTON_TITLE_IS_STRING + ps.BUTTON_POS_1 * ps.BUTTON_TITLE_CANCEL + ps.BUTTON_POS_1_DEFAULT;
+  return ps.confirmEx(win, 'Zotero-TTS', message, flags, t('ztts-stop-and-continue'), null, null, null, { value: false }) === 0;
 }
 
 /**
@@ -493,12 +508,16 @@ export function onPaneLoad(doc: Document, hooks: PaneHooks = {}): void {
   const win = doc.defaultView;
   // Adding a voice — a favorite while only favorites are offered, a provider
   // switched on — is refused while a tab is reading: its popup would not
-  // list the voice until Read Aloud reopens there (ui/reading-guard.ts)
-  // The message is a dialog of the pane's own document: the OS prompt draws a
-  // white ring around a dark dialog on Windows (reading-guard.ts showPaneNotice)
+  // list the voice until Read Aloud reopens there (ui/reading-guard.ts),
+  // unless the user has the dialog stop the reading (issue #71). The
+  // dialogs are the pane's own document's: the OS prompt draws a white
+  // ring around a dark dialog on Windows (reading-guard.ts showPaneNotice)
   const readingGuard = {
-    readingTabs: readingTabTitles,
+    readingTabs: () => playerStop.open().map(readingTabTitle),
     warn: (message: string) => showPaneNotice(doc, message, (text) => Services.prompt.alert(win, 'Zotero-TTS', text)),
+    askToStop: (message: string) =>
+      askPaneQuestion(doc, message, { confirm: t('ztts-stop-and-continue'), cancel: t('ztts-cancel') }, (text) => confirmStop(win, text)),
+    stopReading: () => playerStop.stopAll().map(readingTabTitle),
   };
   // The two checkboxes that edit what the Read Aloud player lists: unbound,
   // written here, and refused while a tab is reading (ui/voice-list-switches.ts)

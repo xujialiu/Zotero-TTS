@@ -210,10 +210,15 @@ language, voice.
   being spoken, in every open tab. `Shift+↑` / `Shift+↓` move the same
   number while Read Aloud is open.
 - While Read Aloud is open in some tab, every setting that changes what the
-  player lists is refused with a message naming the tabs — close them, then
-  try again. The settings: switching a provider on or off, *Offer only favorite voices*, a favorite marked or unmarked while
-  only favorites are offered, and restoring a settings backup from a file or
-  from WebDAV.
+  player lists first names those tabs and offers to stop the reading there:
+  - **Stop reading and continue** closes their players and applies the
+    change at once. Each tab keeps its place — Read Aloud picks up there
+    when you start it again.
+  - **Cancel** leaves everything as it was; close the player in those tabs
+    yourself, then try again.
+  - *The settings:* switching a provider on or off, *Offer only favorite
+    voices*, a favorite marked or unmarked while only favorites are
+    offered, and restoring a settings backup from a file or from WebDAV.
 
 </details>
 

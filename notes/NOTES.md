@@ -318,3 +318,4 @@ cite `notes/NOTES.md` with a date or a section title resolve through this index.
 
 - Zotero NFC-normalizes an EPUB's text, and the highlight patch's === check goes dark on a document stored decomposed (issue #74)
 - The highlight patch normalizes both sides to NFC before comparing, and the transparent flag clears when Word is left (issue #74)
+- The reading guard's dialog closes the players itself: the headphone button's close from the pane, an html:dialog with two buttons, and "open" widened to the popup (issue #71)

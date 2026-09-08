@@ -14,6 +14,7 @@ import { createBackup, flattenSettings, machineSettingsFilename, serializeBackup
 import { createSettingsAutoUpload, type SettingsAutoUpload } from './core/settings-autoupload';
 import { machineId } from './core/machine-id';
 import { installHijack, nativeInterfaceOf } from './read-aloud';
+import { createPlayerStop, isPlayerOpen } from './read-aloud/player-stop';
 import { redeliverInterfaces, restoreInterfaces } from './read-aloud/interface-redelivery';
 import { createReadAloudMemorySync, type ReadAloudMemorySync } from './read-aloud/memory-sync';
 import { createHighlightStyling, type HighlightStyling } from './read-aloud/highlight-style';
@@ -1874,6 +1875,38 @@ const diagnostics = {
       readers.push({ itemID: safe(() => r?.itemID), before, toggled, after });
     }
     return JSON.stringify({ shortcut: loadSettings(prefs).shortcuts.toggleOptions, readers }, null, 1);
+  },
+  /**
+   * Every player as the reading guard sees it (read-aloud/player-stop.ts,
+   * issue #71): per reader `open` — the guard's test — with the popup flag
+   * and the manager's flags behind it, and whether the popup element is in
+   * the DOM. `players(true)` runs the very `stopAll()` the dialog's Stop
+   * button runs and reports the same fields at once and a second later —
+   * the press is proved by `popupOpen` and `active` flipping, never by the
+   * popup looking gone (the element leaves on React's next render).
+   */
+  players: async (stop = false) => {
+    const state = (r: any) => {
+      const open = isPlayerOpen(r);
+      return {
+        itemID: safe(() => r?.itemID),
+        open,
+        popupOpen: safe(() => !!r?._internalReader?._state?.readAloudState?.popupOpen),
+        active: safe(() => !!r?._internalReader?._readAloudManager?.active),
+        // A manager that never ran reads `paused: true`; the flag means something only behind an open player
+        paused: open ? safe(() => !!r?._internalReader?._readAloudManager?.paused) : null,
+        popupInDom: safe(() => hasPlayer(r?._iframeWindow?.document ?? null)),
+      };
+    };
+    const readers = () => (Zotero.Reader._readers ?? []) as any[];
+    const before = readers().map(state);
+    if (!stop) return JSON.stringify({ before }, null, 1);
+    const playerStop = createPlayerStop<any>({ readers, log: (e) => Zotero.logError(e) });
+    const stopped = playerStop.stopAll().map((r: any) => safe(() => r?.itemID));
+    const after = readers().map(state);
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    const later = readers().map(state);
+    return JSON.stringify({ before, stopped, after, later }, null, 1);
   },
   /**
    * The stored Read Aloud positions and what the sampler sees right now.

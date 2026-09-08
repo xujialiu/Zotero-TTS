@@ -121,7 +121,7 @@ export function initProviderRows(
   async function onToggle(id: ProviderId): Promise<void> {
     if (busy.has(id)) return;
     if (enabled(id)) {
-      if (refuseWhileReading(deps)) return;
+      if (await refuseWhileReading(deps)) return;
       deps.prefs.set(pref(id), false);
       deps.onSwitched?.(id, false);
       paint(id);
@@ -130,16 +130,17 @@ export function initProviderRows(
       deps.onVoicesChanged();
       return;
     }
-    if (refuseWhileReading(deps)) return;
+    if (await refuseWhileReading(deps)) return;
     hold(id);
     elements(id).toggle?.setAttribute('label', t('ztts-switch-checking'));
     say(id, t('ztts-switch-checking'));
     const outcome = await run(id);
     // Asked again, because the write is what the guard is about and the
-    // check has had a quarter of a minute in which a player could open. The
-    // outcome is dropped with it: the dialog is what the user is told, and
-    // "Connected…" beside a switch that stayed Enable would read as if it held
-    const refused = outcome.ok && refuseWhileReading(deps);
+    // check has had a quarter of a minute in which a player could open.
+    // Refused, the outcome is dropped with it: the dialog is what the user
+    // is told, and "Connected…" beside a switch that stayed Enable would
+    // read as if it held. Stop (issue #71) keeps it, and the write follows
+    const refused = outcome.ok && (await refuseWhileReading(deps));
     say(id, refused ? '' : outcome.message);
     if (outcome.ok && !refused) {
       deps.prefs.set(pref(id), true);

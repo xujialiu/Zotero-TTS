@@ -125,6 +125,9 @@ function setup(
     favoritesOnly?: boolean;
     /** The tabs Read Aloud is open in; none unless said otherwise. */
     readingTabs?: string[];
+    /** The reading guard's question and its Stop (issue #71); absent, the guard only refuses. */
+    askToStop?: (message: string) => Promise<boolean>;
+    stopReading?: () => string[];
   } = {},
 ) {
   const els = new Map((Object.values(VOICE_BROWSER_IDS) as string[]).map((id) => [id, new FakeElement()]));
@@ -185,6 +188,8 @@ function setup(
     }),
     readingTabs: vi.fn(() => options.readingTabs ?? []),
     warn: vi.fn((_message: string) => {}),
+    ...(options.askToStop ? { askToStop: vi.fn(options.askToStop) } : {}),
+    ...(options.stopReading ? { stopReading: vi.fn(options.stopReading) } : {}),
   } satisfies VoiceBrowserDeps;
   const rows = initVoiceBrowserRows(doc, deps);
   const el = (id: string) => els.get(id)!;
@@ -1448,6 +1453,33 @@ describe('marking a favorite while a tab is reading', () => {
     expect(parseFavoriteVoices(t.prefs.store[FAVORITES_PREF])).toEqual([xiaoxiao]);
     expect(t.heart(0).textContent).toBe(GLYPHS.favorite);
     expect(t.deps.warn).toHaveBeenCalledWith(expect.stringContaining('Deep learning'));
+  });
+
+  // Issue #71: the dialog's Stop closes the players, and the mark follows
+  it('goes through once the user stops the reading, the heart marked', async () => {
+    const reading = ['Deep learning'];
+    const stopReading = vi.fn(() => reading.splice(0));
+    const t = setup({ favoritesOnly: true, readingTabs: reading, askToStop: async () => true, stopReading });
+    await t.rows.load();
+    await t.pickLocale('Chinese');
+    await t.heart(0).fire('click');
+    expect(t.deps.askToStop).toHaveBeenCalledWith(expect.stringContaining('Deep learning'));
+    expect(stopReading).toHaveBeenCalledTimes(1);
+    expect(parseFavoriteVoices(t.prefs.store[FAVORITES_PREF])).toEqual([xiaoxiao]);
+    expect(t.heart(0).textContent).toBe(GLYPHS.favorite);
+    expect(t.deps.warn).not.toHaveBeenCalled();
+  });
+
+  it('is refused on Cancel, no player touched', async () => {
+    const stopReading = vi.fn(() => []);
+    const t = setup({ favoritesOnly: true, readingTabs: ['Deep learning'], askToStop: async () => false, stopReading });
+    await t.rows.load();
+    await t.pickLocale('Chinese');
+    await t.heart(0).fire('click');
+    expect(stopReading).not.toHaveBeenCalled();
+    expect(t.prefs.store[FAVORITES_PREF]).toBeUndefined();
+    expect(t.heart(0).textContent).toBe(GLYPHS.notFavorite);
+    expect(t.deps.warn).not.toHaveBeenCalled();
   });
 
   it('goes through while the switch is off — the popup offers every voice regardless', async () => {

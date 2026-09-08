@@ -37,6 +37,9 @@ function setup(
     savePath?: string | null;
     confirm?: boolean;
     reading?: string[];
+    /** The reading guard's question and its Stop (issue #71); absent, the guard only refuses. */
+    askToStop?: (message: string) => Promise<boolean>;
+    stopReading?: () => string[];
     verify?: () => Promise<string>;
     positions?: PositionEntry[];
   } = {},
@@ -59,6 +62,8 @@ function setup(
     onRestored: vi.fn(),
     readingTabs: vi.fn(() => options.reading ?? []),
     warn: vi.fn((_message: string) => {}),
+    ...(options.askToStop ? { askToStop: vi.fn(options.askToStop) } : {}),
+    ...(options.stopReading ? { stopReading: vi.fn(options.stopReading) } : {}),
     positions: {
       list: vi.fn(() => options.positions ?? []),
       importEntries: vi.fn((entries: PositionEntry[]) => entries.length),
@@ -155,8 +160,8 @@ describe('Restore settings', () => {
     let release!: (said: string) => void;
     const t = setup({ file, verify: () => new Promise<string>((r) => (release = r)) });
     const restoring = t.el('ztts-restore').fire('command');
-    await Promise.resolve();
-    await Promise.resolve();
+    // The reading guard answers on a microtask even with nothing reading (issue #71), then the restore reaches the check
+    await new Promise<void>((resolve) => setTimeout(resolve, 0));
     expect(t.message()).toContain('Checking the providers it turns on…');
     release('Checked 1 provider: all working.');
     await restoring;
@@ -202,6 +207,24 @@ describe('Restore settings', () => {
     expect(t.prefs.store[PREF_PREFIX + 'azure.region']).toBe('eastasia');
     expect(t.deps.onRestored).not.toHaveBeenCalled();
     expect(t.message()).toBe('');
+  });
+
+  // Issue #71: the dialog's Stop closes the players, and the restore follows
+  it('restores once the user stops the reading, and not on Cancel', async () => {
+    const reading = ['Deep learning'];
+    const stopReading = vi.fn(() => reading.splice(0));
+    const cancel = setup({ file, reading, askToStop: async () => false, stopReading, prefs: { [PREF_PREFIX + 'azure.region']: 'eastasia' } });
+    await cancel.el('ztts-restore').fire('command');
+    expect(stopReading).not.toHaveBeenCalled();
+    expect(cancel.prefs.store[PREF_PREFIX + 'azure.region']).toBe('eastasia');
+    expect(cancel.deps.onRestored).not.toHaveBeenCalled();
+    const stop = setup({ file, reading, askToStop: async () => true, stopReading, prefs: { [PREF_PREFIX + 'azure.region']: 'eastasia' } });
+    await stop.el('ztts-restore').fire('command');
+    expect(stop.deps.askToStop).toHaveBeenCalledWith(expect.stringContaining('Deep learning'));
+    expect(stopReading).toHaveBeenCalledTimes(1);
+    expect(stop.deps.onRestored).toHaveBeenCalledTimes(1);
+    expect(stop.message()).toContain('Restored');
+    expect(stop.deps.warn).not.toHaveBeenCalled();
   });
 
   it('reports a file that could not be read', async () => {

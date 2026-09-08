@@ -348,10 +348,24 @@ ztts-reading-tabs =
     }:
     { $list }
 
-    Close { $count ->
+    Close the player in { $count ->
         [one] that tab
        *[other] those tabs
     }, then try again.
+# The same tabs, above the button that stops the reading there (issue #71): the cost is said before the press
+ztts-reading-tabs-stop =
+    Read Aloud is open in { $count ->
+        [one] a tab
+       *[other] { $count } tabs
+    }:
+    { $list }
+
+    Stopping it there lets this change through; each tab keeps its place, and Read Aloud picks up there when you start it again. Or close the player in { $count ->
+        [one] that tab
+       *[other] those tabs
+    } yourself, then try again.
+ztts-stop-and-continue = Stop reading and continue
+ztts-cancel = Cancel
 ztts-ok = OK
 # A tab whose item has no title
 ztts-item = item { $id }

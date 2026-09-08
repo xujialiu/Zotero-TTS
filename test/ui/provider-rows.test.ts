@@ -48,11 +48,23 @@ function deferred<T>() {
   return { promise, resolve, reject };
 }
 
+/** The reading guard answers on a microtask even with nothing reading (issue #71): lets a handler get past it. */
+const settled = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
+
 const enabledPref = (id: ProviderId) => `${PREF_PREFIX}${id}.enabled`;
 const CONNECTED: CheckOutcome = { ok: true, message: 'Connected. 3 voices available.' };
 const REFUSED: CheckOutcome = { ok: false, message: 'The server rejected the API key.' };
 
-function setup(options: { prefs?: Record<string, unknown>; reading?: string[]; check?: (id: ProviderId) => Promise<CheckOutcome> } = {}) {
+function setup(
+  options: {
+    prefs?: Record<string, unknown>;
+    reading?: string[];
+    check?: (id: ProviderId) => Promise<CheckOutcome>;
+    /** The reading guard's question and its Stop (issue #71); absent, the guard only refuses. */
+    askToStop?: (message: string) => Promise<boolean>;
+    stopReading?: () => string[];
+  } = {},
+) {
   const els = new Map<string, FakeElement>();
   const sections = new Map<string, FakeSection>();
   for (const id of PROVIDER_IDS) {
@@ -71,7 +83,16 @@ function setup(options: { prefs?: Record<string, unknown>; reading?: string[]; c
   const onVoicesChanged = vi.fn();
   const onUnlocked = vi.fn((_id: ProviderId) => {});
   const warn = vi.fn((_message: string) => {});
-  const rows = initProviderRows(doc, { prefs, check, onVoicesChanged, onUnlocked, readingTabs: () => options.reading ?? [], warn });
+  const rows = initProviderRows(doc, {
+    prefs,
+    check,
+    onVoicesChanged,
+    onUnlocked,
+    readingTabs: () => options.reading ?? [],
+    warn,
+    ...(options.askToStop ? { askToStop: options.askToStop } : {}),
+    ...(options.stopReading ? { stopReading: options.stopReading } : {}),
+  });
   const of = (id: ProviderId) => {
     const ids = providerRowIds(id);
     return {
@@ -108,6 +129,7 @@ describe('initProviderRows', () => {
     const t = setup({ check: () => pending.promise });
     const azure = t.of('azure');
     const clicked = azure.toggle.fire('command');
+    await settled();
     expect(t.check).toHaveBeenCalledWith('azure');
     // While the check runs: no pref yet, both buttons held, the line says so
     expect(azure.enabled()).toBeUndefined();
@@ -196,6 +218,7 @@ describe('initProviderRows', () => {
     const t = setup({ check: () => pending.promise, reading });
     const azure = t.of('azure');
     const clicked = azure.toggle.fire('command');
+    await settled();
     expect(t.check).toHaveBeenCalledWith('azure');
     reading.push('Deep learning');
     pending.resolve(CONNECTED);
@@ -209,6 +232,62 @@ describe('initProviderRows', () => {
     // The buttons are handed back: the retry costs one more check, no reload
     expect(azure.toggle.disabled).toBe(false);
     expect(azure.test.disabled).toBe(false);
+  });
+
+  // Issue #71: the dialog's Stop closes the players, and the switch follows
+  it('enables once the user stops the reading: the players close before the check, and the write follows it', async () => {
+    const reading = ['Deep learning'];
+    const stopReading = vi.fn(() => reading.splice(0));
+    const askToStop = vi.fn(async (_message: string) => true);
+    const t = setup({ reading, askToStop, stopReading });
+    await t.of('openai').toggle.fire('command');
+    expect(askToStop).toHaveBeenCalledTimes(1);
+    expect(askToStop).toHaveBeenCalledWith(expect.stringContaining('Deep learning'));
+    expect(stopReading).toHaveBeenCalledTimes(1);
+    expect(t.check).toHaveBeenCalledWith('openai');
+    expect(t.of('openai').enabled()).toBe(true);
+    expect(t.of('openai').label()).toBe('Disable');
+    expect(t.of('openai').result()).toBe('Connected. 3 voices available.');
+    expect(t.onVoicesChanged).toHaveBeenCalledTimes(1);
+    expect(t.warn).not.toHaveBeenCalled();
+  });
+
+  // The passed check is no longer thrown away: Stop after it writes the pref and keeps its line
+  it('keeps a passed check when the user stops a tab that started reading during it', async () => {
+    const pending = deferred<CheckOutcome>();
+    const reading: string[] = [];
+    const stopReading = vi.fn(() => reading.splice(0));
+    const askToStop = vi.fn(async (_message: string) => true);
+    const t = setup({ check: () => pending.promise, reading, askToStop, stopReading });
+    const azure = t.of('azure');
+    const clicked = azure.toggle.fire('command');
+    expect(askToStop).not.toHaveBeenCalled();
+    reading.push('Deep learning');
+    pending.resolve(CONNECTED);
+    await clicked;
+    expect(askToStop).toHaveBeenCalledTimes(1);
+    expect(stopReading).toHaveBeenCalledTimes(1);
+    expect(azure.enabled()).toBe(true);
+    expect(azure.label()).toBe('Disable');
+    expect(azure.result()).toBe('Connected. 3 voices available.');
+    expect(t.onVoicesChanged).toHaveBeenCalledTimes(1);
+  });
+
+  it('disables once the user stops the reading, and stays on after Cancel', async () => {
+    const reading = ['Deep learning'];
+    const stopReading = vi.fn(() => reading.splice(0));
+    const cancel = setup({ prefs: { [enabledPref('openai')]: true }, reading, askToStop: async () => false, stopReading });
+    await cancel.of('openai').toggle.fire('command');
+    expect(stopReading).not.toHaveBeenCalled();
+    expect(cancel.of('openai').enabled()).toBe(true);
+    expect(cancel.of('openai').label()).toBe('Disable');
+    expect(cancel.onVoicesChanged).not.toHaveBeenCalled();
+    const stop = setup({ prefs: { [enabledPref('openai')]: true }, reading, askToStop: async () => true, stopReading });
+    await stop.of('openai').toggle.fire('command');
+    expect(stopReading).toHaveBeenCalledTimes(1);
+    expect(stop.of('openai').enabled()).toBe(false);
+    expect(stop.of('openai').label()).toBe('Enable');
+    expect(stop.onVoicesChanged).toHaveBeenCalledTimes(1);
   });
 
   it('Test connection probes without switching anything, and lists the voices again only for a provider that is on', async () => {

@@ -141,7 +141,7 @@ export function initWebDAVRows(doc: RowsDocument, deps: WebDAVRowsDeps): void {
             ? t('ztts-webdav-restore-confirm-saved', { count, url, time })
             : t('ztts-webdav-restore-confirm', { count, url });
     if (deps.confirm && !deps.confirm(question)) return '';
-    if (refuseWhileReading(deps)) return '';
+    if (await refuseWhileReading(deps)) return '';
     const applied = applyBackup(deps.prefs, parsed);
     deps.onRestored?.();
     const skipped = parsed.ignored.length ? t('ztts-skipped', { count: parsed.ignored.length, keys: parsed.ignored.join(', ') }) : '';

@@ -194,6 +194,10 @@ export interface VoiceBrowserDeps {
   readingTabs?(): string[];
   /** Tells the user why the marking was refused — a dialog. */
   warn?(message: string): void;
+  /** Puts the guard's question — stop Read Aloud there and go on? — and answers it (ui/reading-guard.ts, issue #71). */
+  askToStop?(message: string): Promise<boolean>;
+  /** Closes every open player and returns the titles of the tabs it closed. */
+  stopReading?(): string[];
 }
 
 export type BrowserVoice = {
@@ -576,14 +580,15 @@ export function initVoiceBrowserRows(
    * and the status line says so until the next repaint; the other rows'
    * labels are repainted, since which of them can be picked just changed.
    */
-  function onHeart(voice: BrowserVoice, button: any): void {
-    const favorites = readFavorites();
+  async function onHeart(voice: BrowserVoice, button: any): Promise<void> {
     // Only favorites are offered, so either direction edits the popup's
     // list — marking adds a voice, unmarking takes one out, and unmarking
     // the last one listed puts every voice back — which a tab that is
     // reading would not see until Read Aloud reopens there. Refused while
-    // any tab is (ui/reading-guard.ts, issue #11)
-    if (favoritesOnly() && refuseWhileReading(deps)) return;
+    // any tab is, unless the user stops it (ui/reading-guard.ts, issues
+    // #11 and #71); the favorites are read after the question, not before
+    if (favoritesOnly() && (await refuseWhileReading(deps))) return;
+    const favorites = readFavorites();
     const next = toggleFavoriteVoice(favorites, voice.encoded);
     deps.prefs.set(FAVORITES_PREF, serializeFavoriteVoices(next));
     paintHeart(button, next.includes(voice.encoded));

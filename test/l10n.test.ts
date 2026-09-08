@@ -190,11 +190,20 @@ describe('the strings TypeScript writes (issue #43)', () => {
   it('reads the reading guard\'s plural from the count in both languages, the blank line kept', () => {
     const one = { count: 1, list: '  • Deep learning' };
     const two = { count: 2, list: '  • Deep learning\n  • Another paper' };
-    expect(en('ztts-reading-tabs', one)).toBe('Read Aloud is open in a tab:\n  • Deep learning\n\nClose that tab, then try again.');
-    expect(en('ztts-reading-tabs', two)).toBe('Read Aloud is open in 2 tabs:\n  • Deep learning\n  • Another paper\n\nClose those tabs, then try again.');
+    expect(en('ztts-reading-tabs', one)).toBe('Read Aloud is open in a tab:\n  • Deep learning\n\nClose the player in that tab, then try again.');
+    expect(en('ztts-reading-tabs', two)).toBe(
+      'Read Aloud is open in 2 tabs:\n  • Deep learning\n  • Another paper\n\nClose the player in those tabs, then try again.',
+    );
     expect(zh('ztts-reading-tabs', two)).toContain('  • Deep learning\n  • Another paper\n\n');
     // One tab is worded differently from two, not only by the digit
     expect(zh('ztts-reading-tabs', two).replace(/2/g, '1')).not.toBe(zh('ztts-reading-tabs', one));
+    // The question above the Stop button (issue #71): the same list, then the offer and its cost
+    expect(en('ztts-reading-tabs-stop', one)).toBe(
+      'Read Aloud is open in a tab:\n  • Deep learning\n\nStopping it there lets this change through; each tab keeps its place, and Read Aloud picks up there when you start it again. Or close the player in that tab yourself, then try again.',
+    );
+    expect(en('ztts-reading-tabs-stop', two)).toContain('Or close the player in those tabs yourself, then try again.');
+    expect(zh('ztts-reading-tabs-stop', two)).toContain('  • Deep learning\n  • Another paper\n\n');
+    expect(zh('ztts-reading-tabs-stop', two).replace(/2/g, '1')).not.toBe(zh('ztts-reading-tabs-stop', one));
   });
 
   it.each(LOCALES)('%s formats every message that takes arguments, and shows every text argument', (locale) => {

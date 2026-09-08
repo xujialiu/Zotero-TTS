@@ -19,13 +19,22 @@ class FakeCheckbox {
   }
   click() {
     this.checked = !this.checked;
-    for (const fn of this.listeners.get('command') ?? []) fn();
+    return Promise.all((this.listeners.get('command') ?? []).map((fn) => fn()));
   }
 }
 
 const FAVORITES = VOICE_LIST_SWITCHES.find((s) => s.pref === 'readAloud.favoritesOnly')!;
 
-function setup(options: { prefs?: Record<string, unknown>; reading?: string[]; watch?: boolean; unmarkedDefault?: () => string | null } = {}) {
+function setup(
+  options: {
+    prefs?: Record<string, unknown>;
+    reading?: string[];
+    watch?: boolean;
+    unmarkedDefault?: () => string | null;
+    askToStop?: (message: string) => Promise<boolean>;
+    stopReading?: () => string[];
+  } = {},
+) {
   const boxes = new Map(VOICE_LIST_SWITCHES.map((s) => [s.id, new FakeCheckbox()]));
   const doc = { getElementById: (id: string) => boxes.get(id) ?? null };
   const prefs = fakePrefs(options.prefs);
@@ -35,6 +44,8 @@ function setup(options: { prefs?: Record<string, unknown>; reading?: string[]; w
     prefs,
     readingTabs: () => options.reading ?? [],
     warn,
+    ...(options.askToStop ? { askToStop: options.askToStop } : {}),
+    ...(options.stopReading ? { stopReading: options.stopReading } : {}),
     unmarkedDefault: options.unmarkedDefault,
     watch:
       options.watch === false
@@ -72,39 +83,63 @@ describe('initVoiceListSwitches', () => {
     expect(setup().box(FAVORITES.id).checked).toBe(false);
   });
 
-  it('writes the pref while nothing is reading, in both directions', () => {
+  it('writes the pref while nothing is reading, in both directions', async () => {
     const t = setup();
-    t.box(FAVORITES.id).click();
+    await t.box(FAVORITES.id).click();
     expect(t.value(FAVORITES.pref)).toBe(true);
     expect(t.warn).not.toHaveBeenCalled();
-    t.box(FAVORITES.id).click();
+    await t.box(FAVORITES.id).click();
     expect(t.value(FAVORITES.pref)).toBe(false);
   });
 
   // The list is rebuilt only when the player opens, so a switch that moved
   // now would leave the tabs listing different voices (ui/reading-guard.ts)
-  it('refuses both directions while a tab is reading: the pref stays, the box goes back, the user is told where', () => {
+  it('refuses both directions while a tab is reading: the pref stays, the box goes back, the user is told where', async () => {
     const on = setup({ reading: ['Deep learning'] });
-    on.box(FAVORITES.id).click();
+    await on.box(FAVORITES.id).click();
     expect(on.value(FAVORITES.pref)).toBeUndefined();
     expect(on.box(FAVORITES.id).checked).toBe(false);
     expect(on.warn).toHaveBeenCalledWith(expect.stringContaining('Deep learning'));
 
     const off = setup({ prefs: { [PREF_PREFIX + FAVORITES.pref]: true }, reading: ['Deep learning', 'Attention'] });
     expect(off.box(FAVORITES.id).checked).toBe(true);
-    off.box(FAVORITES.id).click();
+    await off.box(FAVORITES.id).click();
     expect(off.value(FAVORITES.pref)).toBe(true);
     expect(off.box(FAVORITES.id).checked).toBe(true);
     expect(off.warn).toHaveBeenCalledWith(expect.stringContaining('Attention'));
+  });
+
+  // Issue #71: the dialog's Stop closes the players, and the write follows
+  it('writes the pref once the user stops the reading, the box staying where it was put', async () => {
+    const reading = ['Deep learning'];
+    const stopReading = vi.fn(() => reading.splice(0));
+    const askToStop = vi.fn(async (_message: string) => true);
+    const t = setup({ reading, askToStop, stopReading });
+    await t.box(FAVORITES.id).click();
+    expect(askToStop).toHaveBeenCalledWith(expect.stringContaining('Deep learning'));
+    expect(stopReading).toHaveBeenCalledTimes(1);
+    expect(t.value(FAVORITES.pref)).toBe(true);
+    expect(t.box(FAVORITES.id).checked).toBe(true);
+    expect(t.warn).not.toHaveBeenCalled();
+  });
+
+  it('leaves the pref alone and puts the box back on Cancel, no player touched', async () => {
+    const stopReading = vi.fn(() => []);
+    const t = setup({ reading: ['Deep learning'], askToStop: async () => false, stopReading });
+    await t.box(FAVORITES.id).click();
+    expect(stopReading).not.toHaveBeenCalled();
+    expect(t.value(FAVORITES.pref)).toBeUndefined();
+    expect(t.box(FAVORITES.id).checked).toBe(false);
+    expect(t.warn).not.toHaveBeenCalled();
   });
 
   // Issue #35: a default that is not a favorite is never offered while only
   // favorites are, and Read Aloud falls back — in the reported case to
   // Zotero's metered voice, silently. The switch does not go on over such a
   // default; off narrows nothing and is never asked about.
-  it('refuses to go on while the default voice is not a favorite, naming the voice and what to do', () => {
+  it('refuses to go on while the default voice is not a favorite, naming the voice and what to do', async () => {
     const t = setup({ unmarkedDefault: () => 'Kokoro-am_puck' });
-    t.box(FAVORITES.id).click();
+    await t.box(FAVORITES.id).click();
     expect(t.value(FAVORITES.pref)).toBeUndefined();
     expect(t.box(FAVORITES.id).checked).toBe(false);
     expect(t.warn).toHaveBeenCalledWith(unmarkedDefaultMessage('Kokoro-am_puck'));
@@ -113,30 +148,30 @@ describe('initVoiceListSwitches', () => {
     );
   });
 
-  it('goes off whatever the default is, and on once the default is a favorite', () => {
+  it('goes off whatever the default is, and on once the default is a favorite', async () => {
     const blocker = vi.fn<() => string | null>(() => 'Kokoro-am_puck');
     const t = setup({ prefs: { [PREF_PREFIX + FAVORITES.pref]: true }, unmarkedDefault: blocker });
-    t.box(FAVORITES.id).click();
+    await t.box(FAVORITES.id).click();
     expect(t.value(FAVORITES.pref)).toBe(false);
     expect(blocker).not.toHaveBeenCalled();
     blocker.mockReturnValue(null);
-    t.box(FAVORITES.id).click();
+    await t.box(FAVORITES.id).click();
     expect(t.value(FAVORITES.pref)).toBe(true);
     expect(t.warn).not.toHaveBeenCalled();
   });
 
-  it('asks about the reading tabs first: a tab reading is the message, and the default is not looked at', () => {
+  it('asks about the reading tabs first: a tab reading is the message, and the default is not looked at', async () => {
     const blocker = vi.fn<() => string | null>(() => 'Kokoro-am_puck');
     const t = setup({ reading: ['Deep learning'], unmarkedDefault: blocker });
-    t.box(FAVORITES.id).click();
+    await t.box(FAVORITES.id).click();
     expect(t.warn).toHaveBeenCalledWith(expect.stringContaining('Deep learning'));
     expect(blocker).not.toHaveBeenCalled();
   });
 
-  it('says nothing and writes nothing when the box already holds the pref', () => {
+  it('says nothing and writes nothing when the box already holds the pref', async () => {
     const t = setup({ prefs: { [PREF_PREFIX + FAVORITES.pref]: true }, reading: ['Deep learning'] });
     t.box(FAVORITES.id).checked = true;
-    for (const fn of t.box(FAVORITES.id).listeners.get('command') ?? []) fn();
+    await Promise.all((t.box(FAVORITES.id).listeners.get('command') ?? []).map((fn) => fn()));
     expect(t.warn).not.toHaveBeenCalled();
   });
 
