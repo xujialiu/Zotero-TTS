@@ -276,3 +276,40 @@ describe('askPaneQuestion', () => {
     expect(doc.body.children).toEqual([]);
   });
 });
+
+// Zotero's own sheet caps every button of the preferences window at 25 px
+// on macOS — `@media (-moz-platform: macos) { button { max-height: 25px;
+// margin: 0 -2px -1px } }` in `chrome://zotero/skin/preferences.css`, a
+// type selector with no `@namespace`, so it reaches these html:buttons as
+// surely as Zotero's XUL ones. A button that asks for more is not
+// re-centered: Gecko lays a button's content out from the top of its
+// content box and leaves it there when it overflows, so the cap takes its
+// 6 px off *below* the label, and the label reads as low (issue #80,
+// measured 2026-09-09: 6.67 px of air above the label against 2.33
+// below). So the buttons state a box that fits — at the pane's 13 px font
+// a 17.34 px line box and the UA's 2 px border a side leave 1.33 px a
+// side for the padding — and they center the label in it, which is what
+// holds at a larger Zotero UI font, where the cap bites again.
+describe("the dialogs' buttons", () => {
+  /** `resource://gre-resources/forms.css`: `border: 2px outset buttonborder`, per side. */
+  const UA_BORDER = 2;
+  /** The pane's own font, measured live: `13px / 17.3333px system-ui`. */
+  const LINE_BOX = 17.34;
+  /** Zotero's cap on every button of the preferences window, macOS only. */
+  const ZOTERO_CAP = 25;
+
+  it("ask for a box that stays inside Zotero's macOS cap, and center the label in it", () => {
+    const doc = fakeDoc(true);
+    void askPaneQuestion(doc, 'x', { confirm: 'Stop reading and continue', cancel: 'Cancel' }, vi.fn(() => true));
+    const buttons = doc.body.children[0].children[3].children;
+    expect(buttons).toHaveLength(2);
+    for (const button of buttons) {
+      const style = button.attrs.get('style') ?? '';
+      const padding = Number(/padding:\s*([\d.]+)px/.exec(style)?.[1]);
+      expect(padding).toBeGreaterThanOrEqual(0);
+      expect(2 * padding + 2 * UA_BORDER + LINE_BOX).toBeLessThanOrEqual(ZOTERO_CAP);
+      expect(style).toContain('box-sizing: border-box');
+      expect(style).toContain('align-items: center');
+    }
+  });
+});

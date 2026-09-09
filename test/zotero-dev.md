@@ -812,6 +812,33 @@ measured, updated for the fixes since where marked.
    tabs` in the plural). The last div holds exactly two buttons,
    `["Stop reading and continue", "Cancel"]`, and
    `document.activeElement` is Cancel.
+   **The buttons' box** (issue #80). Zotero's
+   `chrome://zotero/skin/preferences.css` caps every button of the
+   settings window at `max-height: 25px` on macOS, and its type selector
+   carries no `@namespace`, so it reaches an `html:button` too. Per
+   button, `getBoundingClientRect()` against a `Range` over its contents
+   (`selectNodeContents`; `off` = label-box center − button-box center,
+   positive is low): at the pane's 13 px font a border box of
+   **23.33 px** — inside the cap, which therefore never binds —
+   `clientHeight` **19** and `scrollHeight` **19** (nothing overflows),
+   computed `max-height` still `25px` and `appearance` still `auto`, and
+   the label at gapTop **2.67**, gapBottom **4.67**, **off −1.00 px**,
+   which is where the window's own native buttons sit (Zotero's *Test
+   connection*: −0.50). The old `padding: 5px 14px` asked for 31.33 px,
+   was clamped to 25, and drew the label at **+2.17**. By eye, on a
+   screenshot of the button row: the macOS **rounded pill**, not the
+   square bevel the theme falls back to above 25 px, and no descender
+   clipped — the `p` of *Stop*, the `g` of *reading*.
+   **The centering holds when the cap does bind.** On the live dialog
+   `btn.style.paddingBlock = '5px'` takes the natural height back to
+   31.33 px and the cap clamps it: computed `height` **25px**, gapTop
+   **3.5**, gapBottom **5.5**, **off −1.00**, `clientHeight` and
+   `scrollHeight` 21. That is the flex centering doing the work — inert,
+   it would give the old 6.67 / 2.33 / **+2.17**, Gecko leaving an
+   overflowing button's content at the top of its content box.
+   `btn.style.paddingBlock = ''` returns every number to the paragraph
+   above. This is the check that a larger Zotero UI font, where the line
+   alone outgrows the cap, is still centered.
    **Cancel** — the button, a trusted Enter on it, or a trusted Escape
    (`keydown()` 0: Gecko's own dialog cancel): the dialog leaves the DOM
    within ~150 ms, the pref is unchanged, the unbound checkbox snaps

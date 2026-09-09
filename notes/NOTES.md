@@ -330,3 +330,4 @@ cite `notes/NOTES.md` with a date or a section title resolve through this index.
 ### [2026-09-09](NOTES_2026-09-09.md)
 
 - Speechify joined as a provider of its own: the locale in the voice id, one request at a time, and marks aligned by their text (issue #79)
+- Zotero's 25 px cap on a button takes its 6 px out from under the label, and Gecko never re-centers what overflows (issue #80)

@@ -92,6 +92,24 @@ const NOTICE_COLORS = {
 
 type NoticeDoc = { createElementNS(ns: string, tag: string): any; documentElement?: any; body?: any; defaultView?: any };
 
+/**
+ * The dialog's buttons state their whole box instead of leaving it to the
+ * line: Zotero's sheet caps every button of the preferences window at 25 px
+ * on macOS (`@media (-moz-platform: macos)`, a type selector with no
+ * `@namespace`, so it reaches an html:button too), and Gecko does not
+ * re-center a button's content when the cap makes it overflow — the label
+ * stays at the top of the content box while the bottom edge rises under it,
+ * which is what drew these labels low (issue #80). 1 px of padding and the
+ * UA's 2 px border leave the button 23.33 px at the pane's 13 px font,
+ * inside the cap, so nothing is clipped and the native rounded face is kept
+ * (above 25 px the theme draws a square bevel instead). The centering is
+ * what holds at a larger Zotero UI font, where the line alone outgrows the
+ * cap.
+ */
+const BUTTON_STYLE =
+  'min-width: 6.5em; box-sizing: border-box; display: flex; align-items: center; justify-content: center;' +
+  ' padding: 1px 14px; font: inherit;';
+
 interface NoticeButton {
   label: string;
   /** What the dialog answers when this button is pressed. */
@@ -160,7 +178,7 @@ function openNotice(doc: NoticeDoc, message: string, title: string, buttons: rea
   let answer = false;
   let focused: any = null;
   for (const button of buttons) {
-    const node = el('button', 'min-width: 6.5em; padding: 5px 14px; font: inherit;', button.label);
+    const node = el('button', BUTTON_STYLE, button.label);
     node.addEventListener('click', () => {
       answer = button.value;
       dialog.close();
