@@ -121,6 +121,23 @@
     </hbox>
   </groupbox>
 
+  <!-- Speechify (issue #79): one key from the workspace's API keys page. No
+       address and no model: every voice the key lists is offered, and the
+       voice's language picks the model. The key is masked like the others. -->
+  <groupbox id="ztts-provider-speechify">
+    <label><html:h2>Speechify</html:h2></label>
+    <hbox align="center">
+      <label data-l10n-id="ztts-field-api-key" style="width: 8em"/>
+      <html:input type="password" preference="extensions.zotero.zotero-tts.speechify.apiKey"/>
+      <label class="ztts-help" value="?" data-l10n-id="ztts-help-speechify" data-l10n-attrs="help"/>
+    </hbox>
+    <hbox align="center">
+      <button id="ztts-enable-speechify"/>
+      <button id="ztts-test-speechify" data-l10n-id="ztts-test-connection"/>
+      <description id="ztts-test-result-speechify"/>
+    </hbox>
+  </groupbox>
+
   <groupbox id="ztts-provider-local">
     <!-- One block per engine: its own switch and address. Only Kokoro
          exists today; the heading is filled from the engine registry in

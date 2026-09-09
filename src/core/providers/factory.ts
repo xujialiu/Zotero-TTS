@@ -1,6 +1,7 @@
 import type { Settings } from '../settings';
 import { createAzureProvider } from './azure';
 import { createCloudflareProvider } from './cloudflare';
+import { createSpeechifyProvider } from './speechify';
 import { SynthesisError } from './errors';
 import { getLocalEngine } from './local/registry';
 import { createOpenAIProvider } from './openai';
@@ -44,6 +45,9 @@ export function createProvider(id: ProviderId, settings: Settings, deps: Provide
 
     case 'cloudflare':
       return createCloudflareProvider(settings.cloudflare, { fetch: deps.fetch });
+
+    case 'speechify':
+      return createSpeechifyProvider(settings.speechify, { fetch: deps.fetch });
 
     case 'system':
       return createSystemProvider(

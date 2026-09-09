@@ -1,8 +1,8 @@
 # CLAUDE.md — Zotero-TTS
 
 Zotero 10 plugin that adds voices to Zotero's built-in **Read Aloud**: OpenAI
-(or any OpenAI-compatible server), Azure Speech, Cloudflare Workers AI, and a
-local Kokoro-FastAPI.
+(or any OpenAI-compatible server), Azure Speech, Cloudflare Workers AI,
+Speechify, and a local Kokoro-FastAPI.
 Zotero's own Standard/Premium voices keep working; ours join the Local tier as
 `<Provider>-<voice>` (`Kokoro-af_bella`; issue #9 retired the old `TTS-`
 prefix). Also: shortcuts for the speed (Shift+Z/X/C), for skipping by

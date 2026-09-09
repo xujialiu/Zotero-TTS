@@ -2,7 +2,7 @@ import type { ProviderId } from './providers/types';
 import type { ShortcutAction } from './shortcut-actions';
 import { VOLUME_DEFAULT, VOLUME_MAX, VOLUME_MIN } from './read-aloud-volume';
 
-export const PROVIDER_IDS: readonly ProviderId[] = ['openai', 'azure', 'cloudflare', 'local', 'system'];
+export const PROVIDER_IDS: readonly ProviderId[] = ['openai', 'azure', 'cloudflare', 'speechify', 'local', 'system'];
 
 export interface Settings {
   /** Each provider is switched on independently; every enabled one contributes voices. */
@@ -29,6 +29,12 @@ export interface Settings {
    * model the account lists contributes its voices.
    */
   cloudflare: { enabled: boolean; accountId: string; apiToken: string };
+  /**
+   * Speechify (core/providers/speechify.ts, issue #79): one key, no
+   * address and no model — the voice's language picks the model, and
+   * every voice the key lists is offered.
+   */
+  speechify: { enabled: boolean; apiKey: string };
   /** `headers`: extra request headers for a gateway in front of the server, same format as openai.headers. */
   local: { enabled: boolean; engine: string; baseURL: string; voice: string; headers: string };
   /**
@@ -131,6 +137,7 @@ export const DEFAULTS: Settings = {
   },
   azure: { enabled: false, apiKey: '', region: 'eastasia', voice: 'zh-CN-XiaoxiaoNeural' },
   cloudflare: { enabled: false, accountId: '', apiToken: '' },
+  speechify: { enabled: false, apiKey: '' },
   local: { enabled: false, engine: 'kokoro', baseURL: 'http://localhost:8880', voice: 'af_bella', headers: '' },
   system: { enabled: false },
   webdav: { url: '', username: '', password: '', syncPositions: false, autoUploadSettings: false },
@@ -225,6 +232,10 @@ export function loadSettings(prefs: PrefsBackend): Settings {
       accountId: str(prefs, 'cloudflare.accountId', DEFAULTS.cloudflare.accountId),
       apiToken: str(prefs, 'cloudflare.apiToken', DEFAULTS.cloudflare.apiToken),
     },
+    speechify: {
+      enabled: bool(prefs, 'speechify.enabled', DEFAULTS.speechify.enabled),
+      apiKey: str(prefs, 'speechify.apiKey', DEFAULTS.speechify.apiKey),
+    },
     local: {
       enabled: bool(prefs, 'local.enabled', DEFAULTS.local.enabled),
       engine: str(prefs, 'local.engine', DEFAULTS.local.engine),
@@ -304,6 +315,7 @@ export function saveSettings(prefs: PrefsBackend, s: Settings): void {
   for (const [k, v] of Object.entries(s.openai)) prefs.set(PREF_PREFIX + 'openai.' + k, v);
   for (const [k, v] of Object.entries(s.azure)) prefs.set(PREF_PREFIX + 'azure.' + k, v);
   for (const [k, v] of Object.entries(s.cloudflare)) prefs.set(PREF_PREFIX + 'cloudflare.' + k, v);
+  for (const [k, v] of Object.entries(s.speechify)) prefs.set(PREF_PREFIX + 'speechify.' + k, v);
   for (const [k, v] of Object.entries(s.local)) prefs.set(PREF_PREFIX + 'local.' + k, v);
   for (const [k, v] of Object.entries(s.system)) prefs.set(PREF_PREFIX + 'system.' + k, v);
   for (const [k, v] of Object.entries(s.webdav)) prefs.set(PREF_PREFIX + 'webdav.' + k, v);

@@ -1,4 +1,4 @@
-<!-- translated-from: README.md sha256:b0d7ba0c3028 -->
+<!-- translated-from: README.md sha256:0257a9a483b1 -->
 <p align="center"><img src="assets/icon.png" width="80" alt="Zotero-TTS 图标"></p>
 <h1 align="center">Zotero-TTS</h1>
 
@@ -22,7 +22,7 @@
 
 Zotero 10 自己就会朗读（Read Aloud），本插件不取代它的播放器——只是往播放器的**本地**语音模式里添语音，并把周边调得更顺手。[为什么这样做](PHILOSOPHY.md)（英文）。
 
-- 🗣️ **本地语音模式里更多语音**——朗读播放器里，Azure Speech、Cloudflare Workers AI、装在你机器上的 [Kokoro-FastAPI](https://github.com/remsky/Kokoro-FastAPI)、OpenAI 或任何 OpenAI 兼容服务器。[→ 服务商](#服务商)
+- 🗣️ **本地语音模式里更多语音**——朗读播放器里，Azure Speech、Cloudflare Workers AI、Speechify、装在你机器上的 [Kokoro-FastAPI](https://github.com/remsky/Kokoro-FastAPI)、OpenAI 或任何 OpenAI 兼容服务器。[→ 服务商](#服务商)
 - 🔖 **从上次停下的地方接着读**——关掉文档，过些天再打开，按 `Shift+Space`，朗读就从你上次停下的那一句开始。[→ 从上次停下的地方接着读](#从上次停下的地方接着读)
 - 🎧 **设置里的语音浏览器**：按语音模式和语言列出每一个语音，一个播放按钮试听，一颗心收藏，还有一个开关让播放器只提供收藏的语音。[→ 语音浏览器](#语音浏览器)
 - ✨ **逐词高亮和逐句高亮同时进行**，颜色和不透明度都由你定——Zotero 自己的语音也一样。[→ 高亮](#高亮)
@@ -46,6 +46,7 @@ Zotero 10 自己就会朗读（Read Aloud），本插件不取代它的播放器
 |---|---|---|---|
 | **Azure Speech** | 语音资源的密钥和区域 · [教程](tutorials/azure-speech-free-tier.zh.md) | 免费额度：每月 50 万字符 | 逐词；名字里带 *MAI-Voice-2* 的语音逐句 |
 | **Cloudflare Workers AI** | 账户 ID 和 API 令牌 · [教程](tutorials/cloudflare-workers-ai.zh.md) | 每天 10,000 个免费 Neurons：Aura 语音够读几页，MeloTTS 够读几个小时 | 逐句 |
+| **Speechify** | 一个 platform.speechify.ai 的 API 密钥 · 36 种语言，没有普通话 | 免费：每月 50,000 字符，约十几页；之后每月 10 美元 100 万字符 | 逐词 |
 | **Kokoro-FastAPI** | 一台跑在本机或局域网里的服务器 · [教程](tutorials/kokoro-fastapi.zh.md) | 免费；CPU 也能跑，有 GPU 更快 | 逐词 |
 | **OpenAI 兼容服务器** | API 地址和模型；服务器若要密钥再加一个 | OpenAI 按字符计费；自建的服务器，例如 [Chatterbox](tutorials/chatterbox-tts-server.zh.md)，不花钱 | 逐句 |
 | **Xiaomi MiMo** | 一个 platform.xiaomimimo.com 的 API 密钥，在 OpenAI 那一节的**服务器**下拉框里选 | 限时免费 | 逐句 |
@@ -198,7 +199,7 @@ Zotero 10 自己就会朗读（Read Aloud），本插件不取代它的播放器
 <summary><b>常见问题</b></summary>
 
 - **「Cannot reach Kokoro at http://localhost:8880. Is the server running?」** 服务器没起来，或者监听在别的地址——这一行写的就是它试过的地址；`docker ps` 应该能列出服务器；见它的教程。
-- **语音在读，但没有逐词高亮**。把*设置 → 常规 → 朗读 → 高亮当前*设成**单词**，并且用一个会报词级时间戳的语音：Kokoro，或者名字里不带 *MAI-Voice-2* 的 Azure 语音（那些按句高亮）。
+- **语音在读，但没有逐词高亮**。把*设置 → 常规 → 朗读 → 高亮当前*设成**单词**，并且用一个会报词级时间戳的语音：Kokoro、Speechify 或名字里不带 *MAI-Voice-2* 的 Azure 语音（那些按句高亮）。
 - **用名字里带 *Dragon Latest* 的 Azure 语音时，逐词高亮会在大约十秒后跳到本段最后一个词**，并停在那里，直到下一段开始。这是语音本身的问题，不是插件的：Azure 的其他语音——*Dragon HD Flash*、Multilingual、普通的那些——每个词都跟得上。
 - **用 OpenAI 兼容服务器时，读到一半冒出「发生一个未知错误。」** 服务器在某一段上失败了；查它的日志。
 - **Zotero 更新之后插件的语音不见了**。一次更新可能让它们消失，直到插件跟上；Zotero 自己的语音照常。请带上 Zotero 版本号开一个 [issue](https://github.com/xujialiu/Zotero-TTS/issues)。

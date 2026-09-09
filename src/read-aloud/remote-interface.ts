@@ -488,7 +488,7 @@ export function createRemoteInterface(deps: RemoteInterfaceDeps): RemoteInterfac
         const why = !words && result.note ? ` (${result.note})` : '';
         deps.debug?.(
           words
-            ? `${decoded.provider}: ${words} word timestamp${words === 1 ? '' : 's'} for ${text.length} chars${cached ? ' (cached)' : ''}`
+            ? `${decoded.provider}: ${words} word timestamp${words === 1 ? '' : 's'} for ${text.length} chars${result.note ? ` (${result.note})` : ''}${cached ? ' (cached)' : ''}`
             : `${decoded.provider}: no word timestamps for ${text.length} chars${why}, highlighting the sentence${cached ? ' (cached)' : ''}`,
         );
         return { audio: result.audio, timestamps: words ? result.timestamps : wholeSegmentTimestamp(text) };

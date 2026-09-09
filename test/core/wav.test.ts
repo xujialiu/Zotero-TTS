@@ -49,3 +49,26 @@ describe('wavDataLength', () => {
     expect(wavDataLength(new Uint8Array(0))).toBeNull();
   });
 });
+
+describe('pcm16ToWav', () => {
+  it('writes a 44-byte header for mono 16-bit samples at the given rate, and the samples byte for byte', async () => {
+    const { pcm16ToWav } = await import('../../src/core/wav');
+    const samples = new Uint8Array([1, 0, 2, 0, 3, 0]);
+    const blob = pcm16ToWav(samples, 24_000);
+    expect(blob.type).toBe('audio/wav');
+    const bytes = new Uint8Array(await blob.arrayBuffer());
+    expect(bytes.length).toBe(50);
+    expect(String.fromCharCode(...bytes.subarray(0, 4))).toBe('RIFF');
+    expect(String.fromCharCode(...bytes.subarray(8, 16))).toBe('WAVEfmt ');
+    const view = new DataView(bytes.buffer);
+    expect(view.getUint32(4, true)).toBe(42);
+    expect(view.getUint16(20, true)).toBe(1);
+    expect(view.getUint16(22, true)).toBe(1);
+    expect(view.getUint32(24, true)).toBe(24_000);
+    expect(view.getUint32(28, true)).toBe(48_000);
+    expect(view.getUint16(32, true)).toBe(2);
+    expect(view.getUint16(34, true)).toBe(16);
+    expect(wavDataLength(bytes)).toBe(6);
+    expect([...bytes.subarray(44)]).toEqual([1, 0, 2, 0, 3, 0]);
+  });
+});

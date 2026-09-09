@@ -260,6 +260,18 @@ describe('getAudio', () => {
     expect(debug).toHaveBeenCalledWith(expect.stringMatching(/openai.*no word timestamps.*sentence/));
   });
 
+  // Speechify names its model in the note (issue #79): the line with the words is where a live run reads the routing
+  it('appends the provider\'s note to the line with the word timestamps too', async () => {
+    const debug = vi.fn();
+    const timestamps = [{ start: 0, end: 1, charStart: 0, charEnd: 5 }];
+    const iface = createRemoteInterface({
+      ...deps(fakeProvider({ synthesize: async () => ({ audio: new Blob(['x']), timestamps, note: 'simba-3.2' }) })),
+      debug,
+    });
+    await iface.getAudio({ text: 'Hello' }, voice);
+    expect(debug).toHaveBeenCalledWith('openai: 1 word timestamp for 5 chars (simba-3.2)');
+  });
+
   it('synthesises a fixed sample when asked for the sample segment', async () => {
     const synthesize = vi.fn(async () => ({ audio: new Blob(['x']) }));
     const iface = createRemoteInterface(deps(fakeProvider({ synthesize })));

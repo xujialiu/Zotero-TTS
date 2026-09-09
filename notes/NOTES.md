@@ -17,7 +17,7 @@ A Zotero 10 plugin that replaces the audio backend of Zotero's built-in Read
 Aloud. The native player, sentence segmentation, prefetching, and word/sentence
 highlighting are all Zotero's; the plugin only supplies voices and audio (plus
 word timestamps) from the user's own TTS services: OpenAI, Azure Speech,
-Cloudflare Workers AI, and a
+Cloudflare Workers AI, Speechify, and a
 local Kokoro-FastAPI server.
 
 Mechanism: intercept `Zotero.Reader._readers.push`, and on each new reader
@@ -326,3 +326,7 @@ cite `notes/NOTES.md` with a date or a section title resolve through this index.
 - The return key forgets the DOM view's last state before the re-emit, and Zotero's own first-push path brings the view back (issue #76)
 - A write of Zotero's highlight-level pref repaints every open reader inside the write, and a bare h during a session annotates (issue #67)
 - The word highlight key writes Zotero's own level, and its toast says when the voice cannot show it (issue #67)
+
+### [2026-09-09](NOTES_2026-09-09.md)
+
+- Speechify joined as a provider of its own: the locale in the voice id, one request at a time, and marks aligned by their text (issue #79)

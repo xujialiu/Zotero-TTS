@@ -29,6 +29,12 @@ describe('createProvider', () => {
     expect(p.capabilities.wordTimestamps).toBe(false);
   });
 
+  it('builds the Speechify provider', () => {
+    const p = createProvider('speechify', DEFAULTS, deps);
+    expect(p.id).toBe('speechify');
+    expect(p.capabilities.wordTimestamps).toBe(true);
+  });
+
   it('builds the configured local engine', () => {
     const s = { ...DEFAULTS, local: { enabled: true, engine: 'kokoro', baseURL: 'http://h:1', voice: 'af_bella', headers: '' } };
     const p = createProvider('local', s, deps);

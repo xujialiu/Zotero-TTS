@@ -15,6 +15,8 @@ pref('extensions.zotero.zotero-tts.azure.voice', 'zh-CN-XiaoxiaoNeural');
 pref('extensions.zotero.zotero-tts.cloudflare.enabled', false);
 pref('extensions.zotero.zotero-tts.cloudflare.accountId', '');
 pref('extensions.zotero.zotero-tts.cloudflare.apiToken', '');
+pref('extensions.zotero.zotero-tts.speechify.enabled', false);
+pref('extensions.zotero.zotero-tts.speechify.apiKey', '');
 pref('extensions.zotero.zotero-tts.local.enabled', false);
 pref('extensions.zotero.zotero-tts.local.engine', 'kokoro');
 pref('extensions.zotero.zotero-tts.local.baseURL', 'http://localhost:8880');
