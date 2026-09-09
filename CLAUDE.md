@@ -155,6 +155,23 @@ WebDAV), highlight colors.
   whether it makes a new issue a duplicate. A second issue over ground an
   old one covers splits the record in two, and the work then starts
   without the reasoning that was already written down.
+  **An issue the user asks for is written from what they want, and its
+  gaps are asked about before it is written** (settled 2026-09-09, issue
+  #81): "提 issue" / "创建 issue" hands the session a requirement, not a
+  subject to research — it reads the list as above, writes that
+  requirement down, and stops there: no reading of the code for how it
+  would be done, no approach, no files. Where the description leaves
+  something the issue cannot state without guessing — what exactly a
+  word of it points at, when the new behavior applies, what happens when
+  the user undoes it by hand — the session asks before writing, in one
+  round of concrete alternatives with the one it recommends marked;
+  never as open questions parked in the issue for later. The body is the
+  user's side of it and no more: what happens today, what that costs
+  them, and what is asked, behavior by behavior. A product default their
+  answers do not settle — a new switch off by default, so nothing
+  changes for anyone who does not want it — the session picks itself,
+  says so in one line when it hands the issue over, and says it can be
+  overruled.
   Everything that leaves the plugin's behavior alone — docs, the settings
   pane's wording and layout, refactors, housekeeping — gets a `chore`
   issue instead, when the change is worth a public record: a couple of
