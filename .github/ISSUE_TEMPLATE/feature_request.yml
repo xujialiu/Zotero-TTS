@@ -1,0 +1,37 @@
+name: Feature request
+description: Suggest something Zotero-TTS should do
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Zotero-TTS adds voices and shortcuts to Zotero's own Read Aloud; it does not replace it. Answers in English or 中文 are both fine.
+  - type: textarea
+    id: what
+    attributes:
+      label: What you would like
+    validations:
+      required: true
+  - type: textarea
+    id: today
+    attributes:
+      label: What you have to do today instead
+      description: What Zotero or the plugin makes you do now, and what that costs you.
+    validations:
+      required: false
+  - type: input
+    id: zotero-version
+    attributes:
+      label: Zotero version
+      description: "Help → About Zotero (on macOS: Zotero → About Zotero)."
+      placeholder: 10.0.1 (64-bit)
+    validations:
+      required: true
+  - type: input
+    id: plugin-version
+    attributes:
+      label: Zotero-TTS version
+      description: Tools → Plugins, on the Zotero-TTS row. A newer version may already do it.
+      placeholder: 1.11.6
+    validations:
+      required: true

@@ -1,0 +1,78 @@
+name: Bug report
+description: Something in Zotero-TTS does not work
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report this. Answers in English or 中文 are both fine.
+  - type: textarea
+    id: what-happens
+    attributes:
+      label: What happens
+      description: What you did, what you expected, and what you got instead. A screenshot or a short recording helps.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open a PDF and start Read Aloud
+        2. Pick the voice ...
+        3. ...
+    validations:
+      required: true
+  - type: input
+    id: zotero-version
+    attributes:
+      label: Zotero version
+      description: "Help → About Zotero (on macOS: Zotero → About Zotero). Copy the whole line."
+      placeholder: 10.0.1 (64-bit), or 10.0.SOURCE.22f08d1ce (64-bit)
+    validations:
+      required: true
+  - type: input
+    id: plugin-version
+    attributes:
+      label: Zotero-TTS version
+      description: Tools → Plugins, on the Zotero-TTS row.
+      placeholder: 1.11.6
+    validations:
+      required: true
+  - type: dropdown
+    id: without-plugin
+    attributes:
+      label: Does it still happen with Zotero-TTS turned off?
+      description: Tools → Plugins, switch Zotero-TTS off, restart Zotero, and try the same thing with one of Zotero's own voices. This is what says whether the plugin is the thing to fix.
+      options:
+        - "No — only with Zotero-TTS on"
+        - "Yes — Zotero does it on its own too"
+        - "I could not test it (say why under What happens)"
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - Windows
+        - macOS
+        - Linux
+    validations:
+      required: true
+  - type: input
+    id: voice
+    attributes:
+      label: Which voice
+      description: The provider and the voice, as the player lists it.
+      placeholder: Azure-Brandon, Kokoro-af_bella, one of Zotero's own voices ...
+    validations:
+      required: false
+  - type: textarea
+    id: log
+    attributes:
+      label: Anything in the log
+      description: Optional. Help → Debug Output Logging → View Output while it goes wrong, then paste the lines around it.
+      render: text
+    validations:
+      required: false

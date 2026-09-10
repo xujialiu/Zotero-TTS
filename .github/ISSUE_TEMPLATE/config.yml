@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Docs, providers and tutorials
+    url: https://xujialiu.github.io/Zotero-TTS/
+    about: Setting up a provider, Azure's free tier, Kokoro-FastAPI or Chatterbox-TTS-Server in Docker, remote access.
