@@ -19,6 +19,7 @@ import { forgetViewReadAloudState, readAloudViewKind, type ReadAloudViewKind } f
 import { redeliverInterfaces, restoreInterfaces } from './read-aloud/interface-redelivery';
 import { createReadAloudMemorySync, type ReadAloudMemorySync } from './read-aloud/memory-sync';
 import { createHighlightStyling, type HighlightStyling } from './read-aloud/highlight-style';
+import { createSentenceInView, type SentenceInView } from './read-aloud/sentence-in-view';
 import { createSystemVoiceHiding, type SystemVoiceHiding } from './read-aloud/system-voices';
 import { createMultilingualFirst, type MultilingualFirst } from './read-aloud/multilingual-first';
 import { createFavoriteMarks, type FavoriteMarks } from './read-aloud/favorite-marks';
@@ -104,6 +105,8 @@ let settingsAutoUpload: SettingsAutoUpload | null = null;
 let positionDB: any = null;
 let deleteNotifierID: string | null = null;
 let highlightStyling: HighlightStyling | null = null;
+/** The whole sentence on screen while a PDF is followed (read-aloud/sentence-in-view.ts, issue #83). */
+let sentenceInView: SentenceInView | null = null;
 let systemVoiceHiding: SystemVoiceHiding | null = null;
 let multilingualFirst: MultilingualFirst | null = null;
 let favoriteMarks: FavoriteMarks | null = null;
@@ -378,6 +381,8 @@ function buildReaderInterface(reader: any, targetWindow: any, native: () => unkn
           readAloudMemory?.opening(reader);
           // The popup is open, so the document is rendered and its views exist
           highlightStyling?.attach(reader);
+          // The same views: the PDF one's follow is taken over here (issue #83)
+          sentenceInView?.attach(reader);
           // The manager exists and this very listing's _resolveVoice has not
           // run yet, so even the first popup open is filtered
           systemVoiceHiding?.attach(reader);
@@ -607,6 +612,7 @@ function watchReader(reader: any): void {
   watchWindow(reader._window);
   readAloudMemory?.attach(reader);
   highlightStyling?.attach(reader);
+  sentenceInView?.attach(reader);
   systemVoiceHiding?.attach(reader);
   multilingualFirst?.attach(reader);
   favoriteMarks?.attach(reader);
@@ -1359,6 +1365,37 @@ function stopHighlightStyling(): void {
   highlightStyling = null;
 }
 
+// ---- The whole sentence on screen -----------------------------------------
+//
+// Zotero's PDF follow measures a sentence by its first-page box and asks only
+// whether the box's top is on screen; see read-aloud/sentence-in-view.ts for
+// how the follow's call is taken over per reader (issue #83).
+
+function startSentenceInView(): void {
+  stopSentenceInView();
+  sentenceInView = createSentenceInView({
+    exportFunction: (fn, target) => Components.utils.exportFunction(fn, target),
+    // What the reader hands an exported function arrives behind Xray wrappers (see highlight-style.ts)
+    waiveXrays: (value) => ((value && typeof value === 'object') || typeof value === 'function' ? Components.utils.waiveXrays(value) : value),
+    // The scroll options are built in this sandbox; the container's scrollTo reads a foreign dictionary as empty
+    cloneInto: (container: any, value) => {
+      const win = container?.ownerDocument?.defaultView;
+      return win ? Components.utils.cloneInto(value, win) : value;
+    },
+    isDead: (value) => Components.utils.isDeadWrapper(value),
+    // Only a real word is followed; the whole-segment stand-in of a wordless voice is not one
+    wordTiming: (reader) => highlightStyling?.wordTiming(reader) ?? 'none',
+    error: (e) => Zotero.logError(e),
+    debug: (message) => Zotero.debug('[zotero-tts] ' + message),
+  });
+  for (const reader of Zotero.Reader._readers ?? []) sentenceInView.attach(reader);
+}
+
+function stopSentenceInView(): void {
+  sentenceInView?.dispose();
+  sentenceInView = null;
+}
+
 // ---- Hiding Zotero's own Local voices --------------------------------------
 //
 // The OS voices never pass through the remote interface; see
@@ -1609,6 +1646,7 @@ async function startup({ id, version, rootURI }: StartupParams): Promise<void> {
       ['reading-position store', startPositionTracking],
       ['settings auto-upload', startSettingsAutoUpload],
       ['highlight colors', startHighlightStyling],
+      ['sentence in view', startSentenceInView],
       [
         'system speech helper',
         () => {
@@ -1675,6 +1713,7 @@ async function shutdown(reason?: number): Promise<void> {
   await stopPositionTracking();
   stopReadAloudMemory();
   stopHighlightStyling();
+  stopSentenceInView();
   stopSpeechBackend();
   stopSystemVoiceHiding();
   stopMultilingualFirst();
@@ -1802,6 +1841,17 @@ const diagnostics = {
     );
   },
   highlight: () => JSON.stringify((Zotero.Reader._readers ?? []).map((r: any) => highlightStyling?.inspect(r) ?? null), null, 1),
+  /**
+   * The whole-sentence follow on a PDF (read-aloud/sentence-in-view.ts,
+   * issue #83): per reader the view kind, whether its prototype is patched,
+   * the current sentence's head and whole boxes against the viewport with
+   * `fits` and `cut`, the word being followed, and the last decision the
+   * shadow made — its reason, the scrollTop it saw and the target it
+   * issued. The debug log carries one `sentence in view: <reason> on page
+   * N: scrollTop A -> B` line per scroll issued; a sentence wholly on
+   * screen leaves the call to Zotero (`handled` false, no line).
+   */
+  sentenceInView: () => JSON.stringify((Zotero.Reader._readers ?? []).map((r: any) => sentenceInView?.inspect(r) ?? null), null, 1),
   systemVoices: () => JSON.stringify((Zotero.Reader._readers ?? []).map((r: any) => systemVoiceHiding?.inspect(r) ?? null), null, 1),
   /**
    * The key of Zotero's reader.readAloudVoices pref a language resolves to,

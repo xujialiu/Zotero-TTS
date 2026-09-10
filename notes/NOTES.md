@@ -331,3 +331,10 @@ cite `notes/NOTES.md` with a date or a section title resolve through this index.
 
 - Speechify joined as a provider of its own: the locale in the voice id, one request at a time, and marks aligned by their text (issue #79)
 - Zotero's 25 px cap on a button takes its 6 px out from under the label, and Gecko never re-centers what overflows (issue #80)
+
+### [2026-09-10](NOTES_2026-09-10.md)
+
+- Zotero's PDF follow measures a sentence by its first-page box and only asks whether the box's top is on screen, so a sentence continued on the next page or column is left cut (issue #83)
+- The follow's own smooth scroll can drop the position lock: a flat 100 ms timer clears Zotero's "scrolling is mine" flag before the animation's late first frame
+- Bridge traps the two runs met, for the next brief
+- The follow's call is answered by the plugin: the whole sentence, both pages, against the viewport's edges (issue #83)
