@@ -54,7 +54,7 @@ export interface Settings {
    * #41). Both are switches, so they live here in DEFAULTS and ride
    * settings backup; the position data and the machine id never do.
    */
-  webdav: { url: string; username: string; password: string; syncPositions: boolean; autoUploadSettings: boolean };
+  webdav: { url: string; username: string; password: string; syncPositions: boolean; autoUploadSettings: boolean; syncSettings: boolean };
   /** Warm the audio cache this many sentences ahead of playback (read-aloud/remote-interface.ts); `prefetchEnabled` is the switch. */
   prefetch: number;
   prefetchEnabled: boolean;
@@ -140,7 +140,7 @@ export const DEFAULTS: Settings = {
   speechify: { enabled: false, apiKey: '' },
   local: { enabled: false, engine: 'kokoro', baseURL: 'http://localhost:8880', voice: 'af_bella', headers: '' },
   system: { enabled: false },
-  webdav: { url: '', username: '', password: '', syncPositions: false, autoUploadSettings: false },
+  webdav: { url: '', username: '', password: '', syncPositions: false, autoUploadSettings: false, syncSettings: false },
   prefetch: 3,
   prefetchEnabled: true,
   cacheAudio: true,
@@ -252,6 +252,7 @@ export function loadSettings(prefs: PrefsBackend): Settings {
       password: str(prefs, 'webdav.password', DEFAULTS.webdav.password),
       syncPositions: bool(prefs, 'webdav.syncPositions', DEFAULTS.webdav.syncPositions),
       autoUploadSettings: bool(prefs, 'webdav.autoUploadSettings', DEFAULTS.webdav.autoUploadSettings),
+      syncSettings: bool(prefs, 'webdav.syncSettings', DEFAULTS.webdav.syncSettings),
     },
     prefetch: num(prefs, 'prefetch', DEFAULTS.prefetch, 1, 10),
     prefetchEnabled: bool(prefs, 'prefetchEnabled', DEFAULTS.prefetchEnabled),

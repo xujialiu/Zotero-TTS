@@ -26,6 +26,9 @@ import { markPlatform } from './platform-class';
 import { initBoldLabels } from './bold-labels';
 import { initBuildRows } from './build-rows';
 import { initWebDAVRows } from './webdav-rows';
+import { initSyncStatusRows } from './sync-status-rows';
+import { SYNC_SETTINGS_OBSERVER } from '../core/settings-sync';
+import type { SettingsSyncApplied, SettingsSyncStats } from '../core/settings-sync-transport';
 import { initHighlightRows } from './highlight-rows';
 import { initPrefetchRows, PREFETCH_ENABLED_OBSERVER } from './prefetch-rows';
 import { initProviderRows } from './provider-rows';
@@ -380,7 +383,12 @@ export function addressGate(openai: Pick<Settings['openai'], 'server' | 'baseURL
   return hint.kind === 'typo' ? { refusal: t('ztts-not-tested', { reason: addressHintText(hint) }) } : { note: addressHintText(hint) };
 }
 
-async function checkProvider(doc: Document, prefs: PrefsBackend, id: ProviderId, deps: ProviderDeps): Promise<ConnectionResult> {
+/**
+ * The check without the pane: what the settings sync runs after it adopted
+ * a provider's settings (core/settings-sync-transport.ts, issue #68) — the
+ * same probes, bounded the same way, no document to write into.
+ */
+export async function runConnectionCheck(prefs: PrefsBackend, id: ProviderId, deps: ProviderDeps): Promise<ConnectionResult> {
   const settings = loadSettings(prefs);
   let outcome: ConnectionResult;
   // Test connection is the retry after an environment was fixed, so it
@@ -405,6 +413,11 @@ async function checkProvider(doc: Document, prefs: PrefsBackend, id: ProviderId,
     outcome = { ok: false, message: t('ztts-connection-failed', { detail: String(e) }) };
   }
   if (gate.note) outcome = { ...outcome, message: sentences(outcome.message, gate.note) };
+  return outcome;
+}
+
+async function checkProvider(doc: Document, prefs: PrefsBackend, id: ProviderId, deps: ProviderDeps): Promise<ConnectionResult> {
+  const outcome = await runConnectionCheck(prefs, id, deps);
   const suggestions = doc.getElementById(`ztts-${id}-models`);
   if (suggestions && outcome.models) {
     suggestions.replaceChildren(
@@ -476,6 +489,12 @@ export interface PaneHooks {
   };
   /** A prod at settings-autoupload (src/index.ts): the machine-id rename should reach the server soon. */
   settingsUploadSoon?(): void;
+  /** The settings sync (src/index.ts, #68): its stats for the status line, a listener per completed sync, and a poke when the pane opens. */
+  settingsSync?: {
+    stats(): SettingsSyncStats | null;
+    watch(onSynced: (report: SettingsSyncApplied | null) => void): () => void;
+    poke(): void;
+  };
 }
 
 export function onPaneLoad(doc: Document, hooks: PaneHooks = {}): void {
@@ -676,4 +695,21 @@ export function onPaneLoad(doc: Document, hooks: PaneHooks = {}): void {
     },
     onMachineRenamed: () => hooks.settingsUploadSoon?.(),
   });
+  // The line under *Sync settings between computers* (#68): what the last
+  // sync did here, kept current while the pane is open; a sync that changed
+  // settings here redraws the unbound rows as a restore does
+  const syncStatus = initSyncStatusRows(doc, {
+    enabled: () => loadSettings(prefs).webdav.syncSettings,
+    stats: () => hooks.settingsSync?.stats() ?? null,
+    watch: (onSynced) => hooks.settingsSync?.watch(onSynced) ?? (() => {}),
+    watchSwitch: (onChange) => {
+      const token = Zotero.Prefs.registerObserver(SYNC_SETTINGS_OBSERVER, onChange);
+      return () => Zotero.Prefs.unregisterObserver(token);
+    },
+    onApplied: () => restoreDeps.onRestored(),
+    formatTime: (ts) => new Date(ts).toLocaleTimeString(),
+  });
+  win?.addEventListener('unload', () => syncStatus.dispose(), { once: true });
+  // Opening the pane is where the user looks for what the other computers changed
+  hooks.settingsSync?.poke();
 }

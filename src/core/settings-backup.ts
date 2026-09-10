@@ -78,7 +78,7 @@ export interface ParsedBackup {
 }
 
 /** The value as the kind `like` is, when the reading is unambiguous; undefined otherwise. */
-function coerce(value: unknown, like: SettingValue): SettingValue | undefined {
+export function coerceSetting(value: unknown, like: SettingValue): SettingValue | undefined {
   switch (typeof like) {
     case 'boolean':
       if (typeof value === 'boolean') return value;
@@ -110,7 +110,7 @@ export function parseBackup(text: string): ParsedBackup {
   const ignored: string[] = [];
   for (const [key, raw] of Object.entries(backup.settings)) {
     const like = KNOWN[key];
-    const value = like === undefined ? undefined : coerce(raw, like);
+    const value = like === undefined ? undefined : coerceSetting(raw, like);
     if (value === undefined) ignored.push(key);
     else settings[key] = value;
   }

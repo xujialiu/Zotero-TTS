@@ -35,7 +35,7 @@ export type OpenAIField = 'apiKey' | 'baseURL' | 'model' | 'voices' | 'headers';
  * to another. A preset's `defaults` fill only the first two.
  */
 export type PresetFields = Partial<Pick<Settings['openai'], 'baseURL' | 'model' | 'apiKey' | 'voices' | 'headers'>>;
-const PRESET_FIELDS = ['baseURL', 'model', 'apiKey', 'voices', 'headers'] as const;
+export const PRESET_FIELDS = ['baseURL', 'model', 'apiKey', 'voices', 'headers'] as const;
 /** What a server never visited starts with beyond its defaults: no key, no voices and no headers of another server's. */
 const BLANK_FIELDS: PresetFields = { apiKey: '', voices: '', headers: '' };
 

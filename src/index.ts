@@ -9,10 +9,21 @@ import { zoteroVoiceId } from './core/providers/system/voices';
 import { FTL_FILE, hasMessageSource, sentences, setMessageSource, t } from './core/l10n';
 import { installOwnSource, OWN_SOURCE_NAME, unregisterOwnSource } from './core/l10n-source';
 import { createMemoryCache } from './core/memory-cache';
-import { audioCacheOn, createZoteroPrefs, DEFAULTS, loadSettings, migrateLegacyProviderPref } from './core/settings';
+import { audioCacheOn, createZoteroPrefs, DEFAULTS, loadSettings, migrateLegacyProviderPref, PREF_PREFIX } from './core/settings';
 import { createBackup, flattenSettings, machineSettingsFilename, serializeBackup, SETTINGS_FILE_PATTERN } from './core/settings-backup';
 import { createSettingsAutoUpload, type SettingsAutoUpload } from './core/settings-autoupload';
 import { machineId } from './core/machine-id';
+import { createSettingsSyncTransport, type SettingsSyncApplied, type SettingsSyncTransport } from './core/settings-sync-transport';
+import {
+  heldSections,
+  parseSharedSettings,
+  readSyncState,
+  SHARED_SETTINGS_FILENAME,
+  SYNC_SETTINGS_OBSERVER,
+  SYNCABLE_KEYS,
+  writeSyncState,
+  type SyncState,
+} from './core/settings-sync';
 import { installHijack, nativeInterfaceOf } from './read-aloud';
 import { createPlayerStop, isPlayerOpen } from './read-aloud/player-stop';
 import { forgetViewReadAloudState, readAloudViewKind, type ReadAloudViewKind } from './read-aloud/return-to-spoken';
@@ -48,7 +59,7 @@ import {
   type NativeRemoteInterface,
   type RemoteInterface,
 } from './read-aloud/remote-interface';
-import { defaultMachineName, onPaneLoad, registerPrefsPane, unregisterPrefsPane, zoteroVoiceService } from './ui/prefs-pane';
+import { defaultMachineName, onPaneLoad, registerPrefsPane, runConnectionCheck, unregisterPrefsPane, zoteroVoiceService } from './ui/prefs-pane';
 import {
   createReadAloudShortcuts,
   deepActiveElement,
@@ -101,6 +112,12 @@ let positionTransport: PositionTransport | null = null;
 let syncSwitchObserver: unknown = null;
 /** Keeps this machine's settings file on the server fresh (#41, core/settings-autoupload.ts). */
 let settingsAutoUpload: SettingsAutoUpload | null = null;
+/** Carries the settings both ways over the folder (#68, core/settings-sync-transport.ts); null while stopped. */
+let settingsSyncTransport: SettingsSyncTransport | null = null;
+/** The syncSettings checkbox's observer token, so flipping it on syncs at once. */
+let settingsSyncSwitchObserver: unknown = null;
+/** What the pane registers to hear every completed settings sync (ui/sync-status-rows.ts). */
+const settingsSyncListeners = new Set<(report: SettingsSyncApplied | null) => void>();
 /** The raw `Zotero.DBConnection`, kept for diagnostics (path, row count). */
 let positionDB: any = null;
 let deleteNotifierID: string | null = null;
@@ -630,6 +647,7 @@ function watchReader(reader: any): void {
   // Another machine may have read further since the last sync; a burst of
   // tabs at startup coalesces into one request (position-transport.ts)
   positionTransport?.poke('reader-open');
+  settingsSyncTransport?.poke('reader-open');
 }
 
 /**
@@ -760,6 +778,7 @@ function hookTabClose(reader: any): void {
         // A primitive-ish reader cannot be marked; the uninit poke then runs
       }
       positionTransport?.poke('reader-close');
+      settingsSyncTransport?.poke('reader-close');
       return original?.call(tab);
     };
     tab.onClose = wrapper;
@@ -821,7 +840,10 @@ function hookPositionCapture(reader: any): void {
       } catch (e) {
         Zotero.logError(e);
       }
-      if (!closePoked.has(reader)) positionTransport?.poke('reader-close');
+      if (!closePoked.has(reader)) {
+        positionTransport?.poke('reader-close');
+        settingsSyncTransport?.poke('reader-close');
+      }
       try {
         target.uninit = original;
       } catch {
@@ -1337,6 +1359,87 @@ function stopSettingsAutoUpload(): void {
   settingsAutoUpload = null;
 }
 
+// ---- The settings, both ways over the folder (#68) --------------------------
+//
+// One shared file, one setting at a time by recency (core/settings-sync.ts,
+// core/settings-sync-transport.ts); the pokes ride beside the positions
+// transport's, a change of this machine's syncs after its quiet period, and
+// the pane hears every completed sync for its status line. The per-machine
+// snapshot above stays the backup.
+
+function startSettingsSync(): void {
+  dropSettingsSync();
+  const transport = createSettingsSyncTransport({
+    enabled: () => loadSettings(prefs).webdav.syncSettings,
+    client: () => createWebDAVClient(loadSettings(prefs).webdav, { fetch }),
+    values: () => flattenSettings(loadSettings(prefs)),
+    machine: () => machineId(prefs, defaultMachineName),
+    readState: () => readSyncState(prefs),
+    writeState: (state) => writeSyncState(prefs, state),
+    write: (key, value) => prefs.set(PREF_PREFIX + key, value),
+    // Any open player, paused included: the list-editing settings wait for it
+    readingTabs: () => playerStop.open().map((reader: any) => String(safe(() => reader?.itemID) ?? 'reader')),
+    // The check Enable and a restore run, headless (ui/prefs-pane.ts, issue #21)
+    checkProvider: (id) => runConnectionCheck(prefs, id, providerDeps()),
+    onSynced: (report) => {
+      for (const listener of settingsSyncListeners) {
+        try {
+          listener(report);
+        } catch (e) {
+          Zotero.logError(e);
+        }
+      }
+    },
+    keys: SYNCABLE_KEYS.map((key) => ({ key, observer: 'zotero-tts.' + key })),
+    registerObserver: (name, handler) => Zotero.Prefs.registerObserver(name, handler),
+    unregisterObserver: (token) => Zotero.Prefs.unregisterObserver(token),
+    setTimeout: (fn, ms) => setTimeout(fn, ms),
+    clearTimeout: (handle: any) => clearTimeout(handle),
+    now: () => Date.now(),
+    error: (e) => Zotero.logError(e),
+    debug: (message) => Zotero.debug('[zotero-tts] ' + message),
+  });
+  settingsSyncTransport = transport;
+  transport.start();
+  transport.poke('startup');
+  // Ticking the checkbox syncs right away — the user is at the pane, watching for exactly that
+  try {
+    settingsSyncSwitchObserver = Zotero.Prefs.registerObserver(SYNC_SETTINGS_OBSERVER, () => {
+      if (loadSettings(prefs).webdav.syncSettings) settingsSyncTransport?.poke('switch-on');
+    });
+  } catch (e) {
+    Zotero.logError(e);
+  }
+}
+
+/** Forget the transport without a flush: a restart of the step, or after the shutdown's own flush. */
+function dropSettingsSync(): void {
+  if (settingsSyncSwitchObserver !== null) {
+    try {
+      Zotero.Prefs.unregisterObserver(settingsSyncSwitchObserver);
+    } catch {
+      // Already gone at shutdown
+    }
+    settingsSyncSwitchObserver = null;
+  }
+  settingsSyncTransport?.stop();
+  settingsSyncTransport = null;
+}
+
+async function stopSettingsSync(): Promise<void> {
+  const transport = settingsSyncTransport;
+  if (transport) {
+    // This machine's last changes go up, push only — adopting and checking
+    // are for the next start — inside the same bound as the other flushes
+    try {
+      await withTimeout(transport.flush('shutdown', { pushOnly: true }), SYNC_SHUTDOWN_TIMEOUT_MS, () => new Error('zotero-tts: settings sync flush timed out at shutdown'));
+    } catch (e) {
+      Zotero.logError(e);
+    }
+  }
+  dropSettingsSync();
+}
+
 // ---- Highlight colors -----------------------------------------------------
 //
 // Zotero's highlight colors are constants in its reader bundle; see
@@ -1645,6 +1748,7 @@ async function startup({ id, version, rootURI }: StartupParams): Promise<void> {
       // the resume path run; open-failure is handled inside (in-memory mode)
       ['reading-position store', startPositionTracking],
       ['settings auto-upload', startSettingsAutoUpload],
+      ['settings sync', startSettingsSync],
       ['highlight colors', startHighlightStyling],
       ['sentence in view', startSentenceInView],
       [
@@ -1708,6 +1812,8 @@ async function shutdown(reason?: number): Promise<void> {
     }
     auto.stop();
   }
+  // The settings sync's last push, bounded, then its observers come off (#68)
+  await stopSettingsSync();
   // Awaited: the final bookmarks flush to the database and the connection
   // closes before Zotero goes on shutting down (plugins.js awaits us)
   await stopPositionTracking();
@@ -2267,6 +2373,58 @@ const diagnostics = {
     );
   },
   /**
+   * The settings sync (#68): the switch, this machine's id, which provider
+   * sections are held here for their address, the stamps (keys and count,
+   * never values), the providers held off, and the transport's last sync
+   * field by field. A build is proved by `transport.adopted` / `pushed`
+   * moving after a change on the other side, never by the file looking
+   * fresh.
+   */
+  settingsSync: () => {
+    const settings = loadSettings(prefs);
+    const values = flattenSettings(settings);
+    const state = safe(() => readSyncState(prefs)) as SyncState | undefined;
+    return JSON.stringify(
+      {
+        enabled: settings.webdav.syncSettings,
+        configured: !!settings.webdav.url,
+        machine: safe(() => machineId(prefs, defaultMachineName)),
+        file: SHARED_SETTINGS_FILENAME,
+        syncable: SYNCABLE_KEYS.length,
+        heldSections: safe(() => [...heldSections(values)]),
+        state: state ? { seeded: state.seeded, stamps: Object.keys(state.stamps).length, stamped: Object.keys(state.stamps).sort(), held: state.held } : null,
+        transport: safe(() => settingsSyncTransport?.stats() ?? 'not started'),
+      },
+      null,
+      1,
+    );
+  },
+  /**
+   * The shared settings file as this machine reads it (#68): every item's
+   * key, stamp and writer, and its value only where it is not a secret —
+   * keys, tokens, passwords, headers and the preset memory show as a
+   * length. A push or an adoption is proved by the stamps here, never by
+   * printing a key.
+   */
+  sharedSettings: async () => {
+    try {
+      const client = createWebDAVClient(loadSettings(prefs).webdav, { fetch });
+      const items = parseSharedSettings(await client.download(SHARED_SETTINGS_FILENAME));
+      const secret = /apiKey|apiToken|password|headers|presetValues/i;
+      return JSON.stringify(
+        {
+          url: client.url,
+          count: items.length,
+          items: items.map((i) => ({ key: i.key, value: secret.test(i.key) ? `<${String(i.value).length} chars>` : i.value, ts: i.ts, by: i.by })),
+        },
+        null,
+        1,
+      );
+    } catch (e) {
+      return JSON.stringify({ error: String(e) }, null, 1);
+    }
+  },
+  /**
    * What the server's folder holds of ours, through the same list the
    * Restore button runs: every settings file with its machine id and date,
    * and the positions file. The pull picker cannot be driven from here —
@@ -2275,7 +2433,7 @@ const diagnostics = {
   settingsFiles: async () => {
     try {
       const client = createWebDAVClient(loadSettings(prefs).webdav, { fetch });
-      const files = (await client.list()).filter((f) => SETTINGS_FILE_PATTERN.test(f.name) || f.name === POSITIONS_FILENAME);
+      const files = (await client.list()).filter((f) => SETTINGS_FILE_PATTERN.test(f.name) || f.name === POSITIONS_FILENAME || f.name === SHARED_SETTINGS_FILENAME);
       return JSON.stringify({ url: client.url, files }, null, 1);
     } catch (e) {
       return JSON.stringify({ error: String(e) }, null, 1);
@@ -2599,6 +2757,16 @@ Zotero.ZoteroTTS = {
         },
         // The machine-id rename should reach the server soon (#41)
         settingsUploadSoon: () => settingsAutoUpload?.changed(),
+        // The settings sync (#68): the status line's stats, a listener per
+        // completed sync, and a poke when the pane opens — where the user looks
+        settingsSync: {
+          stats: () => settingsSyncTransport?.stats() ?? null,
+          watch: (onSynced) => {
+            settingsSyncListeners.add(onSynced);
+            return () => void settingsSyncListeners.delete(onSynced);
+          },
+          poke: () => settingsSyncTransport?.poke('pane-open'),
+        },
       }),
   },
   diagnostics,

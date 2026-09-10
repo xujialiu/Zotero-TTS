@@ -1,3 +1,4 @@
+import { createSingleFlight } from '../core/single-flight';
 import { WebDAVError } from '../core/webdav';
 import { mergePositions, parsePositions, POSITIONS_FILENAME, PositionsFileError, serializePositions } from './position-file';
 import type { PositionEntry } from './read-aloud-position';
@@ -206,40 +207,12 @@ export function createPositionTransport(deps: PositionTransportDeps): PositionTr
     }
   }
 
-  /** The one in-flight sync, and the at-most-one waiting behind it. */
-  let inFlight: Promise<void> | null = null;
-  let trailing: { trigger: string; force: boolean; promise: Promise<void>; resolve: () => void } | null = null;
-
-  function request(trigger: string, force: boolean): Promise<void> {
-    if (inFlight) {
-      if (trailing) {
-        trailing.trigger = trigger;
-        trailing.force = trailing.force || force;
-      } else {
-        let resolve!: () => void;
-        const promise = new Promise<void>((r) => {
-          resolve = r;
-        });
-        trailing = { trigger, force, promise, resolve };
-      }
-      return trailing.promise;
-    }
-    inFlight = sync(trigger, force).finally(() => {
-      inFlight = null;
-      if (trailing) {
-        const next = trailing;
-        trailing = null;
-        void request(next.trigger, next.force).finally(next.resolve);
-      }
-    });
-    return inFlight;
-  }
+  // One sync in flight and at most one waiting behind it (core/single-flight.ts, shared with the settings sync since #68)
+  const flight = createSingleFlight(sync);
 
   return {
-    poke: (trigger) => {
-      void request(trigger, false);
-    },
-    flush: (trigger) => request(trigger, true),
+    poke: flight.poke,
+    flush: flight.flush,
     stats: () => ({
       syncs,
       lastOutcome,
@@ -250,7 +223,7 @@ export function createPositionTransport(deps: PositionTransportDeps): PositionTr
       adopted: adoptedCount,
       dropped: droppedCount,
       uploaded: uploadedFlag,
-      running: inFlight !== null,
+      running: flight.running(),
     }),
   };
 }

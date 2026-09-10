@@ -31,7 +31,7 @@ it adds voices to the player's **Local** tier and tunes what is around them.
 - ⌨️ **Keyboard shortcuts** for speed, volume, jumping by sentence or paragraph, reading from the selection, the player's options panel, the word highlight on or off, and stopping Read Aloud in every tab at once. All rebindable. [→ Shortcuts](#keyboard-shortcuts)
 - 📌 **One voice and speed everywhere** — every document and every open tab, instead of Zotero's choice per language. [→ Reading](#reading)
 - ⏱️ **The pauses are yours** — how long every voice waits between sentences and before a paragraph, shorter as you read faster. [→ Reading](#reading)
-- 💾 **Backup and sync** — settings and reading positions as files, or through your own WebDAV folder, so your bookmarks follow you between computers. [→ Backup and sync](#backup-and-sync)
+- 💾 **Backup and sync** — settings and reading positions as files, or through your own WebDAV folder, so your settings and bookmarks follow you between computers. [→ Backup and sync](#backup-and-sync)
 - 🖥️ **Windows and macOS voices, spoken by the plugin** — the ones Read Aloud already lists, but with samples, favorites, the cache and, on Windows, word-by-word highlighting. [→ Providers](#providers)
 
 ## Install
@@ -285,8 +285,16 @@ language, voice.
 - *Backup settings…* and *Restore settings…* keep every setting as one file.
 - The same WebDAV folder can hold each computer's settings and keep them up
   to date, to restore on another.
-- A provider that cannot work on the computer you restore to stays off and
-  says why.
+- *Sync settings between computers* goes both ways: a change on one computer
+  reaches the others within seconds, and theirs reach it, with nothing to
+  restore. Off by default.
+- *What stays on each computer:* a voice server at a local or home-network
+  address, the *System voices* switch, and the WebDAV connection itself.
+- *Two computers change the same setting:* the later change wins.
+- A provider that cannot work on the computer you restore to, or that the
+  sync brings a change to, stays off on that computer and says why.
+- Restoring a backup counts as changing every setting in it, so with the
+  sync on it reaches your other computers too.
 
 <details>
 <summary><b>WebDAV URL examples</b></summary>

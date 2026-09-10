@@ -100,6 +100,7 @@ describe('Upload settings now', () => {
       password: 'pw',
       syncPositions: false,
       autoUploadSettings: false,
+      syncSettings: false,
     });
     expect(t.client.upload).toHaveBeenCalledOnce();
     const [name, text] = t.client.upload.mock.calls[0];
@@ -123,6 +124,7 @@ describe('Upload settings now', () => {
       password: 'new',
       syncPositions: false,
       autoUploadSettings: false,
+      syncSettings: false,
     });
   });
 
