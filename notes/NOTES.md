@@ -347,3 +347,4 @@ cite `notes/NOTES.md` with a date or a section title resolve through this index.
 - Kokoro-FastAPI returns the words of a rewritten text, and the aligner's substring search drags the highlight into a later word (issue #86)
 - The aligner pairs tokens by longest common subsequence and bridges what the server spelled differently (issue #86)
 - Verified live: 37 and 38 spans where there were 6, and a highlight patch that never attaches to a minimized window (issue #86)
+- Zotero's block classifier throws a page's first line out of the reading order, and the plugin relinks the chain before the sentences are cut (issue #87)

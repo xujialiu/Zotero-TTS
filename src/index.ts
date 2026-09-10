@@ -31,6 +31,7 @@ import { redeliverInterfaces, restoreInterfaces } from './read-aloud/interface-r
 import { createReadAloudMemorySync, type ReadAloudMemorySync } from './read-aloud/memory-sync';
 import { createHighlightStyling, type HighlightStyling } from './read-aloud/highlight-style';
 import { createSentenceInView, type SentenceInView } from './read-aloud/sentence-in-view';
+import { createSkippedLines, type SkippedLines } from './read-aloud/skipped-lines';
 import { createSystemVoiceHiding, type SystemVoiceHiding } from './read-aloud/system-voices';
 import { createMultilingualFirst, type MultilingualFirst } from './read-aloud/multilingual-first';
 import { createFavoriteMarks, type FavoriteMarks } from './read-aloud/favorite-marks';
@@ -126,6 +127,8 @@ let deleteNotifierID: string | null = null;
 let highlightStyling: HighlightStyling | null = null;
 /** The whole sentence on screen while a PDF is followed (read-aloud/sentence-in-view.ts, issue #83). */
 let sentenceInView: SentenceInView | null = null;
+/** A page's first line Zotero's document analysis threw out, put back before the sentences are cut (read-aloud/skipped-lines.ts, issue #87). */
+let skippedLines: SkippedLines | null = null;
 let systemVoiceHiding: SystemVoiceHiding | null = null;
 let multilingualFirst: MultilingualFirst | null = null;
 let favoriteMarks: FavoriteMarks | null = null;
@@ -402,6 +405,9 @@ function buildReaderInterface(reader: any, targetWindow: any, native: () => unkn
           highlightStyling?.attach(reader);
           // The same views: the PDF one's follow is taken over here (issue #83)
           sentenceInView?.attach(reader);
+          // The structure is materialized when the first segments are
+          // requested, after this listing: the shadow is in place first (issue #87)
+          skippedLines?.attach(reader);
           // The manager exists and this very listing's _resolveVoice has not
           // run yet, so even the first popup open is filtered
           systemVoiceHiding?.attach(reader);
@@ -632,6 +638,7 @@ function watchReader(reader: any): void {
   readAloudMemory?.attach(reader);
   highlightStyling?.attach(reader);
   sentenceInView?.attach(reader);
+  skippedLines?.attach(reader);
   systemVoiceHiding?.attach(reader);
   multilingualFirst?.attach(reader);
   favoriteMarks?.attach(reader);
@@ -1511,6 +1518,38 @@ function stopSentenceInView(): void {
   sentenceInView = null;
 }
 
+// ---- A page's first line put back ------------------------------------------
+//
+// Zotero's document analysis can throw a page's first line out of the reading
+// order when a sentence runs onto it; see read-aloud/skipped-lines.ts for how
+// the structure is repaired per reader before the sentences are cut (issue #87).
+
+function startSkippedLines(): void {
+  stopSkippedLines();
+  skippedLines = createSkippedLines({
+    exportFunction: (fn, target) => Components.utils.exportFunction(fn, target),
+    waiveXrays: (value) => ((value && typeof value === 'object') || typeof value === 'function' ? Components.utils.waiveXrays(value) : value),
+    // The ref arrays live in the reader's structure, so they are built in its window
+    cloneInto: (reader: any, value) => (reader?._iframeWindow ? Components.utils.cloneInto(value, reader._iframeWindow) : value),
+    // The promise Zotero awaits is its own window's, the way wrapForWindow answers it
+    readerPromise: (reader: any, executor) => {
+      const win = reader?._iframeWindow;
+      return win ? new win.Promise(executor) : new Promise(executor);
+    },
+    exportTo: (reader: any, fn) => (reader?._iframeWindow ? Components.utils.exportFunction(fn, reader._iframeWindow) : fn),
+    isDead: (value) => Components.utils.isDeadWrapper(value),
+    enabled: () => loadSettings(prefs).readAloud.restoreSkippedLines,
+    error: (e) => Zotero.logError(e),
+    debug: (message) => Zotero.debug('[zotero-tts] ' + message),
+  });
+  for (const reader of Zotero.Reader._readers ?? []) skippedLines.attach(reader);
+}
+
+function stopSkippedLines(): void {
+  skippedLines?.dispose();
+  skippedLines = null;
+}
+
 // ---- Hiding Zotero's own Local voices --------------------------------------
 //
 // The OS voices never pass through the remote interface; see
@@ -1763,6 +1802,7 @@ async function startup({ id, version, rootURI }: StartupParams): Promise<void> {
       ['settings sync', startSettingsSync],
       ['highlight colors', startHighlightStyling],
       ['sentence in view', startSentenceInView],
+      ['skipped lines', startSkippedLines],
       [
         'system speech helper',
         () => {
@@ -1832,6 +1872,7 @@ async function shutdown(reason?: number): Promise<void> {
   stopReadAloudMemory();
   stopHighlightStyling();
   stopSentenceInView();
+  stopSkippedLines();
   stopSpeechBackend();
   stopSystemVoiceHiding();
   stopMultilingualFirst();
@@ -1970,6 +2011,17 @@ const diagnostics = {
    * screen leaves the call to Zotero (`handled` false, no line).
    */
   sentenceInView: () => JSON.stringify((Zotero.Reader._readers ?? []).map((r: any) => sentenceInView?.inspect(r) ?? null), null, 1),
+  /**
+   * A page's first line put back into the reading order
+   * (read-aloud/skipped-lines.ts, issue #87): per reader whether the
+   * internal reader's prototype is patched, the switch, whether the
+   * structure is loaded, how many blocks it still excludes, and every line
+   * restored — its block index, the blocks the chain jumped from and to,
+   * the page, the length and the first 60 characters. The debug log
+   * carries one `skipped line restored on page N: "…" (M chars) between
+   * blocks a and b` line per line put back.
+   */
+  skippedLines: () => JSON.stringify((Zotero.Reader._readers ?? []).map((r: any) => skippedLines?.inspect(r) ?? null), null, 1),
   systemVoices: () => JSON.stringify((Zotero.Reader._readers ?? []).map((r: any) => systemVoiceHiding?.inspect(r) ?? null), null, 1),
   /**
    * The key of Zotero's reader.readAloudVoices pref a language resolves to,

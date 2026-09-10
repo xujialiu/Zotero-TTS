@@ -99,6 +99,13 @@ export interface Settings {
      * and the pane's field both write this one number.
      */
     volume: number;
+    /**
+     * Put back a page's first line that Zotero's document analysis threw
+     * out of the reading order when a sentence runs onto it
+     * (read-aloud/skipped-lines.ts, issue #87). Read when a document's
+     * structure loads, so a change applies to documents opened after it.
+     */
+    restoreSkippedLines: boolean;
   };
   /** The colors of Zotero's Read Aloud highlights (read-aloud/highlight-style.ts); opacities in percent. */
   highlight: {
@@ -185,6 +192,9 @@ export const DEFAULTS: Settings = {
     paragraphDelayEnabled: true,
     paragraphDelayMs: 200,
     volume: VOLUME_DEFAULT,
+    // On by the owner's decision (issue #87): a line put back is part of a
+    // sentence, and the off state is for a page header read aloud
+    restoreSkippedLines: true,
   },
   // A blue word (near Zotero's own #4072e5) on a yellow sentence, both at 70%, the sentence
   // kept under the word; the reader still draws them at its own 0.4 (light) / 0.3 (dark).
@@ -283,6 +293,7 @@ export function loadSettings(prefs: PrefsBackend): Settings {
       paragraphDelayEnabled: bool(prefs, 'readAloud.paragraphDelayEnabled', DEFAULTS.readAloud.paragraphDelayEnabled),
       paragraphDelayMs: num(prefs, 'readAloud.paragraphDelayMs', DEFAULTS.readAloud.paragraphDelayMs, 0, MAX_PAUSE_MS),
       volume: num(prefs, 'readAloud.volume', DEFAULTS.readAloud.volume, VOLUME_MIN, VOLUME_MAX),
+      restoreSkippedLines: bool(prefs, 'readAloud.restoreSkippedLines', DEFAULTS.readAloud.restoreSkippedLines),
     },
     highlight: {
       wordColor: str(prefs, 'highlight.wordColor', DEFAULTS.highlight.wordColor),

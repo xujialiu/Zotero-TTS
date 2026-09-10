@@ -26,6 +26,7 @@ it adds voices to the player's **Local** tier and tunes what is around them.
 - 🗣️ **More voices in the Local tier** of the Read Aloud player — Azure Speech, Cloudflare Workers AI, Speechify, a [Kokoro-FastAPI](https://github.com/remsky/Kokoro-FastAPI) on your machine, OpenAI or any OpenAI-compatible server. [→ Providers](#providers)
 - 🔖 **Resume where you stopped** — close a document, open it again later, press `Shift+Space`, and Read Aloud starts at the sentence you left off on. [→ Resume where you stopped](#resume-where-you-stopped)
 - 📄 **The whole sentence on screen** — while a PDF is read, a sentence that runs past the bottom of the window, onto the next page or into the next column is scrolled into view instead of left cut, and `Shift+Enter` brings it back the same way. [→ Reading](#reading)
+- 📃 **No line lost at a page turn** — when a sentence runs onto the next page and Zotero would skip that page's first line, the line is read and highlighted like any other. [→ Reading](#reading)
 - 🎧 **A voice browser** in the settings: every voice by tier and language, a play button for a short sample, hearts for favorites, and a switch to offer only the favorites. [→ Voice browser](#voice-browser)
 - ✨ **Word *and* sentence highlighting at once**, in your own colors and opacities — for Zotero's voices too. [→ Highlight](#highlight)
 - ⌨️ **Keyboard shortcuts** for speed, volume, jumping by sentence or paragraph, reading from the selection, the player's options panel, the word highlight on or off, and stopping Read Aloud in every tab at once. All rebindable. [→ Shortcuts](#keyboard-shortcuts)
@@ -238,7 +239,7 @@ language, voice.
 ### Reading
 
 <details>
-<summary><b>One voice everywhere, pauses, prefetch, cache, the whole sentence on screen</b></summary>
+<summary><b>One voice everywhere, pauses, prefetch, cache, the whole sentence on screen, a page's first line</b></summary>
 
 - *Use one voice everywhere* — one voice for every document and every open
   tab, whatever the document's language. Off, Zotero remembers a voice per
@@ -264,6 +265,11 @@ language, voice.
   sentence taller than the window follows the word being read. Always on.
   Scrolling away by hand still stops the following until `Shift+Enter` or
   the player's skip buttons.
+- *Read a page's first line when Zotero would skip it* — a sentence that
+  runs onto the next page can lose that page's first line: Zotero reads
+  straight past it, and the join sounds like a sentence. On, the line is
+  read and highlighted like any other. Off if a page header is ever read
+  aloud; a change applies to documents opened from then on.
 
 </details>
 

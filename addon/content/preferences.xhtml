@@ -268,6 +268,14 @@
       <label data-l10n-id="ztts-pause-ms"/>
       <label class="ztts-help" value="?" data-l10n-id="ztts-help-paragraph-pause" data-l10n-attrs="help"/>
     </hbox>
+    <!-- A page's first line Zotero's document analysis threw out of the reading
+         order, put back before the sentences are cut (read-aloud/skipped-lines.ts,
+         issue #87). Read when a document's structure loads: no reading guard -->
+    <hbox align="center">
+      <checkbox data-l10n-id="ztts-skipped-lines"
+                preference="extensions.zotero.zotero-tts.readAloud.restoreSkippedLines"/>
+      <label class="ztts-help" value="?" data-l10n-id="ztts-help-skipped-lines" data-l10n-attrs="help"/>
+    </hbox>
     <!-- The switch locks the cache below on: without it the warmer has
          nowhere to put what it synthesizes (ui/prefetch-rows.ts) -->
     <hbox align="center">
