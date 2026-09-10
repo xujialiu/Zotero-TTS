@@ -2,6 +2,8 @@ import type { Settings } from '../settings';
 import { createAzureProvider } from './azure';
 import { createCloudflareProvider } from './cloudflare';
 import { createSpeechifyProvider } from './speechify';
+import { createFishProvider } from './fish';
+import { createFishSpeechProvider } from './fishspeech';
 import { SynthesisError } from './errors';
 import { getLocalEngine } from './local/registry';
 import { createOpenAIProvider } from './openai';
@@ -48,6 +50,12 @@ export function createProvider(id: ProviderId, settings: Settings, deps: Provide
 
     case 'speechify':
       return createSpeechifyProvider(settings.speechify, { fetch: deps.fetch });
+
+    case 'fish':
+      return createFishProvider(settings.fish, { fetch: deps.fetch });
+
+    case 'fishspeech':
+      return createFishSpeechProvider({ baseURL: settings.fishspeech.baseURL, headers: parseHeaderList(settings.fishspeech.headers) }, { fetch: deps.fetch });
 
     case 'system':
       return createSystemProvider(

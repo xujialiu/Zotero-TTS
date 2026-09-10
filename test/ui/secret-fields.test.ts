@@ -20,7 +20,7 @@ describe('addon/content/preferences.xhtml', () => {
   const prefOf = (markup: string) => attr(markup, 'preference')?.replace(/^extensions\.zotero\.zotero-tts\./, '');
 
   /** Every field of the pane whose value is a secret: the keys, the gateway headers, the WebDAV password. */
-  const SECRETS = ['openai.apiKey', 'openai.headers', 'azure.apiKey', 'cloudflare.apiToken', 'speechify.apiKey', 'local.headers', 'webdav.password'];
+  const SECRETS = ['openai.apiKey', 'openai.headers', 'azure.apiKey', 'cloudflare.apiToken', 'speechify.apiKey', 'fish.apiKey', 'fishspeech.headers', 'local.headers', 'webdav.password'];
 
   it('masks every secret field', () => {
     for (const name of SECRETS) {

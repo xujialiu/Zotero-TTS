@@ -23,7 +23,7 @@ Zotero 10 already reads aloud, and this plugin does not replace its player —
 it adds voices to the player's **Local** tier and tunes what is around them.
 [Why it is built this way](PHILOSOPHY.md).
 
-- 🗣️ **More voices in the Local tier** of the Read Aloud player — Azure Speech, Cloudflare Workers AI, Speechify, a [Kokoro-FastAPI](https://github.com/remsky/Kokoro-FastAPI) on your machine, OpenAI or any OpenAI-compatible server. [→ Providers](#providers)
+- 🗣️ **More voices in the Local tier** of the Read Aloud player — Azure Speech, Cloudflare Workers AI, Speechify, Fish Audio, a [Kokoro-FastAPI](https://github.com/remsky/Kokoro-FastAPI) or a [Fish Speech](https://github.com/fishaudio/fish-speech) server on your machine, OpenAI or any OpenAI-compatible server. [→ Providers](#providers)
 - 🔖 **Resume where you stopped** — close a document, open it again later, press `Shift+Space`, and Read Aloud starts at the sentence you left off on. [→ Resume where you stopped](#resume-where-you-stopped)
 - 📄 **The whole sentence on screen** — while a PDF is read, a sentence that runs past the bottom of the window, onto the next page or into the next column is scrolled into view instead of left cut, and `Shift+Enter` brings it back the same way. [→ Reading](#reading)
 - 📃 **No line lost at a page turn** — when a sentence runs onto the next page and Zotero would skip that page's first line, the line is read and highlighted like any other. [→ Reading](#reading)
@@ -50,7 +50,9 @@ it adds voices to the player's **Local** tier and tunes what is around them.
 | **Azure Speech** | Speech resource key + region · [tutorial](tutorials/azure-speech-free-tier.md) | Free tier: 500,000 characters a month | word; sentence for the voices named *MAI-Voice-2* |
 | **Cloudflare Workers AI** | Account ID + API token · [tutorial](tutorials/cloudflare-workers-ai.md) | 10,000 free Neurons a day: a few pages with an Aura voice, hours with MeloTTS | sentence |
 | **Speechify** | An API key from platform.speechify.ai · 36 languages, no Mandarin | Free: 50,000 characters a month, about fifteen pages; then $10 a month for a million | word |
+| **Fish Audio** | An API key from fish.audio · your own cloned voices and any from its library, 83 languages · [tutorial](tutorials/fish-audio.md) | Free with its free model: no cap, no guarantee; the paid one $15 per million bytes of text, three per Chinese character | word |
 | **Kokoro-FastAPI** | A server on your machine or LAN · [tutorial](tutorials/kokoro-fastapi.md) | Free; CPU works, a GPU is faster | word |
+| **Fish Speech server** | A [fish-speech](https://github.com/fishaudio/fish-speech) server on a 24 GB GPU, with voices cloned from your own recordings · [tutorial](tutorials/fish-speech-server.md) | Free | sentence |
 | **OpenAI-compatible** | Base URL and model; an API key if the server wants one | OpenAI bills per character; self-hosted servers such as [Chatterbox](tutorials/chatterbox-tts-server.md) are free | sentence |
 | **Xiaomi MiMo** | An API key from platform.xiaomimimo.com, picked in the OpenAI section's **Server** dropdown | Free for a limited time | sentence |
 | **System voices** | Nothing — Windows and macOS | Free, offline | word on Windows, sentence on macOS |
@@ -328,11 +330,12 @@ password.
 <summary><b>Common problems</b></summary>
 
 - **"Cannot reach Kokoro at http://localhost:8880. Is the server running?"**
-  The server is down or listening at another address — the line names the
-  one it tried; `docker ps` should list the server; see its tutorial.
+  (or *Cannot reach Fish Speech at …*): the server is down or listening at
+  another address — the line names the one it tried; `docker ps` should
+  list the server; see its tutorial.
 - **Voices play but nothing is highlighted word by word.** Set *Settings →
   General → Read Aloud → Highlight current* to **Word**, and use a voice
-  that reports word timings: Kokoro, Speechify, or an Azure voice without
+  that reports word timings: Kokoro, Speechify, Fish Audio, or an Azure voice without
   *MAI-Voice-2* in its name (those highlight by sentence).
 - **With an Azure voice named *Dragon Latest*, the word highlight jumps
   to the paragraph's last word about ten seconds in** and stays there

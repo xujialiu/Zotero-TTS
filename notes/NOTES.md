@@ -17,8 +17,8 @@ A Zotero 10 plugin that replaces the audio backend of Zotero's built-in Read
 Aloud. The native player, sentence segmentation, prefetching, and word/sentence
 highlighting are all Zotero's; the plugin only supplies voices and audio (plus
 word timestamps) from the user's own TTS services: OpenAI, Azure Speech,
-Cloudflare Workers AI, Speechify, and a
-local Kokoro-FastAPI server.
+Cloudflare Workers AI, Speechify, Fish Audio (its cloud, and a Fish Speech
+server of the user's own), and a local Kokoro-FastAPI server.
 
 Mechanism: intercept `Zotero.Reader._readers.push`, and on each new reader
 replace the instance method `_getReadAloudRemoteInterface` with ours. Zotero
@@ -350,3 +350,4 @@ cite `notes/NOTES.md` with a date or a section title resolve through this index.
 - Zotero's block classifier throws a page's first line out of the reading order, and the plugin relinks the chain before the sentences are cut (issue #87)
 - A PDF view has no pages before its first render, none while hidden, and the highlight patch now lands with the first page instead of giving up (issue #88)
 - Verified live: the page half lands within 125 ms of the pages' return, every tab attaches at its open now, and a trusted key resumes a chrome-started player on macOS (issue #88)
+- Fish Audio joined as two providers in one section: the timestamp stream merged per chunk, the library's 1,000-entry window, and a Fish Speech server that answers MessagePack unless asked for JSON (issue #89)

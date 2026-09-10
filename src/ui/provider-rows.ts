@@ -56,7 +56,7 @@ export function providerRowIds(id: ProviderId): { section: string; toggle: strin
 }
 
 /** The section's fields: every input and the Server dropdown — the buttons are not among them. */
-const FIELDS_SELECTOR = 'input, menulist';
+const FIELDS_SELECTOR = 'input, menulist, checkbox';
 
 export function initProviderRows(
   doc: { getElementById(id: string): any },

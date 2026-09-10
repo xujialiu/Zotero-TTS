@@ -1,4 +1,4 @@
-<!-- translated-from: README.md sha256:942cfbae0dd7 -->
+<!-- translated-from: README.md sha256:2212d5dd802a -->
 <p align="center"><img src="assets/icon.png" width="80" alt="Zotero-TTS 图标"></p>
 <h1 align="center">Zotero-TTS</h1>
 
@@ -22,7 +22,7 @@
 
 Zotero 10 自己就会朗读（Read Aloud），本插件不取代它的播放器——只是往播放器的**本地**语音模式里添语音，并把周边调得更顺手。[为什么这样做](PHILOSOPHY.md)（英文）。
 
-- 🗣️ **本地语音模式里更多语音**——朗读播放器里，Azure Speech、Cloudflare Workers AI、Speechify、装在你机器上的 [Kokoro-FastAPI](https://github.com/remsky/Kokoro-FastAPI)、OpenAI 或任何 OpenAI 兼容服务器。[→ 服务商](#服务商)
+- 🗣️ **本地语音模式里更多语音**——朗读播放器里，Azure Speech、Cloudflare Workers AI、Speechify、Fish Audio、装在你机器上的 [Kokoro-FastAPI](https://github.com/remsky/Kokoro-FastAPI) 或 [Fish Speech](https://github.com/fishaudio/fish-speech) 服务器、OpenAI 或任何 OpenAI 兼容服务器。[→ 服务商](#服务商)
 - 🔖 **从上次停下的地方接着读**——关掉文档，过些天再打开，按 `Shift+Space`，朗读就从你上次停下的那一句开始。[→ 从上次停下的地方接着读](#从上次停下的地方接着读)
 - 📄 **整句都在屏幕内**——读 PDF 时，一句话如果超出窗口底部、延伸到下一页或下一栏，会被滚动到可见范围内，而不是被截断在外，`Shift+Enter` 也能用同样的方式把它带回来。[→ 朗读](#朗读)
 - 📃 **翻页不漏行**——一句话跨到下一页、那一页的第一行本该被 Zotero 漏掉时，这一行照常朗读、照常高亮。[→ 朗读](#朗读)
@@ -49,7 +49,9 @@ Zotero 10 自己就会朗读（Read Aloud），本插件不取代它的播放器
 | **Azure Speech** | 语音资源的密钥和区域 · [教程](tutorials/azure-speech-free-tier.zh.md) | 免费额度：每月 50 万字符 | 逐词；名字里带 *MAI-Voice-2* 的语音逐句 |
 | **Cloudflare Workers AI** | 账户 ID 和 API 令牌 · [教程](tutorials/cloudflare-workers-ai.zh.md) | 每天 10,000 个免费 Neurons：Aura 语音够读几页，MeloTTS 够读几个小时 | 逐句 |
 | **Speechify** | 一个 platform.speechify.ai 的 API 密钥 · 36 种语言，没有普通话 | 免费：每月 50,000 字符，约十几页；之后每月 10 美元 100 万字符 | 逐词 |
+| **Fish Audio** | 一个 fish.audio 的 API 密钥 · 你自己克隆的语音，以及语音库里任意一个，83 种语言 · [教程](tutorials/fish-audio.zh.md) | 免费模型不花钱、不限量、不保证速度；付费模型每百万字节文本 15 美元，一个汉字算三个字节 | 逐词 |
 | **Kokoro-FastAPI** | 一台跑在本机或局域网里的服务器 · [教程](tutorials/kokoro-fastapi.zh.md) | 免费；CPU 也能跑，有 GPU 更快 | 逐词 |
+| **Fish Speech 服务器** | 一台跑在 24 GB 显卡上的 [fish-speech](https://github.com/fishaudio/fish-speech) 服务器，语音由你自己的录音克隆而来 · [教程](tutorials/fish-speech-server.zh.md) | 免费 | 逐句 |
 | **OpenAI 兼容服务器** | API 地址和模型；服务器若要密钥再加一个 | OpenAI 按字符计费；自建的服务器，例如 [Chatterbox](tutorials/chatterbox-tts-server.zh.md)，不花钱 | 逐句 |
 | **Xiaomi MiMo** | 一个 platform.xiaomimimo.com 的 API 密钥，在 OpenAI 那一节的**服务器**下拉框里选 | 限时免费 | 逐句 |
 | **系统语音** | 什么都不用——Windows 和 macOS | 免费、离线 | Windows 逐词，macOS 逐句 |
@@ -208,8 +210,8 @@ Zotero 10 自己就会朗读（Read Aloud），本插件不取代它的播放器
 <details>
 <summary><b>常见问题</b></summary>
 
-- **「Cannot reach Kokoro at http://localhost:8880. Is the server running?」** 服务器没起来，或者监听在别的地址——这一行写的就是它试过的地址；`docker ps` 应该能列出服务器；见它的教程。
-- **语音在读，但没有逐词高亮**。把*设置 → 常规 → 朗读 → 高亮当前*设成**单词**，并且用一个会报词级时间戳的语音：Kokoro、Speechify 或名字里不带 *MAI-Voice-2* 的 Azure 语音（那些按句高亮）。
+- **「Cannot reach Kokoro at http://localhost:8880. Is the server running?」**（或 *Cannot reach Fish Speech at …*）：服务器没起来，或者监听在别的地址——这一行写的就是它试过的地址；`docker ps` 应该能列出服务器；见它的教程。
+- **语音在读，但没有逐词高亮**。把*设置 → 常规 → 朗读 → 高亮当前*设成**单词**，并且用一个会报词级时间戳的语音：Kokoro、Speechify、Fish Audio 或名字里不带 *MAI-Voice-2* 的 Azure 语音（那些按句高亮）。
 - **用名字里带 *Dragon Latest* 的 Azure 语音时，逐词高亮会在大约十秒后跳到本段最后一个词**，并停在那里，直到下一段开始。这是语音本身的问题，不是插件的：Azure 的其他语音——*Dragon HD Flash*、Multilingual、普通的那些——每个词都跟得上。
 - **用 OpenAI 兼容服务器时，读到一半冒出「发生一个未知错误。」** 服务器在某一段上失败了；查它的日志。
 - **Zotero 更新之后插件的语音不见了**。一次更新可能让它们消失，直到插件跟上；Zotero 自己的语音照常。请带上 Zotero 版本号开一个 [issue](https://github.com/xujialiu/Zotero-TTS/issues)。

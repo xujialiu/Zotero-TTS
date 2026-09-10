@@ -366,9 +366,9 @@ function confirmStop(win: any, message: string): boolean {
  * The provider's connection check as the pane runs it, for Test connection
  * and for Enable alike (ui/provider-rows.ts): the provider built from the
  * prefs as they are, and testConnection with the probes each provider
- * gets — Azure, OpenAI, Cloudflare and Speechify cost money and have quotas, so
+ * gets — Azure, OpenAI, Cloudflare, Speechify and Fish Audio cost money and have quotas, so
  * theirs also proves the account can spend (Azure with its configured
- * voice, OpenAI-compatible servers, Cloudflare and Speechify with the first voice they
+ * voice, OpenAI-compatible servers, Cloudflare, Speechify and Fish Audio with the first voice they
  * list, since a fixed name would be wrong); the local engine has neither. The server's
  * models, when it lists them, become the Model field's suggestions.
  */
@@ -407,8 +407,9 @@ export async function runConnectionCheck(prefs: PrefsBackend, id: ProviderId, de
       // The System provider defines checkSynthesis only where it has no
       // word marks to probe (macOS): one real `say`, caught here not mid-sentence
       // Cloudflare's first listed voice is a MeloTTS one, the cheapest probe it has;
-      // Speechify's two characters go through its queue, never beside a reading tab's request
-      probeSynthesis: id === 'openai' || id === 'system' || id === 'cloudflare' || id === 'speechify',
+      // Speechify's two characters go through its queue, never beside a reading tab's request;
+      // Fish Audio's run on whichever model the free switch says, so a paid model with no credit fails here (issue #89)
+      probeSynthesis: id === 'openai' || id === 'system' || id === 'cloudflare' || id === 'speechify' || id === 'fish',
     });
   } catch (e) {
     outcome = { ok: false, message: t('ztts-connection-failed', { detail: String(e) }) };

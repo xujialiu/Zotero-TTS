@@ -86,3 +86,13 @@ label.ztts-help[value]:hover {
 .ztts-pane.ztts-mac hbox > button + label.ztts-help[value] {
   margin-inline-start: 5px;
 }
+
+/* The two blocks of the Fish Audio section — the cloud and the server,
+   each with its own switch — under one heading: a sub-heading the size of
+   the pane's text, bold, with a little air above and none below, so the
+   rows under it read as its own. */
+.ztts-pane h3.ztts-subheading {
+  font-size: 1em;
+  font-weight: 600;
+  margin: 0.6em 0 0.1em;
+}

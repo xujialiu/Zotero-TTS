@@ -125,11 +125,13 @@ describe('enabledProviders', () => {
       azure: { ...DEFAULTS.azure, enabled: true },
       cloudflare: { ...DEFAULTS.cloudflare, enabled: true },
       speechify: { ...DEFAULTS.speechify, enabled: true },
+      fish: { ...DEFAULTS.fish, enabled: true },
+      fishspeech: { ...DEFAULTS.fishspeech, enabled: true },
       local: { ...DEFAULTS.local, enabled: true },
       system: { ...DEFAULTS.system, enabled: true },
     };
     expect(enabledProviders(all)).toEqual(PROVIDER_IDS);
-    expect(enabledProviders({ ...all, openai: { ...DEFAULTS.openai, enabled: false } })).toEqual(['azure', 'cloudflare', 'speechify', 'local', 'system']);
+    expect(enabledProviders({ ...all, openai: { ...DEFAULTS.openai, enabled: false } })).toEqual(['azure', 'cloudflare', 'speechify', 'fish', 'fishspeech', 'local', 'system']);
   });
 });
 

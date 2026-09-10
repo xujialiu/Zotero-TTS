@@ -2,7 +2,7 @@ import type { ProviderId } from './providers/types';
 import type { ShortcutAction } from './shortcut-actions';
 import { VOLUME_DEFAULT, VOLUME_MAX, VOLUME_MIN } from './read-aloud-volume';
 
-export const PROVIDER_IDS: readonly ProviderId[] = ['openai', 'azure', 'cloudflare', 'speechify', 'local', 'system'];
+export const PROVIDER_IDS: readonly ProviderId[] = ['openai', 'azure', 'cloudflare', 'speechify', 'fish', 'fishspeech', 'local', 'system'];
 
 export interface Settings {
   /** Each provider is switched on independently; every enabled one contributes voices. */
@@ -35,6 +35,14 @@ export interface Settings {
    * every voice the key lists is offered.
    */
   speechify: { enabled: boolean; apiKey: string };
+  /**
+   * Fish Audio's cloud API (core/providers/fish.ts, issue #89): one key;
+   * `freeOnly` sends every request to the free model, off to the paid one;
+   * `voices` is what the user pasted, ids or links, beside the account's own.
+   */
+  fish: { enabled: boolean; apiKey: string; freeOnly: boolean; voices: string };
+  /** A Fish Speech server of the user's own (core/providers/fishspeech.ts, issue #89); `headers` as openai.headers. */
+  fishspeech: { enabled: boolean; baseURL: string; headers: string };
   /** `headers`: extra request headers for a gateway in front of the server, same format as openai.headers. */
   local: { enabled: boolean; engine: string; baseURL: string; voice: string; headers: string };
   /**
@@ -145,6 +153,8 @@ export const DEFAULTS: Settings = {
   azure: { enabled: false, apiKey: '', region: 'eastasia', voice: 'zh-CN-XiaoxiaoNeural' },
   cloudflare: { enabled: false, accountId: '', apiToken: '' },
   speechify: { enabled: false, apiKey: '' },
+  fish: { enabled: false, apiKey: '', freeOnly: true, voices: '' },
+  fishspeech: { enabled: false, baseURL: 'http://localhost:8080', headers: '' },
   local: { enabled: false, engine: 'kokoro', baseURL: 'http://localhost:8880', voice: 'af_bella', headers: '' },
   system: { enabled: false },
   webdav: { url: '', username: '', password: '', syncPositions: false, autoUploadSettings: false, syncSettings: false },
@@ -246,6 +256,17 @@ export function loadSettings(prefs: PrefsBackend): Settings {
       enabled: bool(prefs, 'speechify.enabled', DEFAULTS.speechify.enabled),
       apiKey: str(prefs, 'speechify.apiKey', DEFAULTS.speechify.apiKey),
     },
+    fish: {
+      enabled: bool(prefs, 'fish.enabled', DEFAULTS.fish.enabled),
+      apiKey: str(prefs, 'fish.apiKey', DEFAULTS.fish.apiKey),
+      freeOnly: bool(prefs, 'fish.freeOnly', DEFAULTS.fish.freeOnly),
+      voices: str(prefs, 'fish.voices', DEFAULTS.fish.voices),
+    },
+    fishspeech: {
+      enabled: bool(prefs, 'fishspeech.enabled', DEFAULTS.fishspeech.enabled),
+      baseURL: str(prefs, 'fishspeech.baseURL', DEFAULTS.fishspeech.baseURL),
+      headers: str(prefs, 'fishspeech.headers', DEFAULTS.fishspeech.headers),
+    },
     local: {
       enabled: bool(prefs, 'local.enabled', DEFAULTS.local.enabled),
       engine: str(prefs, 'local.engine', DEFAULTS.local.engine),
@@ -328,6 +349,8 @@ export function saveSettings(prefs: PrefsBackend, s: Settings): void {
   for (const [k, v] of Object.entries(s.azure)) prefs.set(PREF_PREFIX + 'azure.' + k, v);
   for (const [k, v] of Object.entries(s.cloudflare)) prefs.set(PREF_PREFIX + 'cloudflare.' + k, v);
   for (const [k, v] of Object.entries(s.speechify)) prefs.set(PREF_PREFIX + 'speechify.' + k, v);
+  for (const [k, v] of Object.entries(s.fish)) prefs.set(PREF_PREFIX + 'fish.' + k, v);
+  for (const [k, v] of Object.entries(s.fishspeech)) prefs.set(PREF_PREFIX + 'fishspeech.' + k, v);
   for (const [k, v] of Object.entries(s.local)) prefs.set(PREF_PREFIX + 'local.' + k, v);
   for (const [k, v] of Object.entries(s.system)) prefs.set(PREF_PREFIX + 'system.' + k, v);
   for (const [k, v] of Object.entries(s.webdav)) prefs.set(PREF_PREFIX + 'webdav.' + k, v);

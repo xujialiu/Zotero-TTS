@@ -138,6 +138,57 @@
     </hbox>
   </groupbox>
 
+  <!-- Fish Audio (issue #89): the cloud API behind one key, with a switch
+       that keeps every request on the free model, and a Fish Speech server of
+       the user's own — two providers in one section, each with its own
+       switch, so either can be on without the other. The cloud's voices are
+       the account's own, the pasted ids, and the model's default voice. -->
+  <groupbox id="ztts-provider-fish-audio">
+    <label><html:h2>Fish Audio</html:h2></label>
+    <vbox id="ztts-provider-fish">
+      <label><html:h3 class="ztts-subheading" data-l10n-id="ztts-heading-fish-cloud"/></label>
+      <hbox align="center">
+        <label data-l10n-id="ztts-field-api-key" style="width: 8em"/>
+        <html:input type="password" preference="extensions.zotero.zotero-tts.fish.apiKey"/>
+        <label class="ztts-help" value="?" data-l10n-id="ztts-help-fish" data-l10n-attrs="help"/>
+      </hbox>
+      <hbox align="center">
+        <checkbox data-l10n-id="ztts-fish-free-only" preference="extensions.zotero.zotero-tts.fish.freeOnly"/>
+        <label class="ztts-help" value="?" data-l10n-id="ztts-help-fish-free-only" data-l10n-attrs="help"/>
+      </hbox>
+      <hbox align="center">
+        <label data-l10n-id="ztts-field-voices" style="width: 8em"/>
+        <html:input type="text" data-l10n-id="ztts-fish-voices-input" preference="extensions.zotero.zotero-tts.fish.voices"/>
+        <label class="ztts-help" value="?" data-l10n-id="ztts-help-fish-voices" data-l10n-attrs="help"/>
+      </hbox>
+      <hbox align="center">
+        <button id="ztts-enable-fish"/>
+        <button id="ztts-test-fish" data-l10n-id="ztts-test-connection"/>
+        <description id="ztts-test-result-fish"/>
+      </hbox>
+    </vbox>
+    <vbox id="ztts-provider-fishspeech">
+      <label><html:h3 class="ztts-subheading" data-l10n-id="ztts-heading-fish-speech"/></label>
+      <hbox align="center">
+        <label data-l10n-id="ztts-field-address" style="width: 8em"/>
+        <html:input type="text" preference="extensions.zotero.zotero-tts.fishspeech.baseURL"/>
+        <label class="ztts-help" value="?" data-l10n-id="ztts-help-fish-speech" data-l10n-attrs="help"/>
+      </hbox>
+      <!-- Same format as the OpenAI section's, and masked for the same
+           reason: a gateway's token, or the server's own api key as a bearer. -->
+      <hbox align="center">
+        <label data-l10n-id="ztts-field-extra-headers" style="width: 8em"/>
+        <html:input type="password" placeholder="Name: value; Name: value" preference="extensions.zotero.zotero-tts.fishspeech.headers"/>
+        <label class="ztts-help" value="?" data-l10n-id="ztts-help-extra-headers" data-l10n-attrs="help"/>
+      </hbox>
+      <hbox align="center">
+        <button id="ztts-enable-fishspeech"/>
+        <button id="ztts-test-fishspeech" data-l10n-id="ztts-test-connection"/>
+        <description id="ztts-test-result-fishspeech"/>
+      </hbox>
+    </vbox>
+  </groupbox>
+
   <groupbox id="ztts-provider-local">
     <!-- One block per engine: its own switch and address. Only Kokoro
          exists today; the heading is filled from the engine registry in

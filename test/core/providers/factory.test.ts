@@ -35,6 +35,15 @@ describe('createProvider', () => {
     expect(p.capabilities.wordTimestamps).toBe(true);
   });
 
+  it('builds the Fish Audio provider and the Fish Speech server provider', () => {
+    const fish = createProvider('fish', DEFAULTS, deps);
+    expect(fish.id).toBe('fish');
+    expect(fish.capabilities.wordTimestamps).toBe(true);
+    const server = createProvider('fishspeech', DEFAULTS, deps);
+    expect(server.id).toBe('fishspeech');
+    expect(server.capabilities.wordTimestamps).toBe(false);
+  });
+
   it('builds the configured local engine', () => {
     const s = { ...DEFAULTS, local: { enabled: true, engine: 'kokoro', baseURL: 'http://h:1', voice: 'af_bella', headers: '' } };
     const p = createProvider('local', s, deps);

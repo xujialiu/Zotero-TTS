@@ -1,7 +1,7 @@
 import type { ProviderId, VoiceInfo } from '../core/providers/types';
 
 const SEPARATOR = '::';
-const PROVIDERS: readonly ProviderId[] = ['openai', 'azure', 'cloudflare', 'speechify', 'local', 'system'];
+const PROVIDERS: readonly ProviderId[] = ['openai', 'azure', 'cloudflare', 'speechify', 'fish', 'fishspeech', 'local', 'system'];
 
 /**
  * The tier every plugin voice is filed under. Zotero's tier dropdown is
@@ -13,7 +13,7 @@ const PROVIDERS: readonly ProviderId[] = ['openai', 'azure', 'cloudflare', 'spee
  */
 export const PLUGIN_TIER = 'local';
 
-const PROVIDER_NAMES: Record<ProviderId, string> = { openai: 'OpenAI', azure: 'Azure', cloudflare: 'Cloudflare', speechify: 'Speechify', local: 'Local', system: 'System' };
+const PROVIDER_NAMES: Record<ProviderId, string> = { openai: 'OpenAI', azure: 'Azure', cloudflare: 'Cloudflare', speechify: 'Speechify', fish: 'Fish', fishspeech: 'FishSpeech', local: 'Local', system: 'System' };
 
 /**
  * "Azure-Ava Multilingual": the provider's name in front of the voice's,
