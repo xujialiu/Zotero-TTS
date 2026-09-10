@@ -344,3 +344,6 @@ cite `notes/NOTES.md` with a date or a section title resolve through this index.
 - Two lines under the Sync switches, the item-20 fixture that would ping-pong, and beta numbers across worktrees (issue #68)
 - The held-provider flip measured, a switch turned back on between passes, and the key an adoption overwrites (issue #68)
 - Switching Zotero's locale with the settings window open kills Zotero, and the session restore loses a reader tab
+- Kokoro-FastAPI returns the words of a rewritten text, and the aligner's substring search drags the highlight into a later word (issue #86)
+- The aligner pairs tokens by longest common subsequence and bridges what the server spelled differently (issue #86)
+- Verified live: 37 and 38 spans where there were 6, and a highlight patch that never attaches to a minimized window (issue #86)

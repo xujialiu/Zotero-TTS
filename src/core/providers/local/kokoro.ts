@@ -1,4 +1,4 @@
-import { alignWordsToText } from '../../align';
+import { alignWords, describeAlignment } from '../../align';
 import type { TimedWord } from '../../align';
 import { normalizeBaseURL } from '../base-url';
 import { SynthesisError } from '../errors';
@@ -153,11 +153,14 @@ function createKokoroProvider(rawBaseURL: string, deps: LocalEngineDeps): TTSPro
             throw new SynthesisError('decode-failed', `Kokoro audio is not valid base64: ${e}`);
           }
           const words = toTimedWords(body.timestamps);
-          const timestamps = words.length ? alignWordsToText(words, text) : undefined;
-          return {
-            audio: audioBlob,
-            ...(timestamps?.length ? { timestamps } : { note: 'the captioned reply came without word timestamps' }),
-          };
+          if (!words.length) return { audio: audioBlob, note: 'the captioned reply came without word timestamps' };
+          // The server speaks a rewritten text and returns its words (issue
+          // #86); the aligner pairs what it can and bridges the rest, and
+          // the debug line says how much of each
+          const aligned = alignWords(words, text);
+          if (!aligned.timestamps.length) return { audio: audioBlob, note: `none of the ${words.length} words the server returned is in the text` };
+          const note = describeAlignment(aligned);
+          return { audio: audioBlob, timestamps: aligned.timestamps, ...(note ? { note } : {}) };
         }
       }
 

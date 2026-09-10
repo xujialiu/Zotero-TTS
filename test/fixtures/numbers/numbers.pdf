@@ -1,0 +1,52 @@
+%PDF-1.4
+%âãÏÓ
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R /Lang (en-US) >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [6 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>
+endobj
+4 0 obj
+<< /Title (Zotero-TTS numbers fixture) /Producer (build.py) >>
+endobj
+5 0 obj
+<< /Length 747 >>
+stream
+BT
+/F1 11 Tf
+72 720 Td
+15 TL
+(Zotero-TTS numbers fixture, page one. In the reviewers’ 29.83 mm example eye,) Tj
+T* (a scan labelled 3 × 3 mm covers 3.7 × 3.7 mm. Vessels in that eye therefore) Tj
+T* (look narrower, their branchpoints denser, and the avascular zone smaller than) Tj
+T* (they are.) Tj
+0 -12 Td
+T* (About 1,000 eyes were scanned at 0.99 confidence, and 76% of the panel agreed.) Tj
+T* (The pre-trained model had seen 1.6 million images [1]. A magnification error) Tj
+T* (of -20% to +10% is common, and a study last year found none after correction.) Tj
+0 -12 Td
+T* (The last paragraph has no number in it at all, so every one of its words pairs) Tj
+T* (with the voice on its own, and the highlight simply walks along the line.) Tj
+ET
+endstream
+endobj
+6 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 5 0 R >>
+endobj
+xref
+0 7
+0000000000 65535 f 
+0000000015 00000 n 
+0000000078 00000 n 
+0000000135 00000 n 
+0000000232 00000 n 
+0000000310 00000 n 
+0000001108 00000 n 
+trailer
+<< /Size 7 /Root 1 0 R /Info 4 0 R >>
+startxref
+1234
+%%EOF

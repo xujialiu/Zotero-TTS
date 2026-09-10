@@ -103,6 +103,34 @@ describe('kokoroAdapter', () => {
       { start: 0, end: 0.5, charStart: 0, charEnd: 5 },
       { start: 0.5, end: 1, charStart: 6, charEnd: 11 },
     ]);
+    expect(result.note).toBeUndefined();
+  });
+
+  it('bridges a word the server spelled differently and says so in the note (issue #86)', async () => {
+    const fetchImpl = vi.fn(async () =>
+      Response.json({
+        audio: AUDIO_B64,
+        timestamps: [
+          { word: 'Hello', start_time: 0, end_time: 0.5 },
+          { word: 'three', start_time: 0.5, end_time: 0.8 },
+          { word: 'world', start_time: 0.8, end_time: 1 },
+        ],
+      }),
+    );
+    const result = await provider(fetchImpl).synthesize('Hello 3 world', opts);
+    expect(result.timestamps).toEqual([
+      { start: 0, end: 0.5, charStart: 0, charEnd: 5 },
+      { start: 0.5, end: 0.8, charStart: 6, charEnd: 7 },
+      { start: 0.8, end: 1, charStart: 8, charEnd: 13 },
+    ]);
+    expect(result.note).toBe('1 bridged');
+  });
+
+  it('omits timestamps, and says so, when none of the returned words is in the text', async () => {
+    const fetchImpl = vi.fn(async () => Response.json({ audio: AUDIO_B64, timestamps: [{ word: 'twenty', start_time: 0, end_time: 0.5 }] }));
+    const result = await provider(fetchImpl).synthesize('29', opts);
+    expect('timestamps' in result).toBe(false);
+    expect(result.note).toBe('none of the 1 words the server returned is in the text');
   });
 
   it('omits timestamps when the server returns none', async () => {

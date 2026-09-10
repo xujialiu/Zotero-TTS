@@ -274,17 +274,17 @@ describe('createSpeechifyProvider', () => {
         ]),
       );
       const result = await provider(fetchImpl).synthesize(text, AKARI);
+      // A punctuation chunk extends the word before it (issue #86): the
+      // pause after 话 is 话's, and "。." — the normalizer's, not the text's —
+      // is 逗号's, never a span of its own
       expect(result.timestamps).toEqual([
         { start: 0, end: 0.213, charStart: 0, charEnd: 1 },
         { start: 0.213, end: 0.597, charStart: 1, charEnd: 3 },
-        { start: 0.597, end: 0.768, charStart: 3, charEnd: 4 },
-        { start: 0.768, end: 1.024, charStart: 4, charEnd: 5 },
+        { start: 0.597, end: 1.024, charStart: 3, charEnd: 4 },
         { start: 1.024, end: 1.195, charStart: 5, charEnd: 6 },
-        { start: 1.195, end: 1.664, charStart: 6, charEnd: 9 },
-        { start: 1.664, end: 1.877, charStart: 9, charEnd: 10 },
+        { start: 1.195, end: 1.877, charStart: 6, charEnd: 9 },
         { start: 1.877, end: 2.048, charStart: 10, charEnd: 11 },
-        { start: 2.048, end: 2.347, charStart: 11, charEnd: 13 },
-        // "。." is the normalizer's, not the text's: dropped, never guessed
+        { start: 2.048, end: 2.56, charStart: 11, charEnd: 13 },
       ]);
     });
 
