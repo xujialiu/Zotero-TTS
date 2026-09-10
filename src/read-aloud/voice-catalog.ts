@@ -13,7 +13,7 @@ const PROVIDERS: readonly ProviderId[] = ['openai', 'azure', 'cloudflare', 'spee
  */
 export const PLUGIN_TIER = 'local';
 
-const PROVIDER_NAMES: Record<ProviderId, string> = { openai: 'OpenAI', azure: 'Azure', cloudflare: 'Cloudflare', speechify: 'Speechify', fish: 'Fish', fishspeech: 'FishSpeech', local: 'Local', system: 'System' };
+const PROVIDER_NAMES: Record<ProviderId, string> = { openai: 'OpenAI', azure: 'Azure', cloudflare: 'Cloudflare', speechify: 'Speechify', fish: 'Fish-cloud', fishspeech: 'Fish-local', local: 'Local', system: 'System' };
 
 /**
  * "Azure-Ava Multilingual": the provider's name in front of the voice's,

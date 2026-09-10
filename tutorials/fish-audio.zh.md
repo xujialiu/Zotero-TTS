@@ -1,4 +1,4 @@
-<!-- translated-from: fish-audio.md sha256:d00e256fe91b -->
+<!-- translated-from: fish-audio.md sha256:a44f53ccd622 -->
 # Fish Audio：克隆语音、一个免费模型、逐词高亮
 
 [English](fish-audio.md) · **简体中文**
@@ -22,7 +22,7 @@
 
 ## 语音
 
-列出的语音有三种，在播放器里都属于**本地**语音模式，写成 `Fish-<name>`：
+列出的语音有三种，在播放器里都属于**本地**语音模式，写成 `Fish-cloud-<name>`：
 
 - **你自己的。** 你在 fish.audio 上做的语音——*Create a voice*，10–30 秒干净的录音——一训练好就会列出来，用它的名字。不用粘贴什么。
 - **语音库里的任何一个。** 在 fish.audio 上打开它，复制页面的链接（`https://fish.audio/m/…/`）或者里面的 id，粘进**语音**；多个用逗号或空格分开。一个语音归在它的语言下面，说好几种语言的就归在*多语种*下面。页面已经不在了的语音，会显示成 *(not found)*，直到你把它从字段里删掉。

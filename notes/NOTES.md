@@ -351,3 +351,9 @@ cite `notes/NOTES.md` with a date or a section title resolve through this index.
 - A PDF view has no pages before its first render, none while hidden, and the highlight patch now lands with the first page instead of giving up (issue #88)
 - Verified live: the page half lands within 125 ms of the pages' return, every tab attaches at its open now, and a trusted key resumes a chrome-started player on macOS (issue #88)
 - Fish Audio joined as two providers in one section: the timestamp stream merged per chunk, the library's 1,000-entry window, and a Fish Speech server that answers MessagePack unless asked for JSON (issue #89)
+- The owner's Fish Speech server, measured: an empty references folder is "0 voices", a Kokoro recording makes a reference, and 4 tokens a second without compile (issue #89)
+- Verified live: the server block on the H200, and what a one-at-a-time server does to the read-ahead, the voice list and the sample button (issue #89)
+
+### [2026-09-11](NOTES_2026-09-11.md)
+
+- The Fish Audio section's server block is headed Local, and the player's prefixes are Fish-cloud and Fish-local (issue #89)

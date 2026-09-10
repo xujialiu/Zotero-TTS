@@ -5,9 +5,10 @@
 [fish-speech](https://github.com/fishaudio/fish-speech) is the open side
 of Fish Audio: its S2 Pro model, running on your own machine, speaking in
 any voice you give it a short recording of. The plugin's **Fish Audio**
-section has a block for it — **Fish Speech server (your own)** — and lists
-every voice on it under **Local** in the player, as `FishSpeech-<name>`.
-Sentences are highlighted, not words: the server reports no word timings.
+section has a block for it, headed **Local**, and lists every voice on it
+in the player as `Fish-local-<name>`, under Zotero's Local tier like every
+plugin voice. Sentences are highlighted, not words: the server reports no
+word timings.
 
 ## What it needs
 
@@ -26,17 +27,26 @@ git clone https://github.com/fishaudio/fish-speech.git
 cd fish-speech
 pip install -U huggingface_hub
 hf download fishaudio/s2-pro --local-dir checkpoints/s2-pro
-docker compose --profile server up
+COMPILE=1 docker compose --profile server up
 ```
 
-The first start builds the image, which takes a while; then the API
-listens on port 8080 (`API_PORT=9000 docker compose …` for another). The
-`checkpoints/` and `references/` folders of the repository are shared
-with the container, so the model and the voices stay across restarts.
-Without a GPU, `BACKEND=cpu docker compose --profile server up`. The
-other ways to install, and the server's flags — a key it asks for
-(`--api-key`), another address (`--listen`) — are in [Fish Audio's
-install guide](https://speech.fish.audio/install/).
+- **`COMPILE=1` matters.** Without it the server speaks at a fifth of
+  real time even on a data-center GPU — a sentence takes 20 to 30
+  seconds, the player's sample button gives up after 15, and reading
+  stalls. With it, a sentence takes about 5 seconds. The price is the
+  first start: a few minutes to load the model and about three more to
+  compile, before the server answers at all.
+- The first start also builds the image, which takes a while; then the
+  API listens on port 8080 (`API_PORT=9000 docker compose …` for
+  another).
+- The `checkpoints/` and `references/` folders of the repository are
+  shared with the container, so the model and the voices stay across
+  restarts.
+- Without a GPU, `BACKEND=cpu docker compose --profile server up` —
+  reading will stall between sentences; see below.
+- The other ways to install, and the server's flags — a key it asks for
+  (`--api-key`), another address (`--listen`) — are in [Fish Audio's
+  install guide](https://speech.fish.audio/install/).
 
 ## Give it a voice
 
@@ -56,22 +66,32 @@ spaces, `-` and `_` only.
 
 ## In Zotero
 
-1. **Edit → Settings → Zotero-TTS → Fish Audio → Fish Speech server (your
-   own)**: **Address** is `http://localhost:8080` for a server on this
+1. **Edit → Settings → Zotero-TTS → Fish Audio → Local**: **Address** is
+   `http://localhost:8080` for a server on this
    machine; on another machine of your LAN, its name or IP address in
    place of `localhost`.
 2. A server started with `--api-key`: put `Authorization: Bearer <the
    key>` into **Extra headers**.
 3. **Test connection** → *Connected. N voices available.* → **Enable**.
-4. In the player, the voices are `FishSpeech-<folder name>` under
+4. In the player, the voices are `Fish-local-<folder name>` under
    **Local**, filed under *Multiple languages*: the server does not say
    which language a voice speaks, and the model speaks 80 languages.
 
 ## Good to know
 
-- *One sentence at a time*: the server takes requests one after another.
-  On a fast GPU a sentence arrives in a second or two.
+- *One sentence at a time*: the server takes requests one after another,
+  and Read Aloud asks for several sentences ahead. A server that needs
+  more than ten seconds a sentence falls behind that queue: the player
+  stops with *Unable to connect to the Read Aloud service* and a *Retry*
+  link, and a document opened while it is busy may show none of its
+  voices for that opening. Compile (above), or give it a faster GPU.
+- *The sample button* in the voice browser waits 15 seconds for the
+  server; a sample that arrives later is kept, and the next click on the
+  same voice plays it at once.
 - *"Cannot reach Fish Speech at …"*: the server is down or at another
   address; the line names the one the plugin tried.
+- *A name the server does not have* is spoken in a default voice rather
+  than refused; the plugin only offers the names the server lists, so
+  this only matters when you call the server yourself.
 - *From outside your network*, through Cloudflare, as with Kokoro:
   [tutorial](remote-access-cloudflare.md).

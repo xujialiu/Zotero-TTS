@@ -38,7 +38,7 @@ The block's **Use only the free model** switch is on when you start.
 ## Voices
 
 Three kinds are listed, all under **Local** in the player, as
-`Fish-<name>`:
+`Fish-cloud-<name>`:
 
 - **Your own.** A voice you made on fish.audio — *Create a voice*, from
   10–30 seconds of clean speech — is listed as soon as it is trained,
