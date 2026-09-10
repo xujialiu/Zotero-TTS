@@ -23,8 +23,12 @@ for (const dir of ['.', 'tutorials']) {
     const translated = dir === '.' ? name : join(dir, name);
     const sourceName = `${name.slice(0, -SUFFIX.length)}.md`;
     const source = dir === '.' ? sourceName : join(dir, sourceName);
-    const line = `<!-- translated-from: ${sourceName} sha256:${pin(source)} -->\n`;
-    const body = readFileSync(translated, 'utf8').replace(MARKER, '');
+    const original = readFileSync(translated, 'utf8');
+    // The page's own line ending: a checkout with core.autocrlf holds CRLF, and
+    // a marker line ending in a bare LF left every page mixed (2026-09-10)
+    const eol = original.includes('\r\n') ? '\r\n' : '\n';
+    const line = `<!-- translated-from: ${sourceName} sha256:${pin(source)} -->${eol}`;
+    const body = original.replace(MARKER, '');
     writeFileSync(translated, line + body, 'utf8');
     console.log(`${translated} → ${sourceName}`);
   }
