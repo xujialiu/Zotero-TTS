@@ -103,7 +103,7 @@ Zotero → 设置 → Zotero-TTS → **OpenAI** 那一节：
 | API 地址 | `https://tts-windows.example.com` |
 | 额外请求头 | `CF-Access-Client-Id: <CLIENT_ID>; CF-Access-Client-Secret: <CLIENT_SECRET>` |
 
-**测试连接**应当回答 `Connected. 28 voices available. Synthesis works.`。之后这些语音就出现在朗读的*本地*语音模式里，形如 `OpenAI-Emily.wav`。
+**测试连接**应当回答 `已连接。28 个语音可用。合成正常。`。之后这些语音就出现在朗读的*本地*语音模式里，形如 `OpenAI-Emily.wav`。
 
 这两个请求头的值和 API 密钥一样敏感：它们以明文存在 Zotero 的首选项里，谁拿到就能用你的服务器。要收回访问权，去 Cloudflare 删掉这个服务令牌（或者新建一个并改策略），旧的值立刻失效。
 

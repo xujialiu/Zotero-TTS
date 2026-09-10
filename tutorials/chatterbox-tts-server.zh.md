@@ -94,7 +94,7 @@ Zotero → 设置 → Zotero-TTS → **OpenAI** 那一节：
 | API 地址 | `http://localhost:8004`（预设已填好；用别的机器就改这里） |
 | 额外请求头 | 留空（只有服务器在网关后面才需要，见 Cloudflare 教程） |
 
-**测试连接**会回答 `Connected. 28 voices available. Synthesis works.`。在朗读的*本地*语音模式里，这些语音显示为 `OpenAI-Emily.wav`、`OpenAI-Henry.wav` 等等。不管*高亮当前*怎么设，高亮都是逐句的，因为这个服务器不报词级时间戳。
+**测试连接**会回答 `已连接。28 个语音可用。合成正常。`。在朗读的*本地*语音模式里，这些语音显示为 `OpenAI-Emily.wav`、`OpenAI-Henry.wav` 等等。不管*高亮当前*怎么设，高亮都是逐句的，因为这个服务器不报词级时间戳。
 
 ## 语言
 
