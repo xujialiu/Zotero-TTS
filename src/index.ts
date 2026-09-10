@@ -41,7 +41,7 @@ import { settleVolumePref, VOLUME_OBSERVER } from './core/read-aloud-volume';
 import { HIGHLIGHT_LEVEL_PREF, type HighlightLevel, type WordTiming } from './core/highlight-level';
 import { createPositionSync, ACTIVE_TICK_MS, IDLE_TICK_MS, type PositionSync } from './read-aloud/position-sync';
 import { createPositionStore, type PositionStore } from './read-aloud/position-store';
-import { createPositionTransport, type PositionTransport } from './read-aloud/position-transport';
+import { createPositionTransport, SYNC_POSITIONS_OBSERVER, type PositionTransport } from './read-aloud/position-transport';
 import { POSITIONS_FILENAME } from './read-aloud/position-file';
 import { createWebDAVClient } from './core/webdav';
 import { describePosition, READ_ALOUD_POSITIONS_PREF, readPositions, resumeTarget, type PositionEntry } from './read-aloud/read-aloud-position';
@@ -118,6 +118,8 @@ let settingsSyncTransport: SettingsSyncTransport | null = null;
 let settingsSyncSwitchObserver: unknown = null;
 /** What the pane registers to hear every completed settings sync (ui/sync-status-rows.ts). */
 const settingsSyncListeners = new Set<(report: SettingsSyncApplied | null) => void>();
+/** The same for the positions transport (#40): the pane's other status line. */
+const positionSyncListeners = new Set<() => void>();
 /** The raw `Zotero.DBConnection`, kept for diagnostics (path, row count). */
 let positionDB: any = null;
 let deleteNotifierID: string | null = null;
@@ -1180,13 +1182,23 @@ async function startPositionTracking(): Promise<void> {
     now: () => Date.now(),
     error: (e) => Zotero.logError(e),
     debug: (message) => Zotero.debug('[zotero-tts] ' + message),
+    // The pane's reading-positions line (ui/sync-status-rows.ts, #68)
+    onSynced: () => {
+      for (const listener of positionSyncListeners) {
+        try {
+          listener();
+        } catch (e) {
+          Zotero.logError(e);
+        }
+      }
+    },
   });
   positionTransport.poke('startup');
   // Ticking the checkbox syncs right away — the user is at the pane,
   // watching for exactly that; without this the first sync would wait for
   // the next opened or closed tab
   try {
-    syncSwitchObserver = Zotero.Prefs.registerObserver('zotero-tts.webdav.syncPositions', () => {
+    syncSwitchObserver = Zotero.Prefs.registerObserver(SYNC_POSITIONS_OBSERVER, () => {
       if (loadSettings(prefs).webdav.syncPositions) positionTransport?.poke('switch-on');
     });
   } catch (e) {
@@ -2410,7 +2422,8 @@ const diagnostics = {
     try {
       const client = createWebDAVClient(loadSettings(prefs).webdav, { fetch });
       const items = parseSharedSettings(await client.download(SHARED_SETTINGS_FILENAME));
-      const secret = /apiKey|apiToken|password|headers|presetValues/i;
+      // The account id is an identifier, not a credential, but it is a 32-hex string the pre-push key scan would flag in a transcript
+      const secret = /apiKey|apiToken|accountId|password|headers|presetValues/i;
       return JSON.stringify(
         {
           url: client.url,
@@ -2757,15 +2770,28 @@ Zotero.ZoteroTTS = {
         },
         // The machine-id rename should reach the server soon (#41)
         settingsUploadSoon: () => settingsAutoUpload?.changed(),
-        // The settings sync (#68): the status line's stats, a listener per
-        // completed sync, and a poke when the pane opens — where the user looks
-        settingsSync: {
-          stats: () => settingsSyncTransport?.stats() ?? null,
-          watch: (onSynced) => {
-            settingsSyncListeners.add(onSynced);
-            return () => void settingsSyncListeners.delete(onSynced);
+        // The Sync group's two status lines (#68, ui/sync-status-rows.ts):
+        // each transport's stats, a listener per completed sync, and a poke
+        // of both transports when the pane opens — where the user looks
+        sync: {
+          settings: {
+            stats: () => settingsSyncTransport?.stats() ?? null,
+            watch: (onSynced) => {
+              settingsSyncListeners.add(onSynced);
+              return () => void settingsSyncListeners.delete(onSynced);
+            },
           },
-          poke: () => settingsSyncTransport?.poke('pane-open'),
+          positions: {
+            stats: () => positionTransport?.stats() ?? null,
+            watch: (onSynced) => {
+              positionSyncListeners.add(onSynced);
+              return () => void positionSyncListeners.delete(onSynced);
+            },
+          },
+          poke: () => {
+            settingsSyncTransport?.poke('pane-open');
+            positionTransport?.poke('pane-open');
+          },
         },
       }),
   },

@@ -191,6 +191,8 @@ ztts-restore-shortcuts =
 ## Backup
 
 ztts-heading-backup = 备份
+ztts-backup-to-file =
+    .value = 存成文件
 ztts-backup-settings =
     .label = 备份设置…
 ztts-restore-settings =
@@ -204,20 +206,20 @@ ztts-help-positions =
     .help = 每个文档里朗读上次停下的位置，单独存成一个文件。导入是合并：只有文件里的位置比本机的新时才采用。设置备份从不包含朗读位置。
 
 
-## Sync
+## WebDAV
 
-ztts-heading-sync = 同步
+ztts-heading-webdav = WebDAV
 ztts-field-webdav-url =
     .value = WebDAV 地址
 ztts-field-username =
     .value = 用户名
 ztts-field-password =
     .value = 密码
-ztts-field-this-computer =
-    .value = 本机名称
-ztts-help-this-computer =
-    .value = ?
-    .help = 本机的设置文件在服务器上使用的名字，每台电脑各保留一份，不会互相覆盖。改名后会在新名字下另起一个文件。
+
+
+## Sync
+
+ztts-heading-sync = 同步
 ztts-sync-positions =
     .label = 在电脑之间同步朗读位置
 ztts-help-sync-positions =
@@ -228,7 +230,12 @@ ztts-sync-settings =
 ztts-help-sync-settings =
     .value = ?
     .help = 让共用上面这个文件夹的每台电脑设置保持一致：这里的改动几秒后就到其他电脑，那边的改动也会到这里，不用手动恢复。有几样东西各台电脑自己保留——地址是本机或局域网的语音服务器、系统语音的开关，以及这个 WebDAV 连接。某个服务商在这台电脑上用不了，就只在这台电脑上保持停用，下面一行会说明原因。关闭时，除非你自己恢复，这台电脑上什么都不会变。
-# The line under the switch (ui/sync-status-rows.ts): what the last sync did on this computer
+# The line under each switch (ui/sync-status-rows.ts): what the last sync did on this computer
+ztts-positions-status-waiting = 朗读位置同步：等待第一次同步。
+ztts-positions-status-none = 朗读位置已于 { $time } 同步；这台电脑没有新内容。
+ztts-positions-status-taken = 朗读位置已于 { $time } 同步：从你的其他电脑取回 { $count } 个。
+ztts-positions-status-last = 朗读位置已于 { $time } 同步；最近一次从其他电脑取回是 { $when }。
+ztts-positions-status-failed = 朗读位置同步于 { $time } 失败：{ $detail }
 ztts-sync-status-waiting = 设置同步：等待第一次同步。
 ztts-sync-status-none = 设置已于 { $time } 同步；这台电脑没有新内容。
 ztts-sync-status-applied = 设置已于 { $time } 同步：来自 { $from } 的 { $count } 项已在这里应用。
@@ -237,13 +244,24 @@ ztts-sync-status-failed = 设置同步于 { $time } 失败：{ $detail }
 ztts-sync-status-deferred = 另有 { $count } 项等朗读停止后再应用。
 ztts-sync-status-held = { $provider } 在这台电脑上保持停用：{ $reason }
 ztts-sync-other-computer = 另一台电脑
+
+
+## Backup — this computer's copy on the server (ui/webdav-rows.ts)
+
+ztts-backup-on-server =
+    .value = 本机在服务器上的副本
+ztts-field-this-computer =
+    .value = 本机名称
+ztts-help-this-computer =
+    .value = ?
+    .help = 本机的备份副本在服务器上使用的名字，每台电脑各保留一份，不会互相覆盖。改名后会在新名字下另起一份。
 ztts-auto-upload =
-    .label = 自动上传本机设置
+    .label = 在服务器上保留本机设置的备份
 ztts-help-auto-upload =
     .value = ?
-    .help = 任一设置改动几秒后，服务器上本机的文件就会刷新——换电脑前不必记得手动上传。只上传：其他电脑的设置绝不会自动应用，除非你自己恢复。
+    .help = 任一设置改动几秒后，服务器上本机自己的那份副本就会刷新，随时可以手动恢复——重置后在这台上恢复，或者到另一台上恢复。这是备份不是同步：除非你自己恢复，任何电脑上都不会有变化。关闭时，只有下面的按钮会写这份副本。
 ztts-upload-now =
-    .label = 立即上传设置
+    .label = 立即备份到服务器
 ztts-restore-from-server =
     .label = 从服务器恢复设置…
 
@@ -410,7 +428,7 @@ ztts-webdav-uploading = 正在上传…
 ztts-webdav-looking = 正在查找…
 ztts-webdav-connected = 已连接到 { $url }。
 ztts-upload-failed = 上传失败：{ $detail }
-ztts-webdav-uploaded = 已把 { $count } 项设置上传到 { $file }。文件包含全部设置，其中有 API 密钥、网关请求头和 WebDAV 密码——请把文件夹设为私有。
+ztts-webdav-uploaded = 已把 { $count } 项设置备份到 { $file }。文件包含全部设置，其中有 API 密钥、网关请求头和 WebDAV 密码——请把文件夹设为私有。
 ztts-webdav-none = { $url } 上还没有设置备份。
 ztts-webdav-pick-title = 恢复哪台电脑的设置？
 ztts-shared-file = 共享文件（1.11 之前）
@@ -420,7 +438,7 @@ ztts-webdav-restore-confirm = 用 { $url } 上的 { $count } 项设置替换当�
 ztts-webdav-restore-confirm-machine = 用 { $url } 上 { $machine } 的 { $count } 项设置替换当前设置？
 ztts-webdav-restore-confirm-saved = 用 { $url } 上的 { $count } 项设置（保存于 { $time }）替换当前设置？
 ztts-webdav-restore-confirm-machine-saved = 用 { $url } 上 { $machine } 的 { $count } 项设置（保存于 { $time }）替换当前设置？
-ztts-webdav-machine-file = 本机的设置将上传为 { $file }。
+ztts-webdav-machine-file = 本机在服务器上的备份是 { $file }。
 
 ## The reader: the line shown when Read Aloud does not start with the remembered voice
 

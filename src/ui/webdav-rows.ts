@@ -6,27 +6,36 @@ import { checkingProviders, verifyRestoredProviders } from './backup-rows';
 import { refuseWhileReading, type ReadingGuardDeps } from './reading-guard';
 
 /**
- * The Sync group's WebDAV rows (#41): URL, username and password are
- * preference=-bound inputs read when a button is pressed, never earlier;
- * the client is injected (prefs-pane.ts builds core/webdav.ts on the
- * sandbox's fetch), so the flow is testable without a network.
+ * The rows that talk to the WebDAV folder (#41): *Test connection* in the
+ * WebDAV group, and in the Backup group this computer's copy on the server
+ * — the machine-id field, *Back up to the server now* and *Restore settings
+ * from server…*. URL, username and password are preference=-bound inputs
+ * read when a button is pressed, never earlier; the client is injected
+ * (prefs-pane.ts builds core/webdav.ts on the sandbox's fetch), so the
+ * flow is testable without a network.
  *
- * Settings do not merge, so every machine keeps its own file on the server
- * — `zotero-tts-settings_<machine id>.json` — and the machine-id field
- * names this one (core/machine-id.ts). Upload writes this machine's file;
- * Restore lists what the folder holds (the unsuffixed pre-1.11 file
- * included), asks which to take when there are several, and then runs the
- * unchanged restore path: confirm, refuse while a tab reads (#11), apply,
- * redraw, provider verification (#21). Settings bound with preference=
- * redraw themselves after a restore; onRestored covers the rows that are
- * not.
+ * The copy is a backup, not the sync (core/settings-sync-transport.ts,
+ * #68): settings do not merge as a whole, so every machine keeps its own
+ * file on the server — `zotero-tts-settings_<machine id>.json` — and the
+ * machine-id field names this one (core/machine-id.ts). Back up writes
+ * this machine's file; Restore lists what the folder holds (the unsuffixed
+ * pre-1.11 file included), asks which to take when there are several, and
+ * then runs the unchanged restore path: confirm, refuse while a tab reads
+ * (#11), apply, redraw, provider verification (#21). Settings bound with
+ * preference= redraw themselves after a restore; onRestored covers the
+ * rows that are not. Each button writes its group's message line: the
+ * connection's in the WebDAV group, the copy's in the Backup group, where
+ * the file buttons write too (ui/backup-rows.ts).
  */
 
 export const WEBDAV_IDS = {
   upload: 'ztts-webdav-upload',
   download: 'ztts-webdav-download',
   test: 'ztts-webdav-test',
+  /** The WebDAV group's line: what Test connection says. */
   message: 'ztts-webdav-message',
+  /** The Backup group's line, the file buttons' too (ui/backup-rows.ts): what the server copy's buttons and the rename say. */
+  backupMessage: 'ztts-backup-message',
   machineId: 'ztts-webdav-machine-id',
 } as const;
 
@@ -79,15 +88,23 @@ export function settingsFileLabel(file: WebDAVFile): string {
 
 export function initWebDAVRows(doc: RowsDocument, deps: WebDAVRowsDeps): void {
   /** Written as text: a description's `value` never wraps (issue #31). */
-  const message = (text: string) => {
-    const line = doc.getElementById(WEBDAV_IDS.message);
+  const lineWriter = (id: string) => (text: string) => {
+    const line = doc.getElementById(id);
     if (line) line.textContent = text;
   };
+  const connectionLine = lineWriter(WEBDAV_IDS.message);
+  const backupLine = lineWriter(WEBDAV_IDS.backupMessage);
   // One request at a time: a second click while the first is still talking
   // to the server would only produce a second dialog or a second upload
   let busy = false;
 
-  const button = (id: string, failure: (detail: string) => string, progress: () => string, action: (client: WebDAVClient) => Promise<string>) => {
+  const button = (
+    id: string,
+    message: (text: string) => void,
+    failure: (detail: string) => string,
+    progress: () => string,
+    action: (client: WebDAVClient) => Promise<string>,
+  ) => {
     doc.getElementById(id)?.addEventListener('command', async () => {
       if (busy) return;
       busy = true;
@@ -103,12 +120,12 @@ export function initWebDAVRows(doc: RowsDocument, deps: WebDAVRowsDeps): void {
     });
   };
 
-  button(WEBDAV_IDS.test, (detail) => t('ztts-connection-failed', { detail }), () => t('ztts-webdav-testing'), async (client) => {
+  button(WEBDAV_IDS.test, connectionLine, (detail) => t('ztts-connection-failed', { detail }), () => t('ztts-webdav-testing'), async (client) => {
     await client.check();
     return t('ztts-webdav-connected', { url: client.url });
   });
 
-  button(WEBDAV_IDS.upload, (detail) => t('ztts-upload-failed', { detail }), () => t('ztts-webdav-uploading'), async (client) => {
+  button(WEBDAV_IDS.upload, backupLine, (detail) => t('ztts-upload-failed', { detail }), () => t('ztts-webdav-uploading'), async (client) => {
     const id = deps.machineId.get();
     const name = machineSettingsFilename(id);
     const backup = createBackup(deps.prefs, { pluginVersion: deps.pluginVersion, exportedAt: deps.now?.(), machine: id });
@@ -117,7 +134,7 @@ export function initWebDAVRows(doc: RowsDocument, deps: WebDAVRowsDeps): void {
     return t('ztts-webdav-uploaded', { count, file: `${client.url}${name}` });
   });
 
-  button(WEBDAV_IDS.download, (detail) => t('ztts-restore-failed', { detail }), () => t('ztts-webdav-looking'), async (client) => {
+  button(WEBDAV_IDS.download, backupLine, (detail) => t('ztts-restore-failed', { detail }), () => t('ztts-webdav-looking'), async (client) => {
     const files = (await client.list()).filter((f) => SETTINGS_FILE_PATTERN.test(f.name)).sort(newestFirst);
     if (files.length === 0) return t('ztts-webdav-none', { url: client.url });
     let file = files[0];
@@ -147,7 +164,7 @@ export function initWebDAVRows(doc: RowsDocument, deps: WebDAVRowsDeps): void {
     const skipped = parsed.ignored.length ? t('ztts-skipped', { count: parsed.ignored.length, keys: parsed.ignored.join(', ') }) : '';
     const restored = sentences(t('ztts-restored', { count: applied, path: `${client.url}${file.name}` }), skipped);
     if (!deps.verifyProviders) return restored;
-    message(sentences(restored, checkingProviders()));
+    backupLine(sentences(restored, checkingProviders()));
     const verdict = await verifyRestoredProviders(deps);
     return sentences(restored, verdict);
   });
@@ -161,7 +178,7 @@ export function initWebDAVRows(doc: RowsDocument, deps: WebDAVRowsDeps): void {
     field.addEventListener('change', () => {
       const stored = deps.machineId.set(field.value ?? '');
       field.value = stored;
-      message(t('ztts-webdav-machine-file', { file: machineSettingsFilename(stored) }));
+      backupLine(t('ztts-webdav-machine-file', { file: machineSettingsFilename(stored) }));
       deps.onMachineRenamed?.();
     });
   }

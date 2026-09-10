@@ -47,6 +47,14 @@ label.ztts-help[value]:hover {
   opacity: 1;
 }
 
+/* The Backup group's two halves — the files, and this computer's copy on
+   the server — each under a caption of its own: the group's text in bold,
+   a little air above so the second reads as a new part */
+.ztts-pane label.ztts-caption {
+  font-weight: 600;
+  margin-block: 8px 2px;
+}
+
 /* After a checkbox or a plain line of text the ? follows text, not a border,
    and neither ends in a margin of its own: a little more air */
 .ztts-pane :is(checkbox, description) + label.ztts-help[value] {

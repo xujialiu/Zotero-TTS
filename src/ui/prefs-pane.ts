@@ -29,6 +29,7 @@ import { initWebDAVRows } from './webdav-rows';
 import { initSyncStatusRows } from './sync-status-rows';
 import { SYNC_SETTINGS_OBSERVER } from '../core/settings-sync';
 import type { SettingsSyncApplied, SettingsSyncStats } from '../core/settings-sync-transport';
+import { SYNC_POSITIONS_OBSERVER, type PositionTransportStats } from '../read-aloud/position-transport';
 import { initHighlightRows } from './highlight-rows';
 import { initPrefetchRows, PREFETCH_ENABLED_OBSERVER } from './prefetch-rows';
 import { initProviderRows } from './provider-rows';
@@ -489,10 +490,10 @@ export interface PaneHooks {
   };
   /** A prod at settings-autoupload (src/index.ts): the machine-id rename should reach the server soon. */
   settingsUploadSoon?(): void;
-  /** The settings sync (src/index.ts, #68): its stats for the status line, a listener per completed sync, and a poke when the pane opens. */
-  settingsSync?: {
-    stats(): SettingsSyncStats | null;
-    watch(onSynced: (report: SettingsSyncApplied | null) => void): () => void;
+  /** The Sync group's two status lines (src/index.ts, #68): each transport's stats, a listener per completed sync, and a poke of both when the pane opens. */
+  sync?: {
+    settings: { stats(): SettingsSyncStats | null; watch(onSynced: (report: SettingsSyncApplied | null) => void): () => void };
+    positions: { stats(): PositionTransportStats | null; watch(onSynced: () => void): () => void };
     poke(): void;
   };
 }
@@ -695,21 +696,31 @@ export function onPaneLoad(doc: Document, hooks: PaneHooks = {}): void {
     },
     onMachineRenamed: () => hooks.settingsUploadSoon?.(),
   });
-  // The line under *Sync settings between computers* (#68): what the last
-  // sync did here, kept current while the pane is open; a sync that changed
-  // settings here redraws the unbound rows as a restore does
+  // The two lines of the Sync group (#68), one under each switch: what the
+  // last sync of the positions and of the settings did here, kept current
+  // while the pane is open; a settings sync that changed settings here
+  // redraws the unbound rows as a restore does
+  const watchPref = (name: string, onChange: () => void) => {
+    const token = Zotero.Prefs.registerObserver(name, onChange);
+    return () => Zotero.Prefs.unregisterObserver(token);
+  };
   const syncStatus = initSyncStatusRows(doc, {
-    enabled: () => loadSettings(prefs).webdav.syncSettings,
-    stats: () => hooks.settingsSync?.stats() ?? null,
-    watch: (onSynced) => hooks.settingsSync?.watch(onSynced) ?? (() => {}),
-    watchSwitch: (onChange) => {
-      const token = Zotero.Prefs.registerObserver(SYNC_SETTINGS_OBSERVER, onChange);
-      return () => Zotero.Prefs.unregisterObserver(token);
-    },
-    onApplied: () => restoreDeps.onRestored(),
     formatTime: (ts) => new Date(ts).toLocaleTimeString(),
+    settings: {
+      enabled: () => loadSettings(prefs).webdav.syncSettings,
+      stats: () => hooks.sync?.settings.stats() ?? null,
+      watch: (onSynced) => hooks.sync?.settings.watch(onSynced) ?? (() => {}),
+      watchSwitch: (onChange) => watchPref(SYNC_SETTINGS_OBSERVER, onChange),
+      onApplied: () => restoreDeps.onRestored(),
+    },
+    positions: {
+      enabled: () => loadSettings(prefs).webdav.syncPositions,
+      stats: () => hooks.sync?.positions.stats() ?? null,
+      watch: (onSynced) => hooks.sync?.positions.watch(onSynced) ?? (() => {}),
+      watchSwitch: (onChange) => watchPref(SYNC_POSITIONS_OBSERVER, onChange),
+    },
   });
   win?.addEventListener('unload', () => syncStatus.dispose(), { once: true });
   // Opening the pane is where the user looks for what the other computers changed
-  hooks.settingsSync?.poke();
+  hooks.sync?.poke();
 }

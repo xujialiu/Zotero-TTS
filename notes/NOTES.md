@@ -339,4 +339,7 @@ cite `notes/NOTES.md` with a date or a section title resolve through this index.
 - Bridge traps the two runs met, for the next brief
 - Settings sync is one shared file merged one setting at a time, and a check's flip stays at the file's stamp (issue #68)
 - Live: a paused player anywhere defers provider items for as long as it stays open, the pane's own poke buries the applied line, and a dead URL logs twice (issue #68)
+- The pane's WebDAV, Sync and Backup groups are cut by purpose, and the server copy is named a backup (issue #68)
 - The follow's call is answered by the plugin: the whole sentence, both pages, against the viewport's edges (issue #83)
+- Two lines under the Sync switches, the item-20 fixture that would ping-pong, and beta numbers across worktrees (issue #68)
+- The held-provider flip measured, a switch turned back on between passes, and the key an adoption overwrites (issue #68)

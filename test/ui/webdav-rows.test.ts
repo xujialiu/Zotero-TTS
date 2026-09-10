@@ -86,7 +86,8 @@ function setup(
     deps,
     client,
     el: (id: string) => els.get(id)!,
-    message: () => els.get(WEBDAV_IDS.message)!.textContent,
+    // Test connection writes the WebDAV group's line, the server copy's buttons the Backup group's; a test reads whichever was written
+    message: () => [els.get(WEBDAV_IDS.backupMessage)!.textContent, els.get(WEBDAV_IDS.message)!.textContent].filter(Boolean).join(' '),
   };
 }
 
@@ -153,7 +154,7 @@ describe('Upload settings now', () => {
     expect(t.client.upload).toHaveBeenCalledOnce();
     finish();
     await first;
-    expect(t.message()).toContain('Uploaded');
+    expect(t.message()).toContain('Backed up');
   });
 });
 

@@ -286,6 +286,33 @@ describe('createPositionTransport', () => {
     expect(h.transport.stats().dropped).toBe(0);
   });
 
+  it('tells the pane after every completed sync and remembers the last adoption', async () => {
+    const synced: number[] = [];
+    const h = harness({ onSynced: () => synced.push(1) });
+    h.setRemote(serializePositions([entry({ ts: 2000 })]));
+    h.setLocal([entry({ ts: 1000 })]);
+    h.transport.poke('reader-open');
+    await settle();
+    expect(synced).toHaveLength(1);
+    expect(h.transport.stats().lastAdoption).toEqual({ at: 0, count: 1 });
+    h.setLocal([entry({ ts: 2000 })]);
+    h.setAdopt(false);
+    h.transport.poke('reader-close');
+    await settle();
+    expect(synced).toHaveLength(2);
+    expect(h.transport.stats()).toMatchObject({ adopted: 0, lastAdoption: { at: 0, count: 1 } });
+    h.setRemote(new Error('down'));
+    h.transport.flush('shutdown');
+    await settle();
+    expect(synced).toHaveLength(3);
+    // The switch off: skipped, and the pane is not told
+    const off: number[] = [];
+    const quiet = harness({ enabled: () => false, onSynced: () => off.push(1) });
+    quiet.transport.poke('reader-open');
+    await settle();
+    expect(off).toEqual([]);
+  });
+
   it('a tombstone check that throws keeps the entry and reports once — never drop on an error', async () => {
     const h = harness({
       deletedAt: () => {

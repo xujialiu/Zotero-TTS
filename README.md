@@ -269,32 +269,11 @@ language, voice.
 
 ### Backup and sync
 
-**Reading positions sync** — your bookmarks follow you between computers.
+**WebDAV** — one folder of your own, used by the sync and by the server
+backup below.
 
-- Switch on *Sync reading positions between computers* and give it a WebDAV
-  folder of your own.
-- Every computer sharing that folder and the same library stays in step:
-  stop listening on one, press `Shift+Space` on another, and reading goes on
-  from that sentence.
-- Turning it on loses no bookmark, whichever computer it came from.
-- Without a server, *Export reading positions…* and *Import reading
-  positions…* carry the same bookmarks as a file.
-
-**Settings backup and sync**
-
-- *Backup settings…* and *Restore settings…* keep every setting as one file.
-- The same WebDAV folder can hold each computer's settings and keep them up
-  to date, to restore on another.
-- *Sync settings between computers* goes both ways: a change on one computer
-  reaches the others within seconds, and theirs reach it, with nothing to
-  restore. Off by default.
-- *What stays on each computer:* a voice server at a local or home-network
-  address, the *System voices* switch, and the WebDAV connection itself.
-- *Two computers change the same setting:* the later change wins.
-- A provider that cannot work on the computer you restore to, or that the
-  sync brings a change to, stays off on that computer and says why.
-- Restoring a backup counts as changing every setting in it, so with the
-  sync on it reaches your other computers too.
+- Enter the folder's address, your user name and password, and press *Test
+  connection*.
 
 <details>
 <summary><b>WebDAV URL examples</b></summary>
@@ -305,6 +284,37 @@ Jianguoyun: `https://dav.jianguoyun.com/dav/zotero-tts/` with an app
 password.
 
 </details>
+
+**Sync** — what follows you between computers on its own, both ways.
+
+- *Sync reading positions between computers:* stop listening on one
+  computer, press `Shift+Space` on another, and reading goes on from that
+  sentence. Every computer sharing the folder and the same library stays in
+  step, and turning it on loses no bookmark, whichever computer it came from.
+- *Sync settings between computers:* a change on one computer reaches the
+  others within seconds, and theirs reach it, with nothing to restore. Off
+  by default.
+- *What stays on each computer:* a voice server at a local or home-network
+  address, the *System voices* switch, and the WebDAV connection itself.
+- *Two computers change the same setting:* the later change wins.
+- A provider the sync brings a change to, but that cannot work on that
+  computer, stays off there and says why.
+
+**Backup** — one-way copies, restored by hand.
+
+- *Backup settings…* and *Restore settings…* keep every setting as one
+  file; *Export reading positions…* and *Import reading positions…* carry
+  the bookmarks as another. Restoring settings replaces them all; importing
+  positions only takes the newer ones.
+- *Keep a backup of this computer's settings on the server* refreshes this
+  computer's own copy in the WebDAV folder a few seconds after any change;
+  *Back up to the server now* writes it by hand, and *Restore settings from
+  server…* brings any computer's copy back. A backup, not the sync: nothing
+  changes anywhere until you restore it.
+- A provider that cannot work on the computer you restore to stays off and
+  says why.
+- Restoring a backup counts as changing every setting in it, so with the
+  sync on it reaches your other computers too.
 
 ## Troubleshooting
 

@@ -412,29 +412,12 @@
     </hbox>
   </groupbox>
 
-  <!-- backup-rows.ts: manual snapshots as files — the settings as one JSON,
-       the reading positions as another. Restoring settings overwrites;
-       importing positions merges. -->
+  <!-- webdav-rows.ts: the WebDAV folder — the connection alone, first,
+       because the two groups under it use it: the sync (#40, #68) and
+       this computer's copy on the server (#41). The URL's placeholder is an
+       example address, the same in every language. -->
   <groupbox>
-    <label><html:h2 data-l10n-id="ztts-heading-backup"/></label>
-    <hbox align="center">
-      <button id="ztts-backup" data-l10n-id="ztts-backup-settings"/>
-      <button id="ztts-restore" data-l10n-id="ztts-restore-settings"/>
-    </hbox>
-    <hbox align="center">
-      <button id="ztts-positions-export" data-l10n-id="ztts-export-positions"/>
-      <button id="ztts-positions-import" data-l10n-id="ztts-import-positions"/>
-      <label class="ztts-help" value="?" data-l10n-id="ztts-help-positions" data-l10n-attrs="help"/>
-    </hbox>
-    <description id="ztts-backup-message"/>
-  </groupbox>
-
-  <!-- webdav-rows.ts: the WebDAV folder both automatic transports use —
-       reading positions both ways (#40), this machine's settings file up
-       (#41, settings-autoupload.ts). The URL's placeholder is an example
-       address, the same in every language. -->
-  <groupbox>
-    <label><html:h2 data-l10n-id="ztts-heading-sync"/></label>
+    <label><html:h2 data-l10n-id="ztts-heading-webdav"/></label>
     <hbox align="center">
       <label data-l10n-id="ztts-field-webdav-url" style="width: 8em"/>
       <html:input type="text" placeholder="https://dav.example.com/zotero-tts/" preference="extensions.zotero.zotero-tts.webdav.url"/>
@@ -448,30 +431,64 @@
       <html:input type="password" preference="extensions.zotero.zotero-tts.webdav.password"/>
     </hbox>
     <hbox align="center">
+      <button id="ztts-webdav-test" data-l10n-id="ztts-test-connection"/>
+    </hbox>
+    <description id="ztts-webdav-message"/>
+  </groupbox>
+
+  <!-- What travels between computers on its own, both ways: the reading
+       positions (read-aloud/position-transport.ts, #40) and the settings
+       (core/settings-sync-transport.ts, #68). The line under each switch
+       is ui/sync-status-rows.ts, hidden while that switch is off. -->
+  <groupbox>
+    <label><html:h2 data-l10n-id="ztts-heading-sync"/></label>
+    <hbox align="center">
+      <checkbox id="ztts-webdav-sync-positions" data-l10n-id="ztts-sync-positions" preference="extensions.zotero.zotero-tts.webdav.syncPositions"/>
+      <label class="ztts-help" value="?" data-l10n-id="ztts-help-sync-positions" data-l10n-attrs="help"/>
+    </hbox>
+    <description id="ztts-sync-positions-status"/>
+    <hbox align="center">
+      <checkbox id="ztts-webdav-sync-settings" data-l10n-id="ztts-sync-settings" preference="extensions.zotero.zotero-tts.webdav.syncSettings"/>
+      <label class="ztts-help" value="?" data-l10n-id="ztts-help-sync-settings" data-l10n-attrs="help"/>
+    </hbox>
+    <description id="ztts-sync-settings-status"/>
+  </groupbox>
+
+  <!-- The one-way copies, restored by hand. Under the first caption the
+       files (backup-rows.ts): the settings as one JSON, the reading
+       positions as another — restoring settings overwrites, importing
+       positions merges. Under the second, this computer's own copy of its
+       settings on the WebDAV folder above (webdav-rows.ts, #41): kept
+       fresh by the switch, written by the one button, brought back by the
+       other. A backup, not the sync: nothing here applies anything on its
+       own. One message line for the whole group. -->
+  <groupbox>
+    <label><html:h2 data-l10n-id="ztts-heading-backup"/></label>
+    <label class="ztts-caption" data-l10n-id="ztts-backup-to-file"/>
+    <hbox align="center">
+      <button id="ztts-backup" style="min-width: 14em" data-l10n-id="ztts-backup-settings"/>
+      <button id="ztts-restore" data-l10n-id="ztts-restore-settings"/>
+    </hbox>
+    <hbox align="center">
+      <button id="ztts-positions-export" style="min-width: 14em" data-l10n-id="ztts-export-positions"/>
+      <button id="ztts-positions-import" data-l10n-id="ztts-import-positions"/>
+      <label class="ztts-help" value="?" data-l10n-id="ztts-help-positions" data-l10n-attrs="help"/>
+    </hbox>
+    <label class="ztts-caption" data-l10n-id="ztts-backup-on-server"/>
+    <hbox align="center">
       <label data-l10n-id="ztts-field-this-computer" style="width: 8em"/>
       <html:input id="ztts-webdav-machine-id" type="text"/>
       <label class="ztts-help" value="?" data-l10n-id="ztts-help-this-computer" data-l10n-attrs="help"/>
     </hbox>
     <hbox align="center">
-      <checkbox id="ztts-webdav-sync-positions" data-l10n-id="ztts-sync-positions" preference="extensions.zotero.zotero-tts.webdav.syncPositions"/>
-      <label class="ztts-help" value="?" data-l10n-id="ztts-help-sync-positions" data-l10n-attrs="help"/>
-    </hbox>
-    <hbox align="center">
-      <checkbox id="ztts-webdav-sync-settings" data-l10n-id="ztts-sync-settings" preference="extensions.zotero.zotero-tts.webdav.syncSettings"/>
-      <label class="ztts-help" value="?" data-l10n-id="ztts-help-sync-settings" data-l10n-attrs="help"/>
-    </hbox>
-    <!-- What the last settings sync did here (ui/sync-status-rows.ts); empty while the switch is off -->
-    <description id="ztts-sync-status"/>
-    <hbox align="center">
       <checkbox id="ztts-webdav-auto-upload" data-l10n-id="ztts-auto-upload" preference="extensions.zotero.zotero-tts.webdav.autoUploadSettings"/>
       <label class="ztts-help" value="?" data-l10n-id="ztts-help-auto-upload" data-l10n-attrs="help"/>
     </hbox>
     <hbox align="center">
-      <button id="ztts-webdav-upload" data-l10n-id="ztts-upload-now"/>
+      <button id="ztts-webdav-upload" style="min-width: 14em" data-l10n-id="ztts-upload-now"/>
       <button id="ztts-webdav-download" data-l10n-id="ztts-restore-from-server"/>
-      <button id="ztts-webdav-test" data-l10n-id="ztts-test-connection"/>
     </hbox>
-    <description id="ztts-webdav-message"/>
+    <description id="ztts-backup-message"/>
   </groupbox>
 
   <!-- Which build this is, last in the pane and filled by ui/build-rows.ts:

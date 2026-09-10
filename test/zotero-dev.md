@@ -108,7 +108,7 @@ measured, updated for the fixes since where marked.
    the six provider sections (OpenAI, Azure, Cloudflare Workers AI,
    Speechify, the Local engine named after its engine — `Kokoro-FastAPI`, System
    voices), Voice browser, Reading, Highlight, Keyboard shortcuts,
-   Backup, Sync, Build. No
+   WebDAV, Sync, Backup, Build. No
    clipped or overlapping text, no empty label; every `?` on its line,
    its glyph the pane's own size (issue #53, 1.10.15): every
    `.ztts-help` computes the `font-size` of its row's text (`13px` on
@@ -497,8 +497,22 @@ measured, updated for the fixes since where marked.
     `webdav.autoUploadSettings` on uploads every pref write to the
     owner's WebDAV settings file — the key included, until the restore
     uploads the empty one again (2026-09-09: seven uploads).
-16. **Errors at the end**, by content.
-
+16. **While a tab reads, the player's settings wait.** With a Read Aloud
+    player open in any tab (paused counts; `popupOpen` alone counts), a
+    sync carrying a newer provider-section key (`azure.voice`) and a newer
+    shortcut reports `lastOutcome "deferred"`, `adopted 1`, `deferred 1`,
+    `pushed 0`, `uploaded false`: the shortcut pref is written, the
+    provider key is not, and `lastApplied.applied` names only the shortcut
+    with `from ["tester"]`; the settings line ends with `1 more wait until
+    the reading stops.` Pushing is never deferred. Once no player is open
+    anywhere, the next trigger applies the voice (`adopted 1`,
+    `lastApplied.applied ["azure.voice"]`) and the provider's check runs
+    and passes (`state.held` stays `{}`, the log line carries no `held
+    azure`) — measured 2026-09-10 on 1.11.7-beta5: a crafted `azure.voice`
+    (`zh-CN-XiaoyiNeural`) reported `deferred 1` / `adopted 0` at a
+    pane-open trigger with the fixture's player open and paused, and
+    applied at the `reader-close` trigger that closed it, the sync settled
+    `ok` within ~5 s.
 ## 2. The voice browser, favorites, the default voice
 
 1. **The listing.** The status line leaves `Listing voices…` (the open
@@ -1074,84 +1088,72 @@ measured, updated for the fixes since where marked.
     larger) — and no `no word timestamps` line for
     Alina: Azure echoes back the form it was sent, so the alignment
     matches in every encoding.
-19. **A voice list landing on the voice already playing keeps the
-    controller** (issue #75, 1.11.4). `fixture-a.pdf` as a standalone
-    attachment, the memory pointed at `local::af_bella`. A tab's **first**
-    open resolves the voice before playback and rebuilds nothing; the bug
-    is the **second and later** opens, where the still-populated list
-    starts playback at once and `loadVoices` lands 1.2–1.6 s later —
-    `_resolveVoice`'s keep-branch (reader.js:82428-82432) calls
-    `_applyVoice`, which recreates the controller unconditionally
-    (reader.js:82523). Check: close the player
-    (`toggleReadAloudPopup(false)`), wait a second, start again with a
-    trusted `Shift+Space` (`nsITextInputProcessor`, rulebook step 9), and
-    sample every 100 ms for 12 s the manager's `active`/`paused`, the
-    identity of `_controller` against the first one seen,
-    `_controller._audioContext.currentTime`, `_currentIndex` and
-    `activeTimestampIndex`. Expected: **one controller for the whole
-    window**, the clock monotonic (never back to 0), the word index never
-    replaying; `diagnostics.unchangedVoice()` for that tab
-    `{patched: true, active: true, voice: "local::af_bella", kept: 1,
-    last: "local::af_bella"}`; in the log one `volume gain inserted`, then
-    `hid 9 system voices from the Local tier`, then `kept the controller:
-    the voice list landed on the voice already playing (local::af_bella)`,
-    and the first segment's `local: N word timestamps for M chars` line
-    **once**. Zotero's own start (`Ctrl+Shift+R`) after another close is
-    the same, `kept: 2`. Contrasts, with
-    `zotero-tts.readAloud.sameForAllDocuments` set to `false` for the
-    voice change only (memory-sync's `spreadVoice` would otherwise carry
-    the pick into every other reading tab, a metered one included):
-    `selectVoice('local::am_puck')` while reading gives a **new**
-    controller in 30–45 ms — the clock back to ~0, a `volume gain
-    inserted` line — with `kept` unchanged, and
-    `selectVoice('local::af_bella')` back another; then
-    `selectTier('local')`, the chip of the current tier, keeps the
-    controller and takes `kept` to 3. Rewind with
-    `skipBack('paragraph')` and resume with `play()` rather than closing
-    and reopening the popup, or the reopen's own keep is counted too.
-    **After an in-place upgrade a tab nobody touched can already read
-    `kept: 1`** — the re-attach re-resolves the voice on a live session
-    and the guard spares that controller as well (measured on the user's
-    paused Zotero-Premium session, 2026-09-08) — so read `kept` as an
-    increment, never as an absolute. Was, on 1.11.4-beta5 (the first
-    attempt at the fix): a second `volume gain inserted` right after
-    `hid 9 system voices`, the clock back to 0 about 1.3–1.65 s after
-    the press, the word index replaying from 0, the same `word
-    timestamps … (cached)` line twice, and `kept: 0` on every path — the
-    guard walked `_allVoices` and `voicesForLanguage` with `find` /
-    `some`, whose callback the reader realm silently never honors
-    (`undefined` / `false`, while an index loop over the same arrays
-    finds the voice). **State**: the memory (byte-identical restore,
-    the last write), `extensions.zotero.reader.readAloudVoices` (the
-    fixture rewrites its `en` entry — snapshot and rebuild), the fixture
-    item (erased in a call of its own). Keep `readAloud.memory` on a
-    listed **free** voice throughout: a session on a `d072a0bf-…` id is
-    metered. **Budget**: five short Kokoro readings of a 17-segment
-    fixture; the fixture ends inside the 12 s window at 1.7×, and the
-    manager then rewinds to `_backwardStopIndex ?? 0` still active, so a
-    later start resumes at segment 15–16.
-20. **Speechify while reading** (1.11.7, issue #79). Point
-    `readAloud.memory` at `speechify::en-US/george` before the popup
-    opens and start fixture-a with a trusted Shift+Space: the manager is
-    `active` on that voice, tier `local`, in about 2 s, and the first
-    segment's audio is ready about 1.7 s later. Per segment the log
-    reads `[zotero-tts] speechify: N word timestamps for M chars
-    (simba-3.2)` — the model in parentheses is the routing's proof,
-    `simba-3.0` on a non-English voice — with `[zotero-tts] prefetch:
-    speechify: M chars ready ahead of playback` for the ones ahead
-    (2026-09-09: 31/53/69/46 characters synthesized, 53/46/105/55
-    prefetched, 512 characters spent by the whole run).
-    `diagnostics.highlight()` on that view: `patched: true`,
-    `state.segmentGranularity: "sentence"`, `activeWordTimestamp:
-    "real"`, `sentenceSlot: "ours"`. The debug store holds no `429`,
-    `rate limit`, `rate-limit wait` or `after a retry`: the provider's
-    shared queue sends one request at a time, which the Free plan
-    requires (two of three parallel requests answered 429 on
-    2026-09-09). A session the bridge starts may sit at `_position 0`
-    with its AudioContext `suspended` — Gecko's autoplay gate, section
-    0 — so "N segments heard" and the word highlight keeping pace are
-    the owner's check, not the bridge's. **Budget**: one short reading;
-    every segment Zotero fetches ahead is billed.
+19. **Each switch has its own line** (1.11.7-beta5, measured 2026-09-10):
+    `#ztts-sync-positions-status` under *Sync reading positions between
+    computers*, `#ztts-sync-settings-status` under *Sync settings between
+    computers*, each hidden (0 height) while its switch is off; opening
+    the pane pokes both transports and both lines move to the new time
+    within ~570 ms. With both switches on and nothing new: `Reading
+    positions synced <time>; nothing new for this computer.` and `Settings
+    synced <time>; nothing new for this computer.`, both `hidden false`.
+    The settings line names the last change here, not only the last sync:
+    on load the pane first draws the previous sync's form and the pane-open
+    sync replaces it at ~200 ms (201 ms measured, then stable for 5 s) —
+    after an adoption, `Settings synced 12:50:47 PM; the last change here
+    was 1 from tester at 12:50:17 PM.`; while something waits, the
+    deferred sentence is appended to whichever form the line carries
+    (`… the last change here was 2 from tester at 12:48:07 PM. 1 more wait
+    until the reading stops.`). Before the fix the applied form lived
+    ~100 ms and "nothing new for this computer" replaced it. The positions
+    line's other forms — `… : <n> taken from your other computers.` right
+    after an adoption, `… ; the last one from another computer arrived
+    <when>.` on later syncs (`positionSync().transport.lastAdoption`),
+    `Reading positions sync failed <time>: <detail>` — are unmeasured live
+    as of 2026-09-10.
+20. **A provider that fails its check goes off here only** — measured
+    2026-09-10 on 1.11.7-beta5 with no player open (blocked on the two
+    passes before by the owner's own paused player). Keep the real key
+    first — the file's own body at the baseline, or the machine backup —
+    because the adoption overwrites the local pref and it cannot be read
+    from `azure.apiKey` afterwards. Craft `azure.apiKey: "not-a-key"` at
+    `Date.now()+1000`, `by: "tester"`, and **leave the file's own
+    `azure.enabled: true` item at the seed's ts** (equal to the machine's
+    stamp; an older ts is not a resting state — `mergeSharedSettings` would
+    push the local `true` back up and the flip would repeat on every
+    trigger). The `reader-open` trigger applies both within 1.2 s
+    (`lastApplied.applied ["azure.apiKey","azure.enabled"]`, `adopted 1`),
+    the pref `azure.enabled` goes false, `state.held.azure.reason` is
+    `Connection failed: Azure voices returned 401`,
+    `state.stamps["azure.enabled"]` equals the file item's ts, `pushed 0`,
+    `uploaded false`, and `sharedSettings()` still shows `azure.enabled:
+    true` — the flip never travels. The next trigger (`reader-close`) is
+    `adopted 0`, `pushed 0`, `uploaded false`, `lastApplied` unchanged: no
+    check ran. Then the real key at `Date.now()+2000` → applied again
+    (`["azure.apiKey","azure.enabled"]`), `azure.enabled` true,
+    `state.held {}`, `uploaded false`. On a profile with *Keep a backup of
+    this computer's settings on the server* on, expect one `settings
+    auto-upload: 61 settings …` per pref the run moves.
+21. **The three groups and their message lines** (1.11.7-beta3, measured
+    2026-09-10): the pane's group order is `… Keyboard shortcuts, WebDAV,
+    Sync, Backup, Build`; the Backup group's children run `h2`, the caption
+    *To a file* (`label.ztts-caption`, `font-weight 600`, `margin-top
+    8px`), *Backup settings…* / *Restore settings…*, *Export reading
+    positions…* / *Import reading positions…* + `?`, the caption *This
+    computer's copy on the server*, *This computer* + the id field + `?`,
+    *Keep a backup of this computer's settings on the server* + `?`, *Back
+    up to the server now* / *Restore settings from server…*,
+    `#ztts-backup-message`. *Test connection* writes the WebDAV group's
+    `#ztts-webdav-message` (`Connected to <url>.`) and leaves
+    `#ztts-backup-message` empty; *Back up to the server now* writes
+    `#ztts-backup-message` (`Backed up <n> settings to <url>zotero-tts-settings_<machine>.json.
+    The file holds every setting…`) and leaves the WebDAV line as it was.
+    Both lines are 0 px high while empty. The first button of each Backup
+    row carries `style="min-width: 14em"` (the shortcut rows' own way; a
+    button rule in the sheet must be macOS-only, issue #56), so the second
+    column lines up — measured on beta5: the second button of each row at
+    x 399, the first buttons 182 px wide (the beta3 pass had 340 and
+    390 px); the second column's right edges stay ragged, its buttons
+    being 125, 175 and 194 px wide.
 21. **Speechify: text with nothing to say** (issue #79). With that
     session open, `voice.provider.remote.getAudio({ text: '* * *' },
     voice.impl)` resolves within 100 ms (4 ms) with an `audio/wav` of
@@ -1748,7 +1750,12 @@ chrome `fetch` and Basic auth built inside the script, the password never
 printed. **Any open Read Aloud player in any tab, paused included, defers
 every provider-section item** — item 16 is that behavior, and items 17's
 recovery and 20 need no player open anywhere: on 2026-09-10 the user's own
-paused player left item 20 unmeasured. The file's raw items are
+paused player, open in a different tab each time, blocked item 20 on two
+passes before the third measured it — ask for it to be closed before the
+run. Read the switch, `webdav.syncState` and the shared file at the
+baseline and do not assume them clean: between two passes on 2026-09-10
+the switch had been turned on again by hand, which re-seeded and put the
+profile's keys back into the shared file. The file's raw items are
 `{ key, value, ts, by }`; a crafted item is `by: "tester"`, `ts` a little
 ahead of `Date.now()` when it should come down, behind this machine's
 stamp (`webdav.syncState`) when it should not.
@@ -1800,7 +1807,7 @@ stamp (`webdav.syncState`) when it should not.
    `autoUpload.uploads` rises, `zotero-tts-settings_<This computer>.json`
    appears in `settingsFiles()` with a `lastModified` matching the
    upload, the backup's `meta.machine` the id; a two-change burst is one
-   upload carrying the settled value; *Upload settings now* writes the
+   upload carrying the settled value; *Back up to the server now* writes the
    same file without moving the auto-upload counter.
 8. **This computer.** Renaming writes a fresh file and leaves the old
    machine's untouched; renaming back restores; the pre-1.11 unsuffixed
@@ -1824,8 +1831,9 @@ stamp (`webdav.syncState`) when it should not.
 12. **Switch on seeds the file** (`Zotero.Prefs.set('extensions.zotero.zotero-tts.webdav.syncSettings',
     true, true)`): within a second `lastTrigger "switch-on"`, `lastOutcome
     "ok"`, `uploaded true`, `state.seeded true`, `pushed` = `state.stamps`
-    — on this profile 15 keys on 2026-09-10, exactly the synced settings
-    that differ from `addon/prefs.js`'s defaults. `sharedSettings()` shows
+    — whatever the profile has non-default at that moment (15 in the
+    morning of 2026-09-10, 14 in the afternoon), exactly the synced
+    settings that differ from `addon/prefs.js`'s defaults. `sharedSettings()` shows
     the same keys, every `by` the machine id, `apiKey`/`apiToken`/`headers`
     as `<N chars>`, and `settingsFiles()` lists
     `zotero-tts-shared-settings.json`. The exclusions are proved by
@@ -1833,7 +1841,7 @@ stamp (`webdav.syncState`) when it should not.
     `webdav.autoUploadSettings` are both true against a default of false
     and neither is stamped; `system.enabled` never. A second sync with
     nothing new: `uploaded false`, `pushed 0`. The pane's status line
-    (`#ztts-sync-status`) reads `Settings synced <time>; nothing new for
+    (`#ztts-sync-settings-status`) reads `Settings synced <time>; nothing new for
     this computer.`
 13. **A local change goes up after the quiet period.** A synced setting
     changed with the switch on → `pendingChange true` at once; at 6, 8 and
@@ -1880,8 +1888,8 @@ stamp (`webdav.syncState`) when it should not.
     after the failure (`lastTrigger "retry"`), and with the URL restored
     the next one completes with `lastError` null (`"ok"`, or `"deferred"`
     while a player holds something back). Two console entries per window
-    are expected on a profile with *Keep this computer's settings uploaded
-    automatically* on: `webdav.url` is in the auto-upload's watched set
+    are expected on a profile with *Keep a backup of this computer's
+    settings on the server* on: `webdav.url` is in the auto-upload's watched set
     too, and `diagnostics.settingsUpload().autoUpload.lastError` says
     which entry is whose.
 18. **Switch off stops the syncing, not the reading.** With the switch

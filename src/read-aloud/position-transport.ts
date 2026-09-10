@@ -41,6 +41,9 @@ import type { PositionEntry } from './read-aloud-position';
 /** A failed sync retries at most once per window, and says so once per window. */
 export const SYNC_RETRY_MS = 60_000;
 
+/** The switch's pref as Zotero.Prefs.registerObserver wants it: relative to `extensions.zotero.`. */
+export const SYNC_POSITIONS_OBSERVER = 'zotero-tts.webdav.syncPositions';
+
 /** The slice of core/webdav's client the transport drives. */
 export interface PositionsClient {
   download(name: string): Promise<string>;
@@ -69,6 +72,8 @@ export interface PositionTransportDeps {
   now(): number;
   error(e: unknown): void;
   debug(message: string): void;
+  /** After every completed sync, skipped ones excepted — the pane's status line (ui/sync-status-rows.ts, #68). */
+  onSynced?(): void;
 }
 
 export interface PositionTransportStats {
@@ -84,6 +89,8 @@ export interface PositionTransportStats {
   /** Entries dropped from the file for this machine's tombstones (#51). */
   dropped: number | null;
   uploaded: boolean | null;
+  /** The last sync that took bookmarks from other computers — when, how many; null before one (the pane's line, #68). */
+  lastAdoption: { at: number; count: number } | null;
   running: boolean;
 }
 
@@ -105,6 +112,7 @@ export function createPositionTransport(deps: PositionTransportDeps): PositionTr
   let adoptedCount: number | null = null;
   let droppedCount: number | null = null;
   let uploadedFlag: boolean | null = null;
+  let lastAdoption: PositionTransportStats['lastAdoption'] = null;
   let lastFailureAt = Number.NEGATIVE_INFINITY;
   let lastReportAt = Number.NEGATIVE_INFINITY;
 
@@ -122,6 +130,15 @@ export function createPositionTransport(deps: PositionTransportDeps): PositionTr
     if (at - lastReportAt < SYNC_RETRY_MS) return;
     lastReportAt = at;
     report(e);
+  }
+
+  /** The pane hears every completed sync; its listener must never be the thing that fails one. */
+  function notify(): void {
+    try {
+      deps.onSynced?.();
+    } catch (e) {
+      reportGated(e);
+    }
   }
 
   /** Never throws: outcome and error land in the stats and the gated report. */
@@ -195,15 +212,18 @@ export function createPositionTransport(deps: PositionTransportDeps): PositionTr
       adoptedCount = adopted;
       droppedCount = dropped;
       uploadedFlag = uploaded;
+      if (adopted > 0) lastAdoption = { at: deps.now(), count: adopted };
       lastOutcome = 'ok';
       lastError = null;
       lastFailureAt = Number.NEGATIVE_INFINITY;
       deps.debug(`position sync (${trigger}): ${remote.length} remote, ${merged.length} merged, ${adopted} adopted, ${dropped} dropped${uploaded ? ', uploaded' : ''}`);
+      notify();
     } catch (e) {
       lastOutcome = 'error';
       lastError = String(e);
       lastFailureAt = deps.now();
       reportGated(e);
+      notify();
     }
   }
 
@@ -223,6 +243,7 @@ export function createPositionTransport(deps: PositionTransportDeps): PositionTr
       adopted: adoptedCount,
       dropped: droppedCount,
       uploaded: uploadedFlag,
+      lastAdoption,
       running: flight.running(),
     }),
   };

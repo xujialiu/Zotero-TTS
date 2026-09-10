@@ -202,6 +202,8 @@ ztts-restore-shortcuts =
 ## Backup
 
 ztts-heading-backup = Backup
+ztts-backup-to-file =
+    .value = To a file
 ztts-backup-settings =
     .label = Backup settings…
 ztts-restore-settings =
@@ -215,20 +217,20 @@ ztts-help-positions =
     .help = Where Read Aloud last stopped in each document, as its own file. Importing merges: a position is taken only where the file's is newer than this computer's. Settings backups never contain reading positions.
 
 
-## Sync
+## WebDAV
 
-ztts-heading-sync = Sync
+ztts-heading-webdav = WebDAV
 ztts-field-webdav-url =
     .value = WebDAV URL
 ztts-field-username =
     .value = Username
 ztts-field-password =
     .value = Password
-ztts-field-this-computer =
-    .value = This computer
-ztts-help-this-computer =
-    .value = ?
-    .help = The name this computer's settings file carries on the server, so each computer keeps its own and none overwrites another's. Renaming starts a fresh file under the new name.
+
+
+## Sync
+
+ztts-heading-sync = Sync
 ztts-sync-positions =
     .label = Sync reading positions between computers
 ztts-help-sync-positions =
@@ -239,7 +241,12 @@ ztts-sync-settings =
 ztts-help-sync-settings =
     .value = ?
     .help = Keeps the settings of every computer sharing the folder above the same: a change here reaches the others a few seconds later, and theirs reach here, without restoring by hand. A few things stay on each computer — a voice server at a local or home-network address, the System voices switch, and this WebDAV connection. A provider that does not work on this computer stays off here, and the line below says why. Off, nothing changes on this computer unless you restore it yourself.
-# The line under the switch (ui/sync-status-rows.ts): what the last sync did on this computer
+# The line under each switch (ui/sync-status-rows.ts): what the last sync did on this computer
+ztts-positions-status-waiting = Reading positions sync: waiting for the first sync.
+ztts-positions-status-none = Reading positions synced { $time }; nothing new for this computer.
+ztts-positions-status-taken = Reading positions synced { $time }: { $count } taken from your other computers.
+ztts-positions-status-last = Reading positions synced { $time }; the last one from another computer arrived { $when }.
+ztts-positions-status-failed = Reading positions sync failed { $time }: { $detail }
 ztts-sync-status-waiting = Settings sync: waiting for the first sync.
 ztts-sync-status-none = Settings synced { $time }; nothing new for this computer.
 ztts-sync-status-applied = Settings synced { $time }: { $count } from { $from } applied here.
@@ -248,13 +255,24 @@ ztts-sync-status-failed = Settings sync failed { $time }: { $detail }
 ztts-sync-status-deferred = { $count } more wait until the reading stops.
 ztts-sync-status-held = { $provider } stays off on this computer: { $reason }
 ztts-sync-other-computer = another computer
+
+
+## Backup — this computer's copy on the server (ui/webdav-rows.ts)
+
+ztts-backup-on-server =
+    .value = This computer's copy on the server
+ztts-field-this-computer =
+    .value = This computer
+ztts-help-this-computer =
+    .value = ?
+    .help = The name this computer's backup copy carries on the server, so each computer keeps its own and none overwrites another's. Renaming starts a fresh copy under the new name.
 ztts-auto-upload =
-    .label = Keep this computer's settings uploaded automatically
+    .label = Keep a backup of this computer's settings on the server
 ztts-help-auto-upload =
     .value = ?
-    .help = A few seconds after any setting changes, this computer's file on the server is refreshed — nothing to remember before switching machines. Upload only: settings from another computer are never applied unless you restore them yourself.
+    .help = A few seconds after any setting changes, this computer's own copy on the server is refreshed, ready to restore by hand — here after a reset, or on another computer. A backup, not the sync: nothing changes on any computer unless you restore it yourself. Off, only the button below writes the copy.
 ztts-upload-now =
-    .label = Upload settings now
+    .label = Back up to the server now
 ztts-restore-from-server =
     .label = Restore settings from server…
 
@@ -459,7 +477,7 @@ ztts-webdav-uploading = Uploading…
 ztts-webdav-looking = Looking…
 ztts-webdav-connected = Connected to { $url }.
 ztts-upload-failed = Upload failed: { $detail }
-ztts-webdav-uploaded = Uploaded { $count } settings to { $file }. The file holds every setting, the API keys, gateway headers and WebDAV password included — keep the folder private.
+ztts-webdav-uploaded = Backed up { $count } settings to { $file }. The file holds every setting, the API keys, gateway headers and WebDAV password included — keep the folder private.
 ztts-webdav-none = No settings backup on { $url } yet.
 # The picker when the server holds several computers' files: its title, and one line per file
 ztts-webdav-pick-title = Restore settings from which computer?
@@ -471,7 +489,7 @@ ztts-webdav-restore-confirm = Replace the current settings with the { $count } o
 ztts-webdav-restore-confirm-machine = Replace the current settings with the { $count } of { $machine } on { $url }?
 ztts-webdav-restore-confirm-saved = Replace the current settings with the { $count } on { $url }, saved { $time }?
 ztts-webdav-restore-confirm-machine-saved = Replace the current settings with the { $count } of { $machine } on { $url }, saved { $time }?
-ztts-webdav-machine-file = This computer's settings upload as { $file }.
+ztts-webdav-machine-file = This computer's backup on the server is { $file }.
 
 ## The reader: the line shown when Read Aloud does not start with the remembered voice (read-aloud/read-aloud-memory.ts, issue #35)
 
