@@ -23,6 +23,13 @@
  * and kept there, while a flash of another unit (the paragraph after a
  * paragraph skip) is left to expire on its own.
  *
+ * A PDF view's Page prototype is reached only through a page object, which
+ * a view has none of before pdf.js renders one — nor while its window is
+ * minimized or its tab has been hidden for a minute. The view's methods
+ * are shadowed at once, and PDFView.prototype._render, which Zotero calls
+ * right after it pushes a new page, lands the Page patch at the first page
+ * before that page is painted (issue #88).
+ *
  * Every patched function is exported into the reader's compartment
  * (Components.utils.exportFunction) and calls the original through
  * Reflect.apply, for the reasons in memory-sync.ts. What the reader passes
@@ -198,7 +205,7 @@ export interface HighlightStylingDeps {
 }
 
 export interface HighlightStyling {
-  /** Patch the reader's views; true once they are. Repeat calls are cheap no-ops, so this may be called on every Read Aloud event. */
+  /** Patch the reader's views; true once they are — or, for a PDF view without a page yet, once the patch is set to land with its first page (issue #88). Repeat calls are cheap no-ops, so this may be called on every Read Aloud event. */
   attach(reader: unknown): boolean;
   /** What this module sees in a reader, as plain data, for Tools → Developer → Run JavaScript (`Zotero.ZoteroTTS.diagnostics.highlight()`). */
   inspect(reader: unknown): Record<string, unknown>;
@@ -246,6 +253,13 @@ export function createHighlightStyling(deps: HighlightStylingDeps): HighlightSty
   /** Every prototype this module shadows, per reader tab, so shutdown can put them back — see proto-patches.ts for why a closed tab's entry is dropped rather than restored. */
   const patches = createProtoPatches({ exportFunction: deps.exportFunction, isDead: deps.isDead, error: deps.error });
   const patchedViews = new WeakSet<object>();
+  /**
+   * Per reader tab, keyed by its PDFView prototype (one per tab, shared by
+   * the two views of a split): whether the page half of the PDF patch is
+   * in. A record the `_render` shadow captures, never looked up across the
+   * Xray membrane (issue #88).
+   */
+  const pdfTabs = new WeakMap<object, { pagesIn: boolean }>();
   /** The sentence position / selector this module put into a view's secondary slot, to tell it from Zotero's flashes. */
   const oursPDF = new WeakMap<object, unknown>();
   const oursDOM = new WeakMap<object, { segment: unknown; selector: unknown }>();
@@ -411,11 +425,21 @@ export function createHighlightStyling(deps: HighlightStylingDeps): HighlightSty
     view._render();
   }
 
-  function patchPDF(reader: unknown, view: any): boolean {
+  /**
+   * The page half of the PDF patch — the colors, the fit and the trim, on
+   * Page.prototype._pushHighlightedPosition. That prototype is reached only
+   * through a page object, and a view has none until pdf.js has rendered
+   * one: not in the first half second of a tab, and not at all while the
+   * window is minimized or the tab has been hidden for a minute, since
+   * Zotero releases a hidden tab's pages and takes them back when it is
+   * shown. False while there is no page; the `_render` shadow in patchPDF
+   * then lands it at the first one (issue #88).
+   */
+  function patchPDFPages(reader: unknown, view: any, tab: { pagesIn: boolean }): boolean {
+    if (tab.pagesIn) return true;
     const page = Array.isArray(view._pages) ? view._pages[0] : undefined;
     const pageProto = page ? ownerOf(page, '_pushHighlightedPosition') : null;
-    const viewProto = ownerOf(view, 'setReadAloudState');
-    if (!pageProto || !viewProto || typeof view._render !== 'function') return false;
+    if (!pageProto) return false;
     patches.shadow(pageProto, '_pushHighlightedPosition', (original) =>
       function (this: any, items: unknown, position: unknown, color: unknown) {
         let replaced = color;
@@ -445,6 +469,28 @@ export function createHighlightStyling(deps: HighlightStylingDeps): HighlightSty
         return Reflect.apply(original, this, [items, drawnPosition, replaced]);
       },
     );
+    tab.pagesIn = true;
+    return true;
+  }
+
+  /**
+   * The PDF patch: the page half above, and the view half — the sentence
+   * kept under the word — on PDFView.prototype.setReadAloudState, which
+   * needs no page. 'pending' when the view is in but its pages are not
+   * there yet: Zotero creates a page, pushes it into `_pages` and calls
+   * `_render` in one go (`_handlePageRendered`), looking the method up
+   * each time, so a shadow on `_render` meets the first page before it is
+   * painted, and even that paint is ours. Every way the pages arrive ends
+   * in that call — the first render of a fresh tab, a window restored, a
+   * hidden tab shown again (issue #88).
+   */
+  function patchPDF(reader: unknown, view: any): 'done' | 'pending' | false {
+    const viewProto = ownerOf(view, 'setReadAloudState');
+    const renderProto = ownerOf(view, '_render');
+    if (!viewProto || !renderProto) return false;
+    const tab = pdfTabs.get(viewProto) ?? { pagesIn: false };
+    pdfTabs.set(viewProto, tab);
+    const pages = patchPDFPages(reader, view, tab);
     patches.shadow(viewProto, 'setReadAloudState', (original) =>
       function (this: any, ...args: unknown[]) {
         // Zotero's method is async but sets the highlight positions before
@@ -458,7 +504,19 @@ export function createHighlightStyling(deps: HighlightStylingDeps): HighlightSty
         return result;
       },
     );
-    return true;
+    patches.shadow(renderProto, '_render', (original) =>
+      function (this: any, ...args: unknown[]) {
+        if (!tab.pagesIn) {
+          try {
+            if (patchPDFPages(reader, waive(this), tab)) deps.debug?.('highlight style attached to a PDF view at its first page');
+          } catch (e) {
+            deps.error(e);
+          }
+        }
+        return Reflect.apply(original, this, args);
+      },
+    );
+    return pages ? 'done' : 'pending';
   }
 
   // ---- EPUB / snapshot ------------------------------------------------------
@@ -852,12 +910,19 @@ export function createHighlightStyling(deps: HighlightStylingDeps): HighlightSty
         continue;
       }
       try {
-        const ok = Array.isArray(view._pages) ? patchPDF(reader, view) : view._readAloud ? patchDOM(reader, view) : false;
-        if (ok) {
+        const pdf = Array.isArray(view._pages);
+        const result = pdf ? patchPDF(reader, view) : view._readAloud ? (patchDOM(reader, view) ? 'done' : false) : false;
+        if (result) {
           patchedViews.add(view);
-          deps.debug?.(`highlight style attached to a ${Array.isArray(view._pages) ? 'PDF' : 'DOM'} view`);
+          deps.debug?.(
+            !pdf
+              ? 'highlight style attached to a DOM view'
+              : result === 'done'
+                ? 'highlight style attached to a PDF view'
+                : 'highlight style attached to a PDF view without pages, the colors follow its first page',
+          );
         }
-        done = ok || done;
+        done = !!result || done;
       } catch (e) {
         deps.error(e);
       }
@@ -902,9 +967,13 @@ export function createHighlightStyling(deps: HighlightStylingDeps): HighlightSty
         const state = pdf ? view._readAloudState : view._readAloud?.state;
         const slot = pdf ? (view._readAloudSentenceHighlightedPosition ?? null) : (view._spotlights?.get(SENTENCE_KEY) ?? null);
         const mine = pdf ? oursPDF.get(view) : oursDOM.get(view._readAloud)?.selector;
+        const attached = patchedViews.has(raw);
+        // A PDF view's page half may still be waiting for its first page (issue #88)
+        const pagesIn = pdf ? !!pdfTabs.get(ownerOf(raw, 'setReadAloudState'))?.pagesIn : true;
         return {
           kind: pdf ? 'pdf' : view._readAloud ? 'dom' : 'unknown',
-          patched: patchedViews.has(raw),
+          patched: attached && pagesIn,
+          awaitingPage: pdf ? attached && !pagesIn : undefined,
           pages: pdf ? view._pages.length : undefined,
           method: typeof (pdf ? view._effectiveReadAloudPrimaryGranularity : view._readAloud?._effectivePrimaryGranularity),
           granularity: pdf ? pdfGranularity(reader, view) : domGranularity(reader, view._readAloud),

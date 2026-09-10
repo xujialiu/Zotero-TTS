@@ -131,20 +131,29 @@ function fakePDF(granularity: string) {
     _readAloudHighlightedPosition: unknown = null;
     _readAloudSentenceHighlightedPosition: unknown = null;
     _readAloudSentenceTimeout: unknown = null;
-    _render = vi.fn();
+    // Zotero's _render is a class method and the plugin shadows it on the
+    // prototype (issue #88); the paint itself is the mock, so a test can
+    // count renders and see what was in place when one ran
+    _painted = vi.fn();
+    _render() {
+      this._painted();
+    }
     _effectiveReadAloudPrimaryGranularity(_state: unknown) {
       return granularity;
     }
     // Zotero's: the primary slot follows the granularity; on a segment
     // change the secondary slot gets the skip flash (handed in as
     // `state.flash` here) or null, with a two-second timer
+    // Zotero's original runs in the reader's own compartment, on the real
+    // view; the fake paints directly, so the Xray tests can hand it a
+    // wrapper that hides prototype methods
     async setReadAloudState(state: any) {
       const previous = this._readAloudState;
       this._readAloudState = state;
       if (!state.popupOpen) {
         this._readAloudHighlightedPosition = null;
         this._readAloudSentenceHighlightedPosition = null;
-        this._render();
+        this._painted();
         return;
       }
       // Zotero skips the whole update, positions and all, without an active
@@ -155,7 +164,7 @@ function fakePDF(granularity: string) {
         this._readAloudSentenceHighlightedPosition = state.flash ?? null;
         this._readAloudSentenceTimeout = state.flash ? 42 : null;
       }
-      this._render();
+      this._painted();
     }
   }
   const view = new PDFView();
@@ -409,11 +418,11 @@ describe('PDF sentence under the word', () => {
     s.attach(pdf.reader);
     await pdf.view.setReadAloudState(pdfState(A, 1));
     expect(pdf.view._readAloudSentenceHighlightedPosition).toBe(A.sourcePosition);
-    expect(pdf.view._render).toHaveBeenCalledTimes(2);
+    expect(pdf.view._painted).toHaveBeenCalledTimes(2);
     await pdf.view.setReadAloudState(pdfState(A, 2));
     expect(pdf.view._readAloudSentenceHighlightedPosition).toBe(A.sourcePosition);
     // One render per update is Zotero's own; nothing to redraw for us
-    expect(pdf.view._render).toHaveBeenCalledTimes(3);
+    expect(pdf.view._painted).toHaveBeenCalledTimes(3);
     await pdf.view.setReadAloudState(pdfState(B, 1));
     expect(pdf.view._readAloudSentenceHighlightedPosition).toBe(B.sourcePosition);
   });
@@ -956,15 +965,18 @@ describe('attach / dispose', () => {
     const { styling: s } = styling({ exportFunction });
     const originalPush = pdf.Page.prototype._pushHighlightedPosition;
     const originalSet = pdf.PDFView.prototype.setReadAloudState;
+    const originalRender = pdf.PDFView.prototype._render;
     expect(s.attach(pdf.reader)).toBe(true);
     expect(s.attach(pdf.reader)).toBe(true);
-    expect(exportFunction).toHaveBeenCalledTimes(2);
-    expect(exportFunction.mock.calls.map((c) => c[1])).toEqual([pdf.Page.prototype, pdf.PDFView.prototype]);
+    expect(exportFunction).toHaveBeenCalledTimes(3);
+    expect(exportFunction.mock.calls.map((c) => c[1])).toEqual([pdf.Page.prototype, pdf.PDFView.prototype, pdf.PDFView.prototype]);
     expect(pdf.Page.prototype._pushHighlightedPosition).not.toBe(originalPush);
+    expect(pdf.PDFView.prototype._render).not.toBe(originalRender);
 
     s.dispose();
     expect(pdf.Page.prototype._pushHighlightedPosition).toBe(originalPush);
     expect(pdf.PDFView.prototype.setReadAloudState).toBe(originalSet);
+    expect(pdf.PDFView.prototype._render).toBe(originalRender);
     await pdf.view.setReadAloudState(pdfState(A));
     expect(pdf.view._readAloudSentenceHighlightedPosition).toBeNull();
   });
@@ -978,15 +990,77 @@ describe('attach / dispose', () => {
     expect(second._getSpotlightColor('ReadAloudActiveSegment')).toBe(WORD);
   });
 
-  it('waits for the PDF pages to exist, and tolerates a reader without views', () => {
-    const pdf = fakePDF('word');
-    pdf.view._pages.length = 0;
+  it('tolerates a reader without views', () => {
     const { styling: s } = styling();
-    expect(s.attach(pdf.reader)).toBe(false);
-    pdf.view._pages.push(new pdf.Page(pdf.view));
-    expect(s.attach(pdf.reader)).toBe(true);
     expect(s.attach({ _internalReader: {} })).toBe(false);
     expect(s.attach(null)).toBe(false);
+  });
+
+  // A view has no page before pdf.js has rendered one — the first half
+  // second of a tab, a minimized window, a tab hidden for a minute — and
+  // Page.prototype is reached only through a page (issue #88)
+  it('attaches to a PDF view before its first page, and the colors land with that page, before it is painted (issue #88)', async () => {
+    const pdf = fakePDF('word');
+    pdf.view._pages.length = 0;
+    const debug = vi.fn();
+    const exportFunction = vi.fn((fn: (...args: any[]) => any, _target: object) => fn);
+    const { styling: s, deps } = styling({ debug, exportFunction });
+    const originalPush = pdf.Page.prototype._pushHighlightedPosition;
+    expect(s.attach(pdf.reader)).toBe(true);
+    expect(debug).toHaveBeenCalledWith('highlight style attached to a PDF view without pages, the colors follow its first page');
+    expect(pdf.Page.prototype._pushHighlightedPosition).toBe(originalPush);
+    expect(exportFunction.mock.calls.map((c) => c[1])).toEqual([pdf.PDFView.prototype, pdf.PDFView.prototype]);
+    expect((s.inspect(pdf.reader).views as any[])[0]).toMatchObject({ kind: 'pdf', patched: false, awaitingPage: true, pages: 0 });
+    // A second attach — the popup's open — has nothing to add
+    expect(s.attach(pdf.reader)).toBe(true);
+    expect(exportFunction).toHaveBeenCalledTimes(2);
+
+    // Zotero's _handlePageRendered creates the page, pushes it and renders
+    // the view in one go: the shadow has to be in place for that very paint
+    let patchedWhenPainted: boolean | null = null;
+    pdf.view._painted.mockImplementation(() => {
+      patchedWhenPainted = pdf.Page.prototype._pushHighlightedPosition !== originalPush;
+    });
+    pdf.view._pages.push(new pdf.Page(pdf.view, 0));
+    pdf.view._render();
+    expect(patchedWhenPainted).toBe(true);
+    expect(debug).toHaveBeenCalledWith('highlight style attached to a PDF view at its first page');
+    expect(exportFunction.mock.calls.map((c) => c[1])).toEqual([pdf.PDFView.prototype, pdf.PDFView.prototype, pdf.Page.prototype]);
+    expect((s.inspect(pdf.reader).views as any[])[0]).toMatchObject({ patched: true, awaitingPage: false, pages: 1 });
+
+    // From here the page draws in the user's colors, and a later render patches nothing again
+    await pdf.view.setReadAloudState(pdfState(A));
+    pdf.view._pages[0]._pushHighlightedPosition([], pdf.view._readAloudHighlightedPosition, ZOTERO_SEGMENT);
+    expect(pdf.pushed.map((p) => p.color)).toEqual([WORD]);
+    expect(pdf.view._readAloudSentenceHighlightedPosition).toBe(A.sourcePosition);
+    pdf.view._render();
+    expect(exportFunction).toHaveBeenCalledTimes(3);
+    expect(deps.error).not.toHaveBeenCalled();
+  });
+
+  it('finishes a split view through the shared prototypes: the page half lands once, for both views (issue #88)', () => {
+    const pdf = fakePDF('word');
+    pdf.view._pages.length = 0;
+    const second = new pdf.PDFView();
+    (pdf.reader._internalReader as any)._secondaryView = second;
+    const exportFunction = vi.fn((fn: (...args: any[]) => any, _target: object) => fn);
+    const { styling: s } = styling({ exportFunction });
+    expect(s.attach(pdf.reader)).toBe(true);
+    expect(exportFunction).toHaveBeenCalledTimes(2);
+    // The second view gets its first page first
+    second._pages.push(new pdf.Page(second, 3));
+    second._render();
+    expect(exportFunction).toHaveBeenCalledTimes(3);
+    expect(exportFunction.mock.calls[2][1]).toBe(pdf.Page.prototype);
+    const views = s.inspect(pdf.reader).views as any[];
+    expect(views.map((v) => [v.patched, v.awaitingPage, v.pages])).toEqual([
+      [true, false, 0],
+      [true, false, 1],
+    ]);
+    // The first view's own first page renders through the prototype already patched
+    pdf.view._pages.push(new pdf.Page(pdf.view, 0));
+    pdf.view._render();
+    expect(exportFunction).toHaveBeenCalledTimes(3);
   });
 
   it('describes what it sees in a reader, as plain data', async () => {
@@ -1000,6 +1074,7 @@ describe('attach / dispose', () => {
       {
         kind: 'pdf',
         patched: true,
+        awaitingPage: false,
         pages: 2,
         method: 'function',
         granularity: 'word',
@@ -1028,6 +1103,7 @@ describe('attach / dispose', () => {
       {
         kind: 'pdf',
         patched: false,
+        awaitingPage: false,
         pages: 2,
         method: 'function',
         granularity: null,

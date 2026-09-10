@@ -348,3 +348,5 @@ cite `notes/NOTES.md` with a date or a section title resolve through this index.
 - The aligner pairs tokens by longest common subsequence and bridges what the server spelled differently (issue #86)
 - Verified live: 37 and 38 spans where there were 6, and a highlight patch that never attaches to a minimized window (issue #86)
 - Zotero's block classifier throws a page's first line out of the reading order, and the plugin relinks the chain before the sentences are cut (issue #87)
+- A PDF view has no pages before its first render, none while hidden, and the highlight patch now lands with the first page instead of giving up (issue #88)
+- Verified live: the page half lands within 125 ms of the pages' return, every tab attaches at its open now, and a trusted key resumes a chrome-started player on macOS (issue #88)
