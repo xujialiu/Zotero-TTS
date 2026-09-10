@@ -491,19 +491,23 @@
     <description id="ztts-backup-message"/>
   </groupbox>
 
-  <!-- Which build this is, last in the pane and filled by ui/build-rows.ts:
-       the version startup handed the plugin, the date the xpi was built
-       (baked in by scripts/build.mjs), and who wrote it. Under it a word
-       for the repository: the sentence is the ftl message, its
-       GitHub word this label — Fluent fills the label named github and
+  <!-- Which build this is and who wrote it, last in the pane and filled by
+       ui/about-rows.ts: the version startup handed the plugin and the date
+       and time the xpi was built (baked in by scripts/build.mjs) on the
+       first line, the author and the address to write to on the second.
+       Under them a word for the repository: the sentence is the ftl message,
+       its GitHub word this label — Fluent fills the label named github and
        leaves the href alone — and the click is Zotero's text-link element's,
        straight to Zotero.launchURL, the way Zotero's own Sync pane links. -->
   <groupbox>
-    <label><html:h2 data-l10n-id="ztts-heading-build"/></label>
+    <label><html:h2 data-l10n-id="ztts-heading-about"/></label>
     <hbox align="center">
-      <label id="ztts-build-line"/>
+      <label id="ztts-about-build"/>
     </hbox>
-    <description data-l10n-id="ztts-build-star">
+    <hbox align="center">
+      <label id="ztts-about-author"/>
+    </hbox>
+    <description data-l10n-id="ztts-about-star">
       <label is="zotero-text-link" href="https://github.com/xujialiu/Zotero-TTS" data-l10n-name="github"/>
     </description>
   </groupbox>

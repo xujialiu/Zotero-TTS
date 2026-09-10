@@ -343,3 +343,4 @@ cite `notes/NOTES.md` with a date or a section title resolve through this index.
 - The follow's call is answered by the plugin: the whole sentence, both pages, against the viewport's edges (issue #83)
 - Two lines under the Sync switches, the item-20 fixture that would ping-pong, and beta numbers across worktrees (issue #68)
 - The held-provider flip measured, a switch turned back on between passes, and the key an adoption overwrites (issue #68)
+- Switching Zotero's locale with the settings window open kills Zotero, and the session restore loses a reader tab

@@ -112,14 +112,18 @@ describe('build', () => {
     }
   });
 
-  // The date the pane's Build section shows exists nowhere else: esbuild's
-  // `define` is what puts it into the bundle, and a define that stops being
-  // applied would leave the identifier standing and the row on a dash.
-  it('bakes the build date into the bundle', () => {
+  // The date and the time the pane's About section shows exist nowhere
+  // else: esbuild's `define` is what puts them into the bundle, and a define
+  // that stops being applied would leave the identifier standing and the row
+  // short. The clock is matched by shape, not by value: the assertion runs
+  // after the build, and a minute may have turned over in between.
+  it('bakes the build date and time into the bundle', () => {
     execFileSync('node', ['scripts/build.mjs'], { cwd: root, stdio: 'pipe' });
     const bundle = new AdmZip(xpi).getEntry('content/zotero-tts.js')!.getData().toString('utf8');
     expect(bundle).not.toContain('__BUILD_DATE__');
+    expect(bundle).not.toContain('__BUILD_TIME__');
     expect(bundle).toContain(`"${buildDateString()}"`);
+    expect(bundle).toMatch(/BUILD_TIME = [^;]*"([01]\d|2[0-3]):[0-5]\d:[0-5]\d UTC[+-]\d{1,2}(:[0-5]\d)?"/);
   });
 
   // Zotero runs a pane's `scripts` before it inserts the pane's markup, so

@@ -277,17 +277,20 @@ ztts-restore-from-server =
     .label = Restore settings from server…
 
 
-## Build
+## About
 
-ztts-heading-build = Build
-# The Build line's three fields (ui/build-rows.ts): `Version 1.11.0 · Date 2026-09-06 · Author Xujia Liu`
-ztts-build-version = Version { $version }
-ztts-build-date = Date { $date }
-ztts-build-author = Author { $author }
+ztts-heading-about = About
+# The About section's first line (ui/about-rows.ts): `Version 1.11.7 · Date 2026-09-10 · Time 13:45:07 UTC+8`
+ztts-about-version = Version { $version }
+ztts-about-date = Date { $date }
+ztts-about-time = Time { $time }
+# Its second line: `Author Xujia Liu · Email xujialiuphd@gmail.com`
+ztts-about-author = Author { $author }
+ztts-about-email = Email { $email }
 # The line under it, the repository: the link is named, not placed, so the
 # markup's label named github takes the text between the tags wherever a
 # language puts it
-ztts-build-star = If you like Zotero-TTS, give it a ⭐ on <label data-l10n-name="github">GitHub</label> — it helps others find it.
+ztts-about-star = If you like Zotero-TTS, give it a ⭐ on <label data-l10n-name="github">GitHub</label> — it helps others find it.
 
 
 ## What TypeScript writes into the pane (issue #43)

@@ -108,7 +108,7 @@ measured, updated for the fixes since where marked.
    the six provider sections (OpenAI, Azure, Cloudflare Workers AI,
    Speechify, the Local engine named after its engine — `Kokoro-FastAPI`, System
    voices), Voice browser, Reading, Highlight, Keyboard shortcuts,
-   WebDAV, Sync, Backup, Build. No
+   WebDAV, Sync, Backup, About. No
    clipped or overlapping text, no empty label; every `?` on its line,
    its glyph the pane's own size (issue #53, 1.10.15): every
    `.ztts-help` computes the `font-size` of its row's text (`13px` on
@@ -122,15 +122,34 @@ measured, updated for the fixes since where marked.
    a naive `previousElementSibling` reads 470.98); and
    `InspectorUtils.getMatchingCSSRules` lists the plugin's
    `label.ztts-help[value]` with `width: 1.25em` and no `font-size`.
-   The Build row `Version <build> · Date <date> · Author Xujia Liu`
-   (`src/ui/build-rows.ts`). Under it the star line (1.11.1):
-   `description[data-l10n-id="ztts-build-star"]`, in the same groupbox as
-   `#ztts-build-line` and after it, `textContent` with whitespace
+   The About section's three lines (`src/ui/about-rows.ts`, 1.11.7),
+   the last of the pane's 14 groupboxes and after Backup, its `h2`
+   `About` (`ztts-heading-about`): `#ztts-about-build` `Version <build> ·
+   Date <date> · Time <hh:mm:ss UTC±n>` — its two separators the only
+   non-ASCII in it (U+00B7) — over `#ztts-about-author` `Author Xujia
+   Liu · Email xujialiuphd@gmail.com`, in that document order.
+   `#ztts-build-line` is gone with 1.11.7 and must not resolve
+   (`getElementById` null). The three lines stack 3.00 px apart and none
+   is clipped: on Windows in an 806×617 window, build `355.68 × 17.33`
+   (the row box 584 px wide, 228 px of slack under `Version
+   1.11.7-beta7 · Date 2026-09-10 · Time 13:35:05 UTC+8`), author
+   `269.87 × 17.33`, star `584 × 17.33`, the groupbox `584 × 116.87`,
+   all four at `x 207`, and `scrollWidth == clientWidth` on all three
+   (356, 270, 584). The `y` moves with whatever the groups above it
+   hold — 539.67 / 560 / 580.33 in the 13-group pane of beta7, before
+   the WebDAV / Sync / Backup cut landed — so it is the widths, the
+   3.00 px gaps and the slack that are pinned. The rows measure 0 × 0
+   until something forces layout after `navigateToPane` —
+   `scrollIntoView` and measure in the same script (2026-09-10).
+   Under them the star line (1.11.1):
+   `description[data-l10n-id="ztts-about-star"]`, in the same groupbox as
+   `#ztts-about-author` and after it, `textContent` with whitespace
    collapsed exactly `If you like Zotero-TTS, give it a ⭐ on GitHub — it
    helps others find it.`. The clause after the link is a text node of
    its own (`" — it helps others find it."`, the dash U+2014), and the
    three parts sit on one line: the sentence measures 413.78 px inside
-   the 578 px box (macOS, 800×600, 2026-09-06).
+   the 578 px box (macOS, 800×600, 2026-09-06), 400.07 px inside 584 px
+   (Windows, 806×617, 2026-09-10).
    The `GitHub` word is Zotero's own `zotero-text-link` label, and that it
    was upgraded is what the row proves: `getAttribute('is')`
    `zotero-text-link`, `classList.contains('zotero-text-link')` true,
@@ -138,8 +157,10 @@ measured, updated for the fixes since where marked.
    `https://github.com/xujialiu/Zotero-TTS`, text `GitHub` (Fluent's
    overlay fills the child named `github` and leaves the markup's `href`),
    `typeof link.open === 'function'`. Computed: `text-decoration-line:
-   underline`, `cursor: pointer`, `color` Zotero's `LinkText`
-   (`rgb(65, 156, 255)` in the dark theme) and `margin` `0px` on all four
+   underline`, `cursor: pointer`, `color` Zotero's `LinkText` — the
+   platform accent, `rgb(65, 156, 255)` in the macOS dark theme and
+   `rgb(0, 202, 219)` in the Windows one, so the number is not pinnable
+   across platforms — and `margin` `0px` on all four
    sides — `InspectorUtils.getMatchingCSSRules` lists Zotero's
    `xul|description, xul|label` (`margin-inline: 6px 5px`,
    `global-shared.css`) beaten by `.zotero-text-link{…margin:0}` from
@@ -355,8 +376,9 @@ measured, updated for the fixes since where marked.
     `Local (N)` in that order (28 / 1452 / 787 = the 2267 of a
     2026-09-06 listing), `#ztts-voices-status` beginning `Default voice: ` (or
     `Default speed: ` / `No default voice or speed:` per the two
-    "everywhere" switches), `#ztts-build-line` `Version <build> · Date
-    <date> · Author Xujia Liu`, Test connection's `Connected. N voices
+    "everywhere" switches), `#ztts-about-build` `Version <build> · Date
+    <date> · Time <hh:mm>` over `#ztts-about-author` `Author Xujia Liu ·
+    Email xujialiuphd@gmail.com`, Test connection's `Connected. N voices
     available. …` (1.5), a shortcut field clicked `Press the new keys…
     (Esc cancels)` and Escape (4.8), the `#ztts-notice` dialog (2.9) with
     its `OK`. Run item 7's address-hint flow before the fixture session of
@@ -404,10 +426,25 @@ measured, updated for the fixes since where marked.
     and the text `GitHub` unchanged, still one line — and the stubbed
     click reports the same `https://github.com/xujialiu/Zotero-TTS`; the
     product name, `GitHub` and the URL stay English. The group's heading
-    follows Zotero (`构建信息`) while `#ztts-build-line` stays English
-    until the pane is reopened, like the other lines TypeScript paints.
+    follows Zotero (`关于`) and the star line retranslates with the pane,
+    while `#ztts-about-build` and `#ztts-about-author` stay English until
+    the pane is reopened, like the other lines TypeScript paints; reopened,
+    they read `版本 <build> · 日期 <date> · 时间 <hh:mm:ss UTC±n>` over `作者 Xujia
+    Liu · 邮箱 xujialiuphd@gmail.com` — the email, `Zotero-TTS`, `GitHub`
+    and the URL English, the two rows 277.12 and 251.55 px wide, 3.00 px
+    apart (Windows, 2026-09-10).
     Then the pref back verbatim (an empty snapshot means `requestedLocales = []`)
-    and `appLocalesAsBCP47` equal to the baseline's.
+    and `appLocalesAsBCP47` equal to the baseline's — the set, not the
+    order: its `en-*` tail reorders between reads with nothing changed.
+    **Switch the locale with no settings window open.** Switching it with
+    the pane open and closing that window some 500 ms later killed Zotero
+    on 2026-09-10 (Windows, `xul.dll` access violation `0xc0000005`), and
+    the session restore afterwards lost one of the two open reader tabs.
+    Close the pane, poll it to null, wait, switch, then open the pane
+    fresh in the new language; close it again before switching back — in
+    that order both switches were clean. If Zotero does die, its
+    `prefs.js` already holds the test locale: restore that one line while
+    it is down, or it restarts in Chinese.
 13. **The plugin's icon** (issue #60, 1.11.0). The manifest declares
     `icons` 48/96 (`content/icons/favicon@0.5x.png`,
     `content/icons/favicon.png`) and the pane registration passes no

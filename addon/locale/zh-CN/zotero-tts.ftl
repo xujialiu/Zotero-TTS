@@ -266,13 +266,15 @@ ztts-restore-from-server =
     .label = 从服务器恢复设置…
 
 
-## Build
+## About
 
-ztts-heading-build = 构建信息
-ztts-build-version = 版本 { $version }
-ztts-build-date = 日期 { $date }
-ztts-build-author = 作者 { $author }
-ztts-build-star = 如果你喜欢 Zotero-TTS，欢迎到 <label data-l10n-name="github">GitHub</label> 给它点个 ⭐——让更多人发现它。
+ztts-heading-about = 关于
+ztts-about-version = 版本 { $version }
+ztts-about-date = 日期 { $date }
+ztts-about-time = 时间 { $time }
+ztts-about-author = 作者 { $author }
+ztts-about-email = 邮箱 { $email }
+ztts-about-star = 如果你喜欢 Zotero-TTS，欢迎到 <label data-l10n-name="github">GitHub</label> 给它点个 ⭐——让更多人发现它。
 
 
 ## What TypeScript writes into the pane (issue #43)

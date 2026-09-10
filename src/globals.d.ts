@@ -18,9 +18,10 @@ declare const Localization: any;
 declare const ADDON_DISABLE: number;
 declare const ADDON_UNINSTALL: number;
 
-// Baked in by scripts/build.mjs (esbuild `define`): the date the xpi was
-// built, shown in the pane's Build section. Undefined outside a build.
+// Baked in by scripts/build.mjs (esbuild `define`): when the xpi was built,
+// shown in the pane's About section. Undefined outside a build.
 declare const __BUILD_DATE__: string | undefined;
+declare const __BUILD_TIME__: string | undefined;
 
 interface Document {
   createXULElement(name: string): HTMLElement;
