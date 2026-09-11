@@ -371,17 +371,22 @@ before the issue is written.
   **verification brief** names the xpi path, the behaviors to verify, the
   diagnostics with their expected output, and what state it may touch; a
   **research brief** names the question to settle and what state it may
-  touch, and leaves the expected output to the agent. A follow-up **on
-  the same question** goes to that same agent through `SendMessage`,
-  never a fresh `Agent` call: research is look → guess → look again, and
-  a new agent has lost the thread. **A new question gets a fresh agent**
-  (settled 2026-09-08): the next issue, another bug, a verification
-  after a research run. A resumed agent re-reads its whole transcript
-  on every call, so its cost is its context times its calls — the
+  touch, and leaves the expected output to the agent. **Choose reuse per
+  run, not just by whether the question is the same** (settled
+  2026-09-11). Resume through `SendMessage` when the agent's existing
+  evidence, live probes, and reasoning would cost more to reconstruct
+  than to carry forward. Start a fresh `zotero-tester` when its transcript
+  has grown large and a concise handoff covers what the next check needs,
+  even on the same question; a new question or verification after research
+  usually favors a fresh agent, but neither choice is automatic. Weigh
+  context size, the remaining work, and the cost of repeating discovery:
+  a resumed agent re-reads its whole transcript on every call — the
   2026-09-08 tester's fourth brief, a few state reads, cost 204k tokens
-  where a fresh agent starts from 60k — and what the new brief needs
-  from the last (the state hashes, the precautions, the fixture) is
-  written into it. What comes back is evidence — the issue, the fix and
+  where a fresh agent starts from 60k. Say briefly why the chosen route
+  costs less. A fresh brief carries the verified findings, remaining
+  question, build and state hashes, fixture, precautions, and any live
+  probes or cleanup still owed; do not leave two agents driving Zotero
+  at once. What comes back is evidence — the issue, the fix and
   the commit stay in the main session. A smaller model drives the bridge here, by
   those same rules, and budgets for the traces and screenshots landing in
   this context.

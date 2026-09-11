@@ -357,3 +357,4 @@ cite `notes/NOTES.md` with a date or a section title resolve through this index.
 ### [2026-09-11](NOTES_2026-09-11.md)
 
 - The Fish Audio section's server block is headed Local, and the player's prefixes are Fish-cloud and Fish-local (issue #89)
+- The PDF can move before its scroll event arrives, so instant scrolling still drops the follow lock (issue #85)
