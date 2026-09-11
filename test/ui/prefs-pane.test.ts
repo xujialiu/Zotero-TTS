@@ -28,6 +28,17 @@ describe('testConnection', () => {
     ({ id: 'local', capabilities: { wordTimestamps: true }, listVoices, synthesize: vi.fn() }) as unknown as TTSProvider;
   const oneVoice = async () => [{ id: 'a', label: 'a', locale: 'en-US' }];
 
+  it('asks Fish for a fresh list when checking its connection instead of reporting an old cached count', async () => {
+    const listVoices = vi.fn(async (options?: { refresh?: boolean }) => options?.refresh
+      ? [{ id: 'new', label: 'Newly published voice', locale: 'en' }]
+      : []);
+    const fish = { ...provider(listVoices), id: 'fish' } as TTSProvider;
+    const result = await testConnection(fish);
+    expect(result.ok).toBe(true);
+    expect(result.message).toContain('1 voices available');
+    expect(listVoices).toHaveBeenCalledWith({ refresh: true });
+  });
+
   it('reports how many voices were found on success', async () => {
     const result = await testConnection(provider(oneVoice));
     expect(result.ok).toBe(true);

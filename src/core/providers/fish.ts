@@ -137,6 +137,96 @@ export function fishVoiceIds(text: string): string[] {
 
 const LANGUAGE = /^[a-z]{2,3}$/i;
 
+type EnglishRegion = { locale: string; labels: readonly RegExp[] };
+
+/** Regions that Fish Audio publishes explicitly in a model's labels or tags. */
+const ENGLISH_REGIONS: readonly EnglishRegion[] = [
+  {
+    locale: 'en-US',
+    labels: [
+      /\ben[-_](?:us|usa)\b/i,
+      /\b(?:american|united states)(?:\s+english)?\b/i,
+      /\b(?:u\.?\s*s\.?|us)[ -]?(?:male|female|english|voice|narrator|storyteller|companion)\b/i,
+    ],
+  },
+  {
+    locale: 'en-GB',
+    labels: [
+      /\ben[-_](?:gb|uk)\b/i,
+      /\b(?:british|united kingdom)(?:\s+english)?\b/i,
+      /\b(?:u\.?\s*k\.?|uk)[ -]?(?:male|female|english|voice|narrator|storyteller|companion)\b/i,
+    ],
+  },
+  {
+    locale: 'en-CA',
+    labels: [/\ben[-_]ca\b/i, /\bcanadian(?:\s+english)?\b/i, /\bcanada(?:\s+english)?\b/i],
+  },
+  {
+    locale: 'en-AU',
+    labels: [/\ben[-_]au\b/i, /\baustralian(?:\s+english)?\b/i, /\baustralia(?:n)?(?:\s+english)?\b/i],
+  },
+  {
+    locale: 'en-IN',
+    labels: [/\ben[-_]in\b/i, /\bindian(?:\s+english)?\b/i, /\bindia(?:n)?(?:\s+english)?\b/i],
+  },
+  {
+    locale: 'en-NG',
+    labels: [/\ben[-_]ng\b/i, /\bnigerian(?:\s+english)?\b/i, /\bnigeria(?:n)?(?:\s+english)?\b/i],
+  },
+  {
+    locale: 'en-ZA',
+    labels: [/\ben[-_]za\b/i, /\bsouth african(?:\s+english)?\b/i, /\bsouth africa(?:n)?(?:\s+english)?\b/i],
+  },
+  {
+    locale: 'en-NZ',
+    labels: [/\ben[-_]nz\b/i, /\bnew zealand(?:\s+english)?\b/i],
+  },
+  {
+    locale: 'en-IE',
+    labels: [/\ben[-_]ie\b/i, /\birish(?:\s+english)?\b/i, /\bireland(?:\s+english)?\b/i],
+  },
+  {
+    locale: 'en-SG',
+    labels: [/\ben[-_]sg\b/i, /\bsingaporean(?:\s+english)?\b/i, /\bsingapore(?:\s+english)?\b/i],
+  },
+];
+
+const ENGLISH_REGION_CODES: ReadonlyMap<string, string> = new Map([
+  ['us', 'en-US'],
+  ['usa', 'en-US'],
+  ['gb', 'en-GB'],
+  ['uk', 'en-GB'],
+  ['ca', 'en-CA'],
+  ['au', 'en-AU'],
+  ['in', 'en-IN'],
+  ['ng', 'en-NG'],
+  ['za', 'en-ZA'],
+  ['nz', 'en-NZ'],
+  ['ie', 'en-IE'],
+  ['sg', 'en-SG'],
+  ['jm', 'en-JM'],
+  ['ke', 'en-KE'],
+  ['ph', 'en-PH'],
+  ['tt', 'en-TT'],
+]);
+
+function englishRegionFromText(values: readonly string[]): string | undefined {
+  const matches = new Set<string>();
+  for (const value of values) {
+    const tagRegion = /^en[-_]/i.test(value.trim()) ? englishRegionCode(value) : undefined;
+    if (tagRegion) matches.add(tagRegion);
+    for (const region of ENGLISH_REGIONS) {
+      if (region.labels.some((label) => label.test(value))) matches.add(region.locale);
+    }
+  }
+  return matches.size === 1 ? [...matches][0] : undefined;
+}
+
+function englishRegionCode(value: string): string | undefined {
+  const code = value.trim().replace(/^en[-_]/i, '').toLowerCase();
+  return ENGLISH_REGION_CODES.get(code);
+}
+
 /** The locale a voice is filed under: its one language (a two-letter code, BCP-47 as it is), or the multilingual group for several or none. */
 export function localeOfLanguages(languages: unknown): string {
   if (!Array.isArray(languages)) return MULTILINGUAL;
@@ -145,14 +235,31 @@ export function localeOfLanguages(languages: unknown): string {
 }
 
 /** A model as `GET /model` and `GET /model/{id}` describe it; the fields the plugin reads. */
-export type FishModel = { _id?: unknown; title?: unknown; languages?: unknown; type?: unknown; state?: unknown; dmca_taken_down?: unknown };
+export type FishModel = {
+  _id?: unknown;
+  title?: unknown;
+  languages?: unknown;
+  tags?: unknown;
+  description?: unknown;
+  type?: unknown;
+  state?: unknown;
+  dmca_taken_down?: unknown;
+};
 
-/** The voice a model is listed as: the locale in front of the id, since synthesis needs the id and the player files by the locale. */
+/** The voice a model is listed as: its grouping locale may include a published English region, while the id keeps the stable base-language prefix. */
 export function fishVoice(model: FishModel): VoiceInfo | null {
   const id = str(model._id);
   if (!id) return null;
-  const locale = localeOfLanguages(model.languages);
-  return { id: `${locale}/${id}`, label: str(model.title) || id, locale };
+  // Keep the old ID prefix even for previously unrecognized language tags;
+  // changing the display group must not invalidate a saved voice or favorite.
+  const languageLocale = localeOfLanguages(model.languages);
+  const languages = Array.isArray(model.languages) ? model.languages : [];
+  const explicitEnglish = languages.length === 1 && typeof languages[0] === 'string' && /^en[-_]/i.test(languages[0].trim())
+    ? englishRegionCode(languages[0])
+    : undefined;
+  const tags = Array.isArray(model.tags) ? model.tags.filter((tag): tag is string => typeof tag === 'string') : [];
+  const locale = explicitEnglish ?? (languageLocale === 'en' ? englishRegionFromText([str(model.title), ...tags]) : undefined) ?? languageLocale;
+  return { id: `${languageLocale}/${id}`, label: str(model.title) || id, locale };
 }
 
 /** The official list can contain service entries or models withdrawn from the library; only explicit incompatibilities are filtered. */

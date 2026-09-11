@@ -370,3 +370,6 @@ cite `notes/NOTES.md` with a date or a section title resolve through this index.
 - The public discovery window does not fit eleven seconds when fetched sequentially (issue #91)
 - Three independent Fish sources replace automatic community discovery (issue #91)
 - Verified in Zotero: all eight source combinations and the restored user state (issue #91)
+- The Cloud actions move last and English voices gain regional groups (issue #91)
+- The source choices lock with Fish and fit one row (issue #91)
+- One field-label column aligns the Fish inputs with the other providers (issue #91)

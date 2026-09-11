@@ -96,3 +96,19 @@ label.ztts-help[value]:hover {
   font-weight: 600;
   margin: 0.6em 0 0.1em;
 }
+
+/* One label column for provider fields, including the mixed text/link caption.
+   Nine em fits Voices (Model IDs) without changing its font or wrapping it. */
+.ztts-pane .ztts-field-label {
+  width: 9em;
+  margin-inline: 0 5px;
+}
+
+/* Keep the named discovery link inline with its surrounding field caption. */
+.ztts-pane description.ztts-fish-voices-label {
+  white-space: nowrap;
+  font-weight: normal;
+}
+.ztts-pane .ztts-fish-voices-label > label {
+  margin: 0;
+}

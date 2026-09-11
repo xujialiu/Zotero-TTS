@@ -734,21 +734,28 @@ final scope; the earlier draft's community search is not shipped.
    manual copy stays; turn manual off as well, with own off: only Default.
    A disabled source contributes no cached voices or stale notices.
 4. **The controls.** All three source switches start on in a profile
-   without their prefs. They stay editable while Fish is enabled. Model
-   IDs accepts multiple IDs, and the neighboring `?` includes
-   `https://fish.audio/app/discovery/`. Existing pasted links still work.
+   without their prefs. They lock while Fish is enabled and unlock after
+   Disable. The three sources occupy one horizontal row with a normal-weight
+   caption. Voices (Model IDs) accepts multiple IDs; Model IDs in that
+   caption links to discovery, and the neighboring `?` includes
+   `https://fish.audio/app/discovery/` and explains that Model ID identifies
+   a voice. Existing pasted links still work. There is no separate Find
+   Model IDs link or Refresh Fish list button. Enable/Disable and Test
+   connection follow the three source switches at the end of Cloud;
+   Local includes `github.com/fishaudio/fish-speech` in its heading.
    By eye: labels, field, and help fit the pane with no clipping; there is
    no in-plugin community search panel.
-5. **Reading guard.** With the fixture's player open, changing a source
-   or refreshing asks to stop reading. Cancel restores the checkbox and
-   leaves the pref/catalog unchanged. Agree closes the fixture player
-   before the change. Never accept a dialog naming the owner's tabs;
+5. **Reading guard.** Enabled sources are locked and ignore synthetic
+   commands. Disable retains the provider's existing reading guard: with
+   the fixture's player open, it asks to stop reading. Cancel leaves the
+   provider and source choices unchanged; agree closes the fixture player
+   before unlocking the configuration. Never accept a dialog naming the owner's tabs;
    report that positive path as unit-tested when a protected user session
    prevents it from running live.
 6. **Refresh and cache.** A repeated catalog call reuses the source
-   snapshots; an explicit refresh loads again. `diagnostics.fishVoices()`
+   snapshots; Enable or Test connection loads again. `diagnostics.fishVoices()`
    returns only `cacheHits`, `loads`, `cachedAccounts`. Reuse increases
-   hits without increasing loads; refresh increases loads. Turning a
+   hits without increasing loads; a connection check increases loads. Turning a
    source off and on takes effect even with its snapshot cached. Await
    `diagnostics.fishVoices(true)` to list through the actual provider and
    report `sources`, `count`, `ids`, and `notices` beside the counters.
@@ -782,6 +789,31 @@ backup/restore and fresh playback stayed unit-covered because the user's
 paused reader was protected. Every changed setting and reader state was
 restored; Debug storing off, auto-upload restored on; no new plugin or
 dead-object error. Full evidence: [2026-09-12 notes](../notes/NOTES_2026-09-12.md).
+
+## 1c. Fish UI refinement and English regions (issue #91, beta5)
+
+The owner first reviews the installed UI. Start a tester logic pass only
+after that approval; beta2's completed pass above does not verify beta3.
+
+- The standalone Find Model IDs link, saved-IDs hint and Refresh Fish
+  list button do not appear. Model IDs is a link inside Voices (Model IDs).
+  Its `?` explains a voice ID and names the discovery page. Voice sources
+  has normal weight, with three checkboxes on one row; all lock with the
+  provider enabled, retaining their choices. Cloud's action buttons are below the source switches; Local's
+  heading includes the Fish Speech repository address. By eye: spacing,
+  wrapping and alignment in the user's settings window. Compare the left
+  input edges of Speechify, Fish API key, Voices and Fish Speech Address:
+  they share one column, and the full inline link caption fits on one line.
+- English voices with explicit provider-published regions appear in the
+  matching regional English language groups, as Azure's do. Unmarked
+  English remains generic and multilingual models remain multilingual.
+  Compare the same model IDs before and after grouping: favorites and
+  saved selections retain their IDs. Unit fixtures cover conflicting or
+  absent region metadata without guessing an accent from a name.
+- Enable and Test connection fetch fresh Fish lists rather than merely
+  reporting a previously cached count. Existing source-union, timeout,
+  retained-manual and account-isolation behavior from section 1b still
+  applies. Use one free-model probe per check, and preserve user sessions.
 
 ## 2. The voice browser, favorites, the default voice
 

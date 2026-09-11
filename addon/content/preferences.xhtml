@@ -33,7 +33,7 @@
          and puts the preset's note into the ? beside the dropdown (its
          `help` attribute). The ? icons are styled by preferences.css. -->
     <hbox align="center">
-      <label data-l10n-id="ztts-field-server" style="width: 8em"/>
+      <label data-l10n-id="ztts-field-server" class="ztts-field-label"/>
       <menulist id="ztts-openai-server">
         <menupopup>
           <menuitem value="openai" label="OpenAI"/>
@@ -45,22 +45,22 @@
       <label id="ztts-openai-server-help" class="ztts-help" value="?"/>
     </hbox>
     <hbox align="center">
-      <label data-l10n-id="ztts-field-api-key" style="width: 8em"/>
+      <label data-l10n-id="ztts-field-api-key" class="ztts-field-label"/>
       <html:input id="ztts-openai-apiKey" type="password" preference="extensions.zotero.zotero-tts.openai.apiKey"/>
     </hbox>
     <hbox align="center">
-      <label data-l10n-id="ztts-field-base-url" style="width: 8em"/>
+      <label data-l10n-id="ztts-field-base-url" class="ztts-field-label"/>
       <html:input id="ztts-openai-baseURL" type="text" preference="extensions.zotero.zotero-tts.openai.baseURL"/>
     </hbox>
     <!-- Free text: any OpenAI-compatible server names its models as it
          likes. Test connection fills the datalist with the server's list. -->
     <hbox align="center">
-      <label data-l10n-id="ztts-field-model" style="width: 8em"/>
+      <label data-l10n-id="ztts-field-model" class="ztts-field-label"/>
       <html:input id="ztts-openai-model" type="text" list="ztts-openai-models" preference="extensions.zotero.zotero-tts.openai.model"/>
       <html:datalist id="ztts-openai-models"/>
     </hbox>
     <hbox align="center">
-      <label data-l10n-id="ztts-field-voices" style="width: 8em"/>
+      <label data-l10n-id="ztts-field-voices" class="ztts-field-label"/>
       <html:input id="ztts-openai-voices" type="text" data-l10n-id="ztts-openai-voices-input" preference="extensions.zotero.zotero-tts.openai.voices"/>
     </hbox>
     <!-- For a gateway in front of a keyless server, e.g. a Cloudflare Access
@@ -71,7 +71,7 @@
          is inert once the provider is on — which is when it should be. The
          placeholder is the format, the same in every language. -->
     <hbox align="center">
-      <label data-l10n-id="ztts-field-extra-headers" style="width: 8em"/>
+      <label data-l10n-id="ztts-field-extra-headers" class="ztts-field-label"/>
       <html:input id="ztts-openai-headers" type="password" placeholder="Name: value; Name: value" preference="extensions.zotero.zotero-tts.openai.headers"/>
       <label class="ztts-help" value="?" data-l10n-id="ztts-help-extra-headers" data-l10n-attrs="help"/>
     </hbox>
@@ -85,11 +85,11 @@
   <groupbox id="ztts-provider-azure">
     <label><html:h2>Azure</html:h2></label>
     <hbox align="center">
-      <label data-l10n-id="ztts-field-api-key" style="width: 8em"/>
+      <label data-l10n-id="ztts-field-api-key" class="ztts-field-label"/>
       <html:input type="password" preference="extensions.zotero.zotero-tts.azure.apiKey"/>
     </hbox>
     <hbox align="center">
-      <label data-l10n-id="ztts-field-region" style="width: 8em"/>
+      <label data-l10n-id="ztts-field-region" class="ztts-field-label"/>
       <html:input type="text" preference="extensions.zotero.zotero-tts.azure.region"/>
     </hbox>
     <hbox align="center">
@@ -106,11 +106,11 @@
   <groupbox id="ztts-provider-cloudflare">
     <label><html:h2>Cloudflare Workers AI</html:h2></label>
     <hbox align="center">
-      <label data-l10n-id="ztts-field-account-id" style="width: 8em"/>
+      <label data-l10n-id="ztts-field-account-id" class="ztts-field-label"/>
       <html:input type="text" preference="extensions.zotero.zotero-tts.cloudflare.accountId"/>
     </hbox>
     <hbox align="center">
-      <label data-l10n-id="ztts-field-api-token" style="width: 8em"/>
+      <label data-l10n-id="ztts-field-api-token" class="ztts-field-label"/>
       <html:input type="password" preference="extensions.zotero.zotero-tts.cloudflare.apiToken"/>
       <label class="ztts-help" value="?" data-l10n-id="ztts-help-cloudflare" data-l10n-attrs="help"/>
     </hbox>
@@ -127,7 +127,7 @@
   <groupbox id="ztts-provider-speechify">
     <label><html:h2>Speechify</html:h2></label>
     <hbox align="center">
-      <label data-l10n-id="ztts-field-api-key" style="width: 8em"/>
+      <label data-l10n-id="ztts-field-api-key" class="ztts-field-label"/>
       <html:input type="password" preference="extensions.zotero.zotero-tts.speechify.apiKey"/>
       <label class="ztts-help" value="?" data-l10n-id="ztts-help-speechify" data-l10n-attrs="help"/>
     </hbox>
@@ -148,7 +148,7 @@
     <vbox id="ztts-provider-fish">
       <label><html:h3 class="ztts-subheading" data-l10n-id="ztts-heading-fish-cloud"/></label>
       <hbox align="center">
-        <label data-l10n-id="ztts-field-api-key" style="width: 8em"/>
+        <label data-l10n-id="ztts-field-api-key" class="ztts-field-label"/>
         <html:input type="password" preference="extensions.zotero.zotero-tts.fish.apiKey"/>
         <label class="ztts-help" value="?" data-l10n-id="ztts-help-fish" data-l10n-attrs="help"/>
       </hbox>
@@ -157,48 +157,44 @@
         <label class="ztts-help" value="?" data-l10n-id="ztts-help-fish-free-only" data-l10n-attrs="help"/>
       </hbox>
       <hbox align="center">
-        <label data-l10n-id="ztts-field-model-ids" style="width: 8em"/>
+        <description class="ztts-field-label ztts-fish-voices-label" data-l10n-id="ztts-field-fish-voices">
+          <label is="zotero-text-link" href="https://fish.audio/app/discovery/" data-l10n-name="model-ids"/>
+        </description>
         <html:input id="ztts-fish-model-ids" type="text" data-l10n-id="ztts-fish-model-ids-input" data-l10n-attrs="placeholder" preference="extensions.zotero.zotero-tts.fish.voices"/>
         <label class="ztts-help" value="?" data-l10n-id="ztts-help-fish-model-ids" data-l10n-attrs="help"/>
-        <label is="zotero-text-link" href="https://fish.audio/app/discovery/" data-l10n-id="ztts-fish-discovery-link"/>
       </hbox>
-      <hbox align="center">
-        <button id="ztts-enable-fish"/>
-        <button id="ztts-test-fish" data-l10n-id="ztts-test-connection"/>
-        <description id="ztts-test-result-fish"/>
-      </hbox>
-    </vbox>
-    <vbox id="ztts-fish-sources">
-      <label><html:h3 class="ztts-subheading" data-l10n-id="ztts-heading-fish-sources"/></label>
-      <hbox align="center">
-        <checkbox id="ztts-fish-include-official" data-l10n-id="ztts-fish-include-official" data-l10n-attrs="label"/>
-        <label class="ztts-help" value="?" data-l10n-id="ztts-help-fish-include-official" data-l10n-attrs="help"/>
-      </hbox>
-      <hbox align="center">
-        <checkbox id="ztts-fish-include-own" data-l10n-id="ztts-fish-include-own" data-l10n-attrs="label"/>
-        <label class="ztts-help" value="?" data-l10n-id="ztts-help-fish-include-own" data-l10n-attrs="help"/>
-      </hbox>
-      <hbox align="center">
-        <checkbox id="ztts-fish-include-manual" data-l10n-id="ztts-fish-include-manual" data-l10n-attrs="label"/>
-        <label class="ztts-help" value="?" data-l10n-id="ztts-help-fish-include-manual" data-l10n-attrs="help"/>
-        <description id="ztts-fish-manual-hint"/>
-      </hbox>
-      <hbox align="center">
-        <button id="ztts-fish-refresh" data-l10n-id="ztts-fish-refresh"/>
-        <description id="ztts-fish-refresh-status"/>
+      <hbox id="ztts-fish-sources" align="center">
+        <label data-l10n-id="ztts-heading-fish-sources" class="ztts-field-label" style="font-weight: normal"/>
+        <hbox align="center">
+          <checkbox id="ztts-fish-include-official" data-l10n-id="ztts-fish-include-official" data-l10n-attrs="label"/>
+          <label class="ztts-help" value="?" data-l10n-id="ztts-help-fish-include-official" data-l10n-attrs="help"/>
+        </hbox>
+        <hbox align="center" style="margin-inline-start: 8px">
+          <checkbox id="ztts-fish-include-own" data-l10n-id="ztts-fish-include-own" data-l10n-attrs="label"/>
+          <label class="ztts-help" value="?" data-l10n-id="ztts-help-fish-include-own" data-l10n-attrs="help"/>
+        </hbox>
+        <hbox align="center" style="margin-inline-start: 8px">
+          <checkbox id="ztts-fish-include-manual" data-l10n-id="ztts-fish-include-manual" data-l10n-attrs="label"/>
+          <label class="ztts-help" value="?" data-l10n-id="ztts-help-fish-include-manual" data-l10n-attrs="help"/>
+        </hbox>
       </hbox>
     </vbox>
+    <hbox id="ztts-fish-cloud-actions" align="center">
+      <button id="ztts-enable-fish"/>
+      <button id="ztts-test-fish" data-l10n-id="ztts-test-connection"/>
+      <description id="ztts-test-result-fish"/>
+    </hbox>
     <vbox id="ztts-provider-fishspeech">
       <label><html:h3 class="ztts-subheading" data-l10n-id="ztts-heading-fish-speech"/></label>
       <hbox align="center">
-        <label data-l10n-id="ztts-field-address" style="width: 8em"/>
+        <label data-l10n-id="ztts-field-address" class="ztts-field-label"/>
         <html:input type="text" preference="extensions.zotero.zotero-tts.fishspeech.baseURL"/>
         <label class="ztts-help" value="?" data-l10n-id="ztts-help-fish-speech" data-l10n-attrs="help"/>
       </hbox>
       <!-- Same format as the OpenAI section's, and masked for the same
            reason: a gateway's token, or the server's own api key as a bearer. -->
       <hbox align="center">
-        <label data-l10n-id="ztts-field-extra-headers" style="width: 8em"/>
+        <label data-l10n-id="ztts-field-extra-headers" class="ztts-field-label"/>
         <html:input type="password" placeholder="Name: value; Name: value" preference="extensions.zotero.zotero-tts.fishspeech.headers"/>
         <label class="ztts-help" value="?" data-l10n-id="ztts-help-extra-headers" data-l10n-attrs="help"/>
       </hbox>
@@ -216,14 +212,14 @@
          onPaneLoad. -->
     <label><html:h2 id="ztts-local-heading"/></label>
     <hbox align="center">
-      <label data-l10n-id="ztts-field-address" style="width: 8em"/>
+      <label data-l10n-id="ztts-field-address" class="ztts-field-label"/>
       <html:input type="text" preference="extensions.zotero.zotero-tts.local.baseURL"/>
     </hbox>
     <!-- Same format as the OpenAI section's, and masked for the same
          reason: for a gateway in front of the server, e.g. a Cloudflare
          Access service token. -->
     <hbox align="center">
-      <label data-l10n-id="ztts-field-extra-headers" style="width: 8em"/>
+      <label data-l10n-id="ztts-field-extra-headers" class="ztts-field-label"/>
       <html:input type="password" placeholder="Name: value; Name: value" preference="extensions.zotero.zotero-tts.local.headers"/>
       <label class="ztts-help" value="?" data-l10n-id="ztts-help-extra-headers" data-l10n-attrs="help"/>
     </hbox>
@@ -499,15 +495,15 @@
   <groupbox>
     <label><html:h2 data-l10n-id="ztts-heading-webdav"/></label>
     <hbox align="center">
-      <label data-l10n-id="ztts-field-webdav-url" style="width: 8em"/>
+      <label data-l10n-id="ztts-field-webdav-url" class="ztts-field-label"/>
       <html:input type="text" placeholder="https://dav.example.com/zotero-tts/" preference="extensions.zotero.zotero-tts.webdav.url"/>
     </hbox>
     <hbox align="center">
-      <label data-l10n-id="ztts-field-username" style="width: 8em"/>
+      <label data-l10n-id="ztts-field-username" class="ztts-field-label"/>
       <html:input type="text" preference="extensions.zotero.zotero-tts.webdav.username"/>
     </hbox>
     <hbox align="center">
-      <label data-l10n-id="ztts-field-password" style="width: 8em"/>
+      <label data-l10n-id="ztts-field-password" class="ztts-field-label"/>
       <html:input type="password" preference="extensions.zotero.zotero-tts.webdav.password"/>
     </hbox>
     <hbox align="center">
@@ -556,7 +552,7 @@
     </hbox>
     <label class="ztts-caption" data-l10n-id="ztts-backup-on-server"/>
     <hbox align="center">
-      <label data-l10n-id="ztts-field-this-computer" style="width: 8em"/>
+      <label data-l10n-id="ztts-field-this-computer" class="ztts-field-label"/>
       <html:input id="ztts-webdav-machine-id" type="text"/>
       <label class="ztts-help" value="?" data-l10n-id="ztts-help-this-computer" data-l10n-attrs="help"/>
     </hbox>

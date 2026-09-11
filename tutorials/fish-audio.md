@@ -45,26 +45,32 @@ The three source switches start on and work independently.
   Model IDs yourself.
 - **Your voices.** Voices created by your Fish Audio account are listed
   without pasting their IDs.
-- **Manual voices.** Offers the voices entered in **Model IDs**. Turning
+- **Manual voices.** Offers the voices entered in **Voices (Model IDs)**. Turning
   this switch off hides them without erasing the saved IDs.
-- **Model IDs.** Find a voice on the
-  [Fish Audio discovery page](https://fish.audio/app/discovery/), copy its
-  Model ID, and paste it here. Separate several with commas or spaces.
+- **Voices (Model IDs).** Fish Audio calls each voice's identifier its
+  Model ID. Click **Model IDs** in the field label to open the
+  [Fish Audio discovery page](https://fish.audio/app/discovery/). Choose
+  a voice, copy its Model ID, and paste it here. Separate several with commas or spaces.
   The **?** beside the field points to that page. Existing pasted voice
   links still work. To edit the field, **Disable** the cloud block first,
   then **Enable** it again.
-- **Changing a source.** The switches remain available while Fish Audio
-  is enabled. If a player is open, changing a source asks to stop reading
-  first. A duplicate voice appears only once and stays listed as long as
-  an enabled source supplies it.
+- **Changing a source.** **Disable** Fish Audio first to unlock its
+  source choices, then **Enable** it after making changes. If a player
+  is open, disabling asks to stop reading first. A duplicate voice
+  appears only once and stays listed as long as an enabled source
+  supplies it.
 - **Language.** Voices are grouped by their language, or under
-  *Multiple languages* when they list several.
+  *Multiple languages* when they list several. English voices with a
+  published regional accent are grouped separately, such as English
+  (United States), English (United Kingdom), and English (India).
+  English voices without a region stay under English.
 - **Default.** The model's own voice remains available even with all three
   sources off.
-- **Refresh.** Loaded lists are reused until Zotero restarts. Refresh the
-  Fish Audio list to see newly created or published voices. If a refresh
-  fails, the browser keeps the last successful list with a warning;
-  changing the API key does not reuse another account's list.
+- **Updating the list.** **Enable** and **Test connection** reload the
+  Fish Audio voice list. Repeated openings reuse the loaded list until
+  Zotero restarts. A failed list reload keeps the last successful voices
+  with a warning; changing the API key does not reuse another account's
+  list.
 
 **Test connection** counts the listed voices and checks that the model
 can speak. A manually entered voice whose page has gone is listed as

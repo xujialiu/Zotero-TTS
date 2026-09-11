@@ -91,7 +91,7 @@ export async function testConnection(
       (async () => {
         if (provider.listModels) models = await provider.listModels();
         else await provider.checkConnection?.();
-        return { voices: await provider.listVoices() };
+        return { voices: await (provider.id === 'fish' ? provider.listVoices({ refresh: true }) : provider.listVoices()) };
       })(),
       timeoutMs,
       timeout,
@@ -631,28 +631,10 @@ export function onPaneLoad(doc: Document, hooks: PaneHooks = {}): void {
   const fishVoiceSources = initFishVoiceSources(doc, {
     prefs,
     fishEnabled: () => loadSettings(prefs).fish.enabled,
-    provider: () => {
-      const settings = loadSettings(prefs);
-      return settings.fish.enabled ? createProvider('fish', settings, providerDeps()) : null;
-    },
-    reloadCatalog: () => voiceBrowserRows.load(),
     watch: (name, onChange) => {
       const token = Zotero.Prefs.registerObserver(name, onChange);
       return () => Zotero.Prefs.unregisterObserver(token);
     },
-    configKey: () => {
-      const fish = loadSettings(prefs).fish;
-      return JSON.stringify({
-        enabled: fish.enabled,
-        apiKey: fish.apiKey,
-        freeOnly: fish.freeOnly,
-        includeOfficial: fish.includeOfficial,
-        includeOwn: fish.includeOwn,
-        includeManual: fish.includeManual,
-      });
-    },
-    createAbortController: newPaneAbortController,
-    ...readingGuard,
   });
   // The observers must not outlive the pane: the window closing is their end
   win?.addEventListener(

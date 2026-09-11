@@ -120,6 +120,10 @@ describe('localeOfLanguages', () => {
     expect(localeOfLanguages(undefined)).toBe('mul');
     expect(localeOfLanguages(['not a code'])).toBe('mul');
   });
+
+  it('keeps the legacy ID prefix for language tags the earlier provider did not recognize', () => {
+    expect(localeOfLanguages(['en-US'])).toBe('mul');
+  });
 });
 
 describe('fishVoice', () => {
@@ -131,6 +135,44 @@ describe('fishVoice', () => {
   it('names a voice by its id without a title, and answers null for an entry without an id', () => {
     expect(fishVoice({ _id: ID_A, languages: ['ja'] })).toEqual({ id: `ja/${ID_A}`, label: ID_A, locale: 'ja' });
     expect(fishVoice({ title: 'Nobody' })).toBeNull();
+  });
+
+  it.each([
+    ['Canadian English', 'en-CA', ['en-ca']],
+    ['Australian English', 'en-AU', ['en-au']],
+    ['British English', 'en-GB', []],
+    ['US male', 'en-US', []],
+    ['Indian English', 'en-IN', []],
+  ])('files a clearly published %s voice under its region while retaining the stable English id', (label, locale, tags) => {
+    const title = `Avery — ${label}`;
+    expect(fishVoice({ ...model(ID_A, title), tags })).toEqual({ id: `en/${ID_A}`, label: title, locale });
+  });
+
+  it('uses an explicit regional language tag without changing the stable id', () => {
+    const voice = fishVoice(model(ID_A, 'regional voice', ['en-US']));
+    expect(voice).toEqual({ id: `mul/${ID_A}`, label: 'regional voice', locale: 'en-US' });
+  });
+
+  it('uses the published region tag even when the title has no region', () => {
+    expect(fishVoice({ ...model(ID_A, 'regional voice'), tags: ['en-ca'] })).toEqual({ id: `en/${ID_A}`, label: 'regional voice', locale: 'en-CA' });
+  });
+
+  it('does not regroup other languages or infer an accent from a description’s target audience', () => {
+    expect(fishVoice(model(ID_A, 'Chinese voice', ['zh-CN']))).toEqual({ id: `mul/${ID_A}`, label: 'Chinese voice', locale: 'mul' });
+    expect(fishVoice({ ...model(ID_B, 'Narrator'), description: 'Ideal for British travel advertisements.' })).toEqual({ id: `en/${ID_B}`, label: 'Narrator', locale: 'en' });
+  });
+
+  it('keeps conflicting regional tags under generic English', () => {
+    expect(fishVoice({ ...model(ID_A, 'Canadian voice'), tags: ['en-ca', 'en-us'] })?.locale).toBe('en');
+  });
+
+  it('does not infer an accent from an unmarked name, and multilingual models stay multilingual', () => {
+    expect(fishVoice(model(ID_A, 'Aarav'))).toEqual({ id: `en/${ID_A}`, label: 'Aarav', locale: 'en' });
+    expect(fishVoice({ ...model(ID_B, 'Aarav — Male Indian multilingual (EN)', ['ru', 'ar', 'en', 'es', 'fr']), tags: ['indian'] })).toEqual({
+      id: `mul/${ID_B}`,
+      label: 'Aarav — Male Indian multilingual (EN)',
+      locale: 'mul',
+    });
   });
 });
 
