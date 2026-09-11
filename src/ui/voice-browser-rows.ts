@@ -1,5 +1,5 @@
 import { t } from '../core/l10n';
-import { MULTILINGUAL, type ProviderId } from '../core/providers/types';
+import { MULTILINGUAL, type ProviderId, type VoiceListNotice } from '../core/providers/types';
 import { clampSpeed, readPersistedSpeed } from '../core/read-aloud-speed';
 import { sampleTextForLocale } from '../core/sample-text';
 import { PREF_PREFIX, type PrefsBackend } from '../core/settings';
@@ -327,6 +327,13 @@ export function defaultVoiceLine(choice: VoiceChoice | null, home: BrowserVoice 
 
 const describeError = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
+/** A catalog notice is part of the listing result, so the browser and diagnostics explain the same limited or stale Fish list. */
+function describeListNotice(notice: VoiceListNotice): string {
+  if (notice.kind === 'limited') return t('ztts-fish-list-limited');
+  const detail = notice.detail?.trim();
+  return detail ? t('ztts-fish-list-stale', { detail }) : t('ztts-fish-list-stale-no-detail');
+}
+
 /**
  * One line of every column: a tier or language entry, and a voice row with
  * its glyph buttons and label, are this many ems of text with LINE_PADDING
@@ -388,6 +395,10 @@ export async function listBrowserVoices(deps: Pick<VoiceBrowserDeps, 'listCatalo
     // Zotero's own failures already name Zotero (read-aloud/zotero-voices.ts)
     deps.listZoteroVoices?.().catch(failed(false)) ?? Promise.resolve([]),
   ]);
+  for (const entry of catalog) {
+    const notices = (entry as CatalogEntry & { notices?: VoiceListNotice[] }).notices ?? [];
+    for (const notice of notices) problems.push(describeListNotice(notice));
+  }
   return { voices: browserVoices(catalog, zoteroVoices), problems };
 }
 

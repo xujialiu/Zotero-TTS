@@ -34,6 +34,7 @@ import { initHighlightRows } from './highlight-rows';
 import { initPrefetchRows, PREFETCH_ENABLED_OBSERVER } from './prefetch-rows';
 import { initProviderRows } from './provider-rows';
 import { createSamplePlayer, initVoiceBrowserRows } from './voice-browser-rows';
+import { initFishVoiceSources } from './fish-voice-sources';
 import { initVoiceListSwitches } from './voice-list-switches';
 import { GLOBAL_SPEED_OBSERVER } from '../read-aloud/default-speed';
 import { SAME_VOICE_OBSERVER } from '../read-aloud/default-voice';
@@ -403,7 +404,7 @@ export async function runConnectionCheck(prefs: PrefsBackend, id: ProviderId, de
     const provider = createProvider(id, settings, deps);
     outcome = await testConnection(provider, {
       model: id === 'openai' ? settings.openai.model : undefined,
-      synthesisVoice: id === 'azure' ? settings.azure.voice : undefined,
+      synthesisVoice: id === 'azure' ? settings.azure.voice : id === 'fish' ? 'mul/default' : undefined,
       // The System provider defines checkSynthesis only where it has no
       // word marks to probe (macOS): one real `say`, caught here not mid-sentence
       // Cloudflare's first listed voice is a MeloTTS one, the cheapest probe it has;
@@ -505,7 +506,12 @@ export function onPaneLoad(doc: Document, hooks: PaneHooks = {}): void {
   // rules, and the System voices note written for this platform (ui/platform-class.ts)
   markPlatform(doc, { isMac: Zotero.isMac, isWin: Zotero.isWin });
   /** Providers are built from this everywhere in the pane, so the samples and the checks reach the same speech helper the readers do. */
-  const providerDeps = (): ProviderDeps => hooks.providerDeps?.() ?? { fetch, getWebSocket: getChromeWebSocket, newRequestId };
+  const newPaneAbortController = (): AbortController | null => {
+    const ctor = doc.defaultView?.AbortController;
+    return typeof ctor === 'function' ? new ctor() : null;
+  };
+  const providerDeps = (): ProviderDeps =>
+    hooks.providerDeps?.() ?? { fetch, getWebSocket: getChromeWebSocket, newRequestId, newAbortController: newPaneAbortController };
   const shortcutRows = initShortcutRows(doc, prefs, Zotero.isMac ? 'Cmd' : Zotero.isWin ? 'Win' : 'Super');
   const presetRows = initServerPresetRows(doc, prefs);
   // The ? icons: their text opens at once, not after Zotero's tooltip delay (ui/help-tips.ts)
@@ -575,7 +581,7 @@ export function onPaneLoad(doc: Document, hooks: PaneHooks = {}): void {
       const settings = loadSettings(prefs);
       return withTimeout(
         listNamedCatalog(settings, (id) => createProvider(id, settings, providerDeps()), (e) => Zotero.logError(e), {
-          newAbortController: () => (typeof win?.AbortController === 'function' ? new win.AbortController() : null),
+          newAbortController: newPaneAbortController,
         }),
         CATALOG_CAP_MS,
         () => new SynthesisError('network', t('ztts-no-voice-list', { seconds: Math.round(CATALOG_CAP_MS / 1000) })),
@@ -622,10 +628,37 @@ export function onPaneLoad(doc: Document, hooks: PaneHooks = {}): void {
       return () => Zotero.Prefs.unregisterObserver(token);
     },
   });
+  const fishVoiceSources = initFishVoiceSources(doc, {
+    prefs,
+    fishEnabled: () => loadSettings(prefs).fish.enabled,
+    provider: () => {
+      const settings = loadSettings(prefs);
+      return settings.fish.enabled ? createProvider('fish', settings, providerDeps()) : null;
+    },
+    reloadCatalog: () => voiceBrowserRows.load(),
+    watch: (name, onChange) => {
+      const token = Zotero.Prefs.registerObserver(name, onChange);
+      return () => Zotero.Prefs.unregisterObserver(token);
+    },
+    configKey: () => {
+      const fish = loadSettings(prefs).fish;
+      return JSON.stringify({
+        enabled: fish.enabled,
+        apiKey: fish.apiKey,
+        freeOnly: fish.freeOnly,
+        includeOfficial: fish.includeOfficial,
+        includeOwn: fish.includeOwn,
+        includeManual: fish.includeManual,
+      });
+    },
+    createAbortController: newPaneAbortController,
+    ...readingGuard,
+  });
   // The observers must not outlive the pane: the window closing is their end
   win?.addEventListener(
     'unload',
     () => {
+      fishVoiceSources.dispose();
       voiceBrowserRows.dispose();
       prefetchRows.dispose();
       voiceListSwitches.dispose();
@@ -642,7 +675,10 @@ export function onPaneLoad(doc: Document, hooks: PaneHooks = {}): void {
     prefs,
     ...readingGuard,
     check: (id) => checkProvider(doc, prefs, id, providerDeps()),
-    onVoicesChanged: () => void voiceBrowserRows.load(),
+    onVoicesChanged: () => {
+      fishVoiceSources.refresh();
+      void voiceBrowserRows.load();
+    },
     onSwitched: (id, on) => {
       if (id === 'system' && on) void adoptSystemVoices(prefs, providerDeps(), hooks);
     },
@@ -651,6 +687,9 @@ export function onPaneLoad(doc: Document, hooks: PaneHooks = {}): void {
       if (id === 'openai') presetRows.refresh();
     },
   });
+  // ProviderRows paints its fields once during construction; apply the
+  // Manual voices source lock after that first paint too.
+  fishVoiceSources.refresh();
   const localHeading = doc.getElementById('ztts-local-heading');
   if (localHeading) localHeading.textContent = engineLabel(loadSettings(prefs).local.engine);
 
@@ -672,6 +711,7 @@ export function onPaneLoad(doc: Document, hooks: PaneHooks = {}): void {
       // locks follow (after the preset rows, which gray their fields
       // first), and the voices are listed again
       providerRows.refresh();
+      fishVoiceSources.refresh();
       void voiceBrowserRows.load();
     },
     // A restore writes the provider switches straight to the prefs, so it

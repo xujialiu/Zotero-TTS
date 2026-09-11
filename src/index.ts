@@ -1,5 +1,5 @@
 import { getChromeWebSocket, newRequestId } from './core/providers/azure';
-import { createProvider } from './core/providers/factory';
+import { createProvider, getFishVoiceCacheStats } from './core/providers/factory';
 import type { SpeechBackend } from './core/providers/system/backend';
 import { createDaemon, type DaemonProcess } from './core/providers/system/daemon';
 import { encodeCommand, WINDOWS_DAEMON_SCRIPT, WINDOWS_POWERSHELL, windowsCommandArguments } from './core/providers/system/daemon-script.win';
@@ -308,7 +308,7 @@ function speechDeps(): SystemProviderDeps {
 }
 
 function providerDeps() {
-  return { fetch, getWebSocket: getChromeWebSocket, newRequestId, system: speechDeps() };
+  return { fetch, getWebSocket: getChromeWebSocket, newRequestId, system: speechDeps(), newAbortController: newChromeAbortController };
 }
 
 /**
@@ -1919,6 +1919,20 @@ const appLanguageName = (code: string) => languageDisplayName(code, Zotero.local
 
 /** For Tools → Developer → Run JavaScript: `Zotero.ZoteroTTS.diagnostics.highlight()` etc. */
 const diagnostics = {
+  /** Cache reuse and, on request, the provider's actual source union. Never returns credentials. */
+  fishVoices: async (list = false) => {
+    if (!list) return JSON.stringify(getFishVoiceCacheStats(fetch));
+    const settings = loadSettings(prefs);
+    const provider = createProvider('fish', settings, providerDeps());
+    const voices = await withTimeout(provider.listVoices(), CATALOG_CAP_MS, () => new Error('Fish Audio voice list timed out'));
+    return JSON.stringify({
+      ...getFishVoiceCacheStats(fetch),
+      sources: { official: settings.fish.includeOfficial, own: settings.fish.includeOwn, manual: settings.fish.includeManual },
+      count: voices.length,
+      ids: voices.map((voice) => voice.id),
+      notices: provider.voiceListNotices?.() ?? [],
+    });
+  },
   /**
    * Whether this instance actually started: the outcome of every startup
    * step (core/startup-steps.ts), `failed` empty when all of it is

@@ -27,6 +27,24 @@ function fakePrefs(initial: Record<string, unknown> = {}): PrefsBackend & { stor
 }
 
 describe('loadSettings', () => {
+  it('offers all three Fish voice sources for existing profiles without the new preferences', () => {
+    expect(loadSettings(fakePrefs()).fish).toMatchObject({ includeOfficial: true, includeOwn: true, includeManual: true });
+  });
+
+  it('round-trips independent Fish source switches without erasing manual model IDs', () => {
+    const prefs = fakePrefs({
+      [PREF_PREFIX + 'fish.includeOfficial']: false,
+      [PREF_PREFIX + 'fish.includeOwn']: true,
+      [PREF_PREFIX + 'fish.includeManual']: false,
+      [PREF_PREFIX + 'fish.voices']: 'a'.repeat(32),
+    });
+    const settings = loadSettings(prefs);
+    expect(settings.fish).toMatchObject({ includeOfficial: false, includeOwn: true, includeManual: false, voices: 'a'.repeat(32) });
+    const restored = fakePrefs();
+    saveSettings(restored, settings);
+    expect(loadSettings(restored).fish).toEqual(settings.fish);
+  });
+
   it('returns the defaults when nothing is stored', () => {
     expect(loadSettings(fakePrefs())).toEqual(DEFAULTS);
   });

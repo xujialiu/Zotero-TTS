@@ -5,10 +5,12 @@ import {
   MODEL_FREE,
   MODEL_PAID,
   MP3_BITRATE,
+  OFFICIAL_AUTHOR_ID,
   PAGE_SIZE,
   RATE_LIMIT_RETRIES,
   RETRY_DELAY_MS,
   createFishProvider,
+  FishVoiceCache,
   decodeFishVoice,
   fishReason,
   fishVoice,
@@ -51,6 +53,19 @@ const model = (_id: string, title: string, languages: string[] = ['en']) => ({
 });
 const page = (items: unknown[], has_more = false) =>
   Response.json({ max_offset: 10000, accessible_upper_bound: 0, window_limited: false, total_is_exact: true, total: items.length, items, has_more });
+const publicPage = (
+  items: unknown[],
+  options: { has_more?: boolean; window_limited?: boolean; total_is_exact?: boolean; total?: number; max_offset?: number; accessible_upper_bound?: number } = {},
+) =>
+  Response.json({
+    max_offset: options.max_offset ?? items.length,
+    accessible_upper_bound: options.accessible_upper_bound ?? items.length,
+    window_limited: options.window_limited ?? false,
+    total_is_exact: options.total_is_exact ?? true,
+    total: options.total ?? items.length,
+    items,
+    has_more: options.has_more ?? false,
+  });
 /** A refusal in Fish's shape, plus whatever header the gateway adds. */
 const refusal = (status: number, message: string, headers: Record<string, string> = {}) => Response.json({ status, message }, { status, headers });
 
@@ -73,6 +88,16 @@ const call = (fetchImpl: any, index = 0): { url: string; init: RequestInit & { h
   const [url, init] = fetchImpl.mock.calls[index];
   return { url, init, body: init?.body ? JSON.parse(init.body as string) : undefined };
 };
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (reason: unknown) => void;
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return { promise, resolve, reject };
+}
 
 describe('fishVoiceIds', () => {
   it('finds every 32-hex id in what was pasted — ids, links, any separator — once each, lowercased', () => {
@@ -176,7 +201,7 @@ describe('fishReason', () => {
 describe('listVoices', () => {
   it('lists the account\'s own voices page by page under their locales, then the default voice', async () => {
     const fetchImpl = vi.fn(async (url: string) => (url.includes('page_number=1') ? page([model(ID_A, 'jjk narrator'), model(ID_B, '中文', ['zh'])], true) : page([model(ID_C, 'Both', ['es', 'en'])])));
-    const voices = await provider(fetchImpl).listVoices({ signal: controller.signal });
+    const voices = await provider(fetchImpl, { includeOfficial: false }).listVoices({ signal: controller.signal });
     expect(voices).toEqual([
       { id: `en/${ID_A}`, label: 'jjk narrator', locale: 'en' },
       { id: `zh/${ID_B}`, label: '中文', locale: 'zh' },
@@ -185,8 +210,8 @@ describe('listVoices', () => {
     ]);
     expect(call(fetchImpl).url).toBe(`${FISH_API}/model?self=true&page_size=${PAGE_SIZE}&page_number=1`);
     expect(call(fetchImpl).init.headers.Authorization).toBe('Bearer sk-fish-test');
-    expect(call(fetchImpl).init.signal).toBe(controller.signal);
-    expect(call(fetchImpl, 1).url).toBe(`${FISH_API}/model?self=true&page_size=${PAGE_SIZE}&page_number=2`);
+    expect(call(fetchImpl).init.signal).toBeUndefined();
+    expect(fetchImpl.mock.calls.map(([url]) => url)).toContain(`${FISH_API}/model?self=true&page_size=${PAGE_SIZE}&page_number=2`);
   });
 
   it('resolves the pasted ids one by one, skips those the account owns, and lists an id the library does not know as not found', async () => {
@@ -196,10 +221,12 @@ describe('listVoices', () => {
       if (url.endsWith(`/model/${ID_C}`)) return refusal(404, 'Model not found');
       throw new Error(`unexpected ${url}`);
     });
-    const voices = await provider(fetchImpl, { voices: `https://fish.audio/m/${ID_B}/ ${ID_A} ${ID_C}` }).listVoices();
+    const p = provider(fetchImpl, { includeOfficial: false, voices: `https://fish.audio/m/${ID_B}/ ${ID_A} ${ID_C}` });
+    const voices = await p.listVoices();
     expect(voices.map((v) => v.label)).toEqual(['Own', 'Paddington', `${ID_C} (not found)`, 'Default']);
     expect(voices[2]).toEqual({ id: `mul/${ID_C}`, label: `${ID_C} (not found)`, locale: 'mul' });
     expect(fetchImpl.mock.calls.map(([url]) => url)).toEqual([`${FISH_API}/model?self=true&page_size=${PAGE_SIZE}&page_number=1`, `${FISH_API}/model/${ID_B}`, `${FISH_API}/model/${ID_C}`]);
+    expect(p.voiceListNotices?.()).toEqual([]);
   });
 
   it('reports a wrong key as an auth error — the list answers 401 in plain text', async () => {
@@ -213,11 +240,382 @@ describe('listVoices', () => {
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 
-  it('reports a server that cannot be reached as a network error', async () => {
+  it('keeps Default and reports a stale notice when the server cannot be reached', async () => {
     const fetchImpl = vi.fn(async () => {
       throw new TypeError('NetworkError');
     });
-    await expect(provider(fetchImpl).listVoices()).rejects.toMatchObject({ kind: 'network' });
+    const p = provider(fetchImpl);
+    await expect(p.listVoices()).resolves.toEqual([{ id: `mul/${DEFAULT_VOICE}`, label: 'Default', locale: 'mul' }]);
+    expect(p.voiceListNotices?.()).toEqual([{ kind: 'stale', detail: expect.stringContaining('cannot reach') }]);
+  });
+
+  it('merges official and own voices, deduplicating by raw model id and keeping a limit notice', async () => {
+    const fetchImpl = vi.fn(async (url: string) => {
+      if (url.includes('self=true')) return page([model(ID_A, 'Own A')]);
+      if (url.includes(`author_id=${OFFICIAL_AUTHOR_ID}`) && (url.includes('page_number=1&') || url.endsWith('page_number=1'))) return publicPage([model(ID_A, 'Official A'), model(ID_B, 'Official B')], { has_more: true, window_limited: true, total_is_exact: false, total: 1100, max_offset: 1000, accessible_upper_bound: 1000 });
+      if (url.includes(`author_id=${OFFICIAL_AUTHOR_ID}`)) return publicPage([model(ID_C, 'Official C')], { window_limited: true, total_is_exact: false, total: 1100, max_offset: 1000, accessible_upper_bound: 1000 });
+      throw new Error(`unexpected ${url}`);
+    });
+    const p = provider(fetchImpl, { includeManual: false });
+    const voices = await p.listVoices();
+    expect(voices.map((v) => v.id)).toEqual([`en/${ID_A}`, `en/${ID_B}`, `en/${ID_C}`, `mul/${DEFAULT_VOICE}`]);
+    expect(voices[0].label).toBe('Official A');
+    expect(p.voiceListNotices?.()).toEqual([{ kind: 'limited' }]);
+  });
+
+  it.each([
+    [false, false, false],
+    [false, false, true],
+    [false, true, false],
+    [false, true, true],
+    [true, false, false],
+    [true, false, true],
+    [true, true, false],
+    [true, true, true],
+  ])('fetches exactly the enabled sources (%s official, %s own, %s manual)', async (includeOfficial, includeOwn, includeManual) => {
+    const fetchImpl = vi.fn(async (url: string) => {
+      if (url.includes(`author_id=${OFFICIAL_AUTHOR_ID}`)) return publicPage([model(ID_A, 'Official')]);
+      if (url.includes('self=true')) return page([model(ID_B, 'Own')]);
+      if (url.endsWith(`/model/${ID_C}`)) return Response.json(model(ID_C, 'Manual'));
+      throw new Error(`unexpected ${url}`);
+    });
+    const p = provider(fetchImpl, { includeOfficial, includeOwn, includeManual, voices: ID_C });
+    const voices = await p.listVoices();
+    const expected = [
+      ...(includeOfficial ? [{ id: `en/${ID_A}`, label: 'Official', locale: 'en' }] : []),
+      ...(includeOwn ? [{ id: `en/${ID_B}`, label: 'Own', locale: 'en' }] : []),
+      ...(includeManual ? [{ id: `en/${ID_C}`, label: 'Manual', locale: 'en' }] : []),
+      { id: `mul/${DEFAULT_VOICE}`, label: 'Default', locale: 'mul' },
+    ];
+    expect(voices).toEqual(expected);
+    expect(fetchImpl).toHaveBeenCalledTimes(Number(includeOfficial) + Number(includeOwn) + Number(includeManual));
+  });
+
+  it('keeps disabled source cache and notices out of the catalog while retaining the manual text', async () => {
+    const cache = new FishVoiceCache();
+    const fetchImpl = vi.fn(async (url: string) => {
+      if (url.includes(`author_id=${OFFICIAL_AUTHOR_ID}`)) return publicPage([model(ID_A, 'Official')], { window_limited: true, total_is_exact: false });
+      if (url.includes('self=true')) return page([model(ID_B, 'Own')]);
+      if (url.endsWith(`/model/${ID_C}`)) return Response.json(model(ID_C, 'Manual'));
+      throw new Error(`unexpected ${url}`);
+    });
+    const config: FishConfig = { ...cfg, includeOfficial: true, includeOwn: true, includeManual: true, voices: ID_C };
+    const p = createFishProvider(config, { fetch: fetchImpl as typeof fetch, cache });
+    await p.listVoices();
+    config.includeOfficial = false;
+    config.includeOwn = false;
+    config.includeManual = false;
+    config.voices = ID_C;
+    expect(await p.listVoices()).toEqual([{ id: `mul/${DEFAULT_VOICE}`, label: 'Default', locale: 'mul' }]);
+    expect(p.voiceListNotices?.()).toEqual([]);
+    expect(fetchImpl).toHaveBeenCalledTimes(3);
+  });
+
+  it('still authenticates with the own probe when own voices are excluded', async () => {
+    const fetchImpl = vi.fn(async () => page([]));
+    const p = provider(fetchImpl, { includeOfficial: false, includeOwn: false, includeManual: false });
+    await p.checkConnection!();
+    expect(call(fetchImpl).url).toBe(`${FISH_API}/model?self=true&page_size=1`);
+  });
+
+  it('lists the four official pages through the stable author id without a licensed filter', async () => {
+    const fetchImpl = vi.fn(async (url: string) => {
+      if (url.includes('self=true')) return page([]);
+      const pageNumber = Number(new URL(url).searchParams.get('page_number'));
+      return publicPage([model(`${String.fromCharCode(96 + pageNumber)}${'a'.repeat(31)}`, `Official ${pageNumber}`)], { has_more: pageNumber < 4, total: 338, total_is_exact: true, window_limited: false });
+    });
+    const voices = await provider(fetchImpl, { includeOwn: false, includeManual: false }).listVoices();
+    expect(voices.slice(0, 4).map((voice) => voice.label)).toEqual(['Official 1', 'Official 2', 'Official 3', 'Official 4']);
+    expect(fetchImpl).toHaveBeenCalledTimes(4);
+    const officialCalls = fetchImpl.mock.calls.filter(([url]) => String(url).includes(`author_id=${OFFICIAL_AUTHOR_ID}`));
+    expect(officialCalls).toHaveLength(4);
+    expect(officialCalls.every(([url]) => !String(url).includes('licensed'))).toBe(true);
+  });
+
+  it('skips public entries that are not TTS models, unfinished, withdrawn, or without a valid model id', async () => {
+    const fetchImpl = vi.fn(async (url: string) => {
+      if (url.includes('self=true')) return page([]);
+      return publicPage([
+        model(ID_A, 'Playable'),
+        { ...model(ID_B, 'Service'), type: 'svc' },
+        { ...model(ID_C, 'Creating'), state: 'created' },
+        { ...model('d'.repeat(32), 'Removed'), dmca_taken_down: true },
+        { _id: 'not-a-model-id', title: 'Broken', languages: ['en'] },
+      ]);
+    });
+    expect((await provider(fetchImpl).listVoices()).map((voice) => voice.label)).toEqual(['Playable', 'Default']);
+  });
+
+  it('reuses successful own and public lists across providers sharing a cache, while refresh starts a new request', async () => {
+    const cache = new FishVoiceCache();
+    const fetchImpl = vi.fn(async (url: string) => {
+      if (url.includes('self=true')) return page([model(ID_A, 'Own')]);
+      return publicPage([model(ID_B, 'Public')]);
+    });
+    const first = provider(fetchImpl, { apiKey: 'account-a' }, { cache });
+    const second = provider(fetchImpl, { apiKey: 'account-a' }, { cache });
+    await first.listVoices();
+    await second.listVoices();
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+    await second.listVoices({ refresh: true });
+    expect(fetchImpl).toHaveBeenCalledTimes(4);
+  });
+
+  it('keeps cached public voices and surfaces a stale notice when a refresh fails', async () => {
+    const cache = new FishVoiceCache();
+    let refresh = false;
+    const fetchImpl = vi.fn(async (url: string) => {
+      if (url.includes('self=true')) return page([model(ID_A, 'Own')]);
+      if (!refresh) return publicPage([model(ID_B, 'Public')]);
+      throw new TypeError('NetworkError');
+    });
+    const p = provider(fetchImpl, {}, { cache });
+    await p.listVoices();
+    refresh = true;
+    const voices = await p.listVoices({ refresh: true });
+    expect(voices.map((v) => v.id)).toEqual([`en/${ID_B}`, `en/${ID_A}`, `mul/${DEFAULT_VOICE}`]);
+    expect(p.voiceListNotices?.()).toEqual([{ kind: 'stale', detail: expect.stringContaining('cannot reach') }]);
+  });
+
+  it('keeps cached manual voices after an official refresh consumes the deadline, without starting uncached lookups', async () => {
+    const cache = new FishVoiceCache();
+    const fetchImpl = vi.fn(async (url: string) => {
+      if (url.includes('self=true')) return page([]);
+      if (url.includes('author_id=')) return new Promise<Response>(() => {});
+      if (url.endsWith(`/model/${ID_C}`)) return Response.json(model(ID_C, 'Saved manual'));
+      throw new Error(`Unexpected lookup: ${url}`);
+    });
+    await provider(fetchImpl, { includeOfficial: false, includeOwn: false, voices: ID_C }, { cache, timeoutMs: 20 }).listVoices();
+    const refreshing = provider(fetchImpl, { includeOwn: false, voices: `${ID_C} ${ID_B}` }, { cache, timeoutMs: 20 });
+    expect(await refreshing.listVoices({ refresh: true })).toEqual([
+      { id: `en/${ID_C}`, label: 'Saved manual', locale: 'en' },
+      { id: `mul/${DEFAULT_VOICE}`, label: 'Default', locale: 'mul' },
+    ]);
+    expect(refreshing.voiceListNotices?.()).toEqual([expect.objectContaining({ kind: 'stale' })]);
+    expect(fetchImpl.mock.calls.filter(([url]) => url.endsWith(`/model/${ID_C}`))).toHaveLength(1);
+    expect(fetchImpl.mock.calls.some(([url]) => url.endsWith(`/model/${ID_B}`))).toBe(false);
+  });
+
+  it('expires a shared pasted lookup at the listing deadline so it cannot poison a later listing', async () => {
+    let manualCalls = 0;
+    const fetchImpl = vi.fn(async (url: string) => {
+      if (url.includes('self=true')) return page([]);
+      if (url.endsWith(`/model/${ID_C}`)) {
+        manualCalls++;
+        if (manualCalls === 1) return new Promise<Response>(() => {});
+        return Response.json(model(ID_C, 'Recovered manual'));
+      }
+      return publicPage([]);
+    });
+    const cache = new FishVoiceCache();
+    const config: FishConfig = { ...cfg, voices: ID_C };
+    const p = createFishProvider(config, { fetch: fetchImpl as typeof fetch, cache, timeoutMs: 20 });
+    await expect(p.listVoices()).resolves.toEqual([{ id: `mul/${DEFAULT_VOICE}`, label: 'Default', locale: 'mul' }]);
+    await expect(p.listVoices()).resolves.toEqual([
+      { id: `en/${ID_C}`, label: 'Recovered manual', locale: 'en' },
+      { id: `mul/${DEFAULT_VOICE}`, label: 'Default', locale: 'mul' },
+    ]);
+    expect(manualCalls).toBe(2);
+  });
+
+  it('carries a refresh failure notice to a new provider that reuses the stale cache', async () => {
+    const cache = new FishVoiceCache();
+    let refresh = false;
+    const fetchImpl = vi.fn(async (url: string) => {
+      if (url.includes('self=true')) return page([model(ID_A, 'Own')]);
+      if (refresh) throw new TypeError('public list unavailable');
+      return publicPage([model(ID_B, 'Public')]);
+    });
+    const first = provider(fetchImpl, {}, { cache });
+    await first.listVoices();
+    refresh = true;
+    await first.listVoices({ refresh: true });
+    const second = provider(fetchImpl, {}, { cache });
+    await expect(second.listVoices()).resolves.toEqual([
+      { id: `en/${ID_B}`, label: 'Public', locale: 'en' },
+      { id: `en/${ID_A}`, label: 'Own', locale: 'en' },
+      { id: `mul/${DEFAULT_VOICE}`, label: 'Default', locale: 'mul' },
+    ]);
+    expect(second.voiceListNotices?.()).toEqual([{ kind: 'stale', detail: expect.stringContaining('public list unavailable') }]);
+  });
+
+  it('rejects an authentication failure even when cached voices could be shown', async () => {
+    const cache = new FishVoiceCache();
+    let badKey = false;
+    const fetchImpl = vi.fn(async (url: string) => {
+      if (badKey) return new Response('No permission -- see authorization schemes', { status: 401 });
+      if (url.includes('self=true')) return page([model(ID_A, 'Own')]);
+      return publicPage([model(ID_B, 'Public')]);
+    });
+    const p = provider(fetchImpl, {}, { cache });
+    await p.listVoices();
+    badKey = true;
+    await expect(p.listVoices({ refresh: true })).rejects.toMatchObject({ kind: 'auth' });
+  });
+
+  it('does not let one canceled caller cancel another caller using the shared listing request', async () => {
+    const cache = new FishVoiceCache();
+    const own = deferred<Response>();
+    const published = deferred<Response>();
+    const fetchImpl = vi.fn((url: string, _init?: RequestInit) => (url.includes('self=true') ? own.promise : published.promise));
+    const p = provider(fetchImpl, {}, { cache });
+    const firstController = new AbortController();
+    const secondController = new AbortController();
+    const first = p.listVoices({ signal: firstController.signal });
+    const second = p.listVoices({ signal: secondController.signal });
+    firstController.abort();
+    await expect(first).rejects.toMatchObject({ kind: 'network' });
+    expect(fetchImpl.mock.calls.every(([, init]) => init?.signal === undefined)).toBe(true);
+    own.resolve(page([]));
+    published.resolve(publicPage([]));
+    await expect(second).resolves.toEqual([{ id: `mul/${DEFAULT_VOICE}`, label: 'Default', locale: 'mul' }]);
+  });
+
+  it('uses an injected transport controller for timeout cleanup without tying it to a caller signal', async () => {
+    const transports: AbortController[] = [];
+    const fetchImpl = vi.fn(async () => new Promise<Response>(() => {}));
+    const cache = new FishVoiceCache();
+    const p = provider(fetchImpl, {}, { cache, timeoutMs: 20, newAbortController: () => { const controller = new AbortController(); transports.push(controller); return controller; } });
+    const caller = new AbortController();
+    const first = p.listVoices({ signal: caller.signal });
+    caller.abort();
+    await expect(first).rejects.toMatchObject({ kind: 'network' });
+    expect(transports.every((controller) => !controller.signal.aborted)).toBe(true);
+    await expect(p.listVoices()).resolves.toEqual([{ id: `mul/${DEFAULT_VOICE}`, label: 'Default', locale: 'mul' }]);
+    expect(transports.every((controller) => controller.signal.aborted)).toBe(true);
+  });
+
+  it('does not start a listing for a caller whose signal is already aborted', async () => {
+    const fetchImpl = vi.fn();
+    const controller = new AbortController();
+    controller.abort();
+    await expect(provider(fetchImpl).listVoices({ signal: controller.signal })).rejects.toMatchObject({ kind: 'network' });
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it('does not allow a superseded refresh to publish its older result', async () => {
+    const cache = new FishVoiceCache();
+    const oldOwn = deferred<Response>();
+    const oldPublic = deferred<Response>();
+    const newOwn = deferred<Response>();
+    const newPublic = deferred<Response>();
+    const fetchImpl = vi.fn((url: string) => {
+      const refresh = fetchImpl.mock.calls.filter(([called]) => String(called).includes('self=true')).length > 1;
+      if (url.includes('self=true')) return (refresh ? newOwn : oldOwn).promise;
+      return (refresh ? newPublic : oldPublic).promise;
+    });
+    const p = provider(fetchImpl, {}, { cache });
+    const first = p.listVoices();
+    const refreshed = p.listVoices({ refresh: true });
+    oldOwn.resolve(page([model(ID_A, 'Old own')]));
+    oldPublic.resolve(publicPage([model(ID_B, 'Old public')]));
+    newOwn.resolve(page([model(ID_C, 'New own')]));
+    newPublic.resolve(publicPage([model(ID_A, 'New public')]));
+    await first;
+    await refreshed;
+    expect((await p.listVoices()).map((voice) => voice.label)).toEqual(['New public', 'New own', 'Default']);
+  });
+
+  it('keeps cached lists isolated when the API key changes', async () => {
+    const cache = new FishVoiceCache();
+    const fetchImpl = vi.fn(async (url: string, init: RequestInit) => {
+      const account = (init.headers as Record<string, string>).Authorization;
+      if (url.includes('self=true')) return page([model(account.includes('a-key') ? ID_A : ID_B, account)]);
+      return publicPage([]);
+    });
+    const config: FishConfig = { ...cfg, apiKey: 'a-key' };
+    const p = createFishProvider(config, { fetch: fetchImpl as typeof fetch, cache });
+    expect((await p.listVoices()).map((voice) => voice.id)).toContain(`en/${ID_A}`);
+    config.apiKey = 'b-key';
+    expect((await p.listVoices()).map((voice) => voice.id)).toContain(`en/${ID_B}`);
+    config.apiKey = 'a-key';
+    expect((await p.listVoices()).map((voice) => voice.id)).toContain(`en/${ID_A}`);
+    expect(fetchImpl).toHaveBeenCalledTimes(4);
+  });
+
+  it('honors pasted voice removal immediately while retaining the public snapshot', async () => {
+    const cache = new FishVoiceCache();
+    const fetchImpl = vi.fn(async (url: string) => {
+      if (url.includes('self=true')) return page([]);
+      if (url.endsWith(`/model/${ID_C}`)) return Response.json(model(ID_C, 'Manual C'));
+      return publicPage([model(ID_A, 'Public A')]);
+    });
+    const config: FishConfig = { ...cfg, voices: ID_C };
+    const p = createFishProvider(config, { fetch: fetchImpl as typeof fetch, cache });
+    expect((await p.listVoices()).map((voice) => voice.label)).toEqual(['Public A', 'Manual C', 'Default']);
+    config.voices = '';
+    expect((await p.listVoices()).map((voice) => voice.label)).toEqual(['Public A', 'Default']);
+    expect(fetchImpl).toHaveBeenCalledTimes(3);
+  });
+
+  it('reuses cached manual metadata while honoring the current manual text', async () => {
+    const fetchImpl = vi.fn(async (url: string) => {
+      if (url.includes('self=true')) return page([]);
+      if (url.endsWith(`/model/${ID_C}`)) {
+        return Response.json(model(ID_C, 'Manual C'));
+      }
+      return publicPage([model(ID_A, 'Public A')]);
+    });
+    const config: FishConfig = { ...cfg, voices: ID_C };
+    const cache = new FishVoiceCache();
+    const p = createFishProvider(config, { fetch: fetchImpl as typeof fetch, cache });
+    expect((await p.listVoices()).map((voice) => voice.label)).toEqual(['Public A', 'Manual C', 'Default']);
+    config.voices = '';
+    expect((await p.listVoices({ refresh: true })).map((voice) => voice.label)).toEqual(['Public A', 'Default']);
+    config.voices = ID_C;
+    expect((await p.listVoices()).map((voice) => voice.label)).toEqual(['Public A', 'Manual C', 'Default']);
+    expect(fetchImpl.mock.calls.filter(([url]) => String(url).endsWith(`/model/${ID_C}`))).toHaveLength(1);
+  });
+
+  it('bounds the complete own/public listing operation and still leaves Default available', async () => {
+    const cache = new FishVoiceCache();
+    const fetchImpl = vi.fn(async () => new Promise<Response>(() => {}));
+    const p = provider(fetchImpl, {}, { cache, timeoutMs: 20 });
+    const started = Date.now();
+    await expect(p.listVoices()).resolves.toEqual([{ id: `mul/${DEFAULT_VOICE}`, label: 'Default', locale: 'mul' }]);
+    expect(Date.now() - started).toBeLessThan(500);
+    expect(p.voiceListNotices?.()[0]).toMatchObject({ kind: 'stale' });
+  });
+
+  it('drops a timed-out shared request so a later listing can recover without an explicit refresh', async () => {
+    let publicCalls = 0;
+    const fetchImpl = vi.fn(async (url: string) => {
+      if (url.includes('self=true')) return page([]);
+      publicCalls++;
+      if (publicCalls === 1) return new Promise<Response>(() => {});
+      return publicPage([model(ID_A, 'Recovered public')]);
+    });
+    const cache = new FishVoiceCache();
+    const p = provider(fetchImpl, {}, { cache, timeoutMs: 20 });
+    await expect(p.listVoices()).resolves.toEqual([{ id: `mul/${DEFAULT_VOICE}`, label: 'Default', locale: 'mul' }]);
+    await expect(p.listVoices()).resolves.toEqual([{ id: `en/${ID_A}`, label: 'Recovered public', locale: 'en' }, { id: `mul/${DEFAULT_VOICE}`, label: 'Default', locale: 'mul' }]);
+    expect(publicCalls).toBe(2);
+  });
+
+  it('keeps the Default voice and reports a stale notice for malformed model-list responses', async () => {
+    const fetchImpl = vi.fn(async () => Response.json({ items: null }));
+    const p = provider(fetchImpl);
+    await expect(p.listVoices()).resolves.toEqual([{ id: `mul/${DEFAULT_VOICE}`, label: 'Default', locale: 'mul' }]);
+    expect(p.voiceListNotices?.()).toEqual([{ kind: 'stale', detail: expect.stringContaining('model list') }]);
+  });
+});
+
+describe('official pagination', () => {
+  it('fetches the remaining public-window pages concurrently after the first page reveals the window', async () => {
+    let publicInFlight = 0;
+    let maxPublicInFlight = 0;
+    const fetchImpl = vi.fn(async (url: string) => {
+      if (url.includes('self=true')) return page([]);
+      if (url.includes('page_number=1&') || url.endsWith('page_number=1')) return publicPage([model(ID_A, 'First')], { has_more: true, total: 1000, window_limited: true, total_is_exact: false });
+      publicInFlight++;
+      maxPublicInFlight = Math.max(maxPublicInFlight, publicInFlight);
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      publicInFlight--;
+      return publicPage([]);
+    });
+    const voices = await provider(fetchImpl).listVoices();
+    expect(voices.map((voice) => voice.label)).toEqual(['First', 'Default']);
+    expect(maxPublicInFlight).toBe(9);
   });
 });
 

@@ -71,7 +71,7 @@ WebDAV), highlight colors.
   2026-09-06, issue #58): a session running Fable hands it the English
   pages that changed and their diff, and checks the diff that comes back;
   any other model translates in place by
-  `.Codex/agents/docs-translator.md`.
+  `.codex/agents/docs-translator.toml`.
 - `notes/NOTES.md` — the standing reference: what the plugin is, the Zotero
   internals verified by reading its source, what is still open, and an index
   of the log. **Read it before touching Read Aloud internals.** The log itself
@@ -93,7 +93,11 @@ WebDAV), highlight colors.
   `.claude/agents/` or `.codex/agents/` must also be applied to the
   corresponding agent in the other directory in the same task. Keep
   instructions, descriptions, constraints and workflows equivalent;
-  only model configuration (including reasoning effort) may differ.
+  only platform-specific model configuration may differ: Codex uses
+  `gpt-5.6-luna` at maximum reasoning effort, while Claude definitions keep
+  their native `opus`/`sonnet` models because Luna is unavailable in Claude
+  Code. An explicit model or reasoning-effort override requires the user's
+  request.
   Adapt file syntax and references to each tool's required format and
   actual paths without changing their meaning. Check the corresponding
   files for consistency before finishing; never leave synchronization
@@ -259,15 +263,16 @@ WebDAV), highlight colors.
   pref you need, never print whole lines.
 - **Delegation is decided per agent** (settled 2026-08-28, gated
   2026-08-28, widened 2026-08-30, split 2026-09-04, a third agent
-  2026-09-06, a model per agent 2026-09-08, session effort 2026-09-11):
-  `zotero-tester` runs Opus; `git-chores` and `docs-translator` run
-  Sonnet — rule-book work the session checks anyway, at 40% less per
-  token. All three inherit the main session's reasoning effort: omit
-  `effort` from their frontmatter rather than pinning a level. A tester
-  verification brief may
-  be tried on Sonnet through the `Agent` call's `model` override, and
-  the file changes only once the transcript measurement of #58 says it
-  paid. Who hands work to them is decided agent by agent.
+  2026-09-06, a model per agent 2026-09-08, a Codex default 2026-09-11):
+  `gpt-5.6-luna` at maximum reasoning effort is the default for every
+  Codex-spawned agent, including named definitions and generic
+  `general-purpose` workers and reviewers. The Codex definitions pin
+  `model = "gpt-5.6-luna"` and `model_reasoning_effort = "max"`. An
+  explicit model or reasoning-effort override is allowed only when the
+  user asks for it. Claude definitions keep their native `opus`/`sonnet`
+  models because Luna is unavailable in Claude Code; those values must not
+  be copied into Codex definitions. Who hands work to them is decided
+  agent by agent.
   **Every run of the
   zotero-dev bridge goes to `zotero-tester`**, from a session running
   Fable *or* Opus, research as much as verification — a bridge run floods
@@ -280,6 +285,12 @@ WebDAV), highlight colors.
   the agent's file before doing its work by hand, and only then — a
   session that delegates never reads it, since the brief's shape is in
   this file and a rulebook is 6k tokens on every later call.
+- **Wait when agents are the only remaining work** (settled 2026-09-12):
+  when delegated work is running and no independent task remains, stop
+  active work and wait for an agent result or new user input. Use a
+  blocking agent wait; do not repeatedly poll agent status or files,
+  rerun checks, or send repetitive progress updates merely to stay active.
+  Resume only when a result, a question, or new input requires action.
 - **A session is one issue, and it reads in batches** (measured
   2026-09-06 over the transcripts since 08-28, issue #58): a session's
   cost is its context times its calls — some 60k tokens of harness and
@@ -293,21 +304,23 @@ WebDAV), highlight colors.
 - **Git housekeeping** (settled 2026-08-28): committing what is in the
   working tree, deleting merged branches locally and on origin, tagging,
   pushing, `--ff-only` merges and, since 2026-09-06, the whole of a
-  release (see Releasing) follow `.Codex/agents/git-chores.md`.
+  release (see Releasing) follow `.codex/agents/git-chores.toml`.
   A Fable session hands them to `Agent` with `subagent_type:
   "git-chores"` — told exactly what to commit, with which message, and
   what to leave in the working tree — then confirms the report against
   `git log` / `git status`. Only a merge that does not fast-forward —
   conflicts, a diverged `main` — is never handed over at all, and a
   resolution that is a judgment call is asked about. Agent definitions
-  under `.Codex/agents/` are read when a session starts, and one is
+  under `.codex/agents/` are read when a session starts, and one is
   dropped silently — "not found", no error anywhere — when its
   `description:` is unquoted and contains `: ` while the file has CRLF
   line endings, which `core.autocrlf` gives every fresh Orca worktree
   (issue #27): keep the descriptions quoted and the files LF
   (`.gitattributes`). One added mid-session is "not found" until the
-  next session. Either way, use `general-purpose` with the `model` the
-  agent file names and its rules pasted into the prompt.
+  next session. Either way, use `general-purpose` with the default model
+  and reasoning effort stated above, and paste the named agent's rules into
+  the prompt. A different model or effort requires the user's explicit
+  request.
 
 ## Commands (Node 22, ESM)
 
@@ -370,7 +383,7 @@ behavior before it is merged, and **researching** — reproducing a bug,
 reading a reader's live state, digging an issue's evidence out of Zotero
 before the issue is written.
 
-- **The driving rules are `.Codex/agents/zotero-tester.md`** (the
+- **The driving rules are `.codex/agents/zotero-tester.toml`** (the
   bridge's tools, how to drive them, what to report). A session running
   Fable or Opus hands **every** run to `Agent` with `subagent_type:
   "zotero-tester"` — research as much as verification, since research is
@@ -447,7 +460,7 @@ Installed copies auto-update through the manifest's `update_url`, which
 points at `update.json` on `main`. A release is **one hand-off** (settled
 2026-09-06, issue #58): a Fable session hands "release X.Y.Z" and a line
 of release notes to `git-chores`; any other model runs the release
-section of `.Codex/agents/git-chores.md` itself. Underneath are two
+section of `.codex/agents/git-chores.toml` itself. Underneath are two
 scripts and three commits, and skipping the last strands every installed
 copy on the old version:
 

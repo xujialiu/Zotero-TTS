@@ -20,6 +20,14 @@ const alloy = { id: 'alloy', label: 'Alloy', locale: 'en-US' };
 const xiaoxiao = { id: 'zh-CN-XiaoxiaoNeural', label: 'Xiaoxiao', locale: 'zh-CN' };
 
 describe('collectCatalog', () => {
+  it('keeps usable voices together with a provider’s listing notices', async () => {
+    const fish = provider('fish', [alloy]);
+    Object.assign(fish, { voiceListNotices: () => [{ kind: 'limited' }, { kind: 'stale', detail: 'Network unavailable' }] });
+    expect(await collectCatalog(['fish'], () => fish)).toEqual([
+      { provider: 'fish', voices: [alloy], notices: [{ kind: 'limited' }, { kind: 'stale', detail: 'Network unavailable' }] },
+    ]);
+  });
+
   it('lists the voices of every requested provider, in order', async () => {
     const providers = { openai: provider('openai', [alloy]), azure: provider('azure', [xiaoxiao]) } as Record<ProviderId, TTSProvider>;
     const catalog = await collectCatalog(['azure', 'openai'], (id) => providers[id]);

@@ -1,12 +1,12 @@
 import { SynthesisError } from '../core/providers/errors';
-import type { ProviderId, TTSProvider, VoiceInfo } from '../core/providers/types';
+import type { ProviderId, TTSProvider, VoiceInfo, VoiceListNotice } from '../core/providers/types';
 import { getLocalEngine } from '../core/providers/local/registry';
 import { presetSpec } from '../core/server-presets';
 import { enabledProviders, type Settings } from '../core/settings';
 import { withTimeout } from '../core/timeout';
 
 /** `name` overrides the provider's display name in voice labels; the local provider sets it to its engine's name. */
-export type CatalogEntry = { provider: ProviderId; name?: string; voices: VoiceInfo[] };
+export type CatalogEntry = { provider: ProviderId; name?: string; voices: VoiceInfo[]; notices?: VoiceListNotice[] };
 
 /**
  * How long one provider may take to list its voices before it is skipped
@@ -63,7 +63,8 @@ export async function collectCatalog(
         () => new SynthesisError('network', `no voice list within ${Math.round(timeoutMs / 1000)} s`),
         () => controller?.abort(),
       );
-      return { provider: id, voices };
+      const notices = provider.voiceListNotices?.();
+      return { provider: id, voices, ...(notices?.length ? { notices } : {}) };
     }),
   );
   const out: CatalogEntry[] = [];

@@ -38,9 +38,10 @@ export interface Settings {
   /**
    * Fish Audio's cloud API (core/providers/fish.ts, issue #89): one key;
    * `freeOnly` sends every request to the free model, off to the paid one;
-   * `voices` is what the user pasted, ids or links, beside the account's own.
+   * Each voice source is independent; disabling manual voices retains
+   * the pasted ids and links in `voices`.
    */
-  fish: { enabled: boolean; apiKey: string; freeOnly: boolean; voices: string };
+  fish: { enabled: boolean; apiKey: string; freeOnly: boolean; voices: string; includeOfficial: boolean; includeOwn: boolean; includeManual: boolean };
   /** A Fish Speech server of the user's own (core/providers/fishspeech.ts, issue #89); `headers` as openai.headers. */
   fishspeech: { enabled: boolean; baseURL: string; headers: string };
   /** `headers`: extra request headers for a gateway in front of the server, same format as openai.headers. */
@@ -153,7 +154,7 @@ export const DEFAULTS: Settings = {
   azure: { enabled: false, apiKey: '', region: 'eastasia', voice: 'zh-CN-XiaoxiaoNeural' },
   cloudflare: { enabled: false, accountId: '', apiToken: '' },
   speechify: { enabled: false, apiKey: '' },
-  fish: { enabled: false, apiKey: '', freeOnly: true, voices: '' },
+  fish: { enabled: false, apiKey: '', freeOnly: true, voices: '', includeOfficial: true, includeOwn: true, includeManual: true },
   fishspeech: { enabled: false, baseURL: 'http://localhost:8080', headers: '' },
   local: { enabled: false, engine: 'kokoro', baseURL: 'http://localhost:8880', voice: 'af_bella', headers: '' },
   system: { enabled: false },
@@ -261,6 +262,9 @@ export function loadSettings(prefs: PrefsBackend): Settings {
       apiKey: str(prefs, 'fish.apiKey', DEFAULTS.fish.apiKey),
       freeOnly: bool(prefs, 'fish.freeOnly', DEFAULTS.fish.freeOnly),
       voices: str(prefs, 'fish.voices', DEFAULTS.fish.voices),
+      includeOfficial: bool(prefs, 'fish.includeOfficial', DEFAULTS.fish.includeOfficial),
+      includeOwn: bool(prefs, 'fish.includeOwn', DEFAULTS.fish.includeOwn),
+      includeManual: bool(prefs, 'fish.includeManual', DEFAULTS.fish.includeManual),
     },
     fishspeech: {
       enabled: bool(prefs, 'fishspeech.enabled', DEFAULTS.fishspeech.enabled),

@@ -362,3 +362,11 @@ cite `notes/NOTES.md` with a date or a section title resolve through this index.
 - An active PDF can be renderable while the host chrome document still reports hidden (issue #90)
 - Beta3 keeps follow intent through late native events and yields to trusted manual navigation (issue #90)
 - The owner completed the reported PDF from the beginning without another follow failure (issue #90)
+- Fish Audio discovery is a query window, and a usable list can still be incomplete (issue #91)
+
+### [2026-09-12](NOTES_2026-09-12.md)
+
+- A caller timeout does not expire shared voice discovery (issue #91)
+- The public discovery window does not fit eleven seconds when fetched sequentially (issue #91)
+- Three independent Fish sources replace automatic community discovery (issue #91)
+- Verified in Zotero: all eight source combinations and the restored user state (issue #91)

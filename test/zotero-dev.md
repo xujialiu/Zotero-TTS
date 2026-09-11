@@ -582,14 +582,17 @@ passed through a script; Zotero reads it into the pref itself.
    Read Aloud sections do.
 2. **Test connection with nothing pasted.** Key set, `freeOnly` true,
    `voices` empty, provider off. Click `ztts-test-fish`: `Testing…` within
-   2 ms, then `Connected. 1 voices available. Synthesis works.` (2.1 s on
-   2026-09-10) — the one voice is the built-in `Default`. No
-   `[zotero-tts]` line: the pane's probe logs nothing.
+   2 ms, then `Connected. N voices available. Synthesis works.` The
+   count includes enabled official, own, and manual sources plus Default since #91;
+   verify more than one with an ordinary working account. The earlier
+   #89 pass (2026-09-10) returned only Default. No `[zotero-tts]` line:
+   the pane's probe logs nothing.
 3. **Pasted voices.** `fish.voices` =
    `https://fish.audio/m/179b5cc736974d96913c7849d0bb68c5/, ffffffffffffffffffffffffffffffff`
    (a real library voice and an id the library does not know). Test
-   connection → `Connected. 3 voices available. Synthesis works.` (3.2 s).
-   On a reader tab, `manager._allVoices` walked **by index** (a
+   connection → the enabled official/own lists plus those IDs, without duplicates,
+   with a successful synthesis probe (#91; the earlier #89 pass reported
+   three). On a reader tab, `manager._allVoices` walked **by index** (a
    reader-realm `filter` from chrome answers `[]`) carries, all tier
    `local`: `Fish-cloud-jjk narrator` / `fish::en/179b…` / language `en`,
    `Fish-cloud-ffffffffffffffffffffffffffffffff (not found)` /
@@ -702,6 +705,83 @@ passed through a script; Zotero reads it into the pref itself.
     cleared it and put it back), the debug store back off, the fixtures
     erased. A pref write here fires the owner's settings auto-upload when
     it is on: the key travels with it.
+
+## 1b. Fish Audio voice sources (issue #91)
+
+Run after the baseline with a working Fish Audio API key. Preserve the
+key in Zotero only, never in a tool argument or file. Save and restore
+`fish.enabled`, `fish.voices`, `fish.includeOfficial`, `fish.includeOwn`,
+`fish.includeManual`, `fish.freeOnly`, remembered/default voices, and any
+sync switches suspended for the run. Use one fixture and leave the owner's
+reading sessions alone. Source switches and the Model IDs field are the
+final scope; the earlier draft's community search is not shipped.
+
+1. **Official source.** Empty manual field; official on, own/manual off.
+   The catalog and a fresh fixture player contain the Fish Official
+   account's voices plus `fish::mul/default`. The account is
+   `d8b0991f96b44e489422ca2ddf0bd31d`; its live list on 2026-09-12 had 338
+   unique, trained TTS voices, ten tagged `zh`, returned in four pages.
+   Compare the current API's count rather than pinning 338 forever. No
+   unrestricted community-discovery request belongs to automatic listing.
+2. **Own and manual sources.** Test the three sources independently and
+   together. With an account that owns no models, own-only gives Default.
+   Enter one valid Model ID absent from the official list: manual-only
+   gives it and Default; toggling manual off retains the field verbatim
+   and hides the extra voice, and back on restores it. Source settings
+   survive settings reload and backup/restore.
+3. **Union and all-off.** Enter an official voice's ID manually, enable
+   official+manual: one entry per raw model ID. Turn official off: the
+   manual copy stays; turn manual off as well, with own off: only Default.
+   A disabled source contributes no cached voices or stale notices.
+4. **The controls.** All three source switches start on in a profile
+   without their prefs. They stay editable while Fish is enabled. Model
+   IDs accepts multiple IDs, and the neighboring `?` includes
+   `https://fish.audio/app/discovery/`. Existing pasted links still work.
+   By eye: labels, field, and help fit the pane with no clipping; there is
+   no in-plugin community search panel.
+5. **Reading guard.** With the fixture's player open, changing a source
+   or refreshing asks to stop reading. Cancel restores the checkbox and
+   leaves the pref/catalog unchanged. Agree closes the fixture player
+   before the change. Never accept a dialog naming the owner's tabs;
+   report that positive path as unit-tested when a protected user session
+   prevents it from running live.
+6. **Refresh and cache.** A repeated catalog call reuses the source
+   snapshots; an explicit refresh loads again. `diagnostics.fishVoices()`
+   returns only `cacheHits`, `loads`, `cachedAccounts`. Reuse increases
+   hits without increasing loads; refresh increases loads. Turning a
+   source off and on takes effect even with its snapshot cached. Await
+   `diagnostics.fishVoices(true)` to list through the actual provider and
+   report `sources`, `count`, `ids`, and `notices` beside the counters.
+   Compare the IDs in Zotero and return counts/small samples to the tool,
+   never dump the entire list. This proves filtering without starting
+   playback or disturbing a protected paused reader. No key or account
+   identifier is returned by the diagnostic.
+7. **Synthesis.** One existing Fish voice on the free model still returns
+   real word timings on the fixture. The connection check uses Default
+   to verify synthesis. Only one small sample per live check; sound
+   quality and the highlight's pace are human checks.
+8. **Deterministic cases stay in unit tests.** Whole-operation timeout
+   and transport abort, retry after a hung shared load, no late pages or
+   cache overwrite, stale notice persistence across provider instances,
+   auth errors/account isolation, all eight source combinations, and
+   canceled source changes use controlled dependencies. Do not break the
+   owner's network or replace their credentials to manufacture failures.
+9. **Restore.** Restore prefs, memory last; erase the fixture, restore the
+   debug store, and report byte-identical state and no new plugin or
+   dead-object errors. The beta build may remain installed for the owner.
+
+**Verified on 2026-09-12, 1.12.2-beta2 (Luna-max tester).** Startup
+20/20; `(official, own, manual)` counts `000=1, 001=2, 010=1, 011=2,
+100=339, 101=340, 110=339, 111=340` on an account with no own models and
+one manual ID. No duplicates or notices; official/manual overlap stayed
+one entry; repeated listing kept loads at 3 while hits rose 24 to 27.
+Three checkboxes editable; help URL present; `blank=[]`, `questionless=[]`;
+no horizontal overflow. Default connection probe: 340 voices, synthesis
+works. Guard Cancel passed for source and refresh. Positive stop/refresh,
+backup/restore and fresh playback stayed unit-covered because the user's
+paused reader was protected. Every changed setting and reader state was
+restored; Debug storing off, auto-upload restored on; no new plugin or
+dead-object error. Full evidence: [2026-09-12 notes](../notes/NOTES_2026-09-12.md).
 
 ## 2. The voice browser, favorites, the default voice
 

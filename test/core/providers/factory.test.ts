@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createProvider } from '../../../src/core/providers/factory';
+import { createProvider, getFishVoiceCacheStats } from '../../../src/core/providers/factory';
 import { SynthesisError } from '../../../src/core/providers/errors';
 import { PRESETS } from '../../../src/core/server-presets';
 import { DEFAULTS } from '../../../src/core/settings';
@@ -60,6 +60,19 @@ describe('createProvider', () => {
   it('throws a typed error when the configured local engine is not registered', () => {
     const s = { ...DEFAULTS, local: { enabled: true, engine: 'piper', baseURL: 'http://h:1', voice: 'x', headers: '' } };
     expect(() => createProvider('local', s, deps)).toThrow(SynthesisError);
+  });
+
+  it('shares Fish voice-cache counters without exposing account or voice identifiers', async () => {
+    const fetchImpl = vi.fn(async (url: string) =>
+      url.includes('self=true')
+        ? Response.json({ items: [], has_more: false })
+        : Response.json({ items: [], has_more: false, window_limited: false, total_is_exact: true }),
+    );
+    const settings = { ...DEFAULTS, fish: { ...DEFAULTS.fish, apiKey: 'account-a' } };
+    await createProvider('fish', settings, { ...deps, fetch: fetchImpl as unknown as typeof fetch }).listVoices();
+    await createProvider('fish', settings, { ...deps, fetch: fetchImpl as unknown as typeof fetch }).listVoices();
+    expect(getFishVoiceCacheStats(fetchImpl as unknown as typeof fetch)).toMatchObject({ cacheHits: 2, loads: 2, cachedAccounts: 1 });
+    expect(Object.keys(getFishVoiceCacheStats(fetchImpl as unknown as typeof fetch))).not.toContain('apiKey');
   });
 });
 

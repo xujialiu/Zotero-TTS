@@ -37,22 +37,38 @@ The block's **Use only the free model** switch is on when you start.
 
 ## Voices
 
-Three kinds are listed, all under **Local** in the player, as
-`Fish-cloud-<name>`:
+Voices appear under **Local** in the player, as `Fish-cloud-<name>`.
+The three source switches start on and work independently.
 
-- **Your own.** A voice you made on fish.audio — *Create a voice*, from
-  10–30 seconds of clean speech — is listed as soon as it is trained,
-  under its name. Nothing to paste.
-- **Any voice from the library.** Open it on fish.audio, copy the page's
-  link (`https://fish.audio/m/…/`) or the id in it, and paste it into
-  **Voices**; several go separated by commas or spaces. A voice is filed
-  under its language, or under *Multiple languages* when it lists
-  several. A voice whose page has since gone is listed as *(not found)*
-  until you take it out of the field.
-- **Default.** The model's own voice, when nothing is chosen.
+- **Official voices.** Voices published by **Fish Official** are listed
+  automatically. Community voices are added only when you enter their
+  Model IDs yourself.
+- **Your voices.** Voices created by your Fish Audio account are listed
+  without pasting their IDs.
+- **Manual voices.** Offers the voices entered in **Model IDs**. Turning
+  this switch off hides them without erasing the saved IDs.
+- **Model IDs.** Find a voice on the
+  [Fish Audio discovery page](https://fish.audio/app/discovery/), copy its
+  Model ID, and paste it here. Separate several with commas or spaces.
+  The **?** beside the field points to that page. Existing pasted voice
+  links still work. To edit the field, **Disable** the cloud block first,
+  then **Enable** it again.
+- **Changing a source.** The switches remain available while Fish Audio
+  is enabled. If a player is open, changing a source asks to stop reading
+  first. A duplicate voice appears only once and stays listed as long as
+  an enabled source supplies it.
+- **Language.** Voices are grouped by their language, or under
+  *Multiple languages* when they list several.
+- **Default.** The model's own voice remains available even with all three
+  sources off.
+- **Refresh.** Loaded lists are reused until Zotero restarts. Refresh the
+  Fish Audio list to see newly created or published voices. If a refresh
+  fails, the browser keeps the last successful list with a warning;
+  changing the API key does not reuse another account's list.
 
-**Test connection** counts them. **Enable** locks the block, so to add a
-voice later: **Disable**, paste, **Enable**.
+**Test connection** counts the listed voices and checks that the model
+can speak. A manually entered voice whose page has gone is listed as
+*(not found)* until you remove its ID.
 
 ## Good to know
 

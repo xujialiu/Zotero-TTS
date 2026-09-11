@@ -50,13 +50,21 @@ export type SynthesisOptions = {
 };
 
 /**
- * The signal a caller that bounds the listing hands over, so a request
- * that runs past its bound is cancelled rather than left running
- * (read-aloud/catalog.ts, issue #55). Optional: Test connection lists
- * without one, and a provider with no request to cancel ignores it.
+ * The signal a caller that bounds the listing hands over. Providers may use
+ * it to cancel a private request; a provider sharing an in-flight cache must
+ * cancel only that caller's wait so another caller can keep using the load.
+ * Optional: Test connection lists without one.
  */
 export type ListVoicesOptions = {
   signal?: AbortSignal;
+  /** Ask a provider to replace its in-memory voice-list snapshot. */
+  refresh?: boolean;
+};
+
+/** A non-fatal condition that accompanies an otherwise usable voice list. */
+export type VoiceListNotice = {
+  kind: 'limited' | 'stale';
+  detail?: string;
 };
 
 export interface TTSProvider {
@@ -64,6 +72,8 @@ export interface TTSProvider {
   readonly capabilities: { wordTimestamps: boolean };
   listVoices(options?: ListVoicesOptions): Promise<VoiceInfo[]>;
   synthesize(text: string, o: SynthesisOptions): Promise<SynthesisResult>;
+  /** Conditions attached to the most recently returned voice list. */
+  voiceListNotices?(): VoiceListNotice[];
   /**
    * One cheap request that proves the configuration works — server
    * reachable, key accepted. Rejects with a SynthesisError saying what is

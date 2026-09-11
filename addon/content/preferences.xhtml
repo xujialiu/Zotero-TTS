@@ -141,8 +141,8 @@
   <!-- Fish Audio (issue #89): the cloud API behind one key, with a switch
        that keeps every request on the free model, and a Fish Speech server of
        the user's own (its block is headed Local) — two providers in one section, each with its own
-       switch, so either can be on without the other. The cloud's voices are
-       the account's own, the pasted ids, and the model's default voice. -->
+       switch, so either can be on without the other. The cloud block offers
+       independent sources for official voices, your voices and Model IDs. -->
   <groupbox id="ztts-provider-fish-audio">
     <label><html:h2>Fish Audio</html:h2></label>
     <vbox id="ztts-provider-fish">
@@ -157,14 +157,35 @@
         <label class="ztts-help" value="?" data-l10n-id="ztts-help-fish-free-only" data-l10n-attrs="help"/>
       </hbox>
       <hbox align="center">
-        <label data-l10n-id="ztts-field-voices" style="width: 8em"/>
-        <html:input type="text" data-l10n-id="ztts-fish-voices-input" preference="extensions.zotero.zotero-tts.fish.voices"/>
-        <label class="ztts-help" value="?" data-l10n-id="ztts-help-fish-voices" data-l10n-attrs="help"/>
+        <label data-l10n-id="ztts-field-model-ids" style="width: 8em"/>
+        <html:input id="ztts-fish-model-ids" type="text" data-l10n-id="ztts-fish-model-ids-input" data-l10n-attrs="placeholder" preference="extensions.zotero.zotero-tts.fish.voices"/>
+        <label class="ztts-help" value="?" data-l10n-id="ztts-help-fish-model-ids" data-l10n-attrs="help"/>
+        <label is="zotero-text-link" href="https://fish.audio/app/discovery/" data-l10n-id="ztts-fish-discovery-link"/>
       </hbox>
       <hbox align="center">
         <button id="ztts-enable-fish"/>
         <button id="ztts-test-fish" data-l10n-id="ztts-test-connection"/>
         <description id="ztts-test-result-fish"/>
+      </hbox>
+    </vbox>
+    <vbox id="ztts-fish-sources">
+      <label><html:h3 class="ztts-subheading" data-l10n-id="ztts-heading-fish-sources"/></label>
+      <hbox align="center">
+        <checkbox id="ztts-fish-include-official" data-l10n-id="ztts-fish-include-official" data-l10n-attrs="label"/>
+        <label class="ztts-help" value="?" data-l10n-id="ztts-help-fish-include-official" data-l10n-attrs="help"/>
+      </hbox>
+      <hbox align="center">
+        <checkbox id="ztts-fish-include-own" data-l10n-id="ztts-fish-include-own" data-l10n-attrs="label"/>
+        <label class="ztts-help" value="?" data-l10n-id="ztts-help-fish-include-own" data-l10n-attrs="help"/>
+      </hbox>
+      <hbox align="center">
+        <checkbox id="ztts-fish-include-manual" data-l10n-id="ztts-fish-include-manual" data-l10n-attrs="label"/>
+        <label class="ztts-help" value="?" data-l10n-id="ztts-help-fish-include-manual" data-l10n-attrs="help"/>
+        <description id="ztts-fish-manual-hint"/>
+      </hbox>
+      <hbox align="center">
+        <button id="ztts-fish-refresh" data-l10n-id="ztts-fish-refresh"/>
+        <description id="ztts-fish-refresh-status"/>
       </hbox>
     </vbox>
     <vbox id="ztts-provider-fishspeech">
