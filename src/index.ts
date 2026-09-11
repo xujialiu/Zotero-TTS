@@ -1489,9 +1489,9 @@ function stopHighlightStyling(): void {
 
 // ---- The whole sentence on screen -----------------------------------------
 //
-// Zotero's PDF follow measures a sentence by its first-page box and asks only
-// whether the box's top is on screen; see read-aloud/sentence-in-view.ts for
-// how the follow's call is taken over per reader (issue #83).
+// The PDF controller owns follow intent (#90); sentence-in-view retains
+// the whole-sentence geometry from #83. Native state/highlight processing
+// remains in place, without the native scroll-event-based unlock.
 
 function startSentenceInView(): void {
   stopSentenceInView();
@@ -1870,8 +1870,8 @@ async function shutdown(reason?: number): Promise<void> {
   // closes before Zotero goes on shutting down (plugins.js awaits us)
   await stopPositionTracking();
   stopReadAloudMemory();
-  stopHighlightStyling();
   stopSentenceInView();
+  stopHighlightStyling();
   stopSkippedLines();
   stopSpeechBackend();
   stopSystemVoiceHiding();

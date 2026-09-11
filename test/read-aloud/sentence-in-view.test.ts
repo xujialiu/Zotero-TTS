@@ -216,10 +216,14 @@ function fakeReader(options: { scrollTop?: number; state?: unknown } = {}) {
   class PDFView {
     _pages: unknown[] = [];
     _readAloudState: unknown = options.state ?? null;
+    _readAloudPositionLocked = false;
     _iframeWindow = {
+      innerHeight: 994,
       document: { getElementById: (id: string) => (id === 'viewerContainer' ? container : null) },
       PDFViewerApplication: { pdfViewer: { _pages: [page, page, page] } },
     };
+    setReadAloudState(state: unknown) { this._readAloudState = state; }
+    lockPositionToReadAloud() { this._readAloudPositionLocked = true; }
     navigateToPosition(position: unknown, opts?: unknown): unknown {
       return original.call(this, position, opts);
     }
@@ -227,6 +231,12 @@ function fakeReader(options: { scrollTop?: number; state?: unknown } = {}) {
   const view = new PDFView();
   const reader = { _internalReader: { _primaryView: view } };
   return { reader, view, container, original, proto: PDFView.prototype as any };
+}
+
+function push(view: any, position: unknown): void {
+  view.setReadAloudState(Object.assign(view._readAloudState ?? {}, {
+    active: true, popupOpen: true, paused: false, activeSegment: { sourcePosition: position },
+  }));
 }
 
 function makeDeps(over: Partial<SentenceInViewDeps> = {}) {
@@ -250,7 +260,7 @@ describe('createSentenceInView', () => {
     expect(module.attach(reader)).toBe(true);
     expect(proto.navigateToPosition).not.toBe(before);
     expect(module.attach(reader)).toBe(true);
-    expect(module.patchCounts()).toEqual({ total: 1, live: 1 });
+    expect(module.patchCounts()).toEqual({ total: 3, live: 3 });
     expect(deps.debug).toHaveBeenCalledWith(expect.stringContaining('attached'));
     // A DOM view carries no pages
     expect(module.attach({ _internalReader: { _primaryView: { _readAloud: {} } } })).toBe(false);
@@ -264,7 +274,7 @@ describe('createSentenceInView', () => {
     const module = createSentenceInView(deps);
     const { reader, view, container, original } = fakeReader({ scrollTop: 2357 });
     module.attach(reader);
-    view.navigateToPosition(A_POSITION, FOLLOW_OPTIONS);
+    push(view, A_POSITION);
     expect(original).not.toHaveBeenCalled();
     expect(deps.cloneInto).toHaveBeenCalledWith(container, { top: 2801.5, behavior: 'smooth' });
     expect(container.scrollTo).toHaveBeenCalledTimes(1);
@@ -282,9 +292,9 @@ describe('createSentenceInView', () => {
     const { reader, view, container, original } = fakeReader({ scrollTop: 2700 });
     module.attach(reader);
     const position = { pageIndex: 1, rects: [[100, 3000, 1000, 3035]] };
-    view.navigateToPosition(position, FOLLOW_OPTIONS);
+    push(view, position);
     expect(original).toHaveBeenCalledTimes(1);
-    expect(original.mock.calls[0]).toEqual([position, FOLLOW_OPTIONS]);
+    expect(original.mock.calls[0]).toEqual([position, { cloned: FOLLOW_OPTIONS }]);
     expect(original.mock.instances[0]).toBe(view);
     expect(container.scrollTo).not.toHaveBeenCalled();
     expect((module.inspect(reader) as any).last).toMatchObject({ reason: 'none', fits: true });
@@ -313,7 +323,7 @@ describe('createSentenceInView', () => {
     (view as any)._iframeWindow.document.getElementById = () => {
       throw new Error('dead document');
     };
-    view.navigateToPosition(A_POSITION, FOLLOW_OPTIONS);
+    push(view, A_POSITION);
     expect(original).toHaveBeenCalledTimes(1);
     expect(container.scrollTo).not.toHaveBeenCalled();
     expect(deps.error).toHaveBeenCalledTimes(1);
@@ -325,16 +335,16 @@ describe('createSentenceInView', () => {
     const module = createSentenceInView(deps);
     const { reader, view, container } = fakeReader({ scrollTop: 2357 });
     module.attach(reader);
-    view.navigateToPosition(A_POSITION, FOLLOW_OPTIONS);
+    push(view, A_POSITION);
     // Mid-animation: the container has moved a little, the target is the same
     container.scrollTop = 2500;
     now = 1300;
-    view.navigateToPosition(A_POSITION, FOLLOW_OPTIONS);
+    push(view, A_POSITION);
     expect(container.scrollTo).toHaveBeenCalledTimes(1);
     expect(deps.debug).toHaveBeenCalledTimes(2); // attached + one scroll
     // Long after: a lost scroll is issued again
     now = 3000;
-    view.navigateToPosition(A_POSITION, FOLLOW_OPTIONS);
+    push(view, A_POSITION);
     expect(container.scrollTo).toHaveBeenCalledTimes(2);
   });
 
@@ -347,12 +357,12 @@ describe('createSentenceInView', () => {
       const module = createSentenceInView(deps);
       const { reader, view, container, original } = fakeReader({ scrollTop: 2900, state });
       module.attach(reader);
-      view.navigateToPosition(giant, FOLLOW_OPTIONS);
+      push(view, giant);
       expect(container.scrollTo).not.toHaveBeenCalled();
       // Not Zotero's either: its rule would center the head again on every push
       expect(original).not.toHaveBeenCalled();
       state.activeWordSourcePosition = { pageIndex: 2, rects: [[100, 3900, 160, 3915]] };
-      view.navigateToPosition(giant, FOLLOW_OPTIONS);
+      push(view, giant);
       expect(container.scrollTo).toHaveBeenCalledWith({ cloned: { top: 3410.5, behavior: 'smooth' } });
       expect((module.inspect(reader) as any).last).toMatchObject({ reason: 'part', fits: false });
     });
@@ -363,7 +373,7 @@ describe('createSentenceInView', () => {
       const module = createSentenceInView(deps);
       const { reader, view, container } = fakeReader({ scrollTop: 2000, state });
       module.attach(reader);
-      view.navigateToPosition(giant, FOLLOW_OPTIONS);
+      push(view, giant);
       expect(container.scrollTo).toHaveBeenCalledWith({ cloned: { top: 2976, behavior: 'smooth' } });
       expect((module.inspect(reader) as any).part).toBeNull();
     });
@@ -375,6 +385,7 @@ describe('createSentenceInView', () => {
     const state = { activeSegment: { sourcePosition: A_POSITION }, activeWordSourcePosition: null };
     const { reader, proto, original } = fakeReader({ scrollTop: 2357, state });
     expect((module.inspect(reader) as any).patched).toBe(false);
+    (reader._internalReader._primaryView as any)._zoteroTTSSentenceInView = { at: 1, issued: true };
     module.attach(reader);
     const seen = module.inspect(reader) as any;
     expect(seen).toMatchObject({

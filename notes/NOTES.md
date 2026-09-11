@@ -358,3 +358,7 @@ cite `notes/NOTES.md` with a date or a section title resolve through this index.
 
 - The Fish Audio section's server block is headed Local, and the player's prefixes are Fish-cloud and Fish-local (issue #89)
 - The PDF can move before its scroll event arrives, so instant scrolling still drops the follow lock (issue #85)
+- The plugin owns PDF follow intent while Zotero keeps the state and highlight work (issue #90)
+- An active PDF can be renderable while the host chrome document still reports hidden (issue #90)
+- Beta3 keeps follow intent through late native events and yields to trusted manual navigation (issue #90)
+- The owner completed the reported PDF from the beginning without another follow failure (issue #90)

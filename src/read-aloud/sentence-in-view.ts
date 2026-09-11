@@ -18,20 +18,13 @@
  * next column stays cut, and Shift+Enter, which lands in the same branch,
  * cannot bring the tail in. Measured 2026-09-10 (notes/NOTES_2026-09-10.md).
  *
- * This module shadows `navigateToPosition` on the PDF view's prototype — per
- * tab, since every tab has its own reader bundle — and takes the follow's
- * calls, the only ones with that option shape, over: it measures the whole
- * sentence, both pages, in container coordinates exactly as Zotero maps the
- * first page; keeps Zotero's own trigger; adds one — any part of the whole
- * outside the viewport less a margin; and scrolls `#viewerContainer` itself:
- * to the whole's center when it fits, else to the word being read when that
- * leaves the viewport (real word timing only), else with the head at the top
- * edge. Every other call passes through, and so does a follow call whose
- * sentence is wholly on screen by both rules (Zotero then keeps the
- * horizontal axis as before). The scroll is issued inside the call, so
- * Zotero's `_readAloudScrolling` flag and the `debounceUntilScrollFinishes`
- * around it (76470–76485) work unchanged; the lock, the unlock on the user's
- * own scroll, `annotationPopup` and the DOM views are not touched.
+ * The PDF-only controller in pdf-follow.ts owns the follow state (#90),
+ * preserves Zotero's state/highlight work and calls this geometry directly.
+ * The native scroll/debounce branch is disabled on owned views: delayed
+ * scroll events cannot disengage following, but deliberate navigation can.
+ * Both pages are measured, the whole centered when it fits, else the real
+ * word followed when available; unmeasurable positions and horizontal-only
+ * navigation use the saved native method under the same plugin-owned lock.
  *
  * Compartments: the shadow runs exported into the reader's compartment, so
  * `this`, the position and the options arrive behind Xray wrappers (waived
@@ -42,7 +35,9 @@
  */
 
 import type { WordTiming } from '../core/highlight-level';
-import { createProtoPatches, type AnyFn } from './proto-patches';
+import type { AnyFn } from './proto-patches';
+import { createPdfFollow } from './pdf-follow';
+export { isFollowCall } from './pdf-follow';
 
 /** A box in the container's coordinates, `[left, top, right, bottom]` in CSS px — Zotero's own shape. */
 export type Box = [number, number, number, number];
@@ -107,13 +102,6 @@ export function followMargin(clientHeight: number): number {
   const share = Math.round(clientHeight / MARGIN_SHARE);
   if (!Number.isFinite(share)) return MARGIN_MIN;
   return Math.min(MARGIN_MAX, Math.max(MARGIN_MIN, share));
-}
-
-/** The follow's options (reader.js:76473–76478): `ifNeeded`, `inline: 'nearest'` and a negative margin; no other caller passes that shape. */
-export function isFollowCall(options: unknown): boolean {
-  if (!options || typeof options !== 'object') return false;
-  const o = options as Record<string, unknown>;
-  return o.ifNeeded === true && o.inline === 'nearest' && typeof o.visibilityMargin === 'number' && o.visibilityMargin < 0;
 }
 
 /** The bounding box of Zotero's rects, `[x1, y1, x2, y2]` each; null for none, or a malformed one. */
@@ -338,19 +326,27 @@ interface LastDecision {
   issued: boolean;
 }
 
-/** The prototype in `obj`'s chain that owns the method, so the patch lands where Zotero defined it. */
-function ownerOf(obj: unknown, name: string): any {
-  let proto = obj && typeof obj === 'object' ? Object.getPrototypeOf(obj) : null;
-  for (let depth = 0; depth < 8 && proto && proto !== Object.prototype; depth++) {
-    if (Object.prototype.hasOwnProperty.call(proto, name) && typeof proto[name] === 'function') return proto;
-    proto = Object.getPrototypeOf(proto);
-  }
-  return null;
-}
-
 export function createSentenceInView(deps: SentenceInViewDeps): SentenceInView {
-  const patches = createProtoPatches({ exportFunction: deps.exportFunction, isDead: deps.isDead, error: deps.error });
-  const patchedViews = new WeakSet<object>();
+  const controller = createPdfFollow({
+    ...deps,
+    clear(view) { delete view[LAST]; },
+    follow(reader, view, originalNavigate, reset) {
+      if (reset) delete view[LAST];
+      const position = waive(waive(view._readAloudState)?.activeSegment)?.sourcePosition;
+      if (!position) return;
+      let container: any = null;
+      const options = { ifNeeded: true, visibilityMargin: -(view._iframeWindow.innerHeight ?? 1000) / 4,
+        block: 'center', inline: 'nearest', behavior: 'smooth' };
+      try {
+        container = containerOf(view);
+        if (follow(reader, view, waive(position), options)) return;
+      } catch (e) { deps.error(e); }
+      // The saved method retains Zotero's horizontal-nearest behavior and
+      // handles uncommon positions we cannot measure, without its lock/timer.
+      const result = Reflect.apply(originalNavigate, view, [position, deps.cloneInto ? deps.cloneInto(container, options) : options]);
+      if (result?.catch) result.catch(deps.exportFunction ? deps.exportFunction(deps.error, view) : deps.error);
+    },
+  });
   const waive = (value: unknown): any => (deps.waiveXrays ? deps.waiveXrays(value) : value);
   const now = (): number => (deps.now ? deps.now() : Date.now());
 
@@ -437,32 +433,8 @@ export function createSentenceInView(deps: SentenceInViewDeps): SentenceInView {
   function attach(reader: any): boolean {
     let done = false;
     for (const view of pdfViewsOf(reader)) {
-      if (patchedViews.has(view)) {
-        done = true;
-        continue;
-      }
-      try {
-        const proto = ownerOf(view, 'navigateToPosition');
-        if (!proto) continue;
-        patches.shadow(proto, 'navigateToPosition', (original) =>
-          function (this: any, position: unknown, options: unknown) {
-            let handled = false;
-            try {
-              if (isFollowCall(waive(options))) handled = follow(reader, waive(this), waive(position), waive(options));
-            } catch (e) {
-              deps.error(e);
-              handled = false;
-            }
-            if (handled) return undefined;
-            return Reflect.apply(original, this, [position, options]);
-          },
-        );
-        patchedViews.add(view);
-        done = true;
-        deps.debug?.('sentence in view attached to a PDF view');
-      } catch (e) {
-        deps.error(e);
-      }
+      try { if (controller.attach(reader, view)) done = true; }
+      catch (e) { deps.error(e); }
     }
     return done;
   }
@@ -473,8 +445,8 @@ export function createSentenceInView(deps: SentenceInViewDeps): SentenceInView {
     const view = views.find((v) => Array.isArray(v._pages)) ?? views[0];
     if (!view) return { kind: 'none', patched: false };
     if (!Array.isArray(view._pages)) return { kind: 'dom', patched: false };
-    const proto = ownerOf(view, 'navigateToPosition');
-    const patched = !!proto && patches.has(proto, 'navigateToPosition');
+    const ownership = controller.inspect(view);
+    const patched = ownership.owned === true;
     let sentence: Record<string, unknown> | null = null;
     let part: Box | null = null;
     let viewport: Viewport | null = null;
@@ -497,13 +469,13 @@ export function createSentenceInView(deps: SentenceInViewDeps): SentenceInView {
       deps.error(e);
     }
     const last: LastDecision | undefined = view[LAST];
-    return { kind: 'pdf', patched, viewport, sentence, part, last: last ? { ...last } : null };
+    return { kind: 'pdf', patched, ...ownership, viewport, sentence, part, last: last ? { ...last } : null };
   }
 
   return {
     attach,
     inspect,
-    patchCounts: () => patches.counts(),
-    dispose: () => patches.restoreAll(),
+    patchCounts: () => controller.patchCounts(),
+    dispose: () => controller.dispose(),
   };
 }

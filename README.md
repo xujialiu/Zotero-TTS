@@ -265,8 +265,11 @@ language, voice.
   sentence being read would run past the bottom of the window, onto the
   next page or into the next column, so none of it is out of sight; a
   sentence taller than the window follows the word being read. Always on.
-  Scrolling away by hand still stops the following until `Shift+Enter` or
-  the player's skip buttons.
+  Scrolling away by hand stops following until `Shift+Enter`, the player's
+  skip buttons, or resuming playback with the current sentence still in
+  view. Automatic scrolling, zoom and window
+  changes do not turn following off. When you return to a hidden PDF, it
+  catches up to the current reading position unless you had browsed away.
 - *Read a page's first line when Zotero would skip it* — a sentence that
   runs onto the next page can lose that page's first line: Zotero reads
   straight past it, and the join sounds like a sentence. On, the line is
