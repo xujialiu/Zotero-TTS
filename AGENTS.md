@@ -1,4 +1,4 @@
-# CLAUDE.md — Zotero-TTS
+# AGENTS.md — Zotero-TTS
 
 Zotero 10 plugin that adds voices to Zotero's built-in **Read Aloud**: OpenAI
 (or any OpenAI-compatible server), Azure Speech, Cloudflare Workers AI,
@@ -71,7 +71,7 @@ WebDAV), highlight colors.
   2026-09-06, issue #58): a session running Fable hands it the English
   pages that changed and their diff, and checks the diff that comes back;
   any other model translates in place by
-  `.claude/agents/docs-translator.md`.
+  `.Codex/agents/docs-translator.md`.
 - `notes/NOTES.md` — the standing reference: what the plugin is, the Zotero
   internals verified by reading its source, what is still open, and an index
   of the log. **Read it before touching Read Aloud internals.** The log itself
@@ -293,14 +293,14 @@ WebDAV), highlight colors.
 - **Git housekeeping** (settled 2026-08-28): committing what is in the
   working tree, deleting merged branches locally and on origin, tagging,
   pushing, `--ff-only` merges and, since 2026-09-06, the whole of a
-  release (see Releasing) follow `.claude/agents/git-chores.md`.
+  release (see Releasing) follow `.Codex/agents/git-chores.md`.
   A Fable session hands them to `Agent` with `subagent_type:
   "git-chores"` — told exactly what to commit, with which message, and
   what to leave in the working tree — then confirms the report against
   `git log` / `git status`. Only a merge that does not fast-forward —
   conflicts, a diverged `main` — is never handed over at all, and a
   resolution that is a judgment call is asked about. Agent definitions
-  under `.claude/agents/` are read when a session starts, and one is
+  under `.Codex/agents/` are read when a session starts, and one is
   dropped silently — "not found", no error anywhere — when its
   `description:` is unquoted and contains `: ` while the file has CRLF
   line endings, which `core.autocrlf` gives every fresh Orca worktree
@@ -370,7 +370,7 @@ behavior before it is merged, and **researching** — reproducing a bug,
 reading a reader's live state, digging an issue's evidence out of Zotero
 before the issue is written.
 
-- **The driving rules are `.claude/agents/zotero-tester.md`** (the
+- **The driving rules are `.Codex/agents/zotero-tester.md`** (the
   bridge's tools, how to drive them, what to report). A session running
   Fable or Opus hands **every** run to `Agent` with `subagent_type:
   "zotero-tester"` — research as much as verification, since research is
@@ -447,7 +447,7 @@ Installed copies auto-update through the manifest's `update_url`, which
 points at `update.json` on `main`. A release is **one hand-off** (settled
 2026-09-06, issue #58): a Fable session hands "release X.Y.Z" and a line
 of release notes to `git-chores`; any other model runs the release
-section of `.claude/agents/git-chores.md` itself. Underneath are two
+section of `.Codex/agents/git-chores.md` itself. Underneath are two
 scripts and three commits, and skipping the last strands every installed
 copy on the old version:
 
