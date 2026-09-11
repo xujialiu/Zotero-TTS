@@ -248,10 +248,12 @@ WebDAV), highlight colors.
   pref you need, never print whole lines.
 - **Delegation is decided per agent** (settled 2026-08-28, gated
   2026-08-28, widened 2026-08-30, split 2026-09-04, a third agent
-  2026-09-06, a model per agent 2026-09-08): `zotero-tester` runs Opus
-  at maximum reasoning effort; `git-chores` runs Sonnet at high and
-  `docs-translator` Sonnet at maximum — rule-book work the session
-  checks anyway, at 40% less per token. A tester verification brief may
+  2026-09-06, a model per agent 2026-09-08, session effort 2026-09-11):
+  `zotero-tester` runs Opus; `git-chores` and `docs-translator` run
+  Sonnet — rule-book work the session checks anyway, at 40% less per
+  token. All three inherit the main session's reasoning effort: omit
+  `effort` from their frontmatter rather than pinning a level. A tester
+  verification brief may
   be tried on Sonnet through the `Agent` call's `model` override, and
   the file changes only once the transcript measurement of #58 says it
   paid. Who hands work to them is decided agent by agent.
