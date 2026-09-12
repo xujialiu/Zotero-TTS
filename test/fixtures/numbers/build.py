@@ -1,4 +1,4 @@
-"""The numbers fixture for the live checklist (test/zotero-dev.md, section 3;
+"""The numbers fixture for the live checklist (test/zotero-dev/README.md, section 3;
 issue #86): one page whose sentences carry what a Kokoro-FastAPI server
 rewrites before it speaks -- decimals, a thousands separator, a percentage, a
 typographic apostrophe, a multiplication sign glued to a digit -- and, after

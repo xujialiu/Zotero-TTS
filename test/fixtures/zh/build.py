@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""A Chinese EPUB for the live checklist (test/zotero-dev.md, section 1a):
+"""A Chinese EPUB for the live checklist (test/zotero-dev/README.md, section 1a):
 three sentences under a heading, so a provider that times Chinese by the
 character — Fish Audio, issue #89 — can be read against known counts.
 Sentence lengths, punctuation included: 16, 24, 11; the heading 6."""

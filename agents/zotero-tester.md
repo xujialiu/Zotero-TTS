@@ -305,11 +305,18 @@ entries with the count between), the expected output, and PASS / FAIL /
 NOT TESTABLE with the reason. Below the table, verbatim — the script as
 run and the output as it came back — only for the rows that are FAIL or
 NOT TESTABLE and for anything the brief did not anticipate; a PASS row's
-script is not repeated. Then the items for `test/zotero-dev.md` that the
-run measured, drafted in that file's shape under the section they belong
+script is not repeated. Then the items for `test/zotero-dev/README.md` that the
+run measured, drafted in the relevant case file's shape under the section they belong
 to — the behavior, the check, the expected output as observed — so the
 session pastes them; a fix that changed an expected output shows the old
 value and the new.
+
+For new tests, also supply the reusable scripts that actually ran, including
+PASS cases, and sanitized run evidence for the main session to save under
+`test/zotero-dev/scripts/` and `test/zotero-dev/runs/`, as MEMORY.md requires.
+Keep these artifacts separate from the concise report. Backfill older cases
+when they are next run in a user-requested full pass; do not run extra checks
+just to fill the archive.
 
 Research, for every question: what you ran (the script, verbatim — here
 the scripts are the evidence the issue is built on), what came back

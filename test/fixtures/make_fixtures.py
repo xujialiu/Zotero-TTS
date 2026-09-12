@@ -1,4 +1,4 @@
-"""Hand-written PDF fixtures for the live checklist (test/zotero-dev.md); stdlib only.
+"""Hand-written PDF fixtures for the live checklist (test/zotero-dev/README.md); stdlib only.
 
 fixture-a.pdf: two pages of English prose with clear paragraph gaps, a document
 language tag of en-US, and one line drawn at font size zero (the shape of the

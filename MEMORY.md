@@ -425,23 +425,47 @@ before the issue is written.
   human can judge. Work the list until it is empty, then a last pass for
   whatever was fixed along the way. A failure stops the pass: fix, rebuild,
   reinstall, re-run from the first check.
-- **The list is `test/zotero-dev.md`** (settled 2026-09-01): the complete
+- **The list is `test/zotero-dev/README.md`** (settled 2026-09-01): the complete
   live checklist, one section per area, every item a behavior, its check
   (a diagnostic or an observation) and the expected output; the fixtures
   it uses are `test/fixtures/`. **A feature adds its items there before
   it merges** — the check that proves the new behavior by its mechanism,
   what it may touch, what only a human can judge — and its verification
   brief runs that section plus the baseline (section 0). The tester's
-  report ends with those items drafted in the file's shape from what it
+  report ends with those items drafted in the case file's shape from what it
   measured; the session pastes and trims them rather than reading the
   section to write them. A fix that changes an expected output changes
   it there in the same commit. The
-  **whole file runs only when the user asks for it** — never on a
+  **whole checklist runs only when the user asks for it** — never on a
   session's own initiative: not after a release, not after a Zotero
   update, not because a batch of features landed, however much changed.
   Those are the occasions the user may choose to ask on; the file exists
   so that when they do, nothing is left out. The first full pass was the
   1.10.1 bug hunt of 2026-08-31 (issues #31–#39), on request.
+- **Retain live test methods incrementally** (settled 2026-09-12):
+  `test/zotero-dev/README.md` indexes the case files, baseline, and cleanup;
+  `limitations.md` holds both human-only checks and coverage gaps. Do not
+  create a separate `manual.md`. Preserve existing case numbers when moving
+  checks so prior reports and cross-references remain usable.
+  For every new live test, retain the scripts that actually ran under
+  `test/zotero-dev/scripts/`, together with prerequisites, fixtures,
+  expected output, permitted state changes, and restoration steps. The
+  tester supplies these artifacts and the main session saves them, including
+  successful scripts even though they are omitted from the short report.
+  Save sanitized evidence in `test/zotero-dev/runs/<date>-<build>/`: plugin
+  version and build hash, Zotero version and platform, case numbers,
+  observed and expected values, PASS / FAIL / NOT TESTABLE / PENDING,
+  restoration status, and remaining work. Never commit credentials or raw
+  preference snapshots. Link the cases to their reusable scripts.
+  Do not rerun tests for this documentation reorganization or backfill
+  unverified scripts. Backfill existing cases incrementally during the next
+  full pass the user requests, from the scripts and observations of that
+  run. Reuse preparation methods, not old PASS results: a new full pass
+  checks every case again. Continuing an interrupted run first verifies
+  build identity, environment, and restored state; changed conditions
+  invalidate affected results, and the failure/rebuild rule above still
+  applies. Keep per-section baseline and cleanup rather than sharing
+  unverified temporary state across sections.
 - **The user takes over only** when a check needs a human — how a voice
   sounds, whether the word highlight keeps pace, how the popup behaves in
   motion (screenshots are static; nothing here records) — or when the
@@ -544,7 +568,7 @@ addon/              manifest.json, bootstrap.js, prefs.js (defaults), content/pr
                     content/preferences.css (the ? icons, registered with the pane),
                     locale/<locale>/zotero-tts.ftl (every string the pane and the UI show; en-US is
                     the source, test/l10n.test.ts pins the other locales to it)
-test/               mirrors src/; vitest; zotero-dev.md — the live checklist the bridge
+test/               mirrors src/; vitest; zotero-dev/ — the live checklist the bridge
                     runs (see Driving Zotero live); fixtures/ — its PDFs and their generator
 assets/             README media (the word-highlight GIF, popup and settings screenshots)
 ```
