@@ -37,6 +37,7 @@ const ACTION_NAMES: Record<ShortcutAction, () => string> = {
   toggleOptions: () => t('ztts-action-options'),
   stopReading: () => t('ztts-action-stop'),
   toggleWordHighlight: () => t('ztts-action-word-highlight'),
+  toggleAutoScroll: () => t('ztts-action-auto-scroll'),
 };
 
 /**

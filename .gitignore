@@ -6,6 +6,7 @@ addon/content/zotero-tts.js
 .superpowers/
 docs/
 site/
+.tmp/
 
 # Private notes (billing account ids, cloud setup) — never committed.
 secrets/

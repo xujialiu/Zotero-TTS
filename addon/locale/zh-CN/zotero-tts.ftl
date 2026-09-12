@@ -496,3 +496,27 @@ ztts-webdav-machine-file = 本机在服务器上的备份是 { $file }。
 ztts-substitute = Zotero-TTS：这里没有提供 { $missing }，改用 { $instead } 朗读。
 ztts-substitute-none = Zotero-TTS：这里没有提供 { $missing }，也没有任何本地语音。由 Zotero 选择语音。
 ztts-substitute-paid = Zotero-TTS：这里没有提供 { $missing }，也没有任何本地语音。由 Zotero 选择语音，可能会消耗额度。
+
+## Auto-scroll
+
+ztts-auto-scroll =
+    .value = 自动滚动
+ztts-auto-scroll-sentence =
+    .label = 每句居中
+ztts-auto-scroll-outside =
+    .label = 超出视图时滚动
+ztts-help-auto-scroll-sentence =
+    .value = ?
+    .help = 每句开始时，将整句移到视图的垂直中央，即使它已经完全可见。逐词高亮不会让能完整显示的句子反复居中。适用于 PDF 和 EPUB；EPUB 翻页模式保留原来的分页。手动浏览会暂停跟随；“回到朗读位置”可恢复跟随。
+ztts-help-auto-scroll-outside =
+    .value = ?
+    .help = 整句完全可见时保持原位；只有句子有部分超出视图时，才滚动并将整句居中。适用于 PDF 和 EPUB；EPUB 翻页模式保留原来的分页。超长句子先显示句首，有逐词定位时再跟随当前单词。手动浏览会暂停跟随；“回到朗读位置”可恢复跟随。
+
+ztts-key-auto-scroll =
+    .value = 自动滚动模式
+ztts-help-key-auto-scroll =
+    .value = ?
+    .help = 在“每句居中”和“超出视图时滚动”之间切换。选择对所有 PDF 和 EPUB 生效，并会保存。在阅读器中，朗读前或朗读时均可使用；手动浏览后不会因此恢复跟随。
+ztts-action-auto-scroll = 自动滚动模式
+ztts-auto-scroll-toast-sentence = 自动滚动：每句居中
+ztts-auto-scroll-toast-outside = 自动滚动：超出视图时滚动

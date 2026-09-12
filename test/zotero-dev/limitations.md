@@ -13,7 +13,7 @@ follow-up did not verify raw voice-preference/memory equality after testing.
 ## 8. What only a human can check
 
 Handed round in the old form (MEMORY.md, "The user takes over only"):
-at most three self-contained steps, the UI named by what it says on
+  at most three self-contained steps, the UI named by what it says on
 screen, the complete Run JavaScript code, the expected output.
 
 - *Backup settings…* / *Restore settings…* and *Export/Import reading
@@ -34,6 +34,16 @@ screen, the complete Run JavaScript code, the expected output.
 
 ## 9. Not covered, and why
 
+- Auto-scroll modes (#93, [section 3f](cases/auto-scroll.md)): the beta3
+  bridge pass verified mode targets, real clocks, input intent and the
+  shortcut, but PDF and scrolled EPUB smooth requests did not change
+  physical offsets in the observation windows. Smoothness, visual
+  centering and interruption during visible movement need normal use.
+  The run did not cover a real oversized/wordless voice, a suitable
+  cross-column PDF sentence, a spread-crossing EPUB sentence following
+  real words, hidden-reader recovery or every secondary-view lifecycle.
+  Existing deterministic unit coverage is not a live pass for those
+  cases. See the [beta3 report](runs/2026-09-12-1.12.3-beta3/issue-93.md).
 - EPUB and snapshot readers: `test/fixtures/return-key/` holds an EPUB
   and an HTML snapshot of the same sixty numbered paragraphs (issue
   #76, `build.py`), and §4.4 drives both. The snapshot reads aloud only
@@ -67,8 +77,9 @@ screen, the complete Run JavaScript code, the expected output.
   merged with the sentence before it — so neither cut state could be
   built on it, and it was dropped. A real journal article joins such
   sentences (the IOVS article: 3 of 429 with `nextPageRects`); §3a names
-  one. The DOM views (EPUB, snapshot, Reading Mode) keep Zotero's
-  start-of-segment navigate (reader.js:53250) and are outside #83.
+  one. Snapshots and Reading Mode keep Zotero's start-of-segment
+  navigation (reader.js:53250); EPUB now uses #93's whole-range follow
+  in scrolled layout and native page navigation in paginated layout.
 - A provider failing mid-document (Zotero's error UI, the 429 that maps
   to the silent `quota-exceeded`, notes/NOTES.md "Still open"): needs a
   server that fails on cue.

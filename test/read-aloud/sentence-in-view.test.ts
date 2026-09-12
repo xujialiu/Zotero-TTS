@@ -122,19 +122,19 @@ describe('followTarget', () => {
   it('leaves a sentence that is wholly on screen alone', () => {
     const box: Box = [100, 3000, 1000, 3035];
     const target = decide({ head: box, whole: box, part: null, viewport: at(2600) });
-    // Zotero's method then runs: it finds the sentence visible and keeps the horizontal axis
-    expect(target).toEqual({ reason: 'none', fits: true, handled: false });
+    // A visible sentence is handled without the native early-scroll trigger
+    expect(target).toEqual({ reason: 'none', fits: true, handled: true });
   });
 
-  it("keeps Zotero's own trigger: a start in the bottom quarter, or an end in the top quarter", () => {
+  it("leaves both fully visible edge sentences in place", () => {
     const low: Box = [100, 3400, 1000, 3435];
     const lowTarget = decide({ head: low, whole: low, part: null, viewport: at(2600) });
-    expect(lowTarget.reason).toBe('zotero');
-    expect(lowTarget.top).toBeCloseTo(2920.5);
+    expect(lowTarget.reason).toBe('none');
+    expect(lowTarget.top).toBeUndefined();
     const high: Box = [100, 2620, 1000, 2655];
     const highTarget = decide({ head: high, whole: high, part: null, viewport: at(2600) });
-    expect(highTarget.reason).toBe('zotero');
-    expect(highTarget.top).toBeCloseTo(2140.5);
+    expect(highTarget.reason).toBe('none');
+    expect(highTarget.top).toBeUndefined();
   });
 
   describe('a sentence taller than the viewport', () => {
@@ -154,7 +154,7 @@ describe('followTarget', () => {
     });
 
     it('brings the head to the top edge when there is no word to follow, and then holds still', () => {
-      const first = decide({ head, whole, part: null, viewport: at(2000) });
+      const first = decide({ head, whole, part: null, viewport: at(2000), entered: true });
       expect(first.reason).toBe('cut');
       expect(first.top).toBe(2976);
       // Already there: the head sits at the margin, and Zotero's top-quarter
@@ -184,10 +184,10 @@ describe('followTarget', () => {
     expect(decide({ head: centered, whole: centered, part: null, viewport: at(2600, wide) }).left).toBeUndefined();
   });
 
-  it('takes the margin from the viewport when none is given', () => {
-    // 994 px → 24 px: a tail 20 px inside the bottom edge is still "cut"
+  it('uses actual viewport edges even when placement has a margin', () => {
+    // Placement margins never count visible text as clipped.
     const box: Box = [100, 3000, 1000, 3574];
-    expect(followTarget({ head: box, whole: box, part: null, viewport: at(2600) }).reason).toBe('cut');
+    expect(followTarget({ head: box, whole: box, part: null, viewport: at(2600) }).reason).toBe('none');
     expect(followTarget({ head: box, whole: box, part: null, viewport: at(2600), margin: 8 }).reason).toBe('none');
   });
 });
@@ -252,6 +252,26 @@ function makeDeps(over: Partial<SentenceInViewDeps> = {}) {
 const A_POSITION = { pageIndex: 1, rects: [A_HEAD], nextPageRects: [A_TAIL] };
 
 describe('createSentenceInView', () => {
+  it('centers one time per sentence, applies mode changes and forces explicit returns', () => {
+    let mode: 'outside' | 'sentence' = 'sentence';
+    const deps = makeDeps({ mode: () => mode });
+    const module = createSentenceInView(deps);
+    const { reader, view, container } = fakeReader({ scrollTop: 2600 });
+    module.attach(reader);
+    const position = { pageIndex: 1, rects: [[100, 3400, 1000, 3435]] };
+    push(view, position);
+    expect(container.scrollTo).toHaveBeenCalledWith({ cloned: { top: 2920.5, behavior: 'smooth' } });
+    push(view, { ...position });
+    expect(container.scrollTo).toHaveBeenCalledTimes(1);
+    view.lockPositionToReadAloud();
+    push(view, position);
+    expect(container.scrollTo).toHaveBeenCalledTimes(2);
+    mode = 'outside'; module.refresh();
+    expect(container.scrollTo).toHaveBeenCalledTimes(2);
+    mode = 'sentence'; module.refresh();
+    expect(container.scrollTo).toHaveBeenCalledTimes(3);
+    module.dispose();
+  });
   it("shadows the PDF view's navigateToPosition once per prototype, and only on a PDF view", () => {
     const deps = makeDeps();
     const module = createSentenceInView(deps);
@@ -286,16 +306,14 @@ describe('createSentenceInView', () => {
     expect(seen.last).toMatchObject({ reason: 'cut', from: 2357, top: 2801.5, fits: true });
   });
 
-  it("hands a sentence that is wholly on screen to Zotero's method with the same arguments", () => {
+  it("handles a wholly visible sentence without native navigation", () => {
     const deps = makeDeps();
     const module = createSentenceInView(deps);
     const { reader, view, container, original } = fakeReader({ scrollTop: 2700 });
     module.attach(reader);
     const position = { pageIndex: 1, rects: [[100, 3000, 1000, 3035]] };
     push(view, position);
-    expect(original).toHaveBeenCalledTimes(1);
-    expect(original.mock.calls[0]).toEqual([position, { cloned: FOLLOW_OPTIONS }]);
-    expect(original.mock.instances[0]).toBe(view);
+    expect(original).not.toHaveBeenCalled();
     expect(container.scrollTo).not.toHaveBeenCalled();
     expect((module.inspect(reader) as any).last).toMatchObject({ reason: 'none', fits: true });
   });
@@ -357,6 +375,9 @@ describe('createSentenceInView', () => {
       const module = createSentenceInView(deps);
       const { reader, view, container, original } = fakeReader({ scrollTop: 2900, state });
       module.attach(reader);
+      push(view, giant);
+      expect(container.scrollTo).toHaveBeenCalledWith({ cloned: { top: 2976, behavior: 'smooth' } });
+      container.scrollTo.mockClear();
       push(view, giant);
       expect(container.scrollTo).not.toHaveBeenCalled();
       // Not Zotero's either: its rule would center the head again on every push

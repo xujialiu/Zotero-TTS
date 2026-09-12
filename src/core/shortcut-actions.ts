@@ -33,7 +33,7 @@ export type PositionAction = 'startFromSelection' | 'returnToSpoken';
  */
 export type PlayerAction = 'toggleOptions' | 'stopReading';
 
-export type ShortcutAction = SpeedAction | VolumeAction | NavigationAction | PositionAction | PlayerAction | HighlightAction;
+export type ShortcutAction = SpeedAction | VolumeAction | NavigationAction | PositionAction | PlayerAction | HighlightAction | 'toggleAutoScroll';
 
 export const NAVIGATION_ACTIONS: readonly NavigationAction[] = ['previousSentence', 'nextSentence', 'previousParagraph', 'nextParagraph'];
 
@@ -48,6 +48,7 @@ export const SHORTCUT_ACTIONS: readonly ShortcutAction[] = [
   ...POSITION_ACTIONS,
   ...PLAYER_ACTIONS,
   ...HIGHLIGHT_ACTIONS,
+  'toggleAutoScroll',
 ];
 
 /** Zotero's own granularities: a paragraph is the run of segments from one `paragraphStart` anchor to the next. */

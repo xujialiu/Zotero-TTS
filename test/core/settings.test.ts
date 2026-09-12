@@ -116,6 +116,7 @@ describe('loadSettings', () => {
       toggleOptions: 'Shift+O',
       stopReading: 'Shift+S',
       toggleWordHighlight: 'Shift+W',
+      toggleAutoScroll: 'Shift+A',
     });
   });
 

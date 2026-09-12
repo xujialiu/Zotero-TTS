@@ -17,10 +17,11 @@ export function isFollowCall(options: unknown): boolean {
 }
 
 interface Deps {
+  resuming?(reader: any): boolean;
   exportFunction?(fn: AnyFn, target: object): AnyFn;
   waiveXrays?(value: unknown): unknown;
   isDead?(value: unknown): boolean;
-  follow(reader: any, view: any, originalNavigate: AnyFn, reset: boolean): void;
+  follow(reader: any, view: any, originalNavigate: AnyFn, reset: boolean, force: boolean): void;
   clear?(view: any): void;
   error(error: unknown): void;
   debug?(message: string): void;
@@ -37,6 +38,7 @@ interface OwnedView {
   paused: boolean;
   pending: boolean;
   reset: boolean;
+  force: boolean;
   reason: string;
   frame: number | null;
   frameWindow: any;
@@ -93,8 +95,10 @@ export function createPdfFollow(deps: Deps) {
     if (!visible(r)) { r.pending = true; r.reset = true; return; }
     const reset = r.reset || r.pending;
     r.reset = false;
+    const force = r.force;
+    r.force = false;
     r.pending = false;
-    try { deps.follow(r.reader, r.view, r.originalNavigate, reset); }
+    try { deps.follow(r.reader, r.view, r.originalNavigate, reset, force); }
     catch (e) { deps.error(e); }
   }
 
@@ -112,6 +116,7 @@ export function createPdfFollow(deps: Deps) {
   function disengage(r: OwnedView, reason: string): void {
     if (!r.following) return;
     r.following = false;
+    r.force = false;
     r.reason = reason;
     r.pending = false;
     r.reset = true;
@@ -241,7 +246,7 @@ export function createPdfFollow(deps: Deps) {
     const state = waive(view._readAloudState);
     const r: OwnedView = { id: ++nextId, reader, view, originalNavigate, descriptor,
       following: !!state?.active && view._readAloudPositionLocked !== false,
-      active: !!state?.active, paused: !!state?.paused, pending: false, reset: true, reason: 'initial',
+      active: !!state?.active, paused: !!state?.paused, pending: false, reset: true, force: false, reason: 'initial',
       frame: null, frameWindow: null, undo: [], find: null, pointer: null };
     try {
       Object.defineProperty(view, '_readAloudPositionLocked', { configurable: true, enumerable: descriptor?.enumerable ?? true,
@@ -282,13 +287,7 @@ export function createPdfFollow(deps: Deps) {
         const result = Reflect.apply(original, this, args);
         if (r) {
           const state = waive(args[0]);
-          if (state?.active && !r.active) { r.following = true; r.reason = 'session'; r.reset = true; }
-          else if (state?.active && r.paused && !state.paused && state.activeSegment?.sourcePosition &&
-            r.view._isPositionInViewBounds?.(state.activeSegment.sourcePosition)) {
-            // Preserve native resume-in-view, including player paths that
-            // toggle the manager directly rather than calling the view lock.
-            r.following = true; r.reason = 'resume'; r.reset = true;
-          }
+          if (state?.active && !r.active) { r.following = true; r.reason = 'session'; r.reset = true; deps.clear?.(r.view); }
           r.active = !!state?.active;
           r.paused = !!state?.paused;
           if (!state?.active || !state.popupOpen) { r.following = false; r.pending = false; cancelFrame(r); }
@@ -298,7 +297,8 @@ export function createPdfFollow(deps: Deps) {
       });
       patches.shadow(proto, 'lockPositionToReadAloud', original => function(this: any, ...args: any[]) {
         const r = get(this);
-        if (r) { r.following = true; r.reason = 'explicit'; r.reset = true; }
+        if (r && deps.resuming?.(r.reader)) return Reflect.apply(original, this, args);
+        if (r) { r.following = true; r.reason = 'explicit'; r.reset = true; r.force = true; }
         return Reflect.apply(original, this, args);
       });
       for (const name of ['navigate', ...NAVIGATION]) {
@@ -338,6 +338,7 @@ export function createPdfFollow(deps: Deps) {
 
   return {
     attach,
+    refresh() { for (const r of records.values()) run(r); },
     inspect(view: any): Record<string, unknown> {
       const r = recordOf(waive(view));
       return r ? { owned: true, following: r.following, pending: r.pending, reason: r.reason, visible: visible(r) } : { owned: false };

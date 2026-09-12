@@ -9,7 +9,7 @@ import { zoteroVoiceId } from './core/providers/system/voices';
 import { FTL_FILE, hasMessageSource, sentences, setMessageSource, t } from './core/l10n';
 import { installOwnSource, OWN_SOURCE_NAME, unregisterOwnSource } from './core/l10n-source';
 import { createMemoryCache } from './core/memory-cache';
-import { audioCacheOn, createZoteroPrefs, DEFAULTS, loadSettings, migrateLegacyProviderPref, PREF_PREFIX } from './core/settings';
+import { audioCacheOn, autoScrollMode, createZoteroPrefs, DEFAULTS, loadSettings, migrateLegacyProviderPref, PREF_PREFIX } from './core/settings';
 import { createBackup, flattenSettings, machineSettingsFilename, serializeBackup, SETTINGS_FILE_PATTERN } from './core/settings-backup';
 import { createSettingsAutoUpload, type SettingsAutoUpload } from './core/settings-autoupload';
 import { machineId } from './core/machine-id';
@@ -30,7 +30,9 @@ import { forgetViewReadAloudState, readAloudViewKind, type ReadAloudViewKind } f
 import { redeliverInterfaces, restoreInterfaces } from './read-aloud/interface-redelivery';
 import { createReadAloudMemorySync, type ReadAloudMemorySync } from './read-aloud/memory-sync';
 import { createHighlightStyling, type HighlightStyling } from './read-aloud/highlight-style';
-import { createSentenceInView, type SentenceInView } from './read-aloud/sentence-in-view';
+import { createDOMFollow } from './read-aloud/dom-follow';
+import { createResumeGuard } from './read-aloud/resume-guard';
+import { createSentenceInView, type SentenceInView, type SentenceInViewDeps } from './read-aloud/sentence-in-view';
 import { createSkippedLines, type SkippedLines } from './read-aloud/skipped-lines';
 import { createSystemVoiceHiding, type SystemVoiceHiding } from './read-aloud/system-voices';
 import { createMultilingualFirst, type MultilingualFirst } from './read-aloud/multilingual-first';
@@ -128,6 +130,9 @@ let deleteNotifierID: string | null = null;
 let highlightStyling: HighlightStyling | null = null;
 /** The whole sentence on screen while a PDF is followed (read-aloud/sentence-in-view.ts, issue #83). */
 let sentenceInView: SentenceInView | null = null;
+let domFollowing: ReturnType<typeof createDOMFollow> | null = null;
+let followResumeGuard: ReturnType<typeof createResumeGuard> | null = null;
+let autoScrollObserver: unknown = null;
 /** A page's first line Zotero's document analysis threw out, put back before the sentences are cut (read-aloud/skipped-lines.ts, issue #87). */
 let skippedLines: SkippedLines | null = null;
 let systemVoiceHiding: SystemVoiceHiding | null = null;
@@ -410,6 +415,8 @@ function buildReaderInterface(reader: any, targetWindow: any, native: () => unkn
           highlightStyling?.attach(reader);
           // The same views: the PDF one's follow is taken over here (issue #83)
           sentenceInView?.attach(reader);
+          followResumeGuard?.attach(reader);
+          domFollowing?.attach(reader);
           // The structure is materialized when the first segments are
           // requested, after this listing: the shadow is in place first (issue #87)
           skippedLines?.attach(reader);
@@ -644,6 +651,8 @@ function watchReader(reader: any): void {
   readAloudMemory?.attach(reader);
   highlightStyling?.attach(reader);
   sentenceInView?.attach(reader);
+  followResumeGuard?.attach(reader);
+  domFollowing?.attach(reader);
   skippedLines?.attach(reader);
   systemVoiceHiding?.attach(reader);
   multilingualFirst?.attach(reader);
@@ -780,6 +789,7 @@ function hookTabClose(reader: any): void {
     const wrapper = function zttsTabCloseCapture(this: unknown) {
       tabCloseHooks.delete(tab);
       try { playerExpanded?.detach(reader); } catch (error) { Zotero.logError(error); }
+      try { followResumeGuard?.detach(reader); } catch (error) { Zotero.logError(error); }
       trace(`tab.onClose fired ${String(tabID)}`);
       try {
         positionSync?.captureClose(reader);
@@ -851,6 +861,7 @@ function hookPositionCapture(reader: any): void {
     const wrapper = function zttsUninitCapture(this: unknown, ...args: unknown[]) {
       positionCaptureHooks.delete(reader);
       try { playerExpanded?.detach(reader); } catch (error) { Zotero.logError(error); }
+      try { followResumeGuard?.detach(reader); } catch (error) { Zotero.logError(error); }
       trace(`reader.uninit fired item ${String(reader?.itemID)}`);
       try {
         positionSync?.captureClose(reader);
@@ -999,6 +1010,10 @@ function startReadAloudShortcuts(pluginID: string): void {
     // The highlight key's toast (issue #67): the level in Zotero's own words,
     // and, on a voice without word timing, why nothing on screen changed —
     // that one stays up long enough to be read
+    showAutoScrollToast: (reader: any, mode) => {
+      const doc = toastDoc(reader);
+      if (doc) showToast(doc, mode === 'sentence' ? t('ztts-auto-scroll-toast-sentence') : t('ztts-auto-scroll-toast-outside'));
+    },
     showHighlightToast: (reader: any, level: HighlightLevel, timing: WordTiming) => {
       const doc = toastDoc(reader);
       if (!doc) return;
@@ -1503,7 +1518,9 @@ function stopHighlightStyling(): void {
 
 function startSentenceInView(): void {
   stopSentenceInView();
-  sentenceInView = createSentenceInView({
+  const deps: SentenceInViewDeps = {
+    resuming: (reader) => followResumeGuard?.resuming(reader) ?? false,
+    mode: () => autoScrollMode(prefs.get(PREF_PREFIX + 'readAloud.autoScrollMode')),
     exportFunction: (fn, target) => Components.utils.exportFunction(fn, target),
     // What the reader hands an exported function arrives behind Xray wrappers (see highlight-style.ts)
     waiveXrays: (value) => ((value && typeof value === 'object') || typeof value === 'function' ? Components.utils.waiveXrays(value) : value),
@@ -1517,11 +1534,30 @@ function startSentenceInView(): void {
     wordTiming: (reader) => highlightStyling?.wordTiming(reader) ?? 'none',
     error: (e) => Zotero.logError(e),
     debug: (message) => Zotero.debug('[zotero-tts] ' + message),
+  };
+  sentenceInView = createSentenceInView(deps);
+  domFollowing = createDOMFollow(deps);
+  followResumeGuard = createResumeGuard(deps);
+  for (const reader of Zotero.Reader._readers ?? []) {
+    followResumeGuard.attach(reader);
+    sentenceInView.attach(reader);
+    domFollowing.attach(reader);
+  }
+  autoScrollObserver = Zotero.Prefs.registerObserver('zotero-tts.readAloud.autoScrollMode', () => {
+    sentenceInView?.refresh();
+    domFollowing?.refresh();
   });
-  for (const reader of Zotero.Reader._readers ?? []) sentenceInView.attach(reader);
 }
 
 function stopSentenceInView(): void {
+  if (autoScrollObserver !== null) {
+    Zotero.Prefs.unregisterObserver(autoScrollObserver);
+    autoScrollObserver = null;
+  }
+  domFollowing?.dispose();
+  domFollowing = null;
+  followResumeGuard?.dispose();
+  followResumeGuard = null;
   sentenceInView?.dispose();
   sentenceInView = null;
 }
@@ -2063,6 +2099,10 @@ const diagnostics = {
    * N: scrollTop A -> B` line per scroll issued; a sentence wholly on
    * screen leaves the call to Zotero (`handled` false, no line).
    */
+  autoScroll: () => JSON.stringify((Zotero.Reader._readers ?? []).map((r: any) => {
+    const dom = domFollowing?.inspect(r);
+    return dom?.patched ? dom : sentenceInView?.inspect(r) ?? null;
+  }), null, 1),
   sentenceInView: () => JSON.stringify((Zotero.Reader._readers ?? []).map((r: any) => sentenceInView?.inspect(r) ?? null), null, 1),
   /**
    * A page's first line put back into the reading order

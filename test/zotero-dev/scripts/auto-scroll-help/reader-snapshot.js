@@ -1,0 +1,1 @@
+return JSON.stringify((Zotero.Reader?._readers??[]).map((r,i)=>{let title=null;try{const it=Zotero.Items.get(r.itemID);const p=it?.parentItem??it;title=p?.getField('title')??null}catch{};return {index:i,itemID:r?.itemID??null,title,active:!!r?._internalReader?._readAloudManager?.active??false,popupOpen:!!r?._internalReader?._readAloudManager?.popupOpen??false};}))

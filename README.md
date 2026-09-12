@@ -29,7 +29,7 @@ it adds voices to the player's **Local** tier and tunes what is around them.
 - 📃 **No line lost at a page turn** — when a sentence runs onto the next page and Zotero would skip that page's first line, the line is read and highlighted like any other. [→ Reading](#reading)
 - 🎧 **A voice browser** in the settings: every voice by tier and language, a play button for a short sample, hearts for favorites, and a switch to offer only the favorites. [→ Voice browser](#voice-browser)
 - ✨ **Word *and* sentence highlighting at once**, in your own colors and opacities — for Zotero's voices too. [→ Highlight](#highlight)
-- ⌨️ **Keyboard shortcuts** for speed, volume, jumping by sentence or paragraph, reading from the selection, the player's options panel, the word highlight on or off, and stopping Read Aloud in every tab at once. All rebindable. [→ Shortcuts](#keyboard-shortcuts)
+- ⌨️ **Keyboard shortcuts** for speed, volume, jumping by sentence or paragraph, reading from the selection, the player's options panel, auto-scroll mode, the word highlight on or off, and stopping Read Aloud in every tab at once. All rebindable. [→ Shortcuts](#keyboard-shortcuts)
 - 📌 **One voice and speed everywhere** — every document and every open tab, instead of Zotero's choice per language. [→ Reading](#reading)
 - ⏱️ **The pauses are yours** — how long every voice waits between sentences and before a paragraph, shorter as you read faster. [→ Reading](#reading)
 - 💾 **Backup and sync** — settings and reading positions as files, or through your own WebDAV folder, so your settings and bookmarks follow you between computers. [→ Backup and sync](#backup-and-sync)
@@ -266,15 +266,24 @@ language, voice.
   cache below, and keeps it switched on.
 - *Cache synthesized audio* — skipping back or reopening a document costs no
   new request. In memory (64 MB); a Zotero restart empties it.
-- *The whole sentence on screen* — on a PDF, the view scrolls when the
-  sentence being read would run past the bottom of the window, onto the
-  next page or into the next column, so none of it is out of sight; a
-  sentence taller than the window follows the word being read. Always on.
-  Scrolling away by hand stops following until `Shift+Enter`, the player's
-  skip buttons, or resuming playback with the current sentence still in
-  view. Automatic scrolling, zoom and window
-  changes do not turn following off. When you return to a hidden PDF, it
-  catches up to the current reading position unless you had browsed away.
+- *Auto-scroll* — for PDFs and EPUBs, choose *Center each sentence* or
+  *Scroll when outside the view* (the default) in the Highlight settings.
+  Press `Shift+A` to switch modes; the current mode appears briefly.
+  The first centers the whole sentence when it starts; the second leaves
+  fully visible sentences in place and centers them only when clipped.
+  Word highlighting does not move a fitting sentence word by word.
+  Sentences taller than the view start at their beginning, then follow
+  the current word when real word timing is available; without it, only
+  the beginning can be located reliably. Paginated EPUBs keep their pages.
+  Document boundaries may limit centering.
+- *Browse while listening* — manual scrolling or page navigation suspends
+  following. *Go to reading position* (default `Shift+Enter`) returns and
+  resumes the selected mode; the player's skip buttons also resume it.
+  Changing the mode does not interrupt audio or resume following after
+  manual navigation. Automatic scrolling, zoom and window changes do not
+  turn following off; returning to a hidden document catches up only if
+  you had not browsed away. The mode is saved, backed up and synchronized
+  with your other settings.
 - *Read a page's first line when Zotero would skip it* — a sentence that
   runs onto the next page can lose that page's first line: Zotero reads
   straight past it, and the join sounds like a sentence. On, the line is

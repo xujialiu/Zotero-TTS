@@ -369,6 +369,19 @@
   <groupbox>
     <label><html:h2 data-l10n-id="ztts-heading-highlight"/></label>
     <hbox align="center">
+      <label data-l10n-id="ztts-auto-scroll" control="ztts-auto-scroll-mode" style="width: 8em"/>
+      <radiogroup id="ztts-auto-scroll-mode" preference="extensions.zotero.zotero-tts.readAloud.autoScrollMode">
+        <hbox align="center">
+          <radio value="sentence" data-l10n-id="ztts-auto-scroll-sentence"/>
+          <label class="ztts-help" value="?" data-l10n-id="ztts-help-auto-scroll-sentence" data-l10n-attrs="help"/>
+        </hbox>
+        <hbox align="center">
+          <radio value="outside" data-l10n-id="ztts-auto-scroll-outside"/>
+          <label class="ztts-help" value="?" data-l10n-id="ztts-help-auto-scroll-outside" data-l10n-attrs="help"/>
+        </hbox>
+      </radiogroup>
+    </hbox>
+    <hbox align="center">
       <label data-l10n-id="ztts-highlight-word" style="width: 8em"/>
       <html:input id="ztts-highlight-wordColor" type="color" preference="extensions.zotero.zotero-tts.highlight.wordColor"/>
       <label data-l10n-id="ztts-highlight-opacity" style="margin-inline-start: 1em"/>
@@ -474,6 +487,12 @@
       <button id="ztts-key-toggleOptions" style="min-width: 10em"/>
       <button id="ztts-key-clear-toggleOptions" data-l10n-id="ztts-clear"/>
       <label class="ztts-help" value="?" data-l10n-id="ztts-help-key-options" data-l10n-attrs="help"/>
+    </hbox>
+    <hbox align="center">
+      <label data-l10n-id="ztts-key-auto-scroll" style="width: 12em"/>
+      <button id="ztts-key-toggleAutoScroll" style="min-width: 10em"/>
+      <button id="ztts-key-clear-toggleAutoScroll" data-l10n-id="ztts-clear"/>
+      <label class="ztts-help" value="?" data-l10n-id="ztts-help-key-auto-scroll" data-l10n-attrs="help"/>
     </hbox>
     <hbox align="center">
       <label data-l10n-id="ztts-key-word-highlight" style="width: 12em"/>

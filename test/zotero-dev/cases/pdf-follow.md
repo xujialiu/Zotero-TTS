@@ -39,11 +39,11 @@ beta3 observations, not constants to assert at another viewport.
    shortcuts as manual page navigation. TIP KeyboardEvent initialization
    dictionaries must be cloned into the PDF window; press/release Shift
    through TIP as well, rather than assuming a dictionary modifier works.
-6. **Resume in view.** After manual disengagement, put the current
-   sentence inside the viewport while paused. Verify native
-   `_isPositionInViewBounds` is true; direct manager playback restores
-   following with reason `resume`, without an explicit view-lock call.
-   Out-of-view resume refusal is unit-tested separately.
+6. **Resume preserves manual intent (#93).** After manual disengagement,
+   put the current sentence inside the viewport while paused. Direct
+   manager playback and the native playback toggle must leave following
+   false; repeat with the sentence out of view. Go to reading position
+   then restores following. This replaces #90's resume-in-view behavior.
 7. **Trusted pointer inputs.** Prove events reach the PDF viewer. An
    ordinary click keeps following. Ctrl+wheel changes zoom (1.8→2.2
    measured) but keeps following; ordinary wheel disengages with reason

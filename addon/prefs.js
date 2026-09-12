@@ -72,3 +72,6 @@ pref('extensions.zotero.zotero-tts.highlight.wordAlpha', 70);
 pref('extensions.zotero.zotero-tts.highlight.sentenceColor', '#ffff00');
 pref('extensions.zotero.zotero-tts.highlight.sentenceAlpha', 70);
 pref('extensions.zotero.zotero-tts.highlight.sentenceUnderWord', true);
+
+pref('extensions.zotero.zotero-tts.readAloud.autoScrollMode', 'outside');
+pref('extensions.zotero.zotero-tts.shortcuts.toggleAutoScroll', 'Shift+A');

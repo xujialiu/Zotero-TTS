@@ -4,8 +4,8 @@
 
 Since #90, `pdf-follow.ts` owns following and calls the retained #83
 geometry from state updates, rather than waiting for Zotero's native lock.
-It measures the whole sentence, both pages, keeps Zotero's trigger, adds
-"any part outside the viewport less the margin", and scrolls
+Since #93 it measures both pages against the actual viewport edges,
+without the old quarter-screen trigger or clipping margin, and scrolls
 `#viewerContainer` itself (`src/read-aloud/sentence-in-view.ts`). Run the
 geometry checks with the PDF renderable and the host not minimized;
 hidden deferral and manual intent are checked in §3d. The
@@ -16,7 +16,8 @@ the Subtypes of Ischemic Stroke and an Automated Classification Model"
 113, 220, 267); any two-column journal article whose page-crossing
 sentences carry `nextPageRects` does, with its own numbers. Every number
 below was measured at viewport 1198 × 1141, page-width, scale 1.4191,
-margin `followMargin(1141)` = 24, `fits` limit 1093 px (2026-09-10); at
+margin `followMargin(1141)` = 24, former `fits` limit 1093 px
+(2026-09-10; #93 now uses all 1141 px); at
 another viewport a centering target is `(whole.top + whole.bottom) / 2 −
 clientHeight / 2` and a wordless giant's is `head.top − margin`. The
 player runs on a Kokoro voice (real word timing:
@@ -34,9 +35,9 @@ reading position moves; nothing else is touched.
 2. **A page-crossing sentence is shown whole.** View at scrollTop 0,
    `view.lockPositionToReadAloud()`, `manager.repositionTo(82)` (exact;
    `jumpTo` lands one earlier): within ~1.5 s one line `sentence in
-   view: zotero on page 2: scrollTop 0 -> 2768, sentence 889 px,
-   viewport 1141 px` — `zotero` because from the top of the document
-   Zotero's own trigger fires first, `cut` when the view starts nearer;
+   view: return on page 2: scrollTop 0 -> 2768, sentence 889 px,
+   viewport 1141 px` — `return` for explicit return, `cut` for actual
+   clipping, or `sentence` for the center-each-sentence mode;
    the target is ours either way, the whole's center less half the
    viewport — and `sentenceInView()` → `whole [129.2, 2894.0, 1069.0,
    3783.3]`, `fits: true`, `cut: false`, the head at y 126 and the
@@ -52,18 +53,19 @@ reading position moves; nothing else is touched.
    false`; programmatic container scrolling alone no longer disengages.
    No plugin follow line while disengaged; then a trusted
    Shift+Enter (§4.4's TIP): `keydown` = 1, `return to spoken: pdf view,
-   state kept`, then `sentence in view: cut on page 2: … -> 2768`,
+   state kept`, then `sentence in view: return on page 2: … -> 2768`,
    `cut: false`, `following: true`. A pause exactly between sentences
    can have no active segment; use an active sentence for the geometry
    assertion, rather than calling the absent target a recovery failure.
 5. **A sentence wholly on screen is left alone.** On an ordinary
    sentence after the follow settles: `last.reason: 'none'`,
-   `issued: false`, no line — Zotero's own method keeps the horizontal
-   axis. Over 30 s of playing at 3× (ten sentences): 4 lines, one per
-   sentence Zotero would also have scrolled for plus the cut ones; never
-   one per word.
+   `issued: false`, no line in outside mode; horizontal clipping alone is adjusted by
+   the plugin. In sentence mode each new fitting sentence is centered
+   once, with no centering on subsequent word ticks. Historical playback
+   counts are not expected counts for these new modes.
 6. **A sentence taller than the viewport follows the word.** Sentence
-   220 (1283 px): `fits: false`, `cut: true`, and while the active word
+   220 (1283 px): `fits: false`, `cut: true`; its first push shows the
+   first reading-order rect. On later pushes, while the active word
    is on screen `last.reason: 'none'`, `issued: false` — no scroll.
    Playing, 4 `sentence in view: part on page 8: …` lines for its 21
    words, each target the word's center, moving up as the word crosses

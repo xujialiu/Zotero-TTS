@@ -73,6 +73,7 @@ const BINDINGS = {
   toggleOptions: 'Shift+O',
   stopReading: 'Shift+S',
   toggleWordHighlight: 'Shift+W',
+  toggleAutoScroll: 'Shift+A',
 };
 const voicesPref = (prefs: { store: Record<string, unknown> }) => JSON.parse(prefs.store[READ_ALOUD_VOICES_PREF] as string);
 

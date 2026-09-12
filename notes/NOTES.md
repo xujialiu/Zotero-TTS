@@ -377,3 +377,15 @@ cite `notes/NOTES.md` with a date or a section title resolve through this index.
 - Verified: regional menus remain selected in PDF and EPUB (issue #91)
 - Expanded player opening needs an early visibility gate (issue #81; live verification pending)
 - Expanded player verified live; preserve the original transport snapshot during cleanup (issue #81)
+
+- Auto-scroll separates sentence entry from actual clipping (issue #93)
+
+- A shortcut switches the shared auto-scroll mode (issue #93)
+
+- Playback resume is not an explicit request to follow (issue #93)
+
+- Beta3 verifies the mode shortcut and PDF/EPUB manual intent (issue #93)
+
+- The owner accepts auto-scroll and each option gets its own help (issue #93)
+
+- The two auto-scroll help icons pass the focused UI check (issue #93)

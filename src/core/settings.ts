@@ -4,6 +4,9 @@ import { VOLUME_DEFAULT, VOLUME_MAX, VOLUME_MIN } from './read-aloud-volume';
 
 export const PROVIDER_IDS: readonly ProviderId[] = ['openai', 'azure', 'cloudflare', 'speechify', 'fish', 'fishspeech', 'local', 'system'];
 
+export type AutoScrollMode = 'outside' | 'sentence';
+export const autoScrollMode = (value: unknown): AutoScrollMode => value === 'sentence' ? 'sentence' : 'outside';
+
 export interface Settings {
   /** Each provider is switched on independently; every enabled one contributes voices. */
   openai: {
@@ -77,6 +80,8 @@ export interface Settings {
    */
   shortcuts: Record<ShortcutAction, string>;
   readAloud: {
+    /** Follow only clipped content, or center each new sentence. */
+    autoScrollMode: AutoScrollMode;
     /** Expand each newly shown player once, leaving manual folding alone. */
     openExpanded: boolean;
     /** One Read Aloud voice for every document and every open tab (read-aloud/memory-sync.ts); the pref name predates the speed's own switch below. */
@@ -190,8 +195,10 @@ export const DEFAULTS: Settings = {
     // Zotero's own highlight level, word on / off (issue #67); taken on any
     // reader, idle included — the level is a setting, set before play too
     toggleWordHighlight: 'Shift+W',
+    toggleAutoScroll: 'Shift+A',
   },
   readAloud: {
+    autoScrollMode: 'outside',
     sameForAllDocuments: true,
     globalSpeed: true,
     favoriteVoices: '',
@@ -310,8 +317,10 @@ export function loadSettings(prefs: PrefsBackend): Settings {
       toggleOptions: str(prefs, 'shortcuts.toggleOptions', DEFAULTS.shortcuts.toggleOptions),
       stopReading: str(prefs, 'shortcuts.stopReading', DEFAULTS.shortcuts.stopReading),
       toggleWordHighlight: str(prefs, 'shortcuts.toggleWordHighlight', DEFAULTS.shortcuts.toggleWordHighlight),
+      toggleAutoScroll: str(prefs, 'shortcuts.toggleAutoScroll', DEFAULTS.shortcuts.toggleAutoScroll),
     },
     readAloud: {
+      autoScrollMode: autoScrollMode(prefs.get(PREF_PREFIX + 'readAloud.autoScrollMode')),
       sameForAllDocuments: bool(prefs, 'readAloud.sameForAllDocuments', DEFAULTS.readAloud.sameForAllDocuments),
       globalSpeed: bool(prefs, 'readAloud.globalSpeed', DEFAULTS.readAloud.globalSpeed),
       favoriteVoices: str(prefs, 'readAloud.favoriteVoices', DEFAULTS.readAloud.favoriteVoices),

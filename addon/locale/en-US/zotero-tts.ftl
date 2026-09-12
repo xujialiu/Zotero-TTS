@@ -548,3 +548,27 @@ ztts-webdav-machine-file = This computer's backup on the server is { $file }.
 ztts-substitute = Zotero-TTS: { $missing } is not offered here. Reading with { $instead } instead.
 ztts-substitute-none = Zotero-TTS: { $missing } is not offered here, and no Local voice is. Zotero picks the voice.
 ztts-substitute-paid = Zotero-TTS: { $missing } is not offered here, and no Local voice is. Zotero picks the voice; it may use credits.
+
+## Auto-scroll
+
+ztts-auto-scroll =
+    .value = Auto-scroll
+ztts-auto-scroll-sentence =
+    .label = Center each sentence
+ztts-auto-scroll-outside =
+    .label = Scroll when outside the view
+ztts-help-auto-scroll-sentence =
+    .value = ?
+    .help = Center the whole sentence vertically whenever a new sentence starts, even if it is already visible. Word highlights do not repeatedly recenter a fitting sentence. For PDFs and EPUBs; paginated EPUBs keep their pages. Manual navigation suspends following; Go to reading position resumes it.
+ztts-help-auto-scroll-outside =
+    .value = ?
+    .help = Leave a fully visible sentence in place. Scroll to center it only when any part leaves the view. For PDFs and EPUBs; paginated EPUBs keep their pages. Sentences taller than the view start at their beginning, then follow the current word when available. Manual navigation suspends following; Go to reading position resumes it.
+
+ztts-key-auto-scroll =
+    .value = Auto-scroll mode
+ztts-help-key-auto-scroll =
+    .value = ?
+    .help = Switch between Center each sentence and Scroll when outside the view. The choice applies to every PDF and EPUB and is saved. Works in a reader before or during playback; does not resume following after manual navigation.
+ztts-action-auto-scroll = Auto-scroll mode
+ztts-auto-scroll-toast-sentence = Auto-scroll: center each sentence
+ztts-auto-scroll-toast-outside = Auto-scroll: when outside the view

@@ -18,7 +18,7 @@ import {
 
 describe('shortcut actions', () => {
   it('lists the speed actions first, then the volume ones, then navigation, position, the player and the highlight', () => {
-    expect(SHORTCUT_ACTIONS).toEqual([...SPEED_ACTIONS, ...VOLUME_ACTIONS, ...NAVIGATION_ACTIONS, ...POSITION_ACTIONS, ...PLAYER_ACTIONS, ...HIGHLIGHT_ACTIONS]);
+    expect(SHORTCUT_ACTIONS).toEqual([...SPEED_ACTIONS, ...VOLUME_ACTIONS, ...NAVIGATION_ACTIONS, ...POSITION_ACTIONS, ...PLAYER_ACTIONS, ...HIGHLIGHT_ACTIONS, 'toggleAutoScroll']);
     expect(HIGHLIGHT_ACTIONS).toEqual(['toggleWordHighlight']);
     expect(VOLUME_ACTIONS).toEqual(['volumeDown', 'volumeUp']);
     expect(NAVIGATION_ACTIONS).toEqual(['previousSentence', 'nextSentence', 'previousParagraph', 'nextParagraph']);

@@ -34,6 +34,7 @@
  * dictionary as empty (measured 2026-09-10).
  */
 
+import type { AutoScrollMode } from '../core/settings';
 import type { WordTiming } from '../core/highlight-level';
 import type { AnyFn } from './proto-patches';
 import { createPdfFollow } from './pdf-follow';
@@ -52,10 +53,13 @@ export interface Viewport {
   scrollHeight: number;
 }
 
-/** Why the follow scrolled: Zotero's own trigger, a cut sentence, the word being read leaving the viewport — or not at all. */
-export type FollowReason = 'zotero' | 'cut' | 'part' | 'none';
+/** Why following moved: sentence entry, explicit return, clipped content or a real word. */
+export type FollowReason = 'sentence' | 'return' | 'cut' | 'part' | 'none';
 
 export interface FollowInput {
+  mode?: AutoScrollMode;
+  entered?: boolean;
+  force?: boolean;
   /** The box of the sentence's rects on its first page — what Zotero measures. */
   head: Box;
   /** The union of every part's box: the head, and the next page's rects when the sentence has them. */
@@ -69,14 +73,11 @@ export interface FollowInput {
 
 export interface FollowTarget {
   reason: FollowReason;
-  /** Whether the whole sentence fits the viewport inside the margin. */
+  /** Whether the whole sentence fits the actual viewport. */
   fits: boolean;
   /**
-   * Whether the follow's call is ours to answer. False only when the
-   * sentence fits and neither rule fires: Zotero's own method then finds it
-   * vertically visible and keeps the horizontal axis. A sentence taller than
-   * the viewport is always ours — Zotero's rule would center its head again
-   * on every push after the word moved on.
+   * Whether the measurement is usable. Fully visible content is handled
+   * here too, so native early-scroll triggers cannot run afterward.
    */
   handled: boolean;
   top?: number;
@@ -238,10 +239,8 @@ function inlineNearest(box: Box, v: Viewport): number | undefined {
 }
 
 /**
- * The follow's decision. Zotero's trigger on the head (its top in the bottom
- * quarter, its bottom in the top quarter) stays; a sentence that fits is
- * also brought in when any of it is outside the viewport, and it is centered
- * whole. A sentence taller than the viewport follows the word being read
+ * The follow decision: center on sentence entry in sentence mode, otherwise
+ * only after actual clipping; explicit return always centers a fitting sentence. A sentence taller than the viewport follows the word being read
  * when that leaves the viewport, centered; without a word its head goes to
  * the top edge plus the margin, once. A target that is where the view
  * already stands is no scroll.
@@ -252,41 +251,42 @@ export function followTarget(input: FollowInput): FollowTarget {
   const ST = v.scrollTop;
   if (!(CH > 0)) return { reason: 'none', fits: false, handled: false };
   const margin = input.margin ?? followMargin(CH);
-  const quarter = CH / 4;
-  const fits = whole[3] - whole[1] <= CH - 2 * margin;
-  const zotero = head[1] > ST + CH - quarter || head[3] < ST + quarter;
+  const fits = whole[3] - whole[1] <= CH;
   let reason: FollowReason = 'none';
-  let focus: Box | null = null;
+  let focus = whole;
   let top: number | undefined;
   if (fits) {
-    if (zotero || isOutside(whole, v, margin)) {
-      reason = zotero ? 'zotero' : 'cut';
-      focus = whole;
+    if (input.force || (input.mode === 'sentence' && input.entered) || isOutside(whole, v, 0)) {
+      reason = input.force ? 'return' : input.mode === 'sentence' && input.entered ? 'sentence' : 'cut';
       top = (whole[1] + whole[3]) / 2 - CH / 2;
-    } else {
-      return { reason: 'none', fits, handled: false };
     }
-  } else if (part) {
-    if (isOutside(part, v, margin)) {
-      reason = 'part';
-      focus = part;
-      top = (part[1] + part[3]) / 2 - CH / 2;
-    }
-  } else if (isOutside(head, v, margin) || zotero) {
-    reason = 'cut';
+  } else if (input.entered || input.force) {
+    reason = input.force ? 'return' : 'cut';
     focus = head;
     top = head[1] - margin;
+  } else if (part) {
+    focus = part;
+    if (isOutside(part, v, 0)) {
+      reason = 'part';
+      top = (part[1] + part[3]) / 2 - CH / 2;
+    }
+  } else {
+    // No word timing: never repeatedly drag a tall sentence back to its head.
+    return { reason: 'none', fits, handled: true };
   }
-  if (reason === 'none' || top === undefined || !focus) return { reason: 'none', fits, handled: true };
-  top = clamp(top, 0, Math.max(0, v.scrollHeight - CH));
   const left = inlineNearest(focus, v);
-  if (Math.abs(top - ST) < 1 && left === undefined) return { reason: 'none', fits, handled: true };
-  const target: FollowTarget = { reason, fits, handled: true, top };
+  if (top !== undefined) top = clamp(top, 0, Math.max(0, v.scrollHeight - CH));
+  if (top !== undefined && Math.abs(top - ST) < 1) top = undefined;
+  if (top === undefined && left === undefined) return { reason: 'none', fits, handled: true };
+  const target: FollowTarget = { reason: reason === 'none' ? 'cut' : reason, fits, handled: true };
+  if (top !== undefined) target.top = top;
   if (left !== undefined) target.left = left;
   return target;
 }
 
 export interface SentenceInViewDeps {
+  resuming?(reader: any): boolean;
+  mode?(): AutoScrollMode;
   /** Makes a sandbox function callable from the reader's compartment (Components.utils.exportFunction). Optional for tests. */
   exportFunction?(fn: AnyFn, target: object): AnyFn;
   /** Components.utils.waiveXrays: `this` and the arguments of an exported function arrive behind Xray wrappers. Optional for tests. */
@@ -304,6 +304,7 @@ export interface SentenceInViewDeps {
 }
 
 export interface SentenceInView {
+  refresh(): void;
   /** Patch the reader's PDF views; true once they are. Repeat calls are cheap no-ops, so this may be called on every Read Aloud event. */
   attach(reader: unknown): boolean;
   /** What this module sees in a reader, as plain data, for `Zotero.ZoteroTTS.diagnostics.sentenceInView()`. */
@@ -327,10 +328,11 @@ interface LastDecision {
 }
 
 export function createSentenceInView(deps: SentenceInViewDeps): SentenceInView {
+  const entries = new WeakMap<object, { key: string; mode: AutoScrollMode }>();
   const controller = createPdfFollow({
     ...deps,
-    clear(view) { delete view[LAST]; },
-    follow(reader, view, originalNavigate, reset) {
+    clear(view) { delete view[LAST]; entries.delete(view); },
+    follow(reader, view, originalNavigate, reset, force) {
       if (reset) delete view[LAST];
       const position = waive(waive(view._readAloudState)?.activeSegment)?.sourcePosition;
       if (!position) return;
@@ -339,7 +341,7 @@ export function createSentenceInView(deps: SentenceInViewDeps): SentenceInView {
         block: 'center', inline: 'nearest', behavior: 'smooth' };
       try {
         container = containerOf(view);
-        if (follow(reader, view, waive(position), options)) return;
+        if (follow(reader, view, waive(position), options, force)) return;
       } catch (e) { deps.error(e); }
       // The saved method retains Zotero's horizontal-nearest behavior and
       // handles uncommon positions we cannot measure, without its lock/timer.
@@ -385,10 +387,23 @@ export function createSentenceInView(deps: SentenceInViewDeps): SentenceInView {
   }
 
   /** The follow's call: true when answered here, false when Zotero's method should run. */
-  function follow(reader: unknown, view: any, position: any, options: any): boolean {
+  function follow(reader: unknown, view: any, position: any, options: any, force: boolean): boolean {
     const m = measure(reader, view, position);
     if (!m) return false;
-    const target = followTarget({ head: m.extent.head, whole: m.extent.whole, part: m.part, viewport: m.viewport });
+    const mode = deps.mode?.() ?? 'outside';
+    const key = JSON.stringify(position);
+    const previous = entries.get(view);
+    const entered = previous?.key !== key;
+    const changedMode = previous?.mode !== mode;
+    if (changedMode) delete view[LAST];
+    entries.set(view, { key, mode });
+    // First rect is the reading-order head, even when a column-crossing
+    // sentence's union starts at the top of its second column.
+    let head = m.extent.head;
+    const page = pagesOf(view)?.[position.pageIndex];
+    if (page && position.rects?.length) head = pageBoxInContainer([position.rects[0]], page, m.viewport) ?? head;
+    const target = followTarget({ head, whole: m.extent.whole, part: m.part, viewport: m.viewport,
+      mode, entered: entered || changedMode, force });
     const last: LastDecision | undefined = view[LAST];
     const at = now();
     const decision: LastDecision = {
@@ -457,7 +472,7 @@ export function createSentenceInView(deps: SentenceInViewDeps): SentenceInView {
       if (m) {
         viewport = m.viewport;
         part = m.part;
-        const margin = followMargin(m.viewport.clientHeight);
+        const margin = 0;
         sentence = {
           head: m.extent.head,
           whole: m.extent.whole,
@@ -469,11 +484,12 @@ export function createSentenceInView(deps: SentenceInViewDeps): SentenceInView {
       deps.error(e);
     }
     const last: LastDecision | undefined = view[LAST];
-    return { kind: 'pdf', patched, ...ownership, viewport, sentence, part, last: last ? { ...last } : null };
+    return { kind: 'pdf', mode: deps.mode?.() ?? 'outside', patched, ...ownership, viewport, sentence, part, last: last ? { ...last } : null };
   }
 
   return {
     attach,
+    refresh: () => controller.refresh(),
     inspect,
     patchCounts: () => controller.patchCounts(),
     dispose: () => controller.dispose(),

@@ -1,7 +1,7 @@
 import { HIGHLIGHT_LEVEL_PREF, nextHighlightLevel, readHighlightLevel, type HighlightLevel, type WordTiming } from '../core/highlight-level';
 import { nextSpeed, persistSpeed, readPersistedSpeed, type SpeedAction } from '../core/read-aloud-speed';
 import { clampVolume, nextVolume, VOLUME_PREF, type VolumeAction } from '../core/read-aloud-volume';
-import type { PrefsBackend } from '../core/settings';
+import { autoScrollMode, PREF_PREFIX, type AutoScrollMode, type PrefsBackend } from '../core/settings';
 import {
   isHighlightAction,
   isNavigationAction,
@@ -168,6 +168,7 @@ export interface ReadAloudShortcutsDeps {
    * is — a stand-in means the voice has no word timing, so a switch to
    * word changes nothing on screen and the toast has to say so.
    */
+  showAutoScrollToast?(reader: unknown, mode: AutoScrollMode): void;
   showHighlightToast?(reader: unknown, level: HighlightLevel, timing: WordTiming): void;
   /** What the manager's active word timestamp is (read-aloud/highlight-style.ts `wordTiming`). Unwired reads as none. */
   wordTiming?(reader: unknown): WordTiming;
@@ -198,6 +199,7 @@ export interface ReadAloudShortcuts {
   stopReading(reader: unknown, fallbackDoc?: unknown): number;
   /** Word highlight on / off, through Zotero's own pref; the level set, or null when the write failed. */
   toggleWordHighlight(reader: unknown): HighlightLevel | null;
+  toggleAutoScroll(reader: unknown): AutoScrollMode | null;
   /** Attach a capturing keydown listener to a window; idempotent per window, detaches itself on unload. */
   listen(target: EventTargetLike, resolveReader: () => unknown, options?: HandleOptions): void;
   unlisten(target: EventTargetLike): void;
@@ -455,6 +457,18 @@ export function createReadAloudShortcuts(deps: ReadAloudShortcutsDeps): ReadAlou
     return next;
   }
 
+  /** Writes only the mode; the observer refreshes views without changing follow intent. */
+  function toggleAutoScroll(reader: unknown): AutoScrollMode | null {
+    let next: AutoScrollMode;
+    try {
+      const current = autoScrollMode(deps.prefs.get(PREF_PREFIX + 'readAloud.autoScrollMode'));
+      next = current === 'outside' ? 'sentence' : 'outside';
+      deps.prefs.set(PREF_PREFIX + 'readAloud.autoScrollMode', next);
+    } catch (e) { log(e); return null; }
+    try { deps.showAutoScrollToast?.(reader, next); } catch (e) { log(e); }
+    return next;
+  }
+
   function handleKeyDown(event: ShortcutKeyEvent, resolveReader: () => unknown, options: HandleOptions = {}): boolean {
     if (event.defaultPrevented) return false;
     const action = actionFor(event);
@@ -499,6 +513,7 @@ export function createReadAloudShortcuts(deps: ReadAloudShortcutsDeps): ReadAlou
     else if (action === 'returnToSpoken') returnToSpoken(reader);
     else if (action === 'toggleOptions') toggleOptions(reader);
     else if (isHighlightAction(action)) toggleWordHighlight(reader);
+    else if (action === 'toggleAutoScroll') toggleAutoScroll(reader);
     else adjust(reader, action);
     return true;
   }
@@ -536,7 +551,7 @@ export function createReadAloudShortcuts(deps: ReadAloudShortcutsDeps): ReadAlou
     for (const target of [...listeners.keys()]) unlisten(target);
   }
 
-  return { handleKeyDown, adjust, adjustVolume, navigate, smartPlay, returnToSpoken, toggleOptions, stopReading, toggleWordHighlight, listen, unlisten, dispose };
+  return { handleKeyDown, adjust, adjustVolume, navigate, smartPlay, returnToSpoken, toggleOptions, stopReading, toggleWordHighlight, toggleAutoScroll, listen, unlisten, dispose };
 }
 
 /** The document a key was pressed in: the listening window's, else the target's own; null when neither is reachable. */

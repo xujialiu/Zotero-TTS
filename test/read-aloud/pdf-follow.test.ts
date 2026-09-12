@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createPdfFollow } from '../../src/read-aloud/pdf-follow';
+import { createResumeGuard } from '../../src/read-aloud/resume-guard';
 
 class Events {
   listeners = new Map<string, Set<(event: any) => void>>();
@@ -77,6 +78,22 @@ function fixture(deps: Partial<Parameters<typeof createPdfFollow>[0]> = {}) {
 const followOptions = { ifNeeded: true, inline: 'nearest', visibilityMargin: -200, behavior: 'smooth' };
 
 describe('PDF follow ownership (#90)', () => {
+  it('does not mistake the native playback toggle lock for explicit return', () => {
+    const guard = createResumeGuard({ error: vi.fn() });
+    const f = fixture({ resuming: reader => guard.resuming(reader) });
+    const internal = f.reader._internalReader as any;
+    internal.toggleReadAloudPaused = () => { f.view.lockPositionToReadAloud(); f.view.setReadAloudState(f.state()); };
+    guard.attach(f.reader); f.start();
+    f.view.setReadAloudState({ ...f.state(), paused: true });
+    f.container.emit('wheel', { deltaY: 50 }); f.follow.mockClear();
+    internal.toggleReadAloudPaused();
+    expect(f.controller.inspect(f.view).following).toBe(false);
+    expect(f.follow).not.toHaveBeenCalled();
+    f.view.lockPositionToReadAloud(); f.view.setReadAloudState(f.state());
+    expect(f.controller.inspect(f.view).following).toBe(true);
+    expect(f.follow).toHaveBeenCalledOnce();
+    guard.dispose(); f.controller.dispose();
+  });
   it('keeps native rendering, state and Promise identity but disables native follow', () => {
     const f = fixture(); f.controller.attach(f.reader, f.view);
     const state = f.state();
@@ -168,7 +185,7 @@ describe('PDF follow ownership (#90)', () => {
     expect(f.controller.inspect(f.view)).toMatchObject({ following: false, reason: 'pan' });
   });
 
-  it('preserves native resume-in-view without interpreting arbitrary native lock writes as intent', () => {
+  it('keeps manual navigation disengaged when playback resumes, even if the sentence is visible', () => {
     const f = fixture(); f.start();
     f.view.setReadAloudState({ ...f.state(), paused: true });
     f.container.emit('wheel', { deltaY: 10 });
@@ -176,8 +193,8 @@ describe('PDF follow ownership (#90)', () => {
     expect(f.controller.inspect(f.view)).toMatchObject({ following: false });
     f.follow.mockClear();
     f.view.setReadAloudState(f.state());
-    expect(f.controller.inspect(f.view)).toMatchObject({ following: true, reason: 'resume' });
-    expect(f.follow).toHaveBeenCalledTimes(1);
+    expect(f.controller.inspect(f.view)).toMatchObject({ following: false, reason: 'wheel' });
+    expect(f.follow).not.toHaveBeenCalled();
     f.view.setReadAloudState({ ...f.state(), paused: true });
     f.container.emit('wheel', { deltaY: 1000 });
     f.view._isPositionInViewBounds = () => false;
