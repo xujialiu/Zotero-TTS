@@ -1,9 +1,9 @@
-// Step 1 of a release: `node scripts/release-prepare.mjs X.Y.Z` (CLAUDE.md,
+// Step 1 of a release: `node scripts/release-prepare.mjs X.Y.Z` (MEMORY.md,
 // Releasing). Bumps package.json and addon/manifest.json to the clean version
 // — a test build's `-betaN` dropped — refreshes package-lock.json, runs the
 // tests, the typecheck and the build, and checks the xpi's manifest; then it
 // stops. The commit, the tag and the push are git-chores' (the release
-// section of .claude/agents/git-chores.md). It refuses a dirty tree, a
+// section of agents/git-chores.md). It refuses a dirty tree, a
 // version that is not newer than the released one and a tag that already
 // exists, each with one line saying so; a failed check ends it the same way.
 import { execSync } from 'node:child_process';

@@ -7,11 +7,11 @@ batch of features landed, a release that carried either are the occasions
 they may choose to ask on; no session runs it on its own. What runs
 without being asked is **one section** plus the baseline, for a branch's
 own verification. A feature adds its items here before it merges
-(CLAUDE.md, "Driving Zotero live") — drafted by the tester at the end of
+(MEMORY.md, "Driving Zotero live") — drafted by the tester at the end of
 its report, from what the run measured, and pasted by the session; a fix
 that changed an expected output changes it here in the same commit.
 
-How to run it is `.claude/agents/zotero-tester.md` — the bridge's tools,
+How to run it is `agents/zotero-tester.md` — the bridge's tools,
 the polling windows, the state rules, the report. This file is *what* to
 check. A session running Fable or Opus hands each section to the
 `zotero-tester` agent as a verification brief and confirms the report
@@ -2651,7 +2651,7 @@ way, from its section's first item.
 
 ## 8. What only a human can check
 
-Handed round in the old form (CLAUDE.md, "The user takes over only"):
+Handed round in the old form (MEMORY.md, "The user takes over only"):
 at most three self-contained steps, the UI named by what it says on
 screen, the complete Run JavaScript code, the expected output.
 

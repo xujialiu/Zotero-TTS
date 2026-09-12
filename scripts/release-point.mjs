@@ -1,4 +1,4 @@
-// Steps 2 and 3 of a release (CLAUDE.md, Releasing):
+// Steps 2 and 3 of a release (MEMORY.md, Releasing):
 //   node scripts/release-point.mjs X.Y.Z           after `gh release create`:
 //     checks that the release asset answers 200, then points update.json at
 //     it and stops — the commit and the push are git-chores'.
