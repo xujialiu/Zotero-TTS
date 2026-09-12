@@ -36,6 +36,18 @@ start over.
 
 ## How to drive
 
+**Mute by default** (2026-09-12): unless a check requires audible output or
+a nonzero volume, set Zotero-TTS's `readAloud.volume` to `0` before any
+action that can start playback, including opening the player and playing
+voice samples. Use the plugin's volume, not the system master volume.
+Snapshot its original value and whether it had a user value before changing
+it; prevent temporary test preferences from reaching WebDAV sync or backup.
+Restore that exact volume and user-value state during cleanup, including
+failed or interrupted runs, before restoring automatic sync/backup. Never
+replace the original snapshot with the temporary zero on a resumed run.
+Keep any necessary nonzero interval as short as the check allows, and report
+why it was needed. Include volume restoration in the cleanup evidence.
+
 1. `zotero_ping` first. No answer: stop and report "bridge down" — Zotero
    needs a restart, which only the user can do.
 2. A verification run installs: `zotero_plugin_list` for the installed

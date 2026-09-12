@@ -391,3 +391,9 @@ cite `notes/NOTES.md` with a date or a section title resolve through this index.
 - The two auto-scroll help icons pass the focused UI check (issue #93)
 
 - Center each sentence becomes the default (issue #93)
+
+- Speech preparation keeps document coordinates and a session snapshot (issue #94)
+
+### [2026-09-13](NOTES_2026-09-13.md)
+
+- Bracket preparation verified through Fish and a native transport stub (issue #94)

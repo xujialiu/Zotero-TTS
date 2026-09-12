@@ -1,0 +1,20 @@
+(async () => {
+  const prefix='extensions.zotero.zotero-tts.'; const full=(s)=>prefix+s;
+  const baseline={
+    volume:100, volumeUser:false, strip:true, stripUser:false,
+    syncPositions:true, syncPositionsUser:true,
+    autoUploadSettings:true, autoUploadSettingsUser:true,
+    syncSettings:false, syncSettingsUser:false,
+    memory:'[REDACTED_USER_STATE]', memoryUser:true
+  };
+  const actions=[];
+  Services.prefs.clearUserPref(full('readAloud.volume')); actions.push('volume restored');
+  Services.prefs.clearUserPref(full('readAloud.stripAngleBrackets')); actions.push('strip restored');
+  Services.prefs.setBoolPref(full('webdav.syncPositions'),baseline.syncPositions); actions.push('syncPositions restored');
+  Services.prefs.setBoolPref(full('webdav.autoUploadSettings'),baseline.autoUploadSettings); actions.push('autoUploadSettings restored');
+  Services.prefs.clearUserPref(full('webdav.syncSettings')); actions.push('syncSettings restored');
+  Services.prefs.setStringPref(full('readAloud.memory'),baseline.memory); actions.push('memory restored last');
+  await new Promise(resolve=>setTimeout(resolve,300));
+  const read=(s)=>({value:Zotero.Prefs.get('zotero-tts.'+s),user:Services.prefs.prefHasUserValue(full(s))});
+  return JSON.stringify({actions,prefs:{volume:read('readAloud.volume'),strip:read('readAloud.stripAngleBrackets'),syncPositions:read('webdav.syncPositions'),autoUploadSettings:read('webdav.autoUploadSettings'),syncSettings:read('webdav.syncSettings'),memory:read('readAloud.memory')},debugStoring:!!Zotero.Debug.storing},null,1);
+})()

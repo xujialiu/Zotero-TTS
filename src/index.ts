@@ -1,3 +1,4 @@
+import { createTextSettings } from './read-aloud/text-settings';
 import { getChromeWebSocket, newRequestId } from './core/providers/azure';
 import { createProvider, getFishVoiceCacheStats } from './core/providers/factory';
 import type { SpeechBackend } from './core/providers/system/backend';
@@ -148,6 +149,7 @@ let pauses: Pauses | null = null;
 let volumeControl: VolumeControl | null = null;
 /** A voice list landing on the voice already playing keeps the controller (read-aloud/unchanged-voice.ts, issue #75). */
 let unchangedVoice: UnchangedVoice | null = null;
+let textSettings: ReturnType<typeof createTextSettings> | null = null;
 let volumeObserver: unknown = null;
 
 const prefs = createZoteroPrefs();
@@ -434,6 +436,7 @@ function buildReaderInterface(reader: any, targetWindow: any, native: () => unkn
           pauses?.attach(reader);
           volumeControl?.attach(reader);
           unchangedVoice?.attach(reader);
+          textSettings?.attach(reader);
         },
         // The list this reader is about to receive: the remembered voice is
         // planned against it before Zotero resolves from it (issue #35)
@@ -447,6 +450,7 @@ function buildReaderInterface(reader: any, targetWindow: any, native: () => unkn
           const s = loadSettings(prefs);
           return { enabled: s.prefetchEnabled, count: s.prefetch };
         },
+        getStripAngleBrackets: () => textSettings?.enabled(reader) ?? loadSettings(prefs).readAloud.stripAngleBrackets,
         getUpcomingTexts: (text, count) => upcomingSegmentTexts(reader, text, count),
         // Built from the voice id, not from the enabled flags: Zotero
         // remembers the last-selected voice, which may belong to a provider
@@ -660,6 +664,7 @@ function watchReader(reader: any): void {
   pauses?.attach(reader);
   volumeControl?.attach(reader);
   unchangedVoice?.attach(reader);
+  textSettings?.attach(reader);
   const iframe = reader._iframeWindow;
   if (iframe) {
     readAloudShortcuts.listen(iframe, () => reader, {
@@ -1799,6 +1804,23 @@ function stopUnchangedVoice(): void {
   unchangedVoice = null;
 }
 
+function startTextSettings(): void {
+  stopTextSettings();
+  textSettings = createTextSettings({
+    getEnabled: () => loadSettings(prefs).readAloud.stripAngleBrackets,
+    exportFunction: (fn, target) => Components.utils.exportFunction(fn, target),
+    waiveXrays: (value) => ((value && typeof value === 'object') || typeof value === 'function' ? Components.utils.waiveXrays(value) : value),
+    isDead: (value) => Components.utils.isDeadWrapper(value),
+    error: (e) => Zotero.logError(e),
+  });
+  for (const reader of Zotero.Reader._readers ?? []) textSettings.attach(reader);
+}
+
+function stopTextSettings(): void {
+  textSettings?.dispose();
+  textSettings = null;
+}
+
 /**
  * Gecko's Fluent globals — L10nRegistry and L10nFileSource — from the scope
  * Zotero's own modules run in (issue #64): the plugin sandbox is handed
@@ -1891,6 +1913,7 @@ async function startup({ id, version, rootURI }: StartupParams): Promise<void> {
       ['sentence and paragraph pauses', startPauses],
       ['Read Aloud volume', startVolume],
       ['the voice kept through a list reload', startUnchangedVoice],
+      ['speech text settings', startTextSettings],
       ['Read Aloud hook', startHijack],
       ['Read Aloud shortcuts', () => startReadAloudShortcuts(id)],
     ],
@@ -1955,6 +1978,7 @@ async function shutdown(reason?: number): Promise<void> {
   stopPauses();
   stopVolume();
   stopUnchangedVoice();
+  stopTextSettings();
   // The plugin's copy of its strings leaves with it; a reload's successor
   // registers its own (issue #64)
   removeOwnStrings();
@@ -2169,6 +2193,7 @@ const diagnostics = {
    * one on a popup reopen, with one `volume gain inserted` line per start
    * in the log, is what proves the hook ran.
    */
+  textSettings: () => JSON.stringify((Zotero.Reader._readers ?? []).map((r: any) => textSettings?.inspect(r) ?? null), null, 1),
   unchangedVoice: () => JSON.stringify((Zotero.Reader._readers ?? []).map((r: any) => unchangedVoice?.inspect(r) ?? null), null, 1),
   /**
    * The undo logs of the five modules that shadow a reader-side prototype
@@ -2188,6 +2213,7 @@ const diagnostics = {
         pauses: safe(() => pauses?.patchCounts()) ?? null,
         volume: safe(() => volumeControl?.patchCounts()) ?? null,
         unchangedVoice: safe(() => unchangedVoice?.patchCounts()) ?? null,
+        textSettings: safe(() => textSettings?.patchCounts()) ?? null,
         // Which instance serves each tab (issue #38): `hijacked` — the
         // reader carries this instance's own method; `slotsCurrent` — both
         // stored slots hold a clone stamped by this instance. A tab

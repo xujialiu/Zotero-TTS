@@ -48,6 +48,7 @@ with the baseline and restoration for each.
 - [3d. Plugin-owned PDF following (issue #90, 1.12.1-beta3)](cases/pdf-follow.md)
 - [3e. Open the player expanded (issue #81)](cases/player-expanded.md)
 - [3f. Auto-scroll modes (issue #93)](cases/auto-scroll.md)
+- [3g. Enclosing angle brackets (issue #94)](cases/angle-brackets.md)
 - [4. Shortcuts, the toast, the recorder, two tabs](cases/shortcuts.md)
 - [4a. The volume (issue #62)](cases/volume.md)
 - [5. Reading positions, colors, the lifecycle](cases/positions-lifecycle.md)

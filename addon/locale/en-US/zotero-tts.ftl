@@ -572,3 +572,9 @@ ztts-help-key-auto-scroll =
 ztts-action-auto-scroll = Auto-scroll mode
 ztts-auto-scroll-toast-sentence = Auto-scroll: center each sentence
 ztts-auto-scroll-toast-outside = Auto-scroll: when outside the view
+
+ztts-strip-angle-brackets =
+    .label = Remove enclosing angle brackets when reading
+ztts-help-strip-angle-brackets =
+    .value = ?
+    .help = Read the text inside < > without the enclosing brackets, keeping punctuation outside them. For example, <Hello>. is read as Hello. Applies to all voices. Changes take effect after stopping and reopening Read Aloud.

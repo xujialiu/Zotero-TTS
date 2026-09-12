@@ -19,6 +19,14 @@ function fakePrefs(initial: Record<string, unknown> = {}): PrefsBackend & { stor
 const everyKey = Object.keys(flattenSettings(DEFAULTS)).sort();
 
 describe('createBackup', () => {
+  it('defaults bracket removal on and preserves an opt-out through backup, restore and sync', () => {
+    expect(loadSettings(fakePrefs()).readAloud.stripAngleBrackets).toBe(true);
+    const source = fakePrefs({ [PREF_PREFIX + 'readAloud.stripAngleBrackets']: false });
+    const target = fakePrefs();
+    applyBackup(target, parseBackup(serializeBackup(createBackup(source))));
+    expect(loadSettings(target).readAloud.stripAngleBrackets).toBe(false);
+    expect(SYNCABLE_KEYS).toContain('readAloud.stripAngleBrackets');
+  });
   it('defaults expanded opening off and carries the opt-in through backup and restore', () => {
     expect(loadSettings(fakePrefs()).readAloud.openExpanded).toBe(false);
     const source = fakePrefs({ [PREF_PREFIX + 'readAloud.openExpanded']: true });

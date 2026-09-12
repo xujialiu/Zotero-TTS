@@ -17,6 +17,10 @@
 - A verbatim snapshot of every pref the section may touch, restored in
   order at the end — `readAloud.memory` **last** — and a byte-identical
   report per pref.
+- Mute and restore volume according to the
+  [tester workflow](../../agents/zotero-tester.md#how-to-drive): default
+  `readAloud.volume` to `0` before playback, retaining its original value
+  and user-value state for cleanup. Record any necessary audible interval.
 - `diagnostics.position()` → `database.rows` and `legacyPref` (null), so
   a fixture's row can be counted in and out.
 - Fixtures: `test/fixtures/fixture-a.pdf` (two pages, 17 segments,

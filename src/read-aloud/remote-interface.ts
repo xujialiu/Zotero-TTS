@@ -1,3 +1,4 @@
+import { prepareSpeechText, restoreSpeechOffsets } from '../core/speech-text';
 import { SynthesisError, toZoteroError } from '../core/providers/errors';
 import { silentWav } from '../core/silence';
 import type { ProviderId, SynthesisResult, Timestamp, TTSProvider, VoiceInfo } from '../core/providers/types';
@@ -66,6 +67,8 @@ export type RemoteInterfaceDeps = {
   getFavoriteVoices?(): readonly string[] | null;
   getProvider(provider: ProviderId): TTSProvider;
   cacheVersion(): string;
+  /** Fixed for the active reading session; refreshed at the next activation. */
+  getStripAngleBrackets?(): boolean;
   /**
    * The audio cache, or undefined while caching is off — asked per call,
    * the way every other setting here is, so a change in the pane reaches a
@@ -333,7 +336,7 @@ export function createRemoteInterface(deps: RemoteInterfaceDeps): RemoteInterfac
    * chain — playback will surface the error when it gets there.
    */
   let warming = false;
-  function prefetchAfter(providerId: ProviderId, voiceId: string, text: string): void {
+  function prefetchAfter(providerId: ProviderId, voiceId: string, text: string, strip: boolean): void {
     const cfg = deps.getPrefetch?.();
     const cache = deps.cache?.();
     if (!cfg?.enabled || cfg.count < 1 || !cache || warming) return;
@@ -344,7 +347,9 @@ export function createRemoteInterface(deps: RemoteInterfaceDeps): RemoteInterfac
     warming = true;
     void (async () => {
       try {
-        for (const t of texts) {
+        for (const original of texts) {
+          const t = prepareSpeechText(original, strip).text;
+          if (!t.trim()) continue;
           const key = cacheKeyFor(providerId, voiceId, t);
           if (pending.has(key)) continue;
           if (await cache.match(key)) continue;
@@ -420,13 +425,27 @@ export function createRemoteInterface(deps: RemoteInterfaceDeps): RemoteInterfac
     },
 
     async getAudio(segment, voice) {
+      const strip = deps.getStripAngleBrackets?.() ?? true;
+      const originalText = segment === 'sample' ? SAMPLE_TEXT : segment.text;
+      const prepared = prepareSpeechText(originalText, segment !== 'sample' && strip);
       const decoded = decodeVoiceId(voice?.id ?? '');
+      if (prepared.removed.length && !prepared.text.trim()) {
+        if (decoded) prefetchAfter(decoded.provider, decoded.voiceId, originalText, strip);
+        const pause = silentWav(SILENT_PAUSE_MS);
+        deps.debug?.('angle brackets: empty interior; playing a short pause');
+        return { audio: deps.adoptAudio ? deps.adoptAudio(pause) : pause, timestamps: wholeSegmentTimestamp(originalText) };
+      }
+      if (prepared.removed.length) deps.debug?.(`angle brackets: removed one enclosing pair from ${originalText.length} chars`);
       if (!decoded) {
         // Not one of ours: Zotero's own voice, handled by Zotero's own code
         const iface = native();
         if (!iface) return { audio: null, error: 'unknown' };
         try {
-          return await iface.getAudio(segment, voice);
+          const speechSegment = prepared.removed.length && segment !== 'sample' ? { ...segment, text: prepared.text } : segment;
+          const result = await iface.getAudio(speechSegment, voice);
+          return prepared.removed.length && result?.timestamps?.length
+            ? { ...result, timestamps: restoreSpeechOffsets(result.timestamps, prepared.removed) }
+            : result;
         } catch (e) {
           log(e);
           return { audio: null, error: 'unknown' };
@@ -434,7 +453,7 @@ export function createRemoteInterface(deps: RemoteInterfaceDeps): RemoteInterfac
       }
 
       try {
-        const text = segment === 'sample' ? SAMPLE_TEXT : segment.text;
+        const text = originalText;
 
         // Text the page does not show is not spoken (read-aloud/invisible-text.ts).
         // Refused before any provider is asked: a segment of it runs to
@@ -455,15 +474,15 @@ export function createRemoteInterface(deps: RemoteInterfaceDeps): RemoteInterfac
           deps.debug?.(`skipping ${text.length} chars that are not visible on the page; playing a ${SILENT_PAUSE_MS} ms pause instead`);
           // Still warms what follows: the skipped segment is the anchor the
           // upcoming ones are found from, and it plays for only 400 ms
-          prefetchAfter(decoded.provider, decoded.voiceId, text);
+          prefetchAfter(decoded.provider, decoded.voiceId, text, strip);
           const skipped = silentWav(SILENT_PAUSE_MS);
           return { audio: deps.adoptAudio ? deps.adoptAudio(skipped) : skipped };
         }
 
         // The cache holds exactly what the provider produced; the sentence
         // fallback below is applied on the way out, never stored.
-        const { result, cached } = await ensureAudio(decoded.provider, decoded.voiceId, text);
-        if (segment !== 'sample') prefetchAfter(decoded.provider, decoded.voiceId, text);
+        const { result, cached } = await ensureAudio(decoded.provider, decoded.voiceId, prepared.text);
+        if (segment !== 'sample') prefetchAfter(decoded.provider, decoded.voiceId, text, strip);
 
         // A clean answer with nothing in it: Azure ends the turn with zero
         // audio frames for asterisk-only text (the "****" scene separators,
@@ -491,7 +510,7 @@ export function createRemoteInterface(deps: RemoteInterfaceDeps): RemoteInterfac
             ? `${decoded.provider}: ${words} word timestamp${words === 1 ? '' : 's'} for ${text.length} chars${result.note ? ` (${result.note})` : ''}${cached ? ' (cached)' : ''}`
             : `${decoded.provider}: no word timestamps for ${text.length} chars${why}, highlighting the sentence${cached ? ' (cached)' : ''}`,
         );
-        return { audio: result.audio, timestamps: words ? result.timestamps : wholeSegmentTimestamp(text) };
+        return { audio: result.audio, timestamps: words ? restoreSpeechOffsets(result.timestamps!, prepared.removed) : wholeSegmentTimestamp(text) };
       } catch (e) {
         // toZoteroError collapses every failure into the three strings
         // Zotero's UI understands, so the real cause is gone by the time the

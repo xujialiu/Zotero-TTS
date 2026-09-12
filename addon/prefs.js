@@ -75,3 +75,5 @@ pref('extensions.zotero.zotero-tts.highlight.sentenceUnderWord', true);
 
 pref('extensions.zotero.zotero-tts.readAloud.autoScrollMode', 'sentence');
 pref('extensions.zotero.zotero-tts.shortcuts.toggleAutoScroll', 'Shift+A');
+
+pref('extensions.zotero.zotero-tts.readAloud.stripAngleBrackets', true);
