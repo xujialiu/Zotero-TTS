@@ -373,3 +373,5 @@ cite `notes/NOTES.md` with a date or a section title resolve through this index.
 - The Cloud actions move last and English voices gain regional groups (issue #91)
 - The source choices lock with Fish and fit one row (issue #91)
 - One field-label column aligns the Fish inputs with the other providers (issue #91)
+- Explicit regional picks must not reuse a generic remembered voice (issue #91)
+- Verified: regional menus remain selected in PDF and EPUB (issue #91)

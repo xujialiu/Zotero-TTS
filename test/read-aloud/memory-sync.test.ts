@@ -223,6 +223,7 @@ function fakeReader(
     });
   };
   proto.setLanguage = vi.fn((l: string, options?: { region?: string | null; persist?: boolean }) => {
+    if (baseOf(l) === manager._lang && (options?.region ?? null) === manager._region) return;
     currentLang = baseOf(l);
     // Called without a region: cleared, as ReadAloudManager.setLanguage does
     manager._region = options?.region ?? null;
@@ -1664,5 +1665,73 @@ describe('learnSpeed', () => {
     z.deps.debug.mockClear();
     sync.learnSpeed(1.6);
     expect(z.deps.debug).not.toHaveBeenCalled();
+  });
+});
+
+// Generic Fish voices and regional Fish voices keep the same en/<id>
+// encoding. The dropdown follows the selected voice's language, not _region.
+describe('explicit generic and regional language picks', () => {
+  const generic = { id: `fish::en/${'a'.repeat(32)}`, language: 'en', tier: 'local' };
+  const us = { id: `fish::en/${'b'.repeat(32)}`, language: 'en-US', tier: 'local' };
+  const gb = { id: `fish::en/${'c'.repeat(32)}`, language: 'en-GB', tier: 'local' };
+  const usSecond = { id: `fish::en/${'d'.repeat(32)}`, language: 'en-US', tier: 'local' };
+  const pool = [generic, us, gb, usSecond];
+
+  function setup(current = generic, region: string | null = null, sameVoice = true, list = pool) {
+    const entry = { region, voice: current.id, speed: 1.6, tierVoices: { local: current.id } };
+    const z = fakeZotero({ en: entry }, { speed: 1.6, voice: { id: current.id, lang: 'en' } });
+    z.deps.sameVoice.mockReturnValue(sameVoice);
+    const sync = createReadAloudMemorySync(z.deps);
+    const tab = fakeReader('en', z, { active: true, speed: 1.6, selectedVoiceID: current.id, selectedTier: 'local', region, persisted: entry, voices: list });
+    z.readers.push(tab.reader);
+    sync.attach(tab.reader);
+    return { z, sync, tab, entry };
+  }
+
+  it.each([true, false])('keeps the explicit US/GB/generic selection with same-voice memory %s', sameVoice => {
+    const { tab, z } = setup(generic, null, sameVoice);
+    for (const [region, wanted] of [['US', us], ['GB', gb], [null, generic]] as const) {
+      tab.manager.setLanguage('en', { region, persist: true });
+      expect(tab.manager.selectedVoiceID).toBe(wanted.id);
+      expect(tab.manager.allVoices.find((v: FakeVoice) => v.id === tab.manager.selectedVoiceID).language).toBe(wanted.language);
+      expect(z.voices().en.region).toBe(region);
+      expect(z.voices().en.voice).toBe(wanted.id);
+    }
+  });
+
+  it('keeps the remembered matching regional voice rather than taking the first regional voice', () => {
+    const { tab, entry } = setup(usSecond, 'US');
+    tab.manager._region = null;
+    tab.manager.setLanguage('en', { region: 'US', persist: true });
+    expect(tab.manager.selectedVoiceID).toBe(usSecond.id);
+    expect(tab.manager._persistedVoices).toEqual(entry);
+  });
+
+  it('does not treat a stale requested region as an unchanged visible selection', () => {
+    const { tab } = setup();
+    tab.manager._region = 'US';
+    tab.manager.setLanguage('en', { region: 'US', persist: true });
+    expect(tab.manager.selectedVoiceID).toBe(us.id);
+  });
+
+  it('can select generic English when a regional voice was restored without a requested region', () => {
+    const { tab } = setup(us, 'US');
+    tab.manager._region = null;
+    tab.manager.setLanguage('en', { region: null, persist: true });
+    expect(tab.manager.selectedVoiceID).toBe(generic.id);
+  });
+
+  it('retains the native generic fallback when no exact voice exists in the selected tier', () => {
+    const paid = { id: 'zotero-premium-en-US', language: 'en-US', tier: 'premium' };
+    const { tab } = setup(generic, null, true, [generic, paid]);
+    tab.manager.setLanguage('en', { region: 'US', persist: true });
+    expect(tab.manager.selectedVoiceID).toBe(generic.id);
+    expect(tab.manager.selectedTier).toBe('local');
+  });
+
+  it('does not override the remembered voice for an automatic language restore', () => {
+    const { tab } = setup();
+    tab.manager.setLanguage('en', { region: 'US', persist: false });
+    expect(tab.manager.selectedVoiceID).toBe(generic.id);
   });
 });

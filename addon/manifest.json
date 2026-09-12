@@ -1,7 +1,7 @@
 {
   "manifest_version": 2,
   "name": "Zotero-TTS",
-  "version": "1.12.2-beta5",
+  "version": "1.12.2-beta6",
   "author": "Xujia Liu",
   "description": "Enhances Read Aloud: more voices in its Local tier, highlight colors, keyboard shortcuts, settings backup and reading-position sync",
   "icons": {

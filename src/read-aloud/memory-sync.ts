@@ -1,5 +1,6 @@
 import { READ_ALOUD_VOICES_PREF, readReadAloudVoices, resolveVoiceLang, type VoiceEntry, type VoicesMap } from '../core/read-aloud-speed';
 import type { PrefsBackend } from '../core/settings';
+import { dropdownLanguage } from './language-dropdown';
 import { setDefaultSpeed, type SpeedManagerLike } from './default-speed';
 import {
   memoryFromVoices,
@@ -545,7 +546,7 @@ export function createReadAloudMemorySync(deps: ReadAloudMemoryDeps): ReadAloudM
    * entry's skips the entry's voice) compares against the right entry. A
    * language with no entry is left to Zotero, as without the plugin.
    */
-  function stageLanguagePick(manager: any, lang: unknown): void {
+  function stageLanguagePick(manager: any, lang: unknown, requestedRegion: unknown): void {
     if (typeof lang !== 'string' || !lang) return;
     const lane = memoryLangForLocale(lang);
     const reader = readerForManager(manager);
@@ -553,7 +554,58 @@ export function createReadAloudMemorySync(deps: ReadAloudMemoryDeps): ReadAloudM
       deps.debug?.(`the dropdown picked ${lane} on a manager no reader was attached with; Zotero resolves it against the previous entry`);
       return;
     }
-    const entry = loadEntry(reader, manager, lane);
+    let entry = loadEntry(reader, manager, lane);
+    const region = typeof requestedRegion === 'string' && requestedRegion ? requestedRegion : null;
+    const wanted = dropdownLanguage(region ? `${lane}-${region}` : lane);
+    const m = waive(manager);
+    // Generic voices are valid regional fallbacks in Zotero. A remembered
+    // generic voice can therefore win over an explicit US/GB/etc. pick,
+    // making the popup show generic English again (it displays the voice's
+    // region, not the requested one). Only stage an exact variant when one
+    // exists in the same target-tier pool Zotero would use.
+    const listed = listedVoicesOf(m) ?? [];
+    const compatible = listed.filter((voice) => {
+      if (voice.language === '*') return true;
+      const language = dropdownLanguage(voice.language);
+      return memoryLangForLocale(language) === lane && (!region || !language.includes('-') || language === wanted);
+    });
+    const tiers = entry.tierVoices && typeof entry.tierVoices === 'object' && !Array.isArray(entry.tierVoices)
+      ? entry.tierVoices as Record<string, unknown>
+      : {};
+    const target = m.selectedTier || Object.keys(tiers).at(-1) || null;
+    const tierPool = target ? compatible.filter((voice) => voice.tier === target) : compatible;
+    const pool = tierPool.length ? tierPool : compatible;
+    const exact = pool.filter((voice) => dropdownLanguage(voice.language) === wanted);
+    const savedIDs = [target ? tiers[target] : undefined, entry.voice];
+    const remembered = savedIDs.map((id) => pool.find((voice) => voice.id === id)).find(Boolean);
+    const regionChanged = !!(region && entry.region && region !== entry.region);
+    // Different nonempty regions already work natively. A regional pick
+    // without an available remembered voice also takes an exact match by
+    // Zotero's own fallback; leave those paths and missing variants alone.
+    if (exact.length && exact.length !== pool.length && !regionChanged
+      && (!region || remembered) && (!remembered || dropdownLanguage(remembered.language) !== wanted)) {
+      const pick = savedIDs.map((id) => exact.find((voice) => voice.id === id)).find(Boolean) ?? exact[0];
+      const tierVoices = { ...tiers };
+      if (pick.tier) {
+        delete tierVoices[pick.tier];
+        tierVoices[pick.tier] = pick.id;
+      }
+      entry = { ...entry, region, voice: pick.id, tierVoices };
+      m._persistedVoices = deps.cloneForReader ? deps.cloneForReader(reader, entry) : entry;
+      deps.debug?.(`staged an exact ${wanted} voice for the language pick: ${pick.id}`);
+    }
+    // setLanguage returns early when its requested fields already match.
+    // Those fields can still name US while the selected voice is generic,
+    // or have no region after restoring a US voice. Align the old field
+    // with the voice the popup actually displays so the user's change runs.
+    if (exact.length && m.lang === lane && m.region === region) {
+      const current = listed.find((voice) => voice.id === m.selectedVoiceID);
+      if (current) {
+        const currentLanguage = dropdownLanguage(current.language);
+        const currentRegion = currentLanguage.includes('-') ? currentLanguage.slice(currentLanguage.indexOf('-') + 1) : null;
+        if (currentRegion !== region) m._region = currentRegion;
+      }
+    }
     deps.debug?.(`staged Zotero's entry for the dropdown's ${lane}: voice ${voiceOfEntry(entry)}`);
   }
 
@@ -624,7 +676,7 @@ export function createReadAloudMemorySync(deps: ReadAloudMemoryDeps): ReadAloudM
           let persist = false;
           try {
             persist = name !== 'setLanguage' || !!waive(args[1])?.persist;
-            if (persist && name === 'setLanguage') stageLanguagePick(this, args[0]);
+            if (persist && name === 'setLanguage') stageLanguagePick(this, args[0], waive(args[1])?.region);
           } catch (e) {
             deps.error(e);
           }
