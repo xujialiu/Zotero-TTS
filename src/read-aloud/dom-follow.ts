@@ -1,4 +1,5 @@
 /** EPUB following with explicit input intent and whole-range geometry (#93). */
+import { autoScrollMode } from '../core/settings';
 import { followTarget, RETARGET_MS, type Box, type SentenceInViewDeps } from './sentence-in-view';
 
 interface Owned {
@@ -66,7 +67,7 @@ export function createDOMFollow(deps: SentenceInViewDeps) {
     const selector = r.helper._resolveSegmentSelector(state);
     if (!selector) return;
     const key = JSON.stringify(selector);
-    const mode = deps.mode?.() ?? 'outside';
+    const mode = autoScrollMode(deps.mode?.());
     const entered = r.key !== key;
     const changedMode = r.mode !== mode;
     const reset = r.pending || changedMode || r.force;
@@ -160,7 +161,7 @@ export function createDOMFollow(deps: SentenceInViewDeps) {
       const helper = waive(view._readAloud);
       const state = waive(helper.state);
       const r: Owned = { reader, view, helper, following: !!state?.active && helper.positionLocked !== false,
-        active: !!state?.active, paused: !!state?.paused, force: false, key: null, mode: deps.mode?.() ?? 'outside',
+        active: !!state?.active, paused: !!state?.paused, force: false, key: null, mode: autoScrollMode(deps.mode?.()),
         pending: false, reason: 'initial', last: null, navigating: 0, undo: [] };
       try {
         own(r, 'positionLocked', false);
@@ -228,7 +229,7 @@ export function createDOMFollow(deps: SentenceInViewDeps) {
     inspect(reader: any): Record<string, unknown> {
       const view = waive(reader?._internalReader?._lastView ?? reader?._internalReader?._primaryView);
       const r = records.get(view);
-      return r ? { kind: 'epub', patched: true, following: r.following, pending: r.pending, mode: deps.mode?.() ?? 'outside',
+      return r ? { kind: 'epub', patched: true, following: r.following, pending: r.pending, mode: autoScrollMode(deps.mode?.()),
         flow: r.view.flowMode, reason: r.reason, last: r.last } : { kind: 'dom', patched: false };
     },
     dispose() { disposed = true; for (const r of [...records.values()]) release(r); },

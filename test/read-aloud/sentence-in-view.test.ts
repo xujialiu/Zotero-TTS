@@ -241,6 +241,7 @@ function push(view: any, position: unknown): void {
 
 function makeDeps(over: Partial<SentenceInViewDeps> = {}) {
   return {
+    mode: () => 'outside' as const,
     error: vi.fn(),
     debug: vi.fn(),
     cloneInto: vi.fn((_container: unknown, value: unknown) => ({ cloned: value })),

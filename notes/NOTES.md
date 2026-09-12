@@ -389,3 +389,5 @@ cite `notes/NOTES.md` with a date or a section title resolve through this index.
 - The owner accepts auto-scroll and each option gets its own help (issue #93)
 
 - The two auto-scroll help icons pass the focused UI check (issue #93)
+
+- Center each sentence becomes the default (issue #93)

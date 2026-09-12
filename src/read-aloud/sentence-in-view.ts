@@ -34,7 +34,7 @@
  * dictionary as empty (measured 2026-09-10).
  */
 
-import type { AutoScrollMode } from '../core/settings';
+import { autoScrollMode, type AutoScrollMode } from '../core/settings';
 import type { WordTiming } from '../core/highlight-level';
 import type { AnyFn } from './proto-patches';
 import { createPdfFollow } from './pdf-follow';
@@ -247,6 +247,7 @@ function inlineNearest(box: Box, v: Viewport): number | undefined {
  */
 export function followTarget(input: FollowInput): FollowTarget {
   const { head, whole, part, viewport: v } = input;
+  const mode = autoScrollMode(input.mode);
   const CH = v.clientHeight;
   const ST = v.scrollTop;
   if (!(CH > 0)) return { reason: 'none', fits: false, handled: false };
@@ -256,8 +257,8 @@ export function followTarget(input: FollowInput): FollowTarget {
   let focus = whole;
   let top: number | undefined;
   if (fits) {
-    if (input.force || (input.mode === 'sentence' && input.entered) || isOutside(whole, v, 0)) {
-      reason = input.force ? 'return' : input.mode === 'sentence' && input.entered ? 'sentence' : 'cut';
+    if (input.force || (mode === 'sentence' && input.entered) || isOutside(whole, v, 0)) {
+      reason = input.force ? 'return' : mode === 'sentence' && input.entered ? 'sentence' : 'cut';
       top = (whole[1] + whole[3]) / 2 - CH / 2;
     }
   } else if (input.entered || input.force) {
@@ -390,7 +391,7 @@ export function createSentenceInView(deps: SentenceInViewDeps): SentenceInView {
   function follow(reader: unknown, view: any, position: any, options: any, force: boolean): boolean {
     const m = measure(reader, view, position);
     if (!m) return false;
-    const mode = deps.mode?.() ?? 'outside';
+    const mode = autoScrollMode(deps.mode?.());
     const key = JSON.stringify(position);
     const previous = entries.get(view);
     const entered = previous?.key !== key;
@@ -484,7 +485,7 @@ export function createSentenceInView(deps: SentenceInViewDeps): SentenceInView {
       deps.error(e);
     }
     const last: LastDecision | undefined = view[LAST];
-    return { kind: 'pdf', mode: deps.mode?.() ?? 'outside', patched, ...ownership, viewport, sentence, part, last: last ? { ...last } : null };
+    return { kind: 'pdf', mode: autoScrollMode(deps.mode?.()), patched, ...ownership, viewport, sentence, part, last: last ? { ...last } : null };
   }
 
   return {

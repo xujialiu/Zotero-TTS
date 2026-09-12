@@ -266,8 +266,8 @@ language, voice.
   cache below, and keeps it switched on.
 - *Cache synthesized audio* — skipping back or reopening a document costs no
   new request. In memory (64 MB); a Zotero restart empties it.
-- *Auto-scroll* — for PDFs and EPUBs, choose *Center each sentence* or
-  *Scroll when outside the view* (the default) in the Highlight settings.
+- *Auto-scroll* — for PDFs and EPUBs, choose *Center each sentence* (the default) or
+  *Scroll when outside the view* in the Highlight settings.
   Press `Shift+A` to switch modes; the current mode appears briefly.
   The first centers the whole sentence when it starts; the second leaves
   fully visible sentences in place and centers them only when clipped.

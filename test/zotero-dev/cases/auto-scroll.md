@@ -19,7 +19,7 @@ These records distinguish observed behavior from untested cases; their
 historical values are not fresh PASS results on another build.
 
 1. **Setting and persistence.** Highlight offers two radio options,
-   Center each sentence and Scroll when outside the view. The latter is
+   Center each sentence and Scroll when outside the view. The former is
    the default. Each option has its own adjacent help icon; hovering
    them displays different explanations for that option. Changing the
    choice updates the preference

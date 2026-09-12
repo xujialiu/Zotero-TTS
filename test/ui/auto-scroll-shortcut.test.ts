@@ -19,11 +19,11 @@ describe('auto-scroll shortcut', () => {
     const f = setup();
     expect(DEFAULTS.shortcuts.toggleAutoScroll).toBe('Shift+A');
     expect(f.shortcuts.handleKeyDown(f.event(), () => f.reader)).toBe(true);
-    expect(loadSettings(f.prefs).readAloud.autoScrollMode).toBe('sentence');
-    expect(f.showAutoScrollToast).toHaveBeenLastCalledWith(f.reader, 'sentence');
-    f.shortcuts.handleKeyDown(f.event(), () => f.reader);
     expect(loadSettings(f.prefs).readAloud.autoScrollMode).toBe('outside');
     expect(f.showAutoScrollToast).toHaveBeenLastCalledWith(f.reader, 'outside');
+    f.shortcuts.handleKeyDown(f.event(), () => f.reader);
+    expect(loadSettings(f.prefs).readAloud.autoScrollMode).toBe('sentence');
+    expect(f.showAutoScrollToast).toHaveBeenLastCalledWith(f.reader, 'sentence');
     expect(f.lockPosition).not.toHaveBeenCalled();
     expect(f.emitState).not.toHaveBeenCalled();
     expect(f.startReadAloud).not.toHaveBeenCalled();

@@ -5,7 +5,7 @@ import { VOLUME_DEFAULT, VOLUME_MAX, VOLUME_MIN } from './read-aloud-volume';
 export const PROVIDER_IDS: readonly ProviderId[] = ['openai', 'azure', 'cloudflare', 'speechify', 'fish', 'fishspeech', 'local', 'system'];
 
 export type AutoScrollMode = 'outside' | 'sentence';
-export const autoScrollMode = (value: unknown): AutoScrollMode => value === 'sentence' ? 'sentence' : 'outside';
+export const autoScrollMode = (value: unknown): AutoScrollMode => value === 'outside' ? 'outside' : 'sentence';
 
 export interface Settings {
   /** Each provider is switched on independently; every enabled one contributes voices. */
@@ -198,7 +198,7 @@ export const DEFAULTS: Settings = {
     toggleAutoScroll: 'Shift+A',
   },
   readAloud: {
-    autoScrollMode: 'outside',
+    autoScrollMode: 'sentence',
     sameForAllDocuments: true,
     globalSpeed: true,
     favoriteVoices: '',

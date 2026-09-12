@@ -5,7 +5,7 @@ import { createBackup, parseBackup, applyBackup } from '../../src/core/settings-
 import { neverSynced, parseSharedSettings, serializeSharedSettings } from '../../src/core/settings-sync';
 
 const viewport = { scrollTop: 1000, scrollLeft: 0, clientHeight: 1000, clientWidth: 800, scrollHeight: 8000, scrollWidth: 1600 };
-const decide = (whole: Box, extra: Partial<FollowInput> = {}) => followTarget({ head: whole, whole, part: null, viewport, ...extra });
+const decide = (whole: Box, extra: Partial<FollowInput> = {}) => followTarget({ head: whole, whole, part: null, viewport, mode: 'outside', ...extra });
 
 describe('auto-scroll modes', () => {
   it('does not scroll early at either edge, including the last visible pixel', () => {
@@ -41,18 +41,19 @@ describe('auto-scroll modes', () => {
 });
 
 describe('auto-scroll preference', () => {
-  it('defaults to outside, validates stored values and survives backup/restore', () => {
+  it('defaults to sentence, validates stored values and survives backup/restore', () => {
     const data = new Map<string, unknown>();
     const prefs = { get: (k: string) => data.get(k), set: (k: string, v: unknown) => { data.set(k, v); } };
-    expect(DEFAULTS.readAloud.autoScrollMode).toBe('outside');
+    expect(DEFAULTS.readAloud.autoScrollMode).toBe('sentence');
+    expect(loadSettings(prefs).readAloud.autoScrollMode).toBe('sentence');
     data.set(PREF_PREFIX + 'readAloud.autoScrollMode', 'unsupported');
-    expect(loadSettings(prefs).readAloud.autoScrollMode).toBe('outside');
-    data.set(PREF_PREFIX + 'readAloud.autoScrollMode', 'sentence');
+    expect(loadSettings(prefs).readAloud.autoScrollMode).toBe('sentence');
+    data.set(PREF_PREFIX + 'readAloud.autoScrollMode', 'outside');
     const backup = parseBackup(JSON.stringify(createBackup(prefs)));
-    expect(backup.settings['readAloud.autoScrollMode']).toBe('sentence');
+    expect(backup.settings['readAloud.autoScrollMode']).toBe('outside');
     data.clear();
     applyBackup(prefs, backup);
-    expect(loadSettings(prefs).readAloud.autoScrollMode).toBe('sentence');
+    expect(loadSettings(prefs).readAloud.autoScrollMode).toBe('outside');
     expect(neverSynced('readAloud.autoScrollMode')).toBe(false);
     const item = { key: 'readAloud.autoScrollMode', value: 'sentence', ts: 1, by: 'test' };
     expect(parseSharedSettings(serializeSharedSettings([item]))).toEqual([item]);
