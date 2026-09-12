@@ -1,0 +1,79 @@
+DO NOT RUN
+
+This is the exact first safe-snapshot script from the interrupted pass. It assigned globalThis.__ztts81 and wrote temporary values before failing at the final synchronous JSON.parse of the asynchronous position diagnostic. It did not safely emit the original preference presence. It is retained as evidence only.
+
+return (() => {
+  const names = [
+    'extensions.zotero.zotero-tts.readAloud.openExpanded',
+    'extensions.zotero.zotero-tts.readAloud.memory',
+    'extensions.zotero.reader.readAloudVoices',
+    'extensions.zotero.zotero-tts.webdav.autoUploadSettings',
+    'extensions.zotero.zotero-tts.webdav.syncSettings',
+    'extensions.zotero.zotero-tts.webdav.syncPositions',
+    'extensions.zotero.reader.readAloud.highlightGranularity',
+  ];
+  const capture = (name) => {
+    const user = Services.prefs.prefHasUserValue(name);
+    const type = Services.prefs.getPrefType(name);
+    let value = null;
+    if (user) {
+      if (type === Services.prefs.PREF_STRING) value = Services.prefs.getStringPref(name);
+      else if (type === Services.prefs.PREF_BOOL) value = Services.prefs.getBoolPref(name);
+      else if (type === Services.prefs.PREF_INT) value = Services.prefs.getIntPref(name);
+    }
+    return { user, type, value };
+  };
+  const prefs = {};
+  for (const name of names) prefs[name] = capture(name);
+  const readers = [];
+  for (const reader of Zotero.Reader._readers ?? []) {
+    let manager = null;
+    try { manager = reader._internalReader?._readAloudManager; } catch {}
+    readers.push({
+      itemID: (() => { try { return reader.itemID; } catch { return null; } })(),
+      tabID: (() => { try { return reader.tabID ?? null; } catch { return null; } })(),
+      isTabClosed: (() => { try { return !!reader._isTabClosed; } catch { return null; } })(),
+      active: (() => { try { return !!manager?.active; } catch { return null; } })(),
+      paused: (() => { try { return manager ? !!manager.paused : null; } catch { return null; } })(),
+      voice: (() => { try { return manager?.selectedVoiceID ?? null; } catch { return null; } })(),
+      speed: (() => { try { return manager?.speed ?? null; } catch { return null; } })(),
+      popupOpen: (() => { try { return !!reader._internalReader?._state?.readAloudState?.popupOpen; } catch { return null; } })(),
+    });
+  }
+  globalThis.__ztts81 = {
+    prefs,
+    readers,
+    debugStoring: !!Zotero.Debug.storing,
+    created: [],
+  };
+  if (!Zotero.Debug.storing) Zotero.Debug.setStore(true);
+  for (const name of [
+    'extensions.zotero.zotero-tts.webdav.autoUploadSettings',
+    'extensions.zotero.zotero-tts.webdav.syncSettings',
+    'extensions.zotero.zotero-tts.webdav.syncPositions',
+  ]) Services.prefs.setBoolPref(name, false);
+  Services.prefs.setBoolPref('extensions.zotero.zotero-tts.readAloud.openExpanded', false);
+  const memory = prefs['extensions.zotero.zotero-tts.readAloud.memory'].value;
+  let memorySummary = null;
+  try {
+    const parsed = JSON.parse(memory || '{}');
+    memorySummary = { speed: parsed.speed ?? null, voice: parsed.voice ? { id: parsed.voice.id ?? null, lang: parsed.voice.lang ?? null } : null };
+  } catch { memorySummary = { invalid: true, length: memory?.length ?? 0 }; }
+  const voices = prefs['extensions.zotero.reader.readAloudVoices'].value;
+  let voiceSummary = null;
+  try {
+    const parsed = JSON.parse(voices || '{}');
+    voiceSummary = { keys: Object.keys(parsed), length: voices?.length ?? 0 };
+  } catch { voiceSummary = { invalid: true, length: voices?.length ?? 0 }; }
+  return JSON.stringify({
+    savedPrefPresence: Object.fromEntries(Object.entries(prefs).map(([k, v]) => [k, { user: v.user, type: v.type, length: typeof v.value === 'string' ? v.value.length : undefined }])),
+    memory: memorySummary,
+    voices: voiceSummary,
+    readers,
+    debugStoringBefore: globalThis.__ztts81.debugStoring,
+    debugStoringNow: !!Zotero.Debug.storing,
+    playerExpanded: JSON.parse(Zotero.ZoteroTTS.diagnostics.playerExpanded()),
+    position: JSON.parse(Zotero.ZoteroTTS.diagnostics.position()),
+  });
+})()
+

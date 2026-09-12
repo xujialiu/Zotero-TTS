@@ -294,9 +294,14 @@ WebDAV), highlight colors.
 - **Wait when agents are the only remaining work** (settled 2026-09-12):
   when delegated work is running and no independent task remains, stop
   active work and wait for an agent result or new user input. Use a
-  blocking agent wait; do not repeatedly poll agent status or files,
+  long blocking agent wait; do not repeatedly poll agent status or files,
   rerun checks, or send repetitive progress updates merely to stay active.
-  Resume only when a result, a question, or new input requires action.
+  **Be patient: elapsed time alone is not a reason to check, send another
+  status request, hurry the agent, or interrupt it.** Repeated short waits
+  and status requests waste tokens without advancing the work. Let the
+  agent finish; interrupt only for a concrete safety concern, a changed
+  requirement, or the user's request. Resume only when a result, a question,
+  or new input requires action.
 - **A session is one issue, and it reads in batches** (measured
   2026-09-06 over the transcripts since 08-28, issue #58): a session's
   cost is its context times its calls — some 60k tokens of harness and

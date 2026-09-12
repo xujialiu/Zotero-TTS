@@ -66,6 +66,7 @@ pref('extensions.zotero.zotero-tts.readAloud.paragraphDelayEnabled', true);
 pref('extensions.zotero.zotero-tts.readAloud.paragraphDelayMs', 200);
 pref('extensions.zotero.zotero-tts.readAloud.volume', 100);
 pref('extensions.zotero.zotero-tts.readAloud.restoreSkippedLines', true);
+pref('extensions.zotero.zotero-tts.readAloud.openExpanded', false);
 pref('extensions.zotero.zotero-tts.highlight.wordColor', '#3478f6');
 pref('extensions.zotero.zotero-tts.highlight.wordAlpha', 70);
 pref('extensions.zotero.zotero-tts.highlight.sentenceColor', '#ffff00');

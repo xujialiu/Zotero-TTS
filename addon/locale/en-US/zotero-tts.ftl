@@ -120,6 +120,11 @@ ztts-help-volume =
 ## Reading
 
 ztts-heading-reading = Reading
+ztts-open-expanded =
+    .label = Open the player expanded
+ztts-help-open-expanded =
+    .value = ?
+    .help = Show the speed and voice controls whenever the player opens. You can still fold them away until the next opening. Changes apply the next time you open the player; it may appear a moment later.
 ztts-one-voice =
     .label = Use one voice everywhere
 ztts-help-one-voice =

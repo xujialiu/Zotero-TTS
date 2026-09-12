@@ -113,6 +113,11 @@ ztts-help-volume =
 ## Reading
 
 ztts-heading-reading = 朗读
+ztts-open-expanded =
+    .label = 打开时展开播放器
+ztts-help-open-expanded =
+    .value = ?
+    .help = 每次打开播放器时显示语速和语音控件。仍可手动折叠，下次打开时再展开。更改在下次打开播放器时生效；播放器可能稍晚出现。
 ztts-one-voice =
     .label = 所有文档使用同一语音
 ztts-help-one-voice =

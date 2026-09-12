@@ -375,3 +375,5 @@ cite `notes/NOTES.md` with a date or a section title resolve through this index.
 - One field-label column aligns the Fish inputs with the other providers (issue #91)
 - Explicit regional picks must not reuse a generic remembered voice (issue #91)
 - Verified: regional menus remain selected in PDF and EPUB (issue #91)
+- Expanded player opening needs an early visibility gate (issue #81; live verification pending)
+- Expanded player verified live; preserve the original transport snapshot during cleanup (issue #81)

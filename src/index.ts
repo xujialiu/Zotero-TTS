@@ -70,6 +70,7 @@ import {
   type ReadAloudShortcuts,
 } from './ui/read-aloud-shortcuts';
 import { findOptionsButton, hasPlayer, isOptionsPanelOpen } from './ui/player-options';
+import { createPlayerExpanded } from './read-aloud/player-expanded';
 import { removeSpeedToast, showSpeedToast, showToast, SPEED_TOAST_ID } from './ui/speed-toast';
 import { browserVoices, createSamplePlayer, defaultVoiceRows, groupVoicesByTier, languageNameOf, listBrowserVoices, startingSpeed, statusLine, tierLabel } from './ui/voice-browser-rows';
 import { silentWav } from './core/silence';
@@ -132,6 +133,8 @@ let skippedLines: SkippedLines | null = null;
 let systemVoiceHiding: SystemVoiceHiding | null = null;
 let multilingualFirst: MultilingualFirst | null = null;
 let favoriteMarks: FavoriteMarks | null = null;
+let playerExpanded: ReturnType<typeof createPlayerExpanded> | null = null;
+let playerExpandedObserver: unknown = null;
 /** The two prefs the marks follow, unregistered at shutdown. */
 let favoriteMarkObservers: unknown[] = [];
 /** The pauses between sentences and before paragraphs, for every voice (read-aloud/pauses.ts, issue #44). */
@@ -386,6 +389,8 @@ function upcomingSegmentTexts(reader: any, text: string, count: number): string[
  * a tab's slots hold — the slot always holds a clone, never this object.
  */
 function buildReaderInterface(reader: any, targetWindow: any, native: () => unknown): unknown {
+  // Synchronous: Zotero has not constructed the React UI yet (issue #81).
+  playerExpanded?.attach(reader, targetWindow?.document);
   const iface = wrapForWindow(
       targetWindow,
       createRemoteInterface({
@@ -634,6 +639,7 @@ function watchWindow(win: any): void {
 
 function watchReader(reader: any): void {
   if (!reader || !readAloudShortcuts) return;
+  playerExpanded?.attach(reader);
   watchWindow(reader._window);
   readAloudMemory?.attach(reader);
   highlightStyling?.attach(reader);
@@ -773,6 +779,7 @@ function hookTabClose(reader: any): void {
     const original = tab.onClose;
     const wrapper = function zttsTabCloseCapture(this: unknown) {
       tabCloseHooks.delete(tab);
+      try { playerExpanded?.detach(reader); } catch (error) { Zotero.logError(error); }
       trace(`tab.onClose fired ${String(tabID)}`);
       try {
         positionSync?.captureClose(reader);
@@ -843,6 +850,7 @@ function hookPositionCapture(reader: any): void {
     const original = target.uninit;
     const wrapper = function zttsUninitCapture(this: unknown, ...args: unknown[]) {
       positionCaptureHooks.delete(reader);
+      try { playerExpanded?.detach(reader); } catch (error) { Zotero.logError(error); }
       trace(`reader.uninit fired item ${String(reader?.itemID)}`);
       try {
         positionSync?.captureClose(reader);
@@ -1605,6 +1613,35 @@ function stopMultilingualFirst(): void {
 // toggled while a tab reads: the ids never change, so ui/reading-guard.ts
 // has nothing to protect here, and an open dropdown repaints on the spot.
 
+function startPlayerExpanded(): void {
+  stopPlayerExpanded();
+  playerExpanded = createPlayerExpanded({
+    enabled: () => loadSettings(prefs).readAloud.openExpanded,
+    documentOf: (reader: any) => reader?._iframeWindow?.document ?? null,
+    observe: (doc, changed) => {
+      const win = doc.defaultView as any;
+      const callback = Components.utils.exportFunction(() => changed(), win);
+      const observer = new win.MutationObserver(callback);
+      observer.observe(doc.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
+      return () => observer.disconnect();
+    },
+    isDead: (value) => Components.utils.isDeadWrapper(value),
+    error: (error) => Zotero.logError(error),
+  });
+  playerExpandedObserver = Zotero.Prefs.registerObserver('zotero-tts.readAloud.openExpanded', () => playerExpanded?.refresh());
+  for (const reader of Zotero.Reader._readers ?? []) playerExpanded.attach(reader);
+}
+
+function stopPlayerExpanded(): void {
+  if (playerExpandedObserver !== null) {
+    try { Zotero.Prefs.unregisterObserver(playerExpandedObserver); }
+    catch (error) { Zotero.logError(error); }
+    playerExpandedObserver = null;
+  }
+  playerExpanded?.dispose();
+  playerExpanded = null;
+}
+
 function startFavoriteMarks(): void {
   stopFavoriteMarks();
   favoriteMarks = createFavoriteMarks({
@@ -1814,6 +1851,7 @@ async function startup({ id, version, rootURI }: StartupParams): Promise<void> {
       ['system-voice hiding', startSystemVoiceHiding],
       ['Multiple-languages-first ordering', startMultilingualFirst],
       ['favorite marks in the player', startFavoriteMarks],
+      ['expanded player opening', startPlayerExpanded],
       ['sentence and paragraph pauses', startPauses],
       ['Read Aloud volume', startVolume],
       ['the voice kept through a list reload', startUnchangedVoice],
@@ -1852,6 +1890,7 @@ async function shutdown(reason?: number): Promise<void> {
   uninstallHijack?.();
   uninstallHijack = null;
   stopReadAloudShortcuts();
+  stopPlayerExpanded();
   // A settings change still inside its quiet period goes up now, bounded;
   // then the observers come off
   const auto = settingsAutoUpload;
@@ -2059,6 +2098,10 @@ const diagnostics = {
    * found their rows.
    */
   favoriteMarks: () => JSON.stringify((Zotero.Reader._readers ?? []).map((r: any) => favoriteMarks?.inspect(r) ?? null), null, 1),
+  /** Issue #81: pending must clear; expanded + ready proves the gate released after the Options commit. */
+  playerExpanded: () => JSON.stringify((Zotero.Reader._readers ?? []).map((r: any) => ({
+    itemID: safe(() => r.itemID), ...playerExpanded?.inspect(r),
+  })), null, 1),
   /**
    * The pauses (issue #44), per open reader: whether the manager and its
    * running controller are patched, the two settings, the speed, the

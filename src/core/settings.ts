@@ -77,6 +77,8 @@ export interface Settings {
    */
   shortcuts: Record<ShortcutAction, string>;
   readAloud: {
+    /** Expand each newly shown player once, leaving manual folding alone. */
+    openExpanded: boolean;
     /** One Read Aloud voice for every document and every open tab (read-aloud/memory-sync.ts); the pref name predates the speed's own switch below. */
     sameForAllDocuments: boolean;
     /** One speed for every document and every open tab (read-aloud/default-speed.ts); off, Zotero keeps a speed per document language. */
@@ -206,6 +208,7 @@ export const DEFAULTS: Settings = {
     // On by the owner's decision (issue #87): a line put back is part of a
     // sentence, and the off state is for a page header read aloud
     restoreSkippedLines: true,
+    openExpanded: false,
   },
   // A blue word (near Zotero's own #4072e5) on a yellow sentence, both at 70%, the sentence
   // kept under the word; the reader still draws them at its own 0.4 (light) / 0.3 (dark).
@@ -319,6 +322,7 @@ export function loadSettings(prefs: PrefsBackend): Settings {
       paragraphDelayMs: num(prefs, 'readAloud.paragraphDelayMs', DEFAULTS.readAloud.paragraphDelayMs, 0, MAX_PAUSE_MS),
       volume: num(prefs, 'readAloud.volume', DEFAULTS.readAloud.volume, VOLUME_MIN, VOLUME_MAX),
       restoreSkippedLines: bool(prefs, 'readAloud.restoreSkippedLines', DEFAULTS.readAloud.restoreSkippedLines),
+      openExpanded: bool(prefs, 'readAloud.openExpanded', DEFAULTS.readAloud.openExpanded),
     },
     highlight: {
       wordColor: str(prefs, 'highlight.wordColor', DEFAULTS.highlight.wordColor),

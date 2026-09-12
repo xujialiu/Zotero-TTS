@@ -1,0 +1,66 @@
+DO NOT RUN
+
+These are the exact restore and subsequent manual-clear scripts from the interrupted pass. The restore script used the hidden snapshot and temporarily restored its original auto-upload and position-sync user values, which triggered one settings upload. The later manual clear may have removed original user values. Review and redesign before any reuse.
+
+--- restore script ---
+
+return (() => {
+  const snap=globalThis.__ztts81;
+  if(!snap)return JSON.stringify({error:'snapshot missing'});
+  const order=[
+    'extensions.zotero.zotero-tts.readAloud.openExpanded',
+    'extensions.zotero.reader.readAloudVoices',
+    'extensions.zotero.reader.readAloud.highlightGranularity',
+    'extensions.zotero.zotero-tts.readAloud.memory',
+    'extensions.zotero.zotero-tts.webdav.autoUploadSettings',
+    'extensions.zotero.zotero-tts.webdav.syncSettings',
+    'extensions.zotero.zotero-tts.webdav.syncPositions',
+  ];
+  const restored=[];
+  const restore=(name)=>{
+    const entry=snap.prefs?.[name];
+    if(!entry){restored.push({name,ok:false,reason:'not captured'});return}
+    try{
+      if(entry.user){
+        if(entry.type===Services.prefs.PREF_STRING)Services.prefs.setStringPref(name,String(entry.value??''));
+        else if(entry.type===Services.prefs.PREF_BOOL)Services.prefs.setBoolPref(name,!!entry.value);
+        else if(entry.type===Services.prefs.PREF_INT)Services.prefs.setIntPref(name,Number(entry.value));
+        else throw new Error('unsupported pref type '+entry.type);
+      }else if(Services.prefs.prefHasUserValue(name))Services.prefs.clearUserPref(name);
+      restored.push({name,ok:true,user:Services.prefs.prefHasUserValue(name),type:Services.prefs.getPrefType(name)});
+    }catch(e){restored.push({name,ok:false,error:String(e)})}
+  };
+  for(const name of order)restore(name);
+  if(!!Zotero.Debug.storing!==!!snap.debugStoring){try{Zotero.Debug.setStore(!!snap.debugStoring)}catch{}}
+  const verify={};
+  for(const name of order){
+    const expected=snap.prefs?.[name],user=Services.prefs.prefHasUserValue(name),type=Services.prefs.getPrefType(name);
+    let equal=!expected||user===expected.user;
+    if(equal&&expected?.user){
+      let actual=null;
+      if(type===Services.prefs.PREF_STRING)actual=Services.prefs.getStringPref(name);
+      else if(type===Services.prefs.PREF_BOOL)actual=Services.prefs.getBoolPref(name);
+      else if(type===Services.prefs.PREF_INT)actual=Services.prefs.getIntPref(name);
+      equal=actual===expected.value;
+    }
+    verify[name]={equal,user,type,expectedUser:expected?.user??null,length:expected?.user&&typeof expected.value==='string'?expected.value.length:0};
+  }
+  const result={restored,verify,debugStoring:!!Zotero.Debug.storing};
+  delete globalThis.__ztts81;
+  return JSON.stringify(result);
+})()
+
+--- subsequent manual clear script ---
+
+return (() => {
+  const names=[
+    'extensions.zotero.zotero-tts.webdav.autoUploadSettings',
+    'extensions.zotero.zotero-tts.webdav.syncSettings',
+    'extensions.zotero.zotero-tts.webdav.syncPositions',
+  ];
+  const before=names.map((name)=>({name,user:Services.prefs.prefHasUserValue(name),value:Services.prefs.getBoolPref(name)}));
+  for(const name of names)if(Services.prefs.prefHasUserValue(name))Services.prefs.clearUserPref(name);
+  const after=names.map((name)=>({name,user:Services.prefs.prefHasUserValue(name),value:Services.prefs.getBoolPref(name)}));
+  return JSON.stringify({before,after});
+})()
+

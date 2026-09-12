@@ -301,6 +301,11 @@
 
   <groupbox>
     <label><html:h2 data-l10n-id="ztts-heading-reading"/></label>
+    <hbox align="center">
+      <checkbox data-l10n-id="ztts-open-expanded"
+                preference="extensions.zotero.zotero-tts.readAloud.openExpanded"/>
+      <label class="ztts-help" value="?" data-l10n-id="ztts-help-open-expanded" data-l10n-attrs="help"/>
+    </hbox>
     <!-- The pref keeps its old name (settings backups carry it); off, Zotero
          keeps a voice per document language (read-aloud/memory-sync.ts) -->
     <hbox align="center">

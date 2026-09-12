@@ -241,7 +241,12 @@ language, voice.
 ### Reading
 
 <details>
-<summary><b>One voice everywhere, pauses, prefetch, cache, the whole sentence on screen, a page's first line</b></summary>
+<summary><b>Expanded player, one voice everywhere, pauses, prefetch, cache, the whole sentence on screen, a page's first line</b></summary>
+
+- *Open the player expanded* — show the speed and voice controls whenever
+  the player opens. Off by default. You can still fold them away for that
+  opening; closing and reopening expands them again. Changes apply on the
+  next opening, and the player may appear a moment later.
 
 - *Use one voice everywhere* — one voice for every document and every open
   tab, whatever the document's language. Off, Zotero remembers a voice per

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULTS, loadSettings, PREF_PREFIX, type PrefsBackend } from '../../src/core/settings';
+import { SYNCABLE_KEYS } from '../../src/core/settings-sync';
 import {
   applyBackup,
   BACKUP_FORMAT,
@@ -18,6 +19,15 @@ function fakePrefs(initial: Record<string, unknown> = {}): PrefsBackend & { stor
 const everyKey = Object.keys(flattenSettings(DEFAULTS)).sort();
 
 describe('createBackup', () => {
+  it('defaults expanded opening off and carries the opt-in through backup and restore', () => {
+    expect(loadSettings(fakePrefs()).readAloud.openExpanded).toBe(false);
+    const source = fakePrefs({ [PREF_PREFIX + 'readAloud.openExpanded']: true });
+    const target = fakePrefs();
+    const parsed = parseBackup(serializeBackup(createBackup(source)));
+    applyBackup(target, parsed);
+    expect(loadSettings(target).readAloud.openExpanded).toBe(true);
+    expect(SYNCABLE_KEYS).toContain('readAloud.openExpanded');
+  });
   it('includes every setting, API keys and all, under its pref name', () => {
     const prefs = fakePrefs({
       [PREF_PREFIX + 'openai.apiKey']: 'sk-test',
