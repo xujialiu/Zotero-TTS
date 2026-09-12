@@ -1,6 +1,7 @@
-# MEMORY.md — Zotero-TTS
+# Project rules — Zotero-TTS
 
 This file is the shared project rule book, maintained in version control.
+All paths in this file are relative to the repository root unless stated otherwise.
 `AGENTS.md` and `CLAUDE.md` are platform entry points; edit shared rules here.
 This is not an automatically maintained session memory file.
 
@@ -92,7 +93,7 @@ WebDAV), highlight colors.
 ## Working with the user
 
 - **Maintain one source for shared instructions** (settled 2026-09-12):
-  `MEMORY.md` holds the shared project rules. `AGENTS.md` and `CLAUDE.md`
+  `MEMORY/MEMORY.md` holds the shared project rules. `AGENTS.md` and `CLAUDE.md`
   are thin platform entry points; do not copy the shared rules into them.
   `agents/<name>.md` holds each agent's shared workflow. Its entry points
   are `.codex/agents/<name>.toml` and `.claude/agents/<name>.md`; both must
@@ -276,18 +277,16 @@ WebDAV), highlight colors.
   models because Luna is unavailable in Claude Code; those values must not
   be copied into Codex definitions. Who hands work to them is decided
   agent by agent. Astra (`gpt-6-astra`) follows the same delegation rules
-  as Fable: Git housekeeping and releases go to `git-chores`, translation
-  goes to `docs-translator`, and every Zotero bridge run goes to
+  as Fable: translation goes to `docs-translator`, and every Zotero bridge run goes to
   `zotero-tester`, subject to the release-specific bridge exception below.
   **Every run of the
   zotero-dev bridge goes to `zotero-tester`**, from a session running
   Fable, Astra, or Opus, research as much as verification — a bridge run floods
   a context with traces, DOM dumps and unpacked Zotero source whatever
   model is reading them, and that context is where the issue and the fix
-  are then written. `git-chores` and `docs-translator` are handed over by
-  a Fable or Astra session; every other model commits,
-  tags, merges and translates itself, here, in place: no subagent, the
-  whole run in view. The agent files stay the rule book either way: read
+  are then written. `docs-translator` is handed over by a Fable or Astra
+  session; every other model translates itself, here, in place.
+  Git housekeeping and releases are always performed by the main session. The agent files stay the rule book either way: read
   the agent's shared workflow before doing its work by hand, and only then — a
   session that delegates never reads it, since the brief's shape is in
   this file and a rulebook is 6k tokens on every later call.
@@ -312,15 +311,12 @@ WebDAV), highlight colors.
   have). Everything a step needs is read in one call — never one file
   per call — and what only the agent needs (its rulebook, the checklist
   section it will run) is not read at all.
-- **Git housekeeping** (settled 2026-08-28): committing what is in the
-  working tree, deleting merged branches locally and on origin, tagging,
-  pushing, `--ff-only` merges and, since 2026-09-06, the whole of a
-  release (see Releasing) follow `agents/git-chores.md`.
-  A Fable or Astra session delegates them to the named `git-chores` agent — told exactly what to commit, with which message, and
-  what to leave in the working tree — then confirms the report against
-  `git log` / `git status`. Only a merge that does not fast-forward —
-  conflicts, a diverged `main` — is never handed over at all, and a
-  resolution that is a judgment call is asked about. Agent definitions
+- **Git housekeeping** (updated 2026-09-12): the main session performs
+  commits, pulls, branch cleanup, tags, pushes, fast-forward merges and
+  releases directly, following `MEMORY/git-workflow.md`. Do not delegate
+  these operations to an agent. Commit and push still require the user's
+  instruction. A merge that cannot fast-forward stops and is reported.
+  Agent definitions
   under `.claude/agents/` are read when a session starts, and one is
   dropped silently — "not found", no error anywhere — when its
   `description:` is unquoted and contains `: ` while the file has CRLF
@@ -491,10 +487,8 @@ before the issue is written.
 ## Releasing
 
 Installed copies auto-update through the manifest's `update_url`, which
-points at `update.json` on `main`. A release is **one hand-off** (settled
-2026-09-06, issue #58): a Fable or Astra session hands "release X.Y.Z" and a line
-of release notes to `git-chores`; any other model runs the release
-section of `agents/git-chores.md` itself. Underneath are two
+points at `update.json` on `main`. The main session runs the release
+workflow in `MEMORY/git-workflow.md` directly. Underneath are two
 scripts and three commits, and skipping the last strands every installed
 copy on the old version:
 

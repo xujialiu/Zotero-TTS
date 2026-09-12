@@ -1,7 +1,7 @@
-// Steps 2 and 3 of a release (MEMORY.md, Releasing):
+// Steps 2 and 3 of a release (MEMORY/MEMORY.md, Releasing):
 //   node scripts/release-point.mjs X.Y.Z           after `gh release create`:
 //     checks that the release asset answers 200, then points update.json at
-//     it and stops — the commit and the push are git-chores'.
+//     it and stops — the commit and the push are the main session's.
 //   node scripts/release-point.mjs X.Y.Z --verify  after that push: reads
 //     the raw update.json every installed copy fetches, and the asset it
 //     names. raw.githubusercontent.com caches the file for up to five

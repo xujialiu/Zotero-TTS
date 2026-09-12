@@ -12,7 +12,7 @@ follow-up did not verify raw voice-preference/memory equality after testing.
 
 ## 8. What only a human can check
 
-Handed round in the old form (MEMORY.md, "The user takes over only"):
+Handed round in the old form (MEMORY/MEMORY.md, "The user takes over only"):
   at most three self-contained steps, the UI named by what it says on
 screen, the complete Run JavaScript code, the expected output.
 

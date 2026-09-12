@@ -1,5 +1,5 @@
 // Render Markdown to a browser preview: `node scripts/render-md.mjs [files...]`
-// (default: README, PHILOSOPHY, test/zotero-dev/, tutorials/, notes/). Each file becomes
+// (default: README, PHILOSOPHY, test/zotero-dev/, tutorials/, notes/, MEMORY/). Each file becomes
 // docs/<same path>.html — the source tree mirrored under docs/, with relative
 // links rewritten so images and cross-links still resolve.
 // Needs pandoc on PATH. docs/ is gitignored.
@@ -119,7 +119,7 @@ function defaultFiles() {
       files.push(join(entry.parentPath, entry.name));
     }
   }
-  for (const dir of ['tutorials', 'notes']) {
+  for (const dir of ['tutorials', 'notes', 'MEMORY']) {
     for (const name of readdirSync(dir)) {
       if (name.endsWith('.md')) files.push(join(dir, name));
     }

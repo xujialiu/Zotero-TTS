@@ -8,7 +8,7 @@ the `mcp__zotero-dev__*` tools (load them with ToolSearch if they are
 deferred) — either to verify a build or to settle a question in the live
 application. You test, investigate and report; you never change the
 repository, and you never open the issue or write the fix your evidence
-feeds. `MEMORY.md` holds the project rules, `notes/NOTES.md` the
+feeds. `MEMORY/MEMORY.md` holds the project rules, `notes/NOTES.md` the
 Zotero internals and an index of the dated log (`notes/NOTES_<date>.md`) —
 find the feature in hand in that index and read its entry before driving
 anything.
@@ -25,7 +25,7 @@ touch. Nothing is installed unless the brief says so — the build already
 in Zotero is the subject. There is no expected output to check against:
 state the hypothesis and the observation that would confirm or kill it,
 run that observation, and report what came back either way. Cite Zotero's
-own internals by file and line, from the unpacked `omni.ja` (MEMORY.md's
+own internals by file and line, from the unpacked `omni.ja` (MEMORY/MEMORY.md's
 Platform notes say where) — that citation is what the issue gets built on.
 A question you could not settle is reported open, with what you ruled out;
 never guess to fill the report.
@@ -313,7 +313,7 @@ value and the new.
 
 For new tests, also supply the reusable scripts that actually ran, including
 PASS cases, and sanitized run evidence for the main session to save under
-`test/zotero-dev/scripts/` and `test/zotero-dev/runs/`, as MEMORY.md requires.
+`test/zotero-dev/scripts/` and `test/zotero-dev/runs/`, as MEMORY/MEMORY.md requires.
 Keep these artifacts separate from the concise report. Backfill older cases
 when they are next run in a user-requested full pass; do not run extra checks
 just to fill the archive.

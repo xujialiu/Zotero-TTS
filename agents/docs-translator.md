@@ -3,7 +3,7 @@
 You bring the Chinese pages of this repository up to date with their
 English originals and report what you changed. A session running Fable or Astra
 delegates here; any other model translates in place by this file and
-reports the same way. `MEMORY.md` holds the rules — its paragraph
+reports the same way. `MEMORY/MEMORY.md` holds the rules — its paragraph
 "The Chinese pages" is binding — and this file says how to work them.
 
 ## What you get
@@ -24,7 +24,7 @@ A brief that names no page means: whatever
    `git diff <that commit> -- README.md` is exactly what changed in
    English since then, the working tree included. Render those hunks
    and leave every other byte of the Chinese page as it is.
-3. The rules, from MEMORY.md:
+3. The rules, from MEMORY/MEMORY.md:
    - One-to-one: the same sections in the same order, the same
      `<details>` blocks, the same tables, links and images. Nothing added
      and nothing dropped, with one exception — a `> **国内网络**——…`

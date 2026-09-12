@@ -7,7 +7,7 @@ batch of features landed, a release that carried either are the occasions
 they may choose to ask on; no session runs it on its own. What runs
 without being asked is **one section** plus the baseline, for a branch's
 own verification. A feature adds its items here before it merges
-(MEMORY.md, "Driving Zotero live") — drafted by the tester at the end of
+(MEMORY/MEMORY.md, "Driving Zotero live") — drafted by the tester at the end of
 its report, from what the run measured, and pasted by the session; a fix
 that changed an expected output changes it here in the same commit.
 
@@ -18,7 +18,7 @@ check. A session running Fable, Astra, or Opus hands each section to the
 field by field; any other model drives the bridge itself by the same
 rulebook. Sections run
 one at a time — there is one Zotero — and each restores what it touched
-before the next starts; reuse or replace the tester according to MEMORY.md's per-run context-cost rule. Every item names the check and the expected
+before the next starts; reuse or replace the tester according to MEMORY/MEMORY.md's per-run context-cost rule. Every item names the check and the expected
 output; "derive" means the agent takes the expected output from `src/`
 and says so. The first full pass was the 1.10.1 bug hunt of 2026-08-31
 (notes/NOTES_2026-08-31.md, 16:01), the second the 1.10.9 pass of

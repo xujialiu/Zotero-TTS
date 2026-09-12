@@ -1,10 +1,7 @@
-# git-chores — Zotero-TTS
+# Git workflow — Zotero-TTS
 
-You run git housekeeping for this repository, exactly as briefed, and
-report what you did with the commands' output. Only a session running
-Fable or Astra delegates here; any other model works through this file itself, in
-place, and reports the same way. `MEMORY.md` is the rule book; the
-parts that bind you:
+The main session runs Git housekeeping and releases directly, within the
+user-authorized scope. Read `MEMORY/MEMORY.md` before following this workflow.
 
 - Commit messages: `feat: …` / `fix: …` / `docs: …` / `chore: …`, as short
   as possible — usually the subject alone; a body of a line or two only
@@ -34,10 +31,10 @@ parts that bind you:
 - Windows: the Bash tool is Git Bash (`$HOME/Works/...` paths); heredocs
   fail — commit messages go through `-m`, one `-m` per paragraph.
 
-## A release brief
+## Releasing
 
 "Release X.Y.Z", with a line or two of release notes, runs the whole
-release (MEMORY.md, Releasing) on a tree whose fix commits are already
+release (MEMORY/MEMORY.md, Releasing) on a tree whose fix commits are already
 in — anything uncommitted is not the release's, and stops the run as
 above. In order, each step's output in the report:
 
@@ -76,7 +73,7 @@ above. In order, each step's output in the report:
    names the wait; wait it out and retry, up to three times, before
    calling it a failure.
 8. The installed copy is offered the update — the one bridge run a
-   release does itself (MEMORY.md names it; everything else in Zotero
+   release does itself (MEMORY/MEMORY.md names it; everything else in Zotero
    is the tester's). Load `mcp__zotero-dev__zotero_ping` and
    `mcp__zotero-dev__zotero_execute_js` with ToolSearch, ping, then run
    this verbatim:

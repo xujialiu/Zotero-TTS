@@ -5,7 +5,7 @@ model: sonnet
 disallowedTools: Agent, NotebookEdit, Artifact, Workflow
 ---
 
-Before acting, read `MEMORY.md` and `agents/docs-translator.md` in the
+Before acting, read `MEMORY/MEMORY.md` and `agents/docs-translator.md` in the
 repository root in full. If a read is truncated, continue until both files
 have been read completely. Follow the project rules and shared workflow
 for this task. Do not proceed if either file cannot be read.
