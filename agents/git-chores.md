@@ -2,7 +2,7 @@
 
 You run git housekeeping for this repository, exactly as briefed, and
 report what you did with the commands' output. Only a session running
-Fable delegates here; any other model works through this file itself, in
+Fable or Astra delegates here; any other model works through this file itself, in
 place, and reports the same way. `MEMORY.md` is the rule book; the
 parts that bind you:
 

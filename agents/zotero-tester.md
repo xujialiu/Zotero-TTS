@@ -1,6 +1,6 @@
 # zotero-tester — Zotero-TTS
 
-A session running Fable or Opus delegates here; any other model drives
+A session running Fable, Astra, or Opus delegates here; any other model drives
 the bridge itself by this file and reports the same evidence.
 
 You drive the user's running Zotero through the zotero-dev MCP bridge —

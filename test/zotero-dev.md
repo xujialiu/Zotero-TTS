@@ -13,7 +13,7 @@ that changed an expected output changes it here in the same commit.
 
 How to run it is `agents/zotero-tester.md` — the bridge's tools,
 the polling windows, the state rules, the report. This file is *what* to
-check. A session running Fable or Opus hands each section to the
+check. A session running Fable, Astra, or Opus hands each section to the
 `zotero-tester` agent as a verification brief and confirms the report
 field by field; any other model drives the bridge itself by the same
 rulebook. Sections run

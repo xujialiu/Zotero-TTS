@@ -72,7 +72,7 @@ WebDAV), highlight colors.
   no translation at all; `npm run docs:pin` records the new hashes once the
   translation is up to date. A stale Chinese page therefore cannot be built
   or released. **The translating is `docs-translator`'s** (settled
-  2026-09-06, issue #58): a session running Fable hands it the English
+  2026-09-06, issue #58): a session running Fable or Astra hands it the English
   pages that changed and their diff, and checks the diff that comes back;
   any other model translates in place by
   `agents/docs-translator.md`.
@@ -265,7 +265,8 @@ WebDAV), highlight colors.
   pref you need, never print whole lines.
 - **Delegation is decided per agent** (settled 2026-08-28, gated
   2026-08-28, widened 2026-08-30, split 2026-09-04, a third agent
-  2026-09-06, a model per agent 2026-09-08, a Codex default 2026-09-11):
+  2026-09-06, a model per agent 2026-09-08, a Codex default 2026-09-11,
+  Astra delegation 2026-09-12):
   `gpt-5.6-luna` at maximum reasoning effort is the default for every
   Codex-spawned agent, including named definitions and generic
   `general-purpose` workers and reviewers. The Codex definitions pin
@@ -274,14 +275,17 @@ WebDAV), highlight colors.
   user asks for it. Claude definitions keep their native `opus`/`sonnet`
   models because Luna is unavailable in Claude Code; those values must not
   be copied into Codex definitions. Who hands work to them is decided
-  agent by agent.
+  agent by agent. Astra (`gpt-6-astra`) follows the same delegation rules
+  as Fable: Git housekeeping and releases go to `git-chores`, translation
+  goes to `docs-translator`, and every Zotero bridge run goes to
+  `zotero-tester`, subject to the release-specific bridge exception below.
   **Every run of the
   zotero-dev bridge goes to `zotero-tester`**, from a session running
-  Fable *or* Opus, research as much as verification — a bridge run floods
+  Fable, Astra, or Opus, research as much as verification — a bridge run floods
   a context with traces, DOM dumps and unpacked Zotero source whatever
   model is reading them, and that context is where the issue and the fix
   are then written. `git-chores` and `docs-translator` are handed over by
-  a Fable session only; every other model — this one included — commits,
+  a Fable or Astra session; every other model commits,
   tags, merges and translates itself, here, in place: no subagent, the
   whole run in view. The agent files stay the rule book either way: read
   the agent's shared workflow before doing its work by hand, and only then — a
@@ -307,8 +311,7 @@ WebDAV), highlight colors.
   working tree, deleting merged branches locally and on origin, tagging,
   pushing, `--ff-only` merges and, since 2026-09-06, the whole of a
   release (see Releasing) follow `agents/git-chores.md`.
-  A Fable session hands them to `Agent` with `subagent_type:
-  "git-chores"` — told exactly what to commit, with which message, and
+  A Fable or Astra session delegates them to the named `git-chores` agent — told exactly what to commit, with which message, and
   what to leave in the working tree — then confirms the report against
   `git log` / `git status`. Only a merge that does not fast-forward —
   conflicts, a diverged `main` — is never handed over at all, and a
@@ -387,8 +390,8 @@ before the issue is written.
 
 - **The driving rules are `agents/zotero-tester.md`** (the
   bridge's tools, how to drive them, what to report). A session running
-  Fable or Opus hands **every** run to `Agent` with `subagent_type:
-  "zotero-tester"` — research as much as verification, since research is
+  Fable, Astra, or Opus delegates **every** run to the named
+  `zotero-tester` agent — research as much as verification, since research is
   what floods a context with traces, DOM dumps and unpacked Zotero
   source — and confirms the report field by field: a PASS / FAIL table
   with the observed values first, scripts and traces verbatim only under
@@ -413,9 +416,9 @@ before the issue is written.
   question, build and state hashes, fixture, precautions, and any live
   probes or cleanup still owed; do not leave two agents driving Zotero
   at once. What comes back is evidence — the issue, the fix and
-  the commit stay in the main session. A smaller model drives the bridge here, by
-  those same rules, and budgets for the traces and screenshots landing in
-  this context.
+  the commit stay in the main session. A session running another model drives
+  the bridge itself by those same rules and budgets for the traces and
+  screenshots landing in its context.
 - **Plan first.** List every new behavior on the branch and the check that
   covers it — for research, every question and the observation that would
   settle it; name what only unit tests can cover and why, and what only a
@@ -460,7 +463,7 @@ before the issue is written.
 
 Installed copies auto-update through the manifest's `update_url`, which
 points at `update.json` on `main`. A release is **one hand-off** (settled
-2026-09-06, issue #58): a Fable session hands "release X.Y.Z" and a line
+2026-09-06, issue #58): a Fable or Astra session hands "release X.Y.Z" and a line
 of release notes to `git-chores`; any other model runs the release
 section of `agents/git-chores.md` itself. Underneath are two
 scripts and three commits, and skipping the last strands every installed

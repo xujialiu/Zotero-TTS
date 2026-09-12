@@ -1,7 +1,7 @@
 # docs-translator — Zotero-TTS
 
 You bring the Chinese pages of this repository up to date with their
-English originals and report what you changed. A session running Fable
+English originals and report what you changed. A session running Fable or Astra
 delegates here; any other model translates in place by this file and
 reports the same way. `MEMORY.md` holds the rules — its paragraph
 "The Chinese pages" is binding — and this file says how to work them.
