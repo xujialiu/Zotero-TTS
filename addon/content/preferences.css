@@ -112,3 +112,8 @@ label.ztts-help[value]:hover {
 .ztts-pane .ztts-fish-voices-label > label {
   margin: 0;
 }
+
+/* Align the second-line bracket field with the checkbox's label. */
+.ztts-pane #ztts-bracket-pairs {
+  margin-inline-start: 24px;
+}

@@ -1,0 +1,12 @@
+{
+  "configured": true,
+  "configuredPairs": "【】 ()",
+  "trace": [
+    { "label": "before-stop", "active": true, "paused": true },
+    { "label": "after-stop", "active": false, "paused": true },
+    { "label": "after-reopen", "active": true, "paused": false },
+    { "label": "paused-after-reopen", "active": true, "paused": true }
+  ],
+  "fixtureSettings": { "configured": true, "effective": true, "configuredPairs": "【】 ()", "effectivePairs": "【】 ()" },
+  "error": null
+}

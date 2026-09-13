@@ -1,0 +1,14 @@
+Final bridge reads after cleanup:
+
+- zotero_plugin_list: Zotero-TTS 1.12.6-beta3.
+- zotero_list_windows: one navigator window remains; the preferences window is
+  closed.
+- zotero_read_errors: the ring returned 100 entries. Current-run entries were
+  Zotero locale-resource misses for en-AU/en-CA/en-NZ and the expected
+  in-place-install `uncaught exception: undefined` noise. No current-run
+  `[zotero-tts]` error or `zotero-tts.js` stack was present.
+- Older entries before this run include Fish Audio no-audio and blocked-network
+  errors from earlier sessions; they are excluded from this run's findings.
+- zotero_read_logs after cleanup reported debug logging disabled, matching the
+  baseline debug-store state. During the run the debug store contained the
+  expected bracket-removal, timestamp, cache, prefetch, and empty-pair lines.

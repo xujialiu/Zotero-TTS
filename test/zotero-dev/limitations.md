@@ -113,3 +113,13 @@ screen, the complete Run JavaScript code, the expected output.
   server that fails on cue.
 - Zotero's near-view position drop (five pages), the smooth follow, the
   #15 latexit shape, the shutdown flushes: as marked above.
+
+
+- Issue #101 configurable pairs have live mechanism evidence on macOS with
+  real Fish timestamps and restored native stubs; see the
+  [beta3 report](runs/2026-09-13-1.12.6-beta3/report.md).
+  AudioContext stayed suspended at time zero, so continuous playback,
+  listening and moving highlights remain untested. The live Chinese locale
+  was not switched. Fish supplied only one word timestamp for the mixed
+  nested sample despite correct request text; simple default/custom pairs
+  returned both word timings.

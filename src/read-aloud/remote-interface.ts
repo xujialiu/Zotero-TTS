@@ -70,6 +70,7 @@ export type RemoteInterfaceDeps = {
   cacheVersion(): string;
   /** Fixed for the active reading session; refreshed at the next activation. */
   getStripAngleBrackets?(): boolean;
+  getBracketPairs?(): string;
   /**
    * The audio cache, or undefined while caching is off — asked per call,
    * the way every other setting here is, so a change in the pane reaches a
@@ -342,7 +343,7 @@ export function createRemoteInterface(deps: RemoteInterfaceDeps): RemoteInterfac
    * chain — playback will surface the error when it gets there.
    */
   let warming = false;
-  function prefetchAfter(providerId: ProviderId, voiceId: string, text: string, strip: boolean, locale?: string): void {
+  function prefetchAfter(providerId: ProviderId, voiceId: string, text: string, strip: boolean, locale?: string, pairs?: string): void {
     const cfg = deps.getPrefetch?.();
     const cache = deps.cache?.();
     if (!cfg?.enabled || cfg.count < 1 || !cache || warming) return;
@@ -354,7 +355,7 @@ export function createRemoteInterface(deps: RemoteInterfaceDeps): RemoteInterfac
     void (async () => {
       try {
         for (const original of texts) {
-          const t = prepareSpeechText(original, strip).text;
+          const t = prepareSpeechText(original, strip, pairs).text;
           if (!t.trim()) continue;
           const key = cacheKeyFor(providerId, voiceId, t, hintFor(providerId, t, locale));
           if (pending.has(key)) continue;
@@ -435,16 +436,17 @@ export function createRemoteInterface(deps: RemoteInterfaceDeps): RemoteInterfac
       // can prepare a different regional voice while the old one is still active.
       const locale = voice?.locale;
       const strip = deps.getStripAngleBrackets?.() ?? true;
+      const pairs = deps.getBracketPairs?.();
       const originalText = segment === 'sample' ? SAMPLE_TEXT : segment.text;
-      const prepared = prepareSpeechText(originalText, segment !== 'sample' && strip);
+      const prepared = prepareSpeechText(originalText, segment !== 'sample' && strip, pairs);
       const decoded = decodeVoiceId(voice?.id ?? '');
       if (prepared.removed.length && !prepared.text.trim()) {
-        if (decoded) prefetchAfter(decoded.provider, decoded.voiceId, originalText, strip, locale);
+        if (decoded) prefetchAfter(decoded.provider, decoded.voiceId, originalText, strip, locale, pairs);
         const pause = silentWav(SILENT_PAUSE_MS);
-        deps.debug?.('angle brackets: empty interior; playing a short pause');
+        deps.debug?.('bracket pairs: empty interior; playing a short pause');
         return { audio: deps.adoptAudio ? deps.adoptAudio(pause) : pause, timestamps: wholeSegmentTimestamp(originalText) };
       }
-      if (prepared.removed.length) deps.debug?.(`angle brackets: removed ${prepared.removed.length / 2} enclosing pair(s) from ${originalText.length} chars`);
+      if (prepared.removed.length) deps.debug?.(`bracket pairs: removed ${prepared.removed.length} bracket code unit(s) from ${originalText.length} chars`);
       if (!decoded) {
         // Not one of ours: Zotero's own voice, handled by Zotero's own code
         const iface = native();
@@ -483,7 +485,7 @@ export function createRemoteInterface(deps: RemoteInterfaceDeps): RemoteInterfac
           deps.debug?.(`skipping ${text.length} chars that are not visible on the page; playing a ${SILENT_PAUSE_MS} ms pause instead`);
           // Still warms what follows: the skipped segment is the anchor the
           // upcoming ones are found from, and it plays for only 400 ms
-          prefetchAfter(decoded.provider, decoded.voiceId, text, strip, locale);
+          prefetchAfter(decoded.provider, decoded.voiceId, text, strip, locale, pairs);
           const skipped = silentWav(SILENT_PAUSE_MS);
           return { audio: deps.adoptAudio ? deps.adoptAudio(skipped) : skipped };
         }
@@ -491,7 +493,7 @@ export function createRemoteInterface(deps: RemoteInterfaceDeps): RemoteInterfac
         // The cache holds exactly what the provider produced; the sentence
         // fallback below is applied on the way out, never stored.
         const { result, cached } = await ensureAudio(decoded.provider, decoded.voiceId, prepared.text, segment === 'sample' ? undefined : locale);
-        if (segment !== 'sample') prefetchAfter(decoded.provider, decoded.voiceId, text, strip, locale);
+        if (segment !== 'sample') prefetchAfter(decoded.provider, decoded.voiceId, text, strip, locale, pairs);
 
         // A clean answer with nothing in it: Azure ends the turn with zero
         // audio frames for asterisk-only text (the "****" scene separators,

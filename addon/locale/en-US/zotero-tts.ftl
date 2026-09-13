@@ -593,7 +593,13 @@ ztts-auto-scroll-toast-sentence = Auto-scroll: center each sentence
 ztts-auto-scroll-toast-outside = Auto-scroll: when outside the view
 
 ztts-strip-angle-brackets =
-    .label = Remove enclosing angle brackets <> when reading
+    .label = Remove enclosing brackets when reading
+ztts-bracket-pairs =
+    .aria-label = Bracket pairs to remove
 ztts-help-strip-angle-brackets =
     .value = ?
-    .help = Angle brackets <> may cause errors with TTS services. Read the text inside < > without the enclosing brackets, keeping punctuation outside them. Multiple groups separated by spaces or punctuation are supported: <Log in> <Register> is read as Log in Register. Ordinary words outside the groups keep the original text unchanged. Applies to all voices. Changes take effect after stopping and reopening Read Aloud.
+    .help = Remove the outer brackets from each group while keeping its words, outside punctuation, and spacing. Separate pairs with spaces, for example <> [] () 【】. Turn this off to edit the list, then check it to validate and enable it. Ordinary words outside the groups keep the original text unchanged. Applies to all voices after stopping and reopening Read Aloud.
+ztts-bracket-use-defaults = Use defaults
+ztts-bracket-error-empty = Enter at least one bracket pair, separated by spaces. Use the default list <> [] instead?
+ztts-bracket-error-entry = Invalid pair “{ $entry }”. Each pair must contain exactly two different punctuation or symbol characters. Use the default list <> [] instead?
+ztts-bracket-error-duplicate = Duplicate pair “{ $entry }”. Enter each pair only once. Use the default list <> [] instead?

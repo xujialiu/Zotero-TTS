@@ -1,0 +1,10 @@
+{
+  "final": {
+    "ms": 0,
+    "rows": [
+      { "itemID": 24246, "internal": true, "manager": true, "remoteInterface": true },
+      { "itemID": 24434, "internal": true, "manager": true, "remoteInterface": true }
+    ]
+  },
+  "samples": 1
+}

@@ -447,3 +447,7 @@ cite `notes/NOTES.md` with a date or a section title resolve through this index.
 - Beta3 retains following through partial visibility and closes cleanly (issue #100)
 
 - A visibility pause resumes when the current sentence returns (issue #100)
+
+- Bracket lists share one scan and one activation snapshot (issue #101)
+
+- Configurable bracket pairs passed the live request and settings checks (issue #101)

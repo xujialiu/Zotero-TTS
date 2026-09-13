@@ -1,0 +1,30 @@
+{
+  "initial": { "prefEnabled": true, "prefPairs": "<> []", "checked": true, "inputDisabled": true },
+  "disabled": { "prefEnabled": false, "prefPairs": "<> []", "checked": false, "inputDisabled": false },
+  "dialogs": {
+    "empty": {
+      "value": "",
+      "text": "Enter at least one bracket pair, separated by spaces. Use the default list <> [] instead?",
+      "buttons": ["Use defaults", "Cancel"],
+      "after": { "prefEnabled": false, "prefPairs": "", "checked": false, "inputValue": "", "inputDisabled": false }
+    },
+    "entry": {
+      "value": "aa",
+      "text": "Invalid pair “aa”. Each pair must contain exactly two different punctuation or symbol characters. Use the default list <> [] instead?",
+      "buttons": ["Use defaults", "Cancel"],
+      "after": { "prefEnabled": false, "prefPairs": "aa", "checked": false, "inputValue": "aa", "inputDisabled": false }
+    },
+    "duplicateCancel": {
+      "value": "<> <>",
+      "text": "Duplicate pair “<>”. Enter each pair only once. Use the default list <> [] instead?",
+      "buttons": ["Use defaults", "Cancel"],
+      "after": { "prefEnabled": false, "prefPairs": "<> <>", "checked": false, "inputValue": "<> <>", "inputDisabled": false }
+    },
+    "duplicateDefaults": {
+      "value": "<> <>",
+      "text": "Duplicate pair “<>”. Enter each pair only once. Use the default list <> [] instead?",
+      "buttons": ["Use defaults", "Cancel"],
+      "after": { "prefEnabled": true, "prefPairs": "<> []", "checked": true, "inputValue": "<> []", "inputDisabled": true }
+    }
+  }
+}

@@ -85,8 +85,9 @@ export interface Settings {
     keepFollowingWhileVisible: boolean;
     /** Expand each newly shown player once, leaving manual folding alone. */
     openExpanded: boolean;
-    /** Remove enclosing angle brackets from speech text at the next reading session. */
+    /** Remove configured enclosing brackets from speech text at the next reading session. */
     stripAngleBrackets: boolean;
+    bracketPairs: string;
     /** One Read Aloud voice for every document and every open tab (read-aloud/memory-sync.ts); the pref name predates the speed's own switch below. */
     sameForAllDocuments: boolean;
     /** One speed for every document and every open tab (read-aloud/default-speed.ts); off, Zotero keeps a speed per document language. */
@@ -223,6 +224,7 @@ export const DEFAULTS: Settings = {
     restoreSkippedLines: true,
     openExpanded: false,
     stripAngleBrackets: true,
+    bracketPairs: '<> []',
   },
   // A blue word (near Zotero's own #4072e5) on a yellow sentence, both at 70%, the sentence
   // kept under the word; the reader still draws them at its own 0.4 (light) / 0.3 (dark).
@@ -343,6 +345,7 @@ export function loadSettings(prefs: PrefsBackend): Settings {
       restoreSkippedLines: bool(prefs, 'readAloud.restoreSkippedLines', DEFAULTS.readAloud.restoreSkippedLines),
       openExpanded: bool(prefs, 'readAloud.openExpanded', DEFAULTS.readAloud.openExpanded),
       stripAngleBrackets: bool(prefs, 'readAloud.stripAngleBrackets', DEFAULTS.readAloud.stripAngleBrackets),
+      bracketPairs: str(prefs, 'readAloud.bracketPairs', DEFAULTS.readAloud.bracketPairs),
     },
     highlight: {
       wordColor: str(prefs, 'highlight.wordColor', DEFAULTS.highlight.wordColor),

@@ -1,0 +1,12 @@
+{
+  "source": "【Hello】 (World)",
+  "configuredPairs": "【】 ()",
+  "calls": [{ "path": "/v1/tts/stream/with-timestamp", "method": "POST", "text": "Hello World" }],
+  "callCount": 1,
+  "results": [
+    { "audioBytes": 7104, "error": null, "timestamps": [{ "charStart": 1, "charEnd": 6, "sourceSlice": "Hello" }, { "charStart": 9, "charEnd": 14, "sourceSlice": "World" }] },
+    { "audioBytes": 7104, "error": null, "timestamps": [{ "charStart": 1, "charEnd": 6, "sourceSlice": "Hello" }, { "charStart": 9, "charEnd": 14, "sourceSlice": "World" }] }
+  ],
+  "sameTimestamps": true,
+  "error": null
+}

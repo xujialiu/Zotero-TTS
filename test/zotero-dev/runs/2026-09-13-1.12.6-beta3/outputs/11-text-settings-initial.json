@@ -1,0 +1,7 @@
+{
+  "entries": [
+    { "patched": true, "active": true, "configured": true, "effective": true, "configuredPairs": "<> []", "effectivePairs": "<> []" },
+    { "patched": true, "active": true, "configured": true, "effective": true, "configuredPairs": "<> []", "effectivePairs": "<> []" }
+  ],
+  "fixture": { "active": true, "paused": true, "voice": "fish::en/e041d483a7b54d96a6b91676468b304b" }
+}

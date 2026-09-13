@@ -80,3 +80,4 @@ pref('extensions.zotero.zotero-tts.shortcuts.previousVoice', 'Shift+,');
 pref('extensions.zotero.zotero-tts.shortcuts.nextVoice', 'Shift+.');
 
 pref('extensions.zotero.zotero-tts.readAloud.stripAngleBrackets', true);
+pref('extensions.zotero.zotero-tts.readAloud.bracketPairs', '<> []');

@@ -1,3 +1,4 @@
+import { initBracketRows } from './bracket-rows';
 import type { ProviderId, TTSProvider } from '../core/providers/types';
 import { LOCAL_ENGINES } from '../core/providers/local/registry';
 import { createProvider, type ProviderDeps } from '../core/providers/factory';
@@ -547,6 +548,20 @@ export function onPaneLoad(doc: Document, hooks: PaneHooks = {}): void {
       askPaneQuestion(doc, message, { confirm: t('ztts-stop-and-continue'), cancel: t('ztts-cancel') }, (text) => confirmStop(win, text)),
     stopReading: () => playerStop.stopAll().map(readingTabTitle),
   };
+  const bracketRows = initBracketRows(doc, {
+    prefs,
+    watch: (name, onChange) => {
+      const token = Zotero.Prefs.registerObserver(name, onChange);
+      return () => Zotero.Prefs.unregisterObserver(token);
+    },
+    askDefaults: message => askPaneQuestion(doc, message,
+      { confirm: t('ztts-bracket-use-defaults'), cancel: t('ztts-cancel') },
+      text => {
+        const ps = Services.prompt;
+        const flags = ps.BUTTON_POS_0 * ps.BUTTON_TITLE_IS_STRING + ps.BUTTON_POS_1 * ps.BUTTON_TITLE_CANCEL;
+        return ps.confirmEx(win, 'Zotero-TTS', text, flags, t('ztts-bracket-use-defaults'), null, null, null, { value: false }) === 0;
+      }),
+  });
   // The two checkboxes that edit what the Read Aloud player lists: unbound,
   // written here, and refused while a tab is reading (ui/voice-list-switches.ts)
   const voiceListSwitches = initVoiceListSwitches(doc, {
@@ -644,6 +659,7 @@ export function onPaneLoad(doc: Document, hooks: PaneHooks = {}): void {
       voiceBrowserRows.dispose();
       prefetchRows.dispose();
       voiceListSwitches.dispose();
+      bracketRows.dispose();
     },
     { once: true },
   );
@@ -688,6 +704,7 @@ export function onPaneLoad(doc: Document, hooks: PaneHooks = {}): void {
       highlightRows.refresh();
       prefetchRows.refresh();
       voiceListSwitches.refresh();
+      bracketRows.refresh();
       voiceBrowserRows.refresh();
       // The restored prefs may switch providers on or off: the switches and
       // locks follow (after the preset rows, which gray their fields
