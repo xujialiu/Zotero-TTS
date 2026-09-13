@@ -48,10 +48,18 @@ Do not count that guarded scenario as an ordinary supported Zotero state.
    `mechanism: prepared-native-voice-v1`, previous `Shift+,`, next `Shift+.`.
    Startup includes `prepared voice switching` with no failed step.
 2. **List and keys.** Compare the actual player's voice menu with the
-   neighbors selected by trusted Shift+, / Shift+. Include regional voices,
+   neighbors selected by trusted Shift+, / Shift+. For a regional selection,
+   compare only voices in that exact normalized region: native menus also
+   include generic/wildcard fallbacks that keyboard cycling skips (#97).
+   Include generic English and wildcard neighbors beside two US voices;
+   both directions must wrap within US, and a singleton US voice is a no-op.
+   Include regional voices,
    favorites-only filtering, first/last wrap, one voice, rebinding, clearing,
    repeat suppression and an editable field. A paused selection stays
    paused and does not request a sample.
+   Reuse the [regional fallback scripts](../scripts/voice-switch-regional/README.md);
+   [the 1.12.6-beta report](../runs/2026-09-13-1.12.6-beta/report.md)
+   records this paused native-manager check, with no provider synthesis.
 3. **Word handoff.** Use a native RemoteReadAloudController with controlled
    fixture audio and explicit fixture timestamps; retain the transport stub
    and restore it. Delay the new audio. The old controller and selected

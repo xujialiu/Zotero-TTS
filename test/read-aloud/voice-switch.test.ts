@@ -67,6 +67,40 @@ function setup(timings = true) {
 beforeEach(() => vi.useFakeTimers());
 afterEach(() => vi.useRealTimers());
 describe('prepared native voice handoff', () => {
+  it.each([-1, 1] as const)('keeps regional selection and wrap inside US voices (%s)', direction => {
+    const f = setup(); f.manager.paused = true;
+    f.voices[0].language = 'en-US'; f.voices[1].language = 'en'; f.voices[2].language = 'en-US';
+    f.manager.region = 'GB'; // The displayed region comes from the selected voice.
+    f.manager.voicesForLanguage = Object.assign([...f.voices, { id: 'wild', language: '*' }],
+      { filter: () => [], find: () => undefined });
+    f.switcher.step(f.reader, direction);
+    expect(f.manager.selectedVoiceID).toBe('c');
+    f.switcher.step(f.reader, direction);
+    expect(f.manager.selectedVoiceID).toBe('a');
+    expect(f.requests).toEqual([]); expect(f.plays).toEqual([]);
+    f.switcher.dispose();
+  });
+  it('leaves a singleton region unchanged despite generic and wildcard neighbors', () => {
+    const f = setup(); f.manager.paused = true;
+    f.voices[0].language = 'en-US'; f.voices[1].language = 'en'; f.voices[2].language = '*';
+    f.switcher.step(f.reader, 1); f.switcher.step(f.reader, -1);
+    expect(f.select).not.toHaveBeenCalled(); f.switcher.dispose();
+  });
+  it('keeps generic selection behavior even with a stale requested region', () => {
+    const f = setup(); f.manager.paused = true; f.manager.region = 'US';
+    f.voices[0].language = 'en'; f.voices[1].language = 'en-US'; f.voices[2].language = '*';
+    f.switcher.step(f.reader, 1);
+    expect(f.manager.selectedVoiceID).toBe('b'); f.switcher.dispose();
+  });
+  it('steps pending playing targets within the region and cancels on wrap to the current voice', () => {
+    const f = setup();
+    f.voices[0].language = 'en-US'; f.voices[1].language = 'en'; f.voices[2].language = 'en-US';
+    f.switcher.step(f.reader, 1);
+    expect(f.switcher.inspect(f.reader)?.pending).toBe('c');
+    f.switcher.step(f.reader, 1);
+    expect(f.switcher.inspect(f.reader)?.pending).toBeNull();
+    expect(f.select).not.toHaveBeenCalled(); f.switcher.dispose();
+  });
   it('arms as soon as decoded audio is ready, before the next polling tick', async () => {
     const f = setup(); f.switcher.step(f.reader, 1);
     await vi.advanceTimersByTimeAsync(120);

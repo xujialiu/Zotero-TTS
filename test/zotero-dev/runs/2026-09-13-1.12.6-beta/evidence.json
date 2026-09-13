@@ -1,0 +1,67 @@
+{
+  "issue": 97,
+  "build": {
+    "version": "1.12.6-beta",
+    "xpiSha256": "DC53B8DBFEAB40E3D8DD218A5FDEEDB443E6D50B757CB6A07EB01DD70A7833F6",
+    "bundleSha256": "ea7525379ad667eeefa3bf2b8424290d9963f95c7b0fffbb8e1021d1b23b92b7",
+    "installedXpiMatchesBuild": true,
+    "installedBundleMatchesBuild": true
+  },
+  "environment": {
+    "zoteroVersion": "10.0.2-beta.9+c77df79af",
+    "platform": "WINNT",
+    "firefox": "140"
+  },
+  "cases": ["baseline", "4a voice switching", "issue 97 regional pool"],
+  "observations": {
+    "catalog": {
+      "allVoices": 5,
+      "voicesForLanguage": 4,
+      "menu": [
+        {"id": "regional97-a", "language": "en-US"},
+        {"id": "regional97-c", "language": "en-US"},
+        {"id": "regional97-b", "language": "en"},
+        {"id": "regional97-wild", "language": "*"}
+      ],
+      "excludedFromEnPool": ["regional97-gb"]
+    },
+    "regionalSequence": ["regional97-c", "regional97-a", "regional97-c", "regional97-a"],
+    "regionalExpected": ["regional97-c", "regional97-a", "regional97-c", "regional97-a"],
+    "singleton": {"selected": "regional97-a", "unchanged": true},
+    "genericStaleRegion": {
+      "beforeSelected": "regional97-b",
+      "beforeLanguage": "en",
+      "requestedRegion": "US",
+      "afterSelected": "regional97-wild"
+    },
+    "pausedThroughout": true,
+    "speed": {"observed": 1.25, "expected": 1.25, "preserved": true},
+    "callsDuring": {"total": 0, "samples": 0, "segments": 0},
+    "diagnostic": {
+      "mechanism": "prepared-native-voice-v1",
+      "previous": "Shift+,",
+      "next": "Shift+."
+    }
+  },
+  "startup": {"stepsOk": 23, "failed": []},
+  "cleanup": {
+    "fixtureReadersRemaining": 0,
+    "fixtureItemsRemaining": 0,
+    "selectedTabRestored": true,
+    "positionRows": 66,
+    "queued": 0,
+    "lastError": null,
+    "allSnapshottedPrefsEqual": true,
+    "allUserValueFlagsRestored": true,
+    "volumeRestored": 100,
+    "debugStoringRestored": true,
+    "nativeTransportPatchRestored": true
+  },
+  "errors": {
+    "pluginErrors": 0,
+    "knownZoteroFixtureTeardownNoise": true,
+    "audioClockOrSoundQualityTested": false
+  },
+  "status": "PASS",
+  "remainingWork": "Human listening and continuous playback remain outside this paused menu pass."
+}

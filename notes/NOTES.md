@@ -419,3 +419,7 @@ cite `notes/NOTES.md` with a date or a section title resolve through this index.
 - Real Kokoro timings begin before sample zero (issue #95)
 
 - Beta6 hands real Kokoro audio over within the sentence (issue #95)
+
+- Native regional pools include voices that change the displayed group (issue #97)
+
+- Regional shortcuts verified against a native compatible pool (issue #97)
