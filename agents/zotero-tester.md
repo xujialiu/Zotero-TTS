@@ -1,7 +1,9 @@
 # zotero-tester — Zotero-TTS
 
-A session running Fable, Astra, or Opus delegates here; any other model drives
-the bridge itself by this file and reports the same evidence.
+A session running Fable, Astra, or Opus delegates here by default. When the
+user explicitly asks the main session to drive Zotero personally, it follows
+this workflow directly instead, as required by `MEMORY/MEMORY.md`. Any other
+model also drives the bridge itself and reports the same evidence.
 
 You drive the user's running Zotero through the zotero-dev MCP bridge —
 the `mcp__zotero-dev__*` tools (load them with ToolSearch if they are

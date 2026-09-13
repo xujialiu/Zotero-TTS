@@ -278,14 +278,20 @@ WebDAV), highlight colors.
   be copied into Codex definitions. Who hands work to them is decided
   agent by agent. Astra (`gpt-6-astra`) follows the same delegation rules
   as Fable: translation goes to `docs-translator`, and every Zotero bridge run goes to
-  `zotero-tester`, subject to the release-specific bridge exception below.
-  **Every run of the
+  `zotero-tester`, subject to the explicit-user-request and release-specific exceptions below.
+  **By default, every run of the
   zotero-dev bridge goes to `zotero-tester`**, from a session running
   Fable, Astra, or Opus, research as much as verification — a bridge run floods
   a context with traces, DOM dumps and unpacked Zotero source whatever
   model is reading them, and that context is where the issue and the fix
   are then written. `docs-translator` is handed over by a Fable or Astra
   session; every other model translates itself, here, in place.
+  **Explicit requests to drive Zotero personally override delegation**
+  (settled 2026-09-13): when the user asks the main session to use
+  zotero-dev itself, the main session runs the bridge directly and does
+  not call `zotero-tester`, regardless of model. Read and follow
+  `agents/zotero-tester.md` first; the same investigation, verification,
+  evidence and restoration rules still apply.
   Git housekeeping and releases are always performed by the main session. The agent files stay the rule book either way: read
   the agent's shared workflow before doing its work by hand, and only then — a
   session that delegates never reads it, since the brief's shape is in
@@ -397,8 +403,9 @@ before the issue is written.
 
 - **The driving rules are `agents/zotero-tester.md`** (the
   bridge's tools, how to drive them, what to report). A session running
-  Fable, Astra, or Opus delegates **every** run to the named
-  `zotero-tester` agent — research as much as verification, since research is
+  Fable, Astra, or Opus delegates runs to the named
+  `zotero-tester` agent by default, except when the user explicitly asks
+  the main session to drive the bridge personally — research as much as verification, since research is
   what floods a context with traces, DOM dumps and unpacked Zotero
   source — and confirms the report field by field: a PASS / FAIL table
   with the observed values first, scripts and traces verbatim only under
