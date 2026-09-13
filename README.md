@@ -293,16 +293,19 @@ language, voice.
   the beginning can be located reliably. Paginated EPUBs keep their pages.
   Document boundaries may limit centering.
 - *Browse while listening* — by default, manual scrolling or page navigation
-  suspends following only when the entire sentence highlight leaves the view.
+  pauses following only when the entire sentence highlight leaves the view.
   Any visible part keeps following enabled, and auto-scroll waits while you
-  move the page. Turn off *Keep auto-scroll while the sentence is visible*
-  to suspend following as soon as you scroll or navigate.
+  move the page. If the current sentence becomes visible again, following
+  resumes automatically after you finish moving the page. This also works
+  when speech reaches a sentence already in view.
+  Turn off *Keep auto-scroll while the sentence is visible* to suspend
+  following as soon as you scroll or navigate and resume only on request.
   *Go to reading position* (default `Shift+Enter`) returns and
   resumes the selected mode; the player's skip buttons also resume it.
-  Changing either setting does not interrupt audio or resume following after
-  manual navigation. Automatic scrolling, zoom and window changes do not
-  turn following off; returning to a hidden document catches up only if
-  you had not browsed away. Both settings are saved, backed up and synchronized
+  Changing either setting does not interrupt audio or force the page back
+  while the current sentence is outside the view. Automatic scrolling,
+  zoom and window changes do not by themselves turn following off.
+  Both settings are saved, backed up and synchronized
   with your other settings.
 - *Read a page's first line when Zotero would skip it* — a sentence that
   runs onto the next page can lose that page's first line: Zotero reads

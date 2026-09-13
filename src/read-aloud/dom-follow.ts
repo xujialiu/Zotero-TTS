@@ -33,7 +33,6 @@ export function createDOMFollow(deps: SentenceInViewDeps) {
 
   function disengage(r: Owned, reason: string) {
     if (r.navigating || !r.following) return;
-    r.manual.cancel();
     r.following = false; r.force = false; r.pending = false; r.reason = reason;
     const win = r.view.iframeWindow;
     win.scrollTo(win.scrollX, win.scrollY);
@@ -77,7 +76,9 @@ export function createDOMFollow(deps: SentenceInViewDeps) {
   }
 
   function run(r: Owned, state = waive(r.helper.state)) {
-    if (disposed || dead(r.view) || !r.following || !state?.active || !state.popupOpen || state.annotationPopup || !r.view.initialized) return;
+    if (disposed || dead(r.view) || !state?.active || !state.popupOpen || state.annotationPopup || !r.view.initialized) return;
+    if (r.manual.suspended) { r.manual.retry(); return; }
+    if (!r.following) return;
     if (r.manual.active) { r.manual.retry(); return; }
     if (!visible(r)) { r.pending = true; return; }
     const selector = r.helper._resolveSegmentSelector(state);
@@ -183,6 +184,7 @@ export function createDOMFollow(deps: SentenceInViewDeps) {
       r.manual = createManualFollow({
         enabled: () => deps.keepFollowingWhileVisible?.() !== false,
         following: () => r.following && !disposed && !dead(r.view),
+        available: () => r.active && !disposed && !dead(r.view),
         capture: () => {
           const selector = r.helper._resolveSegmentSelector(waive(r.helper.state));
           return () => {
@@ -199,7 +201,7 @@ export function createDOMFollow(deps: SentenceInViewDeps) {
         },
         stop: () => { const win = r.view.iframeWindow; win.scrollTo(win.scrollX, win.scrollY); },
         disengage: reason => disengage(r, reason),
-        resume: () => { r.last = null; attempt(r); },
+        resume: () => { if (!r.following) r.reason = 'visible'; r.following = true; r.last = null; attempt(r); },
         error: deps.error,
       });
       try {
@@ -257,7 +259,7 @@ export function createDOMFollow(deps: SentenceInViewDeps) {
         });
         listen(r, win, 'scroll', () => r.manual.scroll());
         for (const name of ['pointerup', 'pointercancel', 'touchend', 'touchcancel', 'blur']) listen(r, win, name, () => r.manual.hold(false));
-        const restore = () => { if (r.following) { if (!visible(r)) r.manual.releaseHolds(); r.pending = true; attempt(r); } };
+        const restore = () => { if (r.following || r.manual.suspended) { if (!visible(r)) r.manual.releaseHolds(); r.pending = true; attempt(r); } };
         for (const name of ['resize', 'focus', 'pageshow']) listen(r, win, name, restore);
         listen(r, doc, 'visibilitychange', restore);
         if (reader._window) for (const name of ['sizemodechange', 'focus']) listen(r, reader._window, name, restore);
@@ -273,7 +275,7 @@ export function createDOMFollow(deps: SentenceInViewDeps) {
     inspect(reader: any): Record<string, unknown> {
       const view = waive(reader?._internalReader?._lastView ?? reader?._internalReader?._primaryView);
       const r = records.get(view);
-      return r ? { kind: 'epub', patched: true, following: r.following, interacting: r.manual.active, keepFollowingWhileVisible: deps.keepFollowingWhileVisible?.() !== false, pending: r.pending, mode: autoScrollMode(deps.mode?.()),
+      return r ? { kind: 'epub', patched: true, following: r.following, interacting: r.manual.active, visibilityPaused: r.manual.suspended, keepFollowingWhileVisible: deps.keepFollowingWhileVisible?.() !== false, pending: r.pending, mode: autoScrollMode(deps.mode?.()),
         flow: r.view.flowMode, reason: r.reason, last: r.last } : { kind: 'dom', patched: false };
     },
     dispose() { disposed = true; for (const r of [...records.values()]) release(r); },

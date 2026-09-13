@@ -445,3 +445,5 @@ cite `notes/NOTES.md` with a date or a section title resolve through this index.
 - The fixture-close check reaches dead nested reader dependencies (issue #100)
 
 - Beta3 retains following through partial visibility and closes cleanly (issue #100)
+
+- A visibility pause resumes when the current sentence returns (issue #100)

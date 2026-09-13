@@ -8,7 +8,8 @@ export function intersectsViewport(box: readonly number[], viewport: readonly nu
 interface Deps {
   enabled(): boolean;
   following(): boolean;
-  /** Snapshot the sentence, but remeasure its fragments after each movement. */
+  available?(): boolean;
+  /** Capture and measure the current sentence after movement, without navigating. */
   capture(): () => boolean | null;
   stop(): void;
   disengage(reason: string): void;
@@ -19,57 +20,61 @@ interface Deps {
 export type ManualFollow = ReturnType<typeof createManualFollow>;
 
 export function createManualFollow(deps: Deps) {
-  let probe: (() => boolean | null) | null = null;
+  let tracking = false;
+  let suspended = false;
   let reason = '';
   const holds = new Set<string>();
   let tasks = 0;
   let generation = 0;
   let timer: ReturnType<typeof setTimeout> | null = null;
   const clear = () => { if (timer !== null) clearTimeout(timer); timer = null; };
-  const cancel = () => { clear(); probe = null; tasks = 0; generation++; };
+  const cancel = () => { clear(); tracking = false; suspended = false; tasks = 0; generation++; };
   function check(): boolean | null {
-    if (!probe) return null;
-    if (!deps.following()) { cancel(); return null; }
+    if (!tracking) return null;
+    if (!deps.enabled() || deps.available?.() === false || (!deps.following() && !suspended)) { cancel(); return null; }
     try {
-      const result = probe();
-      if (result === false) { const why = reason; cancel(); deps.disengage(why); }
+      const result = deps.capture()();
+      if (result === false && !suspended) {
+        suspended = true;
+        deps.disengage(reason);
+      }
       return result;
     } catch (error) { deps.error(error); return null; }
   }
   function settle() {
-    if (!probe) return;
+    if (!tracking) return;
     clear();
     // This only coalesces a known gesture; it never classifies a scroll as manual.
     timer = setTimeout(() => {
       timer = null;
       const result = check();
-      if (probe && !holds.size && !tasks && result === true) {
+      if (tracking && !holds.size && !tasks && result === true) {
         cancel(); deps.resume();
       }
-      // Hidden/unmeasurable views wait for a real scroll or restoration signal.
+      // Outside/hidden views wait for scroll, playback or restoration signals.
     }, 180);
   }
   function begin(why: string) {
-    if (!deps.following()) return;
+    if (!deps.following() && !suspended) return;
     if (!deps.enabled()) { cancel(); deps.disengage(why); return; }
-    if (!probe) {
-      try { probe = deps.capture(); }
-      catch (error) { deps.error(error); probe = () => null; }
+    if (!tracking) {
+      tracking = true;
       reason = why;
       try { deps.stop(); } catch (error) { deps.error(error); }
     }
     settle();
   }
   return {
-    get active() { return probe !== null; },
+    get active() { return tracking && !suspended; },
+    get suspended() { return suspended; },
     begin, cancel, settle,
     retry() { if (timer === null) settle(); },
-    scroll() { if (probe) { check(); settle(); } },
+    scroll() { if (tracking) { check(); settle(); } },
     hold(value: boolean, source = 'pointer') { if (value) holds.add(source); else holds.delete(source); if (!value) settle(); },
     releaseHolds() { holds.clear(); settle(); },
     /** Preserve the original navigation Promise while keeping its asynchronous work protected. */
     task() {
-      if (!probe) return () => {};
+      if (!tracking) return () => {};
       tasks++;
       const current = generation;
       return () => { if (current === generation) { tasks--; settle(); } };

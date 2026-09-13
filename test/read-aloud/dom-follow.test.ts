@@ -54,6 +54,24 @@ function fixture() {
 }
 
 describe('EPUB auto-scroll', () => {
+  it('automatically resumes when the current sentence reenters in either EPUB flow', () => {
+    vi.useFakeTimers();
+    for (const flow of ['scrolled', 'paginated']) {
+      const f = fixture(); f.view.flowMode = flow; f.deps.keepFollowingWhileVisible = () => true;
+      f.module.attach(f.reader); f.push(f.range('a', 100, 150)); f.view.navigateToNextPage();
+      f.range('a', -50, 0); f.win.dispatchEvent(new Event('scroll')); vi.runAllTimers();
+      expect(f.module.inspect(f.reader)).toMatchObject({ following: false, visibilityPaused: true });
+      f.win.scrollTo.mockClear(); f.nativeNavigate.mockClear(); f.push(f.range('b', 1100, 1150)); vi.runAllTimers();
+      expect(f.win.scrollTo).not.toHaveBeenCalled(); expect(f.nativeNavigate).not.toHaveBeenCalled();
+      f.range('b', -49, 1); f.win.dispatchEvent(new Event('scroll')); vi.runAllTimers();
+      expect(f.module.inspect(f.reader)).toMatchObject({ following: true, visibilityPaused: false });
+      f.view.navigateToNextPage(); f.range('b', -50, 0); f.win.dispatchEvent(new Event('scroll'));
+      f.push(f.range('c', 100, 150)); vi.runAllTimers();
+      expect(f.module.inspect(f.reader).following).toBe(true);
+      f.module.dispose();
+    }
+    vi.runAllTimers(); vi.useRealTimers();
+  });
   it('retains partial fragments after navigation and disengages only once all are out', () => {
     vi.useFakeTimers(); const f = fixture(); f.deps.keepFollowingWhileVisible = () => true;
     f.module.attach(f.reader); f.push(f.range('a', 900, 1050)); f.win.scrollTo.mockClear();

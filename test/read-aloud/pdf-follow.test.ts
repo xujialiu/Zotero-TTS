@@ -78,6 +78,34 @@ function fixture(deps: Partial<Parameters<typeof createPdfFollow>[0]> = {}) {
 const followOptions = { ifNeeded: true, inline: 'nearest', visibilityMargin: -200, behavior: 'smooth' };
 
 describe('PDF manual visibility (#100)', () => {
+  it('allows normal sentence following without input and restores a visible paused sentence after focus', () => {
+    vi.useFakeTimers(); let visible = false;
+    const f = fixture({ keepFollowingWhileVisible: () => true, captureVisibility: () => () => visible });
+    f.start(); f.follow.mockClear(); f.view.setReadAloudState(f.state(2));
+    expect(f.follow).toHaveBeenCalledOnce();
+    f.container.emit('wheel', { deltaY: 500 }); f.container.emit('scroll');
+    f.follow.mockClear(); f.view.setReadAloudState({ ...f.state(2), paused: true });
+    vi.runAllTimers(); expect(f.follow).not.toHaveBeenCalled();
+    visible = true; f.win.emit('focus'); f.flush(); vi.runAllTimers();
+    expect(f.controller.inspect(f.view)).toMatchObject({ following: true, visibilityPaused: false });
+    expect(f.follow).toHaveBeenCalledOnce();
+    f.controller.dispose(); vi.runAllTimers(); vi.useRealTimers();
+  });
+  it('resumes on partial reentry and stays still while the current sentence is outside', () => {
+    vi.useFakeTimers(); let visible = true;
+    const f = fixture({ keepFollowingWhileVisible: () => true, captureVisibility: () => () => visible });
+    f.start(); f.container.emit('wheel', { deltaY: 500 }); visible = false; f.container.emit('scroll');
+    expect(f.controller.inspect(f.view)).toMatchObject({ following: false, visibilityPaused: true });
+    f.follow.mockClear(); f.view.setReadAloudState(f.state(2)); vi.runAllTimers();
+    expect(f.follow).not.toHaveBeenCalled();
+    visible = true; f.container.emit('scroll'); vi.runAllTimers();
+    expect(f.controller.inspect(f.view)).toMatchObject({ following: true, visibilityPaused: false });
+    expect(f.follow).toHaveBeenCalledOnce();
+    f.container.emit('wheel', { deltaY: 500 }); visible = false; f.container.emit('scroll');
+    f.follow.mockClear(); visible = true; f.view.setReadAloudState(f.state(3)); vi.runAllTimers();
+    expect(f.controller.inspect(f.view).following).toBe(true); expect(f.follow).toHaveBeenCalledOnce();
+    f.controller.dispose(); vi.runAllTimers(); vi.useRealTimers();
+  });
   it('keeps following through partial movement, then stops on complete disappearance', () => {
     vi.useFakeTimers();
     let visible = true;

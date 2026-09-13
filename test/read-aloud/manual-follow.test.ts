@@ -27,11 +27,13 @@ describe('manual follow visibility gate (#100)', () => {
     expect(f.gate.active).toBe(false);
     expect(f.deps.resume).toHaveBeenCalledOnce();
   });
-  it('fully leaving during a gesture disengages permanently', () => {
+  it('waits outside without pulling back and resumes when any fragment reenters', () => {
     const f = fixture(); f.gate.begin('wheel'); f.visible(false); f.gate.scroll();
     expect(f.deps.disengage).toHaveBeenCalledWith('wheel');
+    expect(f.gate.suspended).toBe(true);
+    vi.runAllTimers(); expect(f.deps.resume).not.toHaveBeenCalled();
     f.visible(true); f.gate.scroll(); vi.runAllTimers();
-    expect(f.deps.resume).not.toHaveBeenCalled();
+    expect(f.deps.resume).toHaveBeenCalledOnce(); expect(f.gate.suspended).toBe(false);
   });
   it('waits through continuous input and a held pointer', () => {
     const f = fixture(); f.gate.hold(true); f.gate.begin('scrollbar');
@@ -39,10 +41,10 @@ describe('manual follow visibility gate (#100)', () => {
     f.gate.hold(false); vi.runAllTimers(); expect(f.gate.active).toBe(false);
     expect(f.deps.resume).toHaveBeenCalledOnce();
   });
-  it('keeps the initial sentence probe through playback advances', () => {
+  it('remeasures the current sentence through playback advances', () => {
     const f = fixture(); const capture = vi.spyOn(f.deps, 'capture');
-    f.gate.begin('wheel'); f.gate.begin('wheel');
-    expect(capture).toHaveBeenCalledOnce();
+    f.gate.begin('wheel'); f.gate.scroll(); f.gate.scroll();
+    expect(capture).toHaveBeenCalledTimes(2);
     f.gate.cancel(); vi.runAllTimers(); expect(f.deps.resume).not.toHaveBeenCalled();
   });
   it('does not treat unknown geometry as invisible and retries after restoration', () => {
@@ -78,8 +80,23 @@ describe('manual follow visibility gate (#100)', () => {
     f.deps.capture = () => { throw new Error('layout unavailable'); };
     f.deps.stop.mockImplementation(() => { throw new Error('animation unavailable'); });
     expect(() => f.gate.begin('navigation')).not.toThrow();
-    expect(f.deps.error).toHaveBeenCalledTimes(2);
     vi.runAllTimers(); expect(f.deps.disengage).not.toHaveBeenCalled();
+    expect(f.deps.error).toHaveBeenCalledTimes(2);
     f.gate.cancel();
+  });
+  it('waits for a held return gesture to end before resuming', () => {
+    const f = fixture(); f.gate.begin('wheel'); f.visible(false); f.gate.scroll();
+    f.gate.hold(true); f.visible(true); f.gate.scroll(); vi.runAllTimers();
+    expect(f.deps.resume).not.toHaveBeenCalled();
+    f.gate.hold(false); vi.runAllTimers(); expect(f.deps.resume).toHaveBeenCalledOnce();
+  });
+  it('discards the visibility wait when disabled or disposed', () => {
+    const f = fixture(); f.gate.begin('wheel'); f.visible(false); f.gate.scroll();
+    f.deps.enabled = () => false; f.gate.retry(); vi.runAllTimers();
+    expect(f.gate.suspended).toBe(false);
+    f.deps.enabled = () => true; f.visible(true); f.gate.scroll(); vi.runAllTimers();
+    expect(f.deps.resume).not.toHaveBeenCalled();
+    f.gate.begin('wheel'); f.visible(false); f.gate.scroll(); f.gate.cancel();
+    f.visible(true); f.gate.scroll(); vi.runAllTimers(); expect(f.deps.resume).not.toHaveBeenCalled();
   });
 });

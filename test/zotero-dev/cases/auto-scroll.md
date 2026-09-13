@@ -43,9 +43,11 @@ historical values are not fresh PASS results on another build.
    sentence is visible turned off, trusted wheel or PageDown suspends
    following in both formats. With it on (the default since #100), only
    complete sentence disappearance during navigation suspends following;
-   run [section 3i](manual-follow.md) for that distinction. Later real sentences and mode
-   changes do not reactivate it. Neither direct playback resume nor the
-   native play/pause toggle reactivates it. Test PageDown independently
+   run [section 3i](manual-follow.md) for that distinction and automatic
+   resumption when the current sentence reenters. With the switch off,
+   later real sentences and mode changes do not reactivate following.
+   Neither direct playback resume nor the native play/pause toggle
+   reactivates legacy disengagement. Test PageDown independently
    from wheel input and record its exact target/event path.
    Go to reading position returns to the
    current sentence even while paused, and resumes the selected mode.

@@ -15,6 +15,9 @@ The [beta3 combined-build pass](../runs/2026-09-13-1.12.6-beta3-manual-follow/ob
 rechecked the core behavior and closed the fixture readers without new
 dead-object errors. Natural input/animation and the explicitly listed
 bridge/fixture gaps remain distinct from that mechanism verification.
+The later owner follow-up adds automatic resumption on reentry. Beta2/3
+record the earlier persistent disengagement behavior and do not verify
+this follow-up.
 
 1. **Default and UI.** Highlight contains Keep auto-scroll while the
    sentence is visible, bound to `readAloud.keepFollowingWhileVisible`.
@@ -26,6 +29,11 @@ bridge/fixture gaps remain distinct from that mechanism verification.
    trusted wheel input arms `interacting: true`, with `following: true`.
    Move the actual viewport so a real sentence fragment remains visible:
    following stays true. Move every fragment out: following becomes false.
+   Leave it outside across later state updates: no follow target or
+   automatic movement. Move any part of the current sentence back in:
+   following automatically becomes true after the gesture ends, without
+   explicit locking. `visibilityPaused` distinguishes that wait from
+   legacy disengagement and clears on resumption. Repeat departure/reentry.
    Record input provenance, exact viewport/fragment coordinates and
    diagnostic state. Repeat in both auto-scroll modes and while paused.
 3. **Whole sentence.** Include a PDF next-page or next-column fragment and
@@ -42,8 +50,11 @@ bridge/fixture gaps remain distinct from that mechanism verification.
 5. **Navigation and pagination.** PageDown, page/history/find navigation
    is judged after movement, including asynchronous EPUB navigation and
    paginated spreads. Preserve native return values and page layout. A
-   sentence transition during the gesture must not be misclassified as
-   the user moving the previous sentence away. Long/failed asynchronous
+   sentence transition during the gesture still yields page control;
+   visibility checks use the current sentence. While visibility-paused,
+   speech reaching a sentence already in view restores following. A new
+   sentence outside the viewport in ordinary uninterrupted playback still
+   follows normally. Long/failed asynchronous
    navigation and precise Promise identity also have unit coverage.
 6. **Off and persistent disengagement.** With the switch off, trusted
    wheel/keyboard input immediately disengages even while the sentence
@@ -54,7 +65,9 @@ bridge/fixture gaps remain distinct from that mechanism verification.
    delayed scroll notifications, zoom, backgrounding and restoration
    without a manual gesture do not disengage. Unknown/hidden geometry
    is not proof of disappearance. Returning after an unfinished gesture
-   retries visibility before following. Verify independent split views
+   retries current-sentence visibility before following. With the switch
+   on, visible reentry after restoration resumes following; with it off,
+   manual disengagement persists. Verify independent split views
    and dispose/reload with pending gesture work: no retained timers,
    listeners or dead-object errors. Unit coverage is recorded separately
    where a deterministic live fixture is unavailable.

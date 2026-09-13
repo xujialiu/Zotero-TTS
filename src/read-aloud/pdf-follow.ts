@@ -92,7 +92,9 @@ export function createPdfFollow(deps: Deps) {
   }
 
   function run(r: OwnedView): void {
-    if (disposed || dead(r.view) || !records.has(r.id) || !r.following) return;
+    if (disposed || dead(r.view) || !records.has(r.id)) return;
+    if (r.manual.suspended) { r.manual.retry(); return; }
+    if (!r.following) return;
     if (r.manual.active) { r.manual.retry(); return; }
     bindFind(r);
     const state = waive(r.view._readAloudState);
@@ -108,7 +110,7 @@ export function createPdfFollow(deps: Deps) {
   }
 
   function schedule(r: OwnedView): void {
-    if (!r.following || !r.active || dead(r.view)) return;
+    if ((!r.following && !r.manual.suspended) || !r.active || dead(r.view)) return;
     if (!visible(r)) r.manual.releaseHolds();
     r.reset = true;
     r.pending = true;
@@ -121,7 +123,6 @@ export function createPdfFollow(deps: Deps) {
 
   function disengage(r: OwnedView, reason: string): void {
     if (!r.following) return;
-    r.manual.cancel();
     r.following = false;
     r.force = false;
     r.reason = reason;
@@ -273,13 +274,14 @@ export function createPdfFollow(deps: Deps) {
     r.manual = createManualFollow({
       enabled: () => deps.keepFollowingWhileVisible?.() !== false,
       following: () => r.following && !disposed && !dead(r.view),
+      available: () => r.active && !disposed && !dead(r.view),
       capture: () => {
         const probe = deps.captureVisibility?.(r.view) ?? (() => null);
         return () => visible(r) ? probe() : null;
       },
       stop: () => { cancelFrame(r); r.pending = false; containerOf(r.view)?.scrollTo(containerOf(r.view).scrollLeft, containerOf(r.view).scrollTop); },
       disengage: reason => disengage(r, reason),
-      resume: () => { r.reset = true; run(r); },
+      resume: () => { if (!r.following) r.reason = 'visible'; r.following = true; r.reset = true; run(r); },
       error: deps.error,
     });
     try {
@@ -376,7 +378,7 @@ export function createPdfFollow(deps: Deps) {
     refresh() { for (const r of records.values()) run(r); },
     inspect(view: any): Record<string, unknown> {
       const r = recordOf(waive(view));
-      return r ? { owned: true, following: r.following, interacting: r.manual.active, keepFollowingWhileVisible: deps.keepFollowingWhileVisible?.() !== false, pending: r.pending, reason: r.reason, visible: visible(r) } : { owned: false };
+      return r ? { owned: true, following: r.following, interacting: r.manual.active, visibilityPaused: r.manual.suspended, keepFollowingWhileVisible: deps.keepFollowingWhileVisible?.() !== false, pending: r.pending, reason: r.reason, visible: visible(r) } : { owned: false };
     },
     patchCounts: () => patches.counts(),
     dispose(): void {
