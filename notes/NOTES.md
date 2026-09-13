@@ -11,6 +11,8 @@ one file per day: `NOTES_<date>.md`, indexed at the bottom. A new entry goes at
 the end of today's file, its heading stamped with the date and the time
 (`2026-08-30 14:32`); what is already written there is not rewritten.
 
+[Product decisions](DECISIONS.md) records concise choices and their reasons.
+
 ## What the plugin is
 
 A Zotero 10 plugin that replaces the audio backend of Zotero's built-in Read
@@ -423,5 +425,17 @@ cite `notes/NOTES.md` with a date or a section title resolve through this index.
 - Native regional pools include voices that change the displayed group (issue #97)
 
 - Regional shortcuts verified against a native compatible pool (issue #97)
+
+- Fish receives isolated stat text without an English language constraint
+
+- An English text cue yields comparable Fish samples for short stats
+
+- The owner confirms both English-cued stat samples read correctly (issue #98)
+
+- The configured Fish Speech server returns local stat comparison samples (issue #98)
+
+- Fish cloud cues stay out of document coordinates and follow the requested voice (issue #98)
+
+- Fish cloud hint mechanics pass live; a malformed test stream caused the visible error (issue #98)
 
 - Configured providers and official tiers hand over at supported boundaries (issue #95)

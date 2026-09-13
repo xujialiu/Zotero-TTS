@@ -1,0 +1,41 @@
+{
+  "primary": { "audioBytes": 16717, "error": null },
+  "capturedLocale": "en-US",
+  "mutatedLocaleAfterPrimary": "en-GB",
+  "prefetch": {
+    "waitedMs": 107,
+    "calls": [
+      "[Speak in American English] 102 exp",
+      "[Speak in American English] 4/70 HP "
+    ],
+    "expected": [
+      "[Speak in American English] 102 exp",
+      "[Speak in American English] 4/70 HP "
+    ]
+  },
+  "reuse": { "replayAudioBytes": 16717, "fetchesAdded": 0 },
+  "british": {
+    "audioBytes": 16717,
+    "fetchesAdded": 2,
+    "bodies": [
+      "[Speak in British English] 102 exp",
+      "[Speak in British English] 4/70 HP "
+    ]
+  },
+  "allCalls": [
+    { "path": "/v1/tts/stream/with-timestamp", "text": "This sentence has five words.", "model": "s2.1-pro-free" },
+    { "path": "/v1/tts/stream/with-timestamp", "text": "[Speak in American English] 102 exp", "model": "s2.1-pro-free" },
+    { "path": "/v1/tts/stream/with-timestamp", "text": "[Speak in American English] 4/70 HP ", "model": "s2.1-pro-free" },
+    { "path": "/v1/tts/stream/with-timestamp", "text": "[Speak in British English] 102 exp", "model": "s2.1-pro-free" },
+    { "path": "/v1/tts/stream/with-timestamp", "text": "[Speak in British English] 4/70 HP ", "model": "s2.1-pro-free" }
+  ],
+  "controllerRestored": true,
+  "prefsRestored": true,
+  "after": {
+    "active": true,
+    "paused": true,
+    "voice": "fish::en/9fa4b7a1b67446b48208f2f5d4bcd8da",
+    "position": 0,
+    "error": null
+  }
+}

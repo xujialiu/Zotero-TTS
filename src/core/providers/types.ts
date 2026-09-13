@@ -47,6 +47,8 @@ export type VoiceInfo = {
 export type SynthesisOptions = {
   voice: string;
   signal: AbortSignal;
+  /** Internal Fish cue; timestamps still refer to the unprefixed input text. */
+  languageHint?: string;
 };
 
 /**

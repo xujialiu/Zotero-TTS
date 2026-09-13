@@ -1,4 +1,5 @@
 import { prepareSpeechText, restoreSpeechOffsets } from '../core/speech-text';
+import { fishLanguageHint } from '../core/fish-language-hint';
 import { SynthesisError, toZoteroError } from '../core/providers/errors';
 import { silentWav } from '../core/silence';
 import type { ProviderId, SynthesisResult, Timestamp, TTSProvider, VoiceInfo } from '../core/providers/types';
@@ -37,7 +38,7 @@ export interface AudioCache {
 }
 
 type ZoteroSegment = { text: string } | 'sample';
-type ZoteroVoice = { id: string };
+type ZoteroVoice = { id: string; locale?: string };
 
 /**
  * Zotero's own interface for the same reader, as built by
@@ -277,6 +278,7 @@ export function createRemoteInterface(deps: RemoteInterfaceDeps): RemoteInterfac
     voiceId: string,
     text: string,
     cacheKey: string,
+    languageHint: string,
   ): Promise<SynthesisResult> {
     const provider = deps.getProvider(providerId);
     const controller = deps.newAbortController?.() ?? neverAbort();
@@ -284,7 +286,7 @@ export function createRemoteInterface(deps: RemoteInterfaceDeps): RemoteInterfac
     // A provider that never answers must surface as an error, not as a
     // spinner that never stops; the abort also stops the request itself.
     const synthesized = await withTimeout(
-      provider.synthesize(text, { voice: voiceId, signal: controller.signal }),
+      provider.synthesize(text, { voice: voiceId, signal: controller.signal, ...(languageHint ? { languageHint } : {}) }),
       timeoutMs,
       () => new SynthesisError('network', `${providerId}: no audio within ${seconds(timeoutMs)}`),
       () => controller.abort(),
@@ -297,8 +299,10 @@ export function createRemoteInterface(deps: RemoteInterfaceDeps): RemoteInterfac
     return result;
   }
 
-  const cacheKeyFor = (providerId: ProviderId, voiceId: string, text: string) =>
-    JSON.stringify([deps.cacheVersion(), providerId, voiceId, text]);
+  const hintFor = (providerId: ProviderId, text: string, locale?: string) =>
+    providerId === 'fish' ? fishLanguageHint(text, locale) : '';
+  const cacheKeyFor = (providerId: ProviderId, voiceId: string, text: string, languageHint: string) =>
+    JSON.stringify([deps.cacheVersion(), providerId, voiceId, text, ...(languageHint ? [languageHint] : [])]);
 
   /**
    * One synthesis per cache key, however many callers ask. Zotero prefetches
@@ -308,14 +312,16 @@ export function createRemoteInterface(deps: RemoteInterfaceDeps): RemoteInterfac
    * so two calls interleaving at the await cannot both start a synthesis.
    */
   const pending = new Map<string, Promise<{ result: SynthesisResult; cached: boolean }>>();
-  function ensureAudio(providerId: ProviderId, voiceId: string, text: string): Promise<{ result: SynthesisResult; cached: boolean }> {
-    const key = cacheKeyFor(providerId, voiceId, text);
+  function ensureAudio(providerId: ProviderId, voiceId: string, text: string, locale?: string): Promise<{ result: SynthesisResult; cached: boolean }> {
+    const languageHint = hintFor(providerId, text, locale);
+    const key = cacheKeyFor(providerId, voiceId, text, languageHint);
     const existing = pending.get(key);
     if (existing) return existing;
     const job = (async () => {
       const hit = await deps.cache?.()?.match(key);
       if (hit) return { result: hit, cached: true };
-      return { result: await synthesize(providerId, voiceId, text, key), cached: false };
+      if (languageHint) deps.debug?.(`fish: language hint ${languageHint.trim()} for short speech`);
+      return { result: await synthesize(providerId, voiceId, text, key, languageHint), cached: false };
     })();
     pending.set(key, job);
     void job.finally(() => pending.delete(key)).catch(() => {});
@@ -336,7 +342,7 @@ export function createRemoteInterface(deps: RemoteInterfaceDeps): RemoteInterfac
    * chain — playback will surface the error when it gets there.
    */
   let warming = false;
-  function prefetchAfter(providerId: ProviderId, voiceId: string, text: string, strip: boolean): void {
+  function prefetchAfter(providerId: ProviderId, voiceId: string, text: string, strip: boolean, locale?: string): void {
     const cfg = deps.getPrefetch?.();
     const cache = deps.cache?.();
     if (!cfg?.enabled || cfg.count < 1 || !cache || warming) return;
@@ -350,10 +356,10 @@ export function createRemoteInterface(deps: RemoteInterfaceDeps): RemoteInterfac
         for (const original of texts) {
           const t = prepareSpeechText(original, strip).text;
           if (!t.trim()) continue;
-          const key = cacheKeyFor(providerId, voiceId, t);
+          const key = cacheKeyFor(providerId, voiceId, t, hintFor(providerId, t, locale));
           if (pending.has(key)) continue;
           if (await cache.match(key)) continue;
-          const { cached } = await ensureAudio(providerId, voiceId, t);
+          const { cached } = await ensureAudio(providerId, voiceId, t, locale);
           if (!cached) deps.debug?.(`prefetch: ${providerId}: ${t.length} chars ready ahead of playback`);
         }
       } catch (e) {
@@ -425,12 +431,15 @@ export function createRemoteInterface(deps: RemoteInterfaceDeps): RemoteInterfac
     },
 
     async getAudio(segment, voice) {
+      // Snapshot the requested voice, not the manager's current voice: a handoff
+      // can prepare a different regional voice while the old one is still active.
+      const locale = voice?.locale;
       const strip = deps.getStripAngleBrackets?.() ?? true;
       const originalText = segment === 'sample' ? SAMPLE_TEXT : segment.text;
       const prepared = prepareSpeechText(originalText, segment !== 'sample' && strip);
       const decoded = decodeVoiceId(voice?.id ?? '');
       if (prepared.removed.length && !prepared.text.trim()) {
-        if (decoded) prefetchAfter(decoded.provider, decoded.voiceId, originalText, strip);
+        if (decoded) prefetchAfter(decoded.provider, decoded.voiceId, originalText, strip, locale);
         const pause = silentWav(SILENT_PAUSE_MS);
         deps.debug?.('angle brackets: empty interior; playing a short pause');
         return { audio: deps.adoptAudio ? deps.adoptAudio(pause) : pause, timestamps: wholeSegmentTimestamp(originalText) };
@@ -474,15 +483,15 @@ export function createRemoteInterface(deps: RemoteInterfaceDeps): RemoteInterfac
           deps.debug?.(`skipping ${text.length} chars that are not visible on the page; playing a ${SILENT_PAUSE_MS} ms pause instead`);
           // Still warms what follows: the skipped segment is the anchor the
           // upcoming ones are found from, and it plays for only 400 ms
-          prefetchAfter(decoded.provider, decoded.voiceId, text, strip);
+          prefetchAfter(decoded.provider, decoded.voiceId, text, strip, locale);
           const skipped = silentWav(SILENT_PAUSE_MS);
           return { audio: deps.adoptAudio ? deps.adoptAudio(skipped) : skipped };
         }
 
         // The cache holds exactly what the provider produced; the sentence
         // fallback below is applied on the way out, never stored.
-        const { result, cached } = await ensureAudio(decoded.provider, decoded.voiceId, prepared.text);
-        if (segment !== 'sample') prefetchAfter(decoded.provider, decoded.voiceId, text, strip);
+        const { result, cached } = await ensureAudio(decoded.provider, decoded.voiceId, prepared.text, segment === 'sample' ? undefined : locale);
+        if (segment !== 'sample') prefetchAfter(decoded.provider, decoded.voiceId, text, strip, locale);
 
         // A clean answer with nothing in it: Azure ends the turn with zero
         // audio frames for asterisk-only text (the "****" scene separators,

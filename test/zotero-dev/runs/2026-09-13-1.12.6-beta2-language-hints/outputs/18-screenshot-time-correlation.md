@@ -1,0 +1,3 @@
+Screenshot supplied by the user: filename time 13:31:26; file mtime 13:31:28.
+
+The current Zotero error ring preserves one synthetic "Fish Audio s2.1-pro-free: the stream carried no audio" entry at 13:29:02 and 17 more at 13:32:09–10. The 13:29:02 entry is earlier than the screenshot and could have left the player error visible, but the bridge has no event-level timestamp proving that it is the screenshot's exact error. The 13:32:09–10 entries are a later cache-stub run and must not be attributed to the screenshot. The screenshot's exact source event is therefore unconfirmed; both candidate errors are synthetic-harness errors, not production Fish failures.

@@ -670,14 +670,15 @@ export function createFishProvider(cfg: FishConfig, deps: FishDeps): TTSProvider
     return fishVoice(await readJSON<FishModel>(response, what)) ?? { id: `${MULTILINGUAL}/${id}`, label: id, locale: MULTILINGUAL };
   }
 
-  async function speak(text: string, voice: string, signal?: AbortSignal): Promise<SynthesisResult> {
+  async function speak(text: string, voice: string, signal?: AbortSignal, languageHint = ''): Promise<SynthesisResult> {
     requireKey();
     const decoded = decodeFishVoice(voice);
     if (!decoded) throw new SynthesisError('unknown', `Unknown Fish Audio voice: ${voice}`);
     // Nothing to say: no request, and the empty audio plays as a pause
     if (!isSpeakable(text)) return { audio: new Blob([], { type: 'audio/mpeg' }), note: 'no speakable text' };
     const what = `Fish Audio ${model()}`;
-    const body = { text, format: 'mp3', mp3_bitrate: MP3_BITRATE, latency: 'normal', ...(decoded.id === DEFAULT_VOICE ? {} : { reference_id: decoded.id }) };
+    // Only the request carries the cue. Align the reply to the original text below.
+    const body = { text: languageHint + text, format: 'mp3', mp3_bitrate: MP3_BITRATE, latency: 'normal', ...(decoded.id === DEFAULT_VOICE ? {} : { reference_id: decoded.id }) };
     const init: RequestInit = { method: 'POST', headers: headers({ 'Content-Type': 'application/json', model: model() }), body: JSON.stringify(body), signal };
     const { response, note } = await exchange('/v1/tts/stream/with-timestamp', init, what);
     const events = parseEventStream(await response.text());
@@ -894,7 +895,7 @@ export function createFishProvider(cfg: FishConfig, deps: FishDeps): TTSProvider
       await speak('Hi', voice);
     },
     synthesize(text: string, o: SynthesisOptions): Promise<SynthesisResult> {
-      return speak(text, o.voice, o.signal);
+      return speak(text, o.voice, o.signal, o.languageHint);
     },
   };
   return provider;

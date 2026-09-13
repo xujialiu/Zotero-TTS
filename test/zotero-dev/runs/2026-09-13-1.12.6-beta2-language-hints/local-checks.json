@@ -1,0 +1,20 @@
+{
+  "issue": 98,
+  "localIssue": 99,
+  "branch": "fix/fish-short-text-language",
+  "version": "1.12.6-beta2",
+  "xpiSha256": "2bfdfa971b1c6dc59ac95b2e63203c6c4aa4e2ef4c9f437217b1c6ed8afdd761",
+  "bundleSha256": "0c96a94e9e996625f6a0d734d42e33707a455d0b0ab4a2dff0c81ff3154c0f81",
+  "tests": {
+    "passed": 2217,
+    "files": 117
+  },
+  "typecheck": "PASS",
+  "build": "PASS",
+  "docs": "PASS",
+  "diff": "PASS",
+  "live": "Focused 3h mechanism checks passed; listening/moving highlight and initial popup visibility remain unverified. Fish Speech Local deferred.",
+  "case": "3h",
+  "stateChanges": "Repository changes only; no Zotero use during implementation",
+  "installed": true
+}

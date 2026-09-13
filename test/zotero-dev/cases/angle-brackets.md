@@ -21,6 +21,9 @@ original values in the workflow's order, with reading memory last.
    actual outgoing request; a debug line alone is not transport proof.
    Original segment text and source positions remain equal to the baseline.
    Internal comparisons and an unmatched bracket remain unchanged.
+   With a concrete Fish cloud locale, eligible short text also receives the
+   language cue from [section 3h](fish-language-hints.md); compare the
+   bracket-prepared content separately from that request-only prefix.
 3. **Word coordinates and cache.** A provider with real word timing returns
    ranges over the original words. Repeat the request to exercise the cache;
    ranges must remain the same, without a second shift. The provider's

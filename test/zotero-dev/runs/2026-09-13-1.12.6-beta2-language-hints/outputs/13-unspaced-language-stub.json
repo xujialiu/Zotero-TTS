@@ -1,0 +1,20 @@
+{
+  "errors": [],
+  "calls": [
+    { "path": "/v1/tts/stream/with-timestamp", "text": "[Speak in American English] One" },
+    { "path": "/v1/tts/stream/with-timestamp", "text": "[Speak in Chinese (China)] 你好世界" },
+    { "path": "/v1/tts/stream/with-timestamp", "text": "你好世界今天快乐" }
+  ],
+  "results": [
+    { "name": "single-word", "locale": "en-US", "audioBytes": 16717, "error": null },
+    { "name": "unspaced-two-words", "locale": "zh-CN", "audioBytes": 16717, "error": null },
+    { "name": "unspaced-four-words", "locale": "zh-CN", "audioBytes": 16717, "error": null }
+  ],
+  "closed": true,
+  "erased": true,
+  "remainingFixtureReaders": 0,
+  "prefsRestored": true,
+  "user": [
+    { "itemID": 24246, "active": true, "paused": true, "voice": "fish::en/9fa4b7a1b67446b48208f2f5d4bcd8da", "position": 6723, "error": null }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "error": null,
+  "calls": [
+    { "path": "/v1/tts/stream/with-timestamp", "text": "[Speak in American English] Hello world.", "model": "s2.1-pro-free" }
+  ],
+  "traceCount": 25,
+  "traceFirst": { "ms": 0, "active": false, "paused": true, "controller": false },
+  "traceLast": { "ms": 2400, "active": true, "paused": false, "voice": "fish::en/9fa4b7a1b67446b48208f2f5d4bcd8da", "tier": "local", "controller": true, "segments": 7, "position": 0 },
+  "afterPause": { "active": true, "paused": true, "voice": "fish::en/9fa4b7a1b67446b48208f2f5d4bcd8da", "position": 0, "error": null }
+}

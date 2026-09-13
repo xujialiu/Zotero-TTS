@@ -1,0 +1,40 @@
+// ARCHIVE ONLY: private memory snapshot redacted. Do not execute as-is.
+(() => {
+  const p='extensions.zotero.zotero-tts.';
+  const baseline={
+    'readAloud.volume':{value:100,user:false},
+    'webdav.syncPositions':{value:true,user:true},
+    'webdav.syncSettings':{value:false,user:false},
+    'webdav.autoUploadSettings':{value:true,user:true},
+    'readAloud.stripAngleBrackets':{value:true,user:false},
+    'cacheAudio':{value:true,user:false},
+    'prefetchEnabled':{value:true,user:false},
+    'readAloud.memory':{value:'RESTORE_FROM_ORIGINAL_PRIVATE_SNAPSHOT',user:true}
+  };
+  const before={};
+  for(const s of Object.keys(baseline)){const v=Zotero.Prefs.get('zotero-tts.'+s);before[s]={value:s==='readAloud.memory'?{length:String(v??'').length}:v,user:Services.prefs.prefHasUserValue(p+s)};}
+  const actions=[];
+  const write=(s,v,user)=>{
+    const full=p+s;
+    try{Zotero.Prefs.set('zotero-tts.'+s,v);}catch(e){actions.push(s+' set '+String(e));}
+    if(user){
+      if(!Services.prefs.prefHasUserValue(full)){
+        try{if(typeof v==='boolean')Services.prefs.setBoolPref(full,v);else if(typeof v==='number')Services.prefs.setIntPref(full,v);else Services.prefs.setStringPref(full,v);}
+        catch(e){actions.push(s+' direct '+String(e));}
+      }
+    } else {
+      try{if(Services.prefs.prefHasUserValue(full))Services.prefs.clearUserPref(full);}catch(e){actions.push(s+' clear '+String(e));}
+    }
+  };
+  // Volume first, before restoring sync or backup.
+  write('readAloud.volume',baseline['readAloud.volume'].value,false);
+  for(const s of ['readAloud.stripAngleBrackets','cacheAudio','prefetchEnabled'])write(s,baseline[s].value,baseline[s].user);
+  for(const s of ['webdav.syncPositions','webdav.syncSettings','webdav.autoUploadSettings'])write(s,baseline[s].value,baseline[s].user);
+  // Read Aloud memory is the final plugin preference write.
+  write('readAloud.memory',baseline['readAloud.memory'].value,baseline['readAloud.memory'].user);
+  const debugBefore=!!Zotero.Debug.storing;let debugError=null;
+  try{if(debugBefore)Zotero.Debug.setStore(false);}catch(e){debugError=String(e);}
+  const after={};
+  for(const s of Object.keys(baseline)){const v=Zotero.Prefs.get('zotero-tts.'+s);after[s]={value:s==='readAloud.memory'?{length:String(v??'').length}:v,user:Services.prefs.prefHasUserValue(p+s)};}
+  return JSON.stringify({before,actions,debugBefore,debugAfter:!!Zotero.Debug.storing,debugError,after},null,1);
+})()

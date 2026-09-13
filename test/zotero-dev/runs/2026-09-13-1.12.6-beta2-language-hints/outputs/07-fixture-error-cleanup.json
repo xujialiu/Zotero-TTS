@@ -1,0 +1,30 @@
+{
+  "readerFound": true,
+  "beforeFixture": {
+    "active": true,
+    "paused": true,
+    "popup": false,
+    "controllerError": "",
+    "managerError": "unknown"
+  },
+  "errors": [],
+  "closed": true,
+  "erased": true,
+  "remainingFixtureReaders": 0,
+  "userBefore": {
+    "itemID": 24246,
+    "active": true,
+    "paused": true,
+    "voice": "fish::en/9fa4b7a1b67446b48208f2f5d4bcd8da",
+    "position": 6723,
+    "error": ""
+  },
+  "userAfter": {
+    "itemID": 24246,
+    "active": true,
+    "paused": true,
+    "voice": "fish::en/9fa4b7a1b67446b48208f2f5d4bcd8da",
+    "position": 6723,
+    "error": ""
+  }
+}

@@ -1,0 +1,19 @@
+Build: Zotero-TTS 1.12.6-beta2
+XPI SHA256: 2bfdfa971b1c6dc59ac95b2e63203c6c4aa4e2ef4c9f437217b1c6ed8afdd761
+Bundle SHA256: 0c96a94e9e996625f6a0d734d42e33707a455d0b0ab4a2dff0c81ff3154c0f81
+
+Debug markers observed:
+- fish: language hint [Speak in American English] for short speech
+- fish: language hint [Speak in British English] for short speech
+- fish: language hint [Speak in Chinese (China)] for short speech
+- prefetch: fish: ... chars ready ahead of playback
+- cached Fish timestamp lines for replayed requests
+
+Errors at final read:
+- 17 x Fish Audio s2.1-pro-free: the stream carried no audio at 13:32:09–10,
+  caused by the literal-backslash-n failing synthetic SSE harness.
+- 1 x same synthetic no-audio error at 13:29:02 from the first failing popup harness.
+- No production Fish cloud errors after the real request capture.
+- Remaining unrelated ring noise: missing en-CA/en-AU/en-NZ locale resources
+  and pre-existing Zotero sync messages.
+- Debug store was then restored to false.

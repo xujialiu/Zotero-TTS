@@ -1,0 +1,53 @@
+{
+  "cache": {
+    "callsAfterEnUSRepeat": 1,
+    "callsAfterEnGB": 2,
+    "repeatSameTimestamps": true,
+    "bodies": [
+      "[Speak in American English] 100 exp",
+      "[Speak in British English] 100 exp"
+    ],
+    "enGBAudioBytes": 16717,
+    "enAgainAudioBytes": 16717,
+    "firstTimestamps": [
+      { "start": 0, "end": 0.2, "charStart": 1, "charEnd": 4, "slice": "100" },
+      { "start": 0.2, "end": 0.4, "charStart": 5, "charEnd": 8, "slice": "exp" }
+    ]
+  },
+  "exclusions": {
+    "fourAudioBytes": 16717,
+    "sampleAudioBytes": 16717,
+    "emptyAudioBytes": 6444,
+    "emptyTimestamps": true,
+    "callsAdded": 2,
+    "bodies": [
+      "One two three four",
+      "The quick brown fox jumps over the lazy dog."
+    ],
+    "allNoCue": true
+  },
+  "invalidLocales": {
+    "results": [
+      { "locale": null, "audioBytes": 16717, "error": null },
+      { "locale": "mul", "audioBytes": 16717, "error": null },
+      { "locale": "und", "audioBytes": 16717, "error": null },
+      { "locale": "zxx", "audioBytes": 16717, "error": null },
+      { "locale": "zz", "audioBytes": 16717, "error": null },
+      { "locale": "en_US", "audioBytes": 16717, "error": null },
+      { "locale": "en-x-private", "audioBytes": 16717, "error": null }
+    ],
+    "callsAdded": 7,
+    "bodies": ["100 exp", "100 exp", "100 exp", "100 exp", "100 exp", "100 exp", "100 exp"],
+    "unchanged": true
+  },
+  "concurrent": {
+    "calls": 2,
+    "bodies": [
+      "[Speak in American English] 100 exp concurrent",
+      "[Speak in British English] 100 exp concurrent"
+    ],
+    "distinct": 2,
+    "audioBytes": [16717, 16717, 16717]
+  },
+  "prefsRestored": true
+}

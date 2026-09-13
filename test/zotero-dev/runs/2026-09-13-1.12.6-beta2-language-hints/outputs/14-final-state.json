@@ -1,0 +1,32 @@
+{
+  "pluginVersion": "1.12.6-beta2",
+  "zoteroVersion": "10.0.2-beta.9+c77df79af",
+  "xpiSha256": "2bfdfa971b1c6dc59ac95b2e63203c6c4aa4e2ef4c9f437217b1c6ed8afdd761",
+  "bundleSha256": "0c96a94e9e996625f6a0d734d42e33707a455d0b0ab4a2dff0c81ff3154c0f81",
+  "prefs": {
+    "readAloud.volume": { "value": 100, "user": false },
+    "webdav.syncPositions": { "value": true, "user": true },
+    "webdav.syncSettings": { "value": false, "user": false },
+    "webdav.autoUploadSettings": { "value": true, "user": true },
+    "readAloud.stripAngleBrackets": { "value": true, "user": false },
+    "cacheAudio": { "value": true, "user": false },
+    "prefetchEnabled": { "value": true, "user": false },
+    "readAloud.memory": { "length": 84, "user": true }
+  },
+  "readers": [
+    { "itemID": 24246, "active": true, "paused": true, "voice": "fish::en/9fa4b7a1b67446b48208f2f5d4bcd8da", "position": 6723, "error": "", "popup": false }
+  ],
+  "settingsWindow": false,
+  "debugStoring": false,
+  "fixtureItems": { "24424": false, "24425": false, "24426": false, "24427": false, "24428": false },
+  "position": { "databaseRows": 66, "queued": 0, "lastError": null, "legacyPref": null },
+  "selectedTab": "tab-2ububaqC",
+  "errors": {
+    "newPluginErrors": "17 synthetic no-audio errors at 13:32:09–10 plus one earlier synthetic no-audio at 13:29:02",
+    "productionFishErrors": 0,
+    "otherBaselineNoise": "missing locale resources and existing Zotero sync messages"
+  },
+  "fishSpeechLocalExcludedPath": "NOT RUN; deferred to issue #99",
+  "userPopupBaseline": "NOT CAPTURED; no toggle targeted item 24246; final popupOpen=false,popupDOM=false",
+  "temporaryHooks": { "sandboxFetch": "restored", "nativePrototype": "restored", "controllerSegments": "restored" }
+}
