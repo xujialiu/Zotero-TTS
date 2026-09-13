@@ -117,6 +117,8 @@ describe('loadSettings', () => {
       stopReading: 'Shift+S',
       toggleWordHighlight: 'Shift+W',
       toggleAutoScroll: 'Shift+A',
+      previousVoice: 'Shift+,',
+      nextVoice: 'Shift+.',
     });
   });
 

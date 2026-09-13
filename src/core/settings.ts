@@ -198,6 +198,8 @@ export const DEFAULTS: Settings = {
     // reader, idle included — the level is a setting, set before play too
     toggleWordHighlight: 'Shift+W',
     toggleAutoScroll: 'Shift+A',
+    previousVoice: 'Shift+,',
+    nextVoice: 'Shift+.',
   },
   readAloud: {
     autoScrollMode: 'sentence',
@@ -321,6 +323,8 @@ export function loadSettings(prefs: PrefsBackend): Settings {
       stopReading: str(prefs, 'shortcuts.stopReading', DEFAULTS.shortcuts.stopReading),
       toggleWordHighlight: str(prefs, 'shortcuts.toggleWordHighlight', DEFAULTS.shortcuts.toggleWordHighlight),
       toggleAutoScroll: str(prefs, 'shortcuts.toggleAutoScroll', DEFAULTS.shortcuts.toggleAutoScroll),
+      previousVoice: str(prefs, 'shortcuts.previousVoice', DEFAULTS.shortcuts.previousVoice),
+      nextVoice: str(prefs, 'shortcuts.nextVoice', DEFAULTS.shortcuts.nextVoice),
     },
     readAloud: {
       autoScrollMode: autoScrollMode(prefs.get(PREF_PREFIX + 'readAloud.autoScrollMode')),

@@ -41,6 +41,7 @@ import { createFavoriteMarks, type FavoriteMarks } from './read-aloud/favorite-m
 import { createPauses, pauseSettingsOf, type Pauses } from './read-aloud/pauses';
 import { createUnchangedVoice, type UnchangedVoice } from './read-aloud/unchanged-voice';
 import { createVolumeControl, type VolumeControl } from './read-aloud/volume';
+import { createVoiceSwitcher, type VoiceSwitcher } from './read-aloud/voice-switch';
 import { settleVolumePref, VOLUME_OBSERVER } from './core/read-aloud-volume';
 import { HIGHLIGHT_LEVEL_PREF, type HighlightLevel, type WordTiming } from './core/highlight-level';
 import { createPositionSync, ACTIVE_TICK_MS, IDLE_TICK_MS, type PositionSync } from './read-aloud/position-sync';
@@ -147,6 +148,7 @@ let favoriteMarkObservers: unknown[] = [];
 let pauses: Pauses | null = null;
 /** How loud Read Aloud plays, for every voice (read-aloud/volume.ts, issue #62), and the pref observer that moves every open chain. */
 let volumeControl: VolumeControl | null = null;
+let voiceSwitcher: VoiceSwitcher | null = null;
 /** A voice list landing on the voice already playing keeps the controller (read-aloud/unchanged-voice.ts, issue #75). */
 let unchangedVoice: UnchangedVoice | null = null;
 let textSettings: ReturnType<typeof createTextSettings> | null = null;
@@ -943,6 +945,7 @@ function startReadAloudShortcuts(pluginID: string): void {
     // A speed the pref cannot carry goes to the memory (issue #59)
     rememberSpeed: (speed) => readAloudMemory?.learnSpeed(speed),
     showToast: toastFor,
+    switchVoice: (reader, direction) => voiceSwitcher?.step(reader, direction),
     // The level in percent, where the speed's toast goes (issue #62)
     showVolumeToast: (reader: any, level: number) => {
       const doc = toastDoc(reader);
@@ -1080,6 +1083,7 @@ function stopReadAloudShortcuts(): void {
 function startReadAloudMemory(): void {
   stopReadAloudMemory();
   readAloudMemory = createReadAloudMemorySync({
+    deferVoiceChange: (reader, id, restore) => voiceSwitcher?.defer(reader, id, restore) ?? false,
     prefs,
     sameVoice: () => loadSettings(prefs).readAloud.sameForAllDocuments,
     globalSpeed: () => loadSettings(prefs).readAloud.globalSpeed,
@@ -1787,6 +1791,25 @@ function stopVolume(): void {
 // voice already playing, which restarts the sentence on every popup reopen;
 // see read-aloud/unchanged-voice.ts for the shadow (issue #75).
 
+function startVoiceSwitcher(): void {
+  voiceSwitcher?.dispose();
+  voiceSwitcher = createVoiceSwitcher({
+    exportFunction: (fn, target) => Components.utils.exportFunction(fn, target),
+    waiveXrays: value => Components.utils.waiveXrays(value),
+    isDead: value => Components.utils.isDeadWrapper(value),
+    error: error => Zotero.logError(error),
+    debug: message => Zotero.debug(`[zotero-tts] ${message}`),
+    notice: (reader, kind, voice) => {
+      const doc = toastDoc(reader);
+      if (!doc) return;
+      const message = kind === 'preparing' ? t('ztts-voice-preparing', { voice })
+        : kind === 'selected' ? t('ztts-voice-selected', { voice })
+          : kind === 'failed' ? t('ztts-voice-failed', { voice }) : t('ztts-voice-unavailable');
+      showToast(doc, message, undefined, ANNOUNCEMENT_TOAST_MS);
+    },
+  });
+}
+
 function startUnchangedVoice(): void {
   stopUnchangedVoice();
   unchangedVoice = createUnchangedVoice({
@@ -1914,6 +1937,7 @@ async function startup({ id, version, rootURI }: StartupParams): Promise<void> {
       ['Read Aloud volume', startVolume],
       ['the voice kept through a list reload', startUnchangedVoice],
       ['speech text settings', startTextSettings],
+      ['prepared voice switching', startVoiceSwitcher],
       ['Read Aloud hook', startHijack],
       ['Read Aloud shortcuts', () => startReadAloudShortcuts(id)],
     ],
@@ -1949,6 +1973,8 @@ async function shutdown(reason?: number): Promise<void> {
   uninstallHijack?.();
   uninstallHijack = null;
   stopReadAloudShortcuts();
+  voiceSwitcher?.dispose();
+  voiceSwitcher = null;
   stopPlayerExpanded();
   // A settings change still inside its quiet period goes up now, bounded;
   // then the observers come off
@@ -2018,6 +2044,21 @@ const appLanguageName = (code: string) => languageDisplayName(code, Zotero.local
 
 /** For Tools → Developer → Run JavaScript: `Zotero.ZoteroTTS.diagnostics.highlight()` etc. */
 const diagnostics = {
+  /** direction is optional; readerIndex makes fixture checks independent of tab routing. */
+  voiceSwitch(direction?: -1 | 1, readerIndex?: number): string {
+    const readers = Zotero.Reader._readers ?? [];
+    if (direction === -1 || direction === 1) {
+      const win = Zotero.getMainWindow();
+      const reader = readerIndex === undefined
+        ? pickReader(readers, win, win?.Zotero_Tabs?.selectedID ?? null, (r: any) => isSpeaking(readAloudManager(r)))
+        : readers[readerIndex];
+      if (reader) voiceSwitcher?.step(reader, direction);
+    }
+    return JSON.stringify({ mechanism: 'prepared-native-voice-v1', bindings: {
+      previous: loadSettings(prefs).shortcuts.previousVoice, next: loadSettings(prefs).shortcuts.nextVoice,
+    }, readers: readers.map((reader: any, index: number) => ({ index, selected: readAloudManager(reader)?.selectedVoiceID ?? null,
+      handoff: voiceSwitcher?.inspect(reader) ?? null })) }, null, 2);
+  },
   /** Cache reuse and, on request, the provider's actual source union. Never returns credentials. */
   fishVoices: async (list = false) => {
     if (!list) return JSON.stringify(getFishVoiceCacheStats(fetch));

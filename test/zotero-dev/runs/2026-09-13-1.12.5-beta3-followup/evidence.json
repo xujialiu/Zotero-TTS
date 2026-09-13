@@ -1,0 +1,131 @@
+{
+  "build": {
+    "zotero": "10.0.2-beta.9+c77df79af",
+    "firefox": "140",
+    "platform": "Windows",
+    "plugin": "1.12.5-beta3",
+    "xpiSha256": "1A3458649503A75D8706E743D23F840E36FE257D76DDEF121DF0D107D98C4BE5",
+    "bundleSha256": "CD9A1F786FCCC6A24891F9705B177006765669FA1A138F8F3284AD023FF13721"
+  },
+  "fixtureRuns": {
+    "behavior": { "aItemID": 25434, "aKey": "Y6YGUFNE", "bItemID": 25435, "bKey": "6WLCSDRR" },
+    "setupReplay": { "aItemID": 25438, "aKey": "8U5D4S33", "bItemID": 25439, "bKey": "WLXTEI4A" }
+  },
+  "setupReplay": {
+    "fixtureWindowsDistinct": true,
+    "remoteStateDistinct": true,
+    "voicesPerFixture": 4,
+    "tier": "standard",
+    "language": "en-US",
+    "segmentGranularity": "sentence",
+    "bothActivePlaying": true,
+    "audio": {
+      "a": { "state": "suspended", "time": 0, "source": true },
+      "b": { "state": "suspended", "time": 0, "source": true }
+    },
+    "status": "NOT TESTABLE: independent managers are active but fresh AudioContexts are suspended"
+  },
+  "wordHandoff": {
+    "trigger": { "pending": "followup95-b", "stage": "preparing" },
+    "duringPreparation": { "selected": "followup95-a", "active": true, "paused": false },
+    "targetCalls": 1,
+    "final": { "pending": null, "stage": "failed", "selected": "followup95-a" },
+    "oldSourceStopCalls": [],
+    "pdfHighlight": {
+      "activeTimestamp": { "charStart": 19, "charEnd": 20, "text": "A" },
+      "primaryIdentity": true,
+      "expectedViewRect": [440.28104575163405, 166.14379084967322, 459.84313725490205, 199.10457516339852],
+      "matchingDisplayRect": { "rect": [440.28, 166.14, 459.84, 199.1], "color": "#3478f6b3", "kind": "rect" }
+    },
+    "audioClock": { "first": { "state": "suspended", "time": 0 }, "last": { "state": "suspended", "time": 0 }, "advanced": false },
+    "status": "NOT TESTABLE: fresh fixture AudioContext remained suspended"
+  },
+  "sharedVoice": {
+    "sameOnPlaying": {
+      "setup": { "a": { "active": true, "paused": false, "selected": "followup95-a" }, "b": { "active": true, "paused": false, "selected": "followup95-a" } },
+      "a": { "pending": "followup95-b", "stage": "preparing", "selected": "followup95-a" },
+      "b": { "pending": null, "selected": "followup95-a", "targetCalls": 0 },
+      "clocks": { "aAdvanced": false, "bAdvanced": false },
+      "status": "NOT TESTABLE"
+    },
+    "sameOffPlaying": {
+      "setup": { "a": { "active": true, "paused": false, "selected": "followup95-a" }, "b": { "active": true, "paused": false, "selected": "followup95-a" } },
+      "a": { "pending": "followup95-b", "stage": "preparing", "selected": "followup95-a" },
+      "b": { "pending": null, "selected": "followup95-a", "targetCalls": 0 },
+      "clocks": { "aAdvanced": false, "bAdvanced": false },
+      "status": "NOT TESTABLE"
+    },
+    "sameOnPausedRecipient": {
+      "setup": { "a": { "active": true, "paused": false, "selected": "followup95-a" }, "b": { "active": true, "paused": true, "selected": "followup95-a" } },
+      "a": { "pending": "followup95-b", "stage": "preparing", "selected": "followup95-a" },
+      "b": { "pending": null, "selected": "followup95-a", "targetCalls": 0 },
+      "clocks": { "aAdvanced": false, "bAdvanced": false },
+      "status": "NOT TESTABLE"
+    }
+  },
+  "armedStop": {
+    "before": { "active": true, "paused": false, "selected": "followup95-a", "audioState": "suspended", "audioTime": 0 },
+    "handoff": { "pending": null, "stage": "cancelled" },
+    "returnedToCurrent": true,
+    "stopCalls": [],
+    "lateNumericReschedule": false,
+    "status": "NOT TESTABLE: fixture AudioContext remained suspended before word arm"
+  },
+  "autoplayDiagnostic": {
+    "prefs": {
+      "media.autoplay.default": { "type": "int", "value": 1, "user": false },
+      "media.autoplay.blocking_policy": { "type": "int", "value": 0, "user": false },
+      "media.autoplay.allow-extension-background-pages": { "type": "bool", "value": true, "user": false },
+      "media.autoplay.block-event.enabled": { "type": "bool", "value": false, "user": false },
+      "unregisteredCheckedNames": ["media.autoplay.block-webaudio", "media.autoplay.enabled.user-gestures-needed"]
+    },
+    "reader": { "ready": true, "visibilityState": "visible", "documentHasFocus": true },
+    "syncHandler": { "handlerRan": true, "eventTrusted": true, "userActivationIsActive": true, "userActivationHasBeenActive": true, "created": true, "initial": { "state": "suspended", "time": 0, "sampleRate": 48000 }, "resumeCalled": true, "resumeSettled": false, "final": { "state": "suspended", "time": 0, "sampleRate": 48000 } },
+    "delayedContext": { "created": true, "userActivationIsActive": true, "userActivationHasBeenActive": true, "initial": { "state": "suspended", "time": 0, "sampleRate": 48000 }, "resumeCalled": true, "resumeSettled": false, "final": { "state": "suspended", "time": 0, "sampleRate": 48000 } },
+    "clock": { "syncAdvanced": false, "delayedAdvanced": false, "sampleCount": 16 },
+    "status": "NOT TESTABLE: both visible-reader contexts blocked; timer gesture loss is ruled out as the sole cause"
+  },
+  "cancellation": {
+    "speed": { "pending": "followup95-b", "immediate": { "pending": null, "stage": "cancelled", "selected": "followup95-a" }, "targetCalls": 1, "oldAlive": true, "status": "PASS" },
+    "skip": { "pending": "followup95-b", "immediate": { "pending": null, "stage": "cancelled", "position": 1 }, "targetCalls": 1, "oldAlive": true, "status": "PASS" },
+    "manualVoice": { "pending": "followup95-b", "immediate": { "pending": null, "stage": "cancelled", "selected": "followup95-c" }, "targetCalls": 1, "status": "PASS" },
+    "deactivate": { "pending": "followup95-b", "immediate": { "pending": null, "stage": "cancelled", "active": false, "paused": true, "popupOpen": false }, "targetCalls": 1, "status": "PASS" }
+  },
+  "cleanup": {
+    "fixtureReadersRemaining": 0,
+    "fixtureItemsRemaining": 0,
+    "positionRows": 66,
+    "positionQueue": 0,
+    "positionLastError": null,
+    "userReader": { "active": true, "paused": true, "selected": "fish::en/1f97ab64476c4e468a0888ae22954dab", "position": 517 },
+    "prefs": {
+      "readAloud.volume": { "value": 100, "user": false },
+      "readAloud.sameForAllDocuments": { "value": true, "user": false },
+      "readAloud.globalSpeed": { "value": true, "user": false },
+      "webdav.syncPositions": { "value": true, "user": true },
+      "webdav.autoUploadSettings": { "value": true, "user": true },
+      "webdav.syncSettings": { "value": false, "user": false },
+      "readAloud.memory": { "equalToBaseline": true, "chars": 84, "user": true },
+      "reader.readAloudVoices": { "equalToBaseline": true, "chars": 889, "user": true }
+    },
+    "debugStoring": true,
+    "status": "PASS"
+  },
+  "errorsAtEnd": {
+    "plugin": [
+      "Zotero-TTS: the new voice audio output is blocked (two bounded attempts)"
+    ],
+    "deadObject": { "count": 1, "timestamp": "03:04:17", "context": "late fixture toast timer after behavior cleanup" },
+    "harness": [
+      "ReferenceError: mainWindow is not defined at 03:10:33 in the discarded combined autoplay script; temporary state was restored manually and its item was erased"
+    ],
+    "expectedFixtureOrZoteroNoise": [
+      "Failed to fetch audio",
+      "InvalidStateError: Navigated away from page",
+      "PDF page viewport unavailable during teardown",
+      "older sync restart/HTTP 502 and Zotero UI cleanup entries"
+    ],
+    "deadObjectBurst": false,
+    "autoplayReplayAddedNoNewDeadObject": true
+  }
+}

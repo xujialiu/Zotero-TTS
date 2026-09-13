@@ -78,6 +78,10 @@ const IDS = [
   'ztts-key-clear-toggleOptions',
   'ztts-key-toggleAutoScroll',
   'ztts-key-clear-toggleAutoScroll',
+  'ztts-key-previousVoice',
+  'ztts-key-clear-previousVoice',
+  'ztts-key-nextVoice',
+  'ztts-key-clear-nextVoice',
   'ztts-key-toggleWordHighlight',
   'ztts-key-clear-toggleWordHighlight',
   'ztts-key-defaults',
@@ -147,6 +151,8 @@ describe('initShortcutRows', () => {
     expect(doc.el('ztts-key-returnToSpoken').label).toBe('Shift+Enter');
     expect(doc.el('ztts-key-toggleOptions').label).toBe('Shift+O');
     expect(doc.el('ztts-key-toggleAutoScroll').label).toBe('Shift+A');
+    expect(doc.el('ztts-key-previousVoice').label).toBe('Shift+,');
+    expect(doc.el('ztts-key-nextVoice').label).toBe('Shift+.');
     expect(doc.recording).toBe(0);
   });
 

@@ -103,6 +103,8 @@ import { PLUGIN_TIER, type ListedVoice } from './voice-catalog';
 export const READ_ALOUD_VOICES_OBSERVER = 'reader.readAloudVoices';
 
 export interface ReadAloudMemoryDeps {
+  /** A shortcut prepares other playing readers before the existing restore is applied. */
+  deferVoiceChange?(reader: unknown, id: string, restore: () => void): boolean;
   prefs: PrefsBackend;
   /** The "one voice everywhere" setting (`readAloud.sameForAllDocuments`), read on every use so the pane's checkbox applies at once. */
   sameVoice(): boolean;
@@ -815,6 +817,10 @@ export function createReadAloudMemorySync(deps: ReadAloudMemoryDeps): ReadAloudM
           const docLang = documentLanguageOf(internal, managerLangOf(manager));
           if (!listsVoice(manager, choice.id)) {
             outcome.push(`${docLang}: does not list it until its popup reopens`);
+            continue;
+          }
+          if (deps.deferVoiceChange?.(reader, choice.id, () => whileApplying(() => resync(reader, internal)))) {
+            outcome.push(`${docLang}: preparing voice handoff`);
             continue;
           }
           resync(reader, internal);

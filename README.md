@@ -182,6 +182,16 @@ you change it again; a short message says which you got. A voice without
 word timing keeps highlighting the sentence either way, and the message
 says so.
 
+- **Previous / next voice** — `Shift+,` / `Shift+.` cycle through the
+  player's current voice list, wrapping at either end. While playing, the
+  old voice continues until the new one is ready and hands over at the
+  next word, or between sentences when necessary. While paused, the voice
+  changes without a sample. A short message names the voice.
+- **While a voice is preparing**, another press changes the target;
+  pausing, skipping, changing speed or choosing a voice by hand cancels
+  the pending switch. Preparation may use your provider's quota even if
+  you change your mind.
+
 ### Voice browser
 
 <p align="center"><img src="assets/settings-voices.png" width="700" alt="The voice browser: tier, language and voice columns"></p>

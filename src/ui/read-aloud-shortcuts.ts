@@ -70,6 +70,8 @@ export interface EventTargetLike {
 }
 
 export interface ReadAloudShortcutsDeps {
+  /** Prepare the preceding/following voice while keeping the old audio playing. */
+  switchVoice?(reader: unknown, direction: -1 | 1): void;
   /** Raw binding text per action. Read on every key, so a settings change applies at once. */
   getBindings(): Record<ShortcutAction, string>;
   /** Full-key pref access, for Zotero's reader.readAloudVoices pref. */
@@ -503,6 +505,7 @@ export function createReadAloudShortcuts(deps: ReadAloudShortcutsDeps): ReadAlou
     if (action === 'startFromSelection' && !canSmartPlay(reader)) return false;
     if (action === 'returnToSpoken' && !canReturnToSpoken(reader)) return false;
     if (action === 'toggleOptions' && !optionsButton(reader)) return false;
+    if ((action === 'previousVoice' || action === 'nextVoice') && !managerOf(reader)?.active) return false;
     event.preventDefault();
     event.stopPropagation();
     // Holding the key down would restart the current segment on every auto-repeat
@@ -514,6 +517,7 @@ export function createReadAloudShortcuts(deps: ReadAloudShortcutsDeps): ReadAlou
     else if (action === 'toggleOptions') toggleOptions(reader);
     else if (isHighlightAction(action)) toggleWordHighlight(reader);
     else if (action === 'toggleAutoScroll') toggleAutoScroll(reader);
+    else if (action === 'previousVoice' || action === 'nextVoice') deps.switchVoice?.(reader, action === 'previousVoice' ? -1 : 1);
     else adjust(reader, action);
     return true;
   }

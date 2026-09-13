@@ -706,6 +706,23 @@ describe('the voice is global while the setting is on', () => {
     expect(z.deps.error).not.toHaveBeenCalled();
   });
 
+  it('can defer a playing reader restore until its prepared voice is ready', () => {
+    const z = fakeZotero();
+    let restore: (() => void) | undefined;
+    const deferVoiceChange = vi.fn((_reader: unknown, _id: string, apply: () => void) => { restore = apply; return true; });
+    const sync = createReadAloudMemorySync({ ...z.deps, deferVoiceChange });
+    const tab = fakeReader(MULTILINGUAL, z, { active: true, selectedVoiceID: ISABELLA, voices: listed });
+    attached(z, sync, tab);
+    z.zoteroWrites(MULTILINGUAL, ada);
+    expect(deferVoiceChange).toHaveBeenCalledWith(tab.reader, ADA, expect.any(Function));
+    expect(tab.manager.selectedVoiceID).toBe(ISABELLA);
+    expect(tab.original).not.toHaveBeenCalled();
+    restore!();
+    expect(tab.manager.selectedVoiceID).toBe(ADA);
+    expect(z.deps.error).not.toHaveBeenCalled();
+    sync.dispose();
+  });
+
   // An English document reading with a Kokoro voice under `en`: moved to
   // Multiple languages first, where the catalog publishes Ada, then restored
   it('moves a reader on another language to Multiple languages for a global voice', () => {

@@ -397,3 +397,13 @@ cite `notes/NOTES.md` with a date or a section title resolve through this index.
 ### [2026-09-13](NOTES_2026-09-13.md)
 
 - Bracket preparation verified through Fish and a native transport stub (issue #94)
+
+- Previous and next voice keys can follow the player's filtered list (issue #95)
+
+- The requested voice handoff is at a word boundary after preparation (issue #95)
+
+- A prepared native controller carries the new voice to a safe boundary (issue #95)
+
+- The beta3 native handoff passed its first live pass (issue #95)
+
+- Follow-up separates native single-player policy from blocked audio contexts (issue #95)

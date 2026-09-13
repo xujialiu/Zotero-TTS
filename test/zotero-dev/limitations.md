@@ -34,6 +34,20 @@ screen, the complete Run JavaScript code, the expected output.
 
 ## 9. Not covered, and why
 
+- Previous/next voice ([case 4a](cases/voice-switch.md), issue #95):
+  controlled silent audio proves native clock, buffer offset and controller
+  handoff behavior, not pronunciation or the perceptual gap between voices.
+  Real provider timing accuracy and naturalness require listening. The
+  [initial beta3 report](runs/2026-09-13-1.12.5-beta3/report.md) explicitly
+  distinguishes its completed checks from its fixture limitations.
+  The [follow-up](runs/2026-09-13-1.12.5-beta3-followup/report.md) verified
+  additional cancellation paths and PDF highlight coordinates. Its new
+  audio contexts stayed suspended in both trusted synchronous and delayed
+  creation; device failure was not established. Shared playing-reader
+  adoption and the armed stop's late reschedule remain unverified live.
+  Zotero normally permits only one unpaused reader, so the dual-playing
+  fixture additionally needs an explicitly restored status callback guard.
+
 - Auto-scroll modes (#93, [section 3f](cases/auto-scroll.md)): the beta3
   bridge pass verified mode targets, real clocks, input intent and the
   shortcut, but PDF and scrolled EPUB smooth requests did not change
