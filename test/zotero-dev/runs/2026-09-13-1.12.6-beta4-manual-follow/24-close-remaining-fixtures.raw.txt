@@ -1,0 +1,2 @@
+Result:
+[{"kind":"epub","present":true,"itemID":25485,"tabID":"tab-mLOa4aOD","popupError":null,"closeError":null,"left":0},{"kind":"epubPaginated","present":true,"itemID":25486,"tabID":"tab-eWu8HS26","popupError":null,"closeError":null,"left":0}]

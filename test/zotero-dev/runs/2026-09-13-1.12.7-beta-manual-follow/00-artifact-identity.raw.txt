@@ -1,0 +1,5 @@
+Local artifact: manifest=1.12.7-beta; XPI SHA256=f313bcd34276a184dcd5207a6ee9b9f6b058676f508f5b71fad2dda7a4655e16; bundle SHA256=6c839a5b185cbcdc63bb27dd950497c553bbe2e233c1a11ba294d52bd2f71ccc; HEAD=0812b0a28e3bb59483cdb4649cf2a7029706eed4
+
+Plugin install: Zotero-TTS v1.12.7-beta; ID zotero-tts@xujialiu.top
+
+Plugin list: Zotero-TTS v1.12.7-beta; ID zotero-tts@xujialiu.top

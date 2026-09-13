@@ -451,3 +451,7 @@ cite `notes/NOTES.md` with a date or a section title resolve through this index.
 - Bracket lists share one scan and one activation snapshot (issue #101)
 
 - Configurable bracket pairs passed the live request and settings checks (issue #101)
+
+- Reentry passes on beta4 while the next release baseline is merged (issue #100)
+
+- The merged 1.12.7-beta installation passes the final reentry check (issue #100)

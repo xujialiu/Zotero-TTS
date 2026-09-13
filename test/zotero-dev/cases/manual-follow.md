@@ -19,6 +19,15 @@ The later owner follow-up adds automatic resumption on reentry. Beta2/3
 record the earlier persistent disengagement behavior and do not verify
 this follow-up.
 
+The [beta4 reentry pass](../runs/2026-09-13-1.12.6-beta4-manual-follow/report.md)
+verified automatic viewport reentry and controlled sentence-state reentry;
+natural audio progression was unavailable and is not a live PASS.
+
+The [merged 1.12.7-beta check](../runs/2026-09-13-1.12.7-beta-manual-follow/report.md)
+establishes final installation identity, both settings features, one PDF
+and one scrolled EPUB reentry cycle, and clean restoration. The broader
+beta4 mode matrix applies to its unchanged follow code.
+
 1. **Default and UI.** Highlight contains Keep auto-scroll while the
    sentence is visible, bound to `readAloud.keepFollowingWhileVisible`.
    An unset preference is true. The adjacent help describes complete

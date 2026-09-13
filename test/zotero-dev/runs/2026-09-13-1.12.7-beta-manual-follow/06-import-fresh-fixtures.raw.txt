@@ -1,0 +1,2 @@
+Result:
+{"version":"issue-100-live-1.12.7-beta","createdAt":1789288687525,"pdf":{"itemID":25487,"key":"I48S4DFD","title":"Zotero-TTS issue 100 PDF fixture merged beta 1789288687525"},"epub":{"itemID":25488,"key":"QPB5W2SV","title":"Zotero-TTS issue 100 EPUB fixture merged beta 1789288687525"}}

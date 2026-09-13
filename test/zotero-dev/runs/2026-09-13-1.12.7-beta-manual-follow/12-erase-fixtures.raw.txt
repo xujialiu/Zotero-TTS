@@ -1,0 +1,2 @@
+Result:
+{"out":[{"id":25487,"erased":true,"error":null},{"id":25488,"erased":true,"error":null}]}

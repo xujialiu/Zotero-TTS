@@ -54,3 +54,31 @@ Shift+Enter/PageDown routing, drag/pan inputs and real cross-page/oversized
 geometry remain unverified through this bridge. Direct explicit locking
 passed; it does not prove the shortcut route. The report separately
 retains an early EPUB-flow setup error and native navigation-away noise.
+
+## Beta4: automatic recovery on reentry
+
+[Report and raw returns](../../runs/2026-09-13-1.12.6-beta4-manual-follow/report.md).
+Scripts are in `beta4/`; they use a fresh baseline and disposable fixtures.
+The current user reader state must be read anew, not copied from beta3.
+Run 01/03/04 for baseline/temporary transport/fixtures, then the PDF and
+EPUB readiness scripts before opening players. The 06b retry waits for
+EPUB page mapping; it does not justify opening the player early.
+
+Scripts 12–15 exercise repeated out-of-view waits and automatic partial
+reentry in PDF/scrolled EPUB, both modes. Script 19 covers paginated
+semantic navigation, 20 the disabled legacy rule, and 21/22 controlled
+sentence transitions. A controlled transition is not natural audio:
+the fixture AudioContexts did not advance during this pass.
+Scripts 23–28 close fixtures, restore original state and audit it; the
+corrected 26b/28 steps are the final restoration record. Adapt fixture
+identifiers and all baseline state before reuse, and preserve the
+original snapshot across retries.
+
+## Final merged installation
+
+The `merged-beta/` scripts use a fresh `Zotero.__ztts127Baseline` and
+verify [1.12.7-beta](../../runs/2026-09-13-1.12.7-beta-manual-follow/report.md).
+They cover identity/startup, reentry help and upstream bracket controls,
+one PDF and one scrolled EPUB out/wait/back cycle, then fixture removal
+and state restoration. This intentionally supplements the beta4 matrix
+without claiming that natural playback or every gesture was reverified.

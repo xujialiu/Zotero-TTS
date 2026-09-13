@@ -1,0 +1,11 @@
+# Merged beta manual-follow reentry scripts
+
+These scripts were executed through the Zotero bridge on Zotero 10.0.2-beta.9 / Firefox 140 with Zotero-TTS `1.12.7-beta`. The tested artifact was `build/zotero-tts.xpi`; its identity is recorded in the run report. The run used fresh disposable imports of `test/fixtures/fixture-a.pdf` and `test/fixtures/return-key/return-key.epub`.
+
+Run `00-baseline.js` before changing state. It stores the user state in the unique `Zotero.__ztts127Baseline` global and returns sanitized preference summaries. `01-close-preferences.js` closes the old settings window around an in-place install. After install, `02-startup.js` and `03-ui-settings.js` verify startup, the reentry help, and the new bracket-pair controls.
+
+Before opening a player, run `04-prepare-mute.js` to snapshot the temporary transport flags and set plugin volume to zero, then `05-import-fresh-fixtures.js` and `06-open-readers-flow-before-player.js`. The latter establishes the EPUB scrolled flow before any player opens. `07-open-pause-both.js` opens both disposable players and pauses them. These steps may change only disposable reader sessions, temporary plugin volume, WebDAV sync/upload switches, temporary position rows and fixture items.
+
+`09-pdf-reentry-cycle.js` and `10-epub-reentry-cycle.js` send a trusted wheel event, apply controlled positional movement to take the current sentence fully out of view, hold it outside for 500 ms, and move a fragment back into view. They record actual rectangles, `following`, `visibilityPaused`, `interacting`, `pending`, position and scroll offsets. The return path uses no explicit relock. The expected outside state is `following=false`, `visibilityPaused=true`, unchanged position and scroll offset; the expected reentry state is `following=true`, `visibilityPaused=false`, reason `visible` after the quiet period.
+
+Finish with `11-close-fixtures.js`, `12-erase-fixtures.js`, and `13-restore-state.js`. The restore script writes the saved voice map before the saved memory, restores baseline user-value flags including the default-equal mode through a temporary default branch value, restores transport switches last, and returns to the saved tab. Reopen the settings window and run `14-final-audit.js`. Sanitized raw returns are under `test/zotero-dev/runs/2026-09-13-1.12.7-beta-manual-follow/`.
