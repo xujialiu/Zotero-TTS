@@ -1,18 +1,47 @@
 import type { Timestamp } from './providers/types';
 
-/** Remove one enclosing ASCII pair, never punctuation within the text. */
+/** Remove one outer layer per group, with only punctuation/spacing outside groups. */
 export function prepareSpeechText(text: string, enabled: boolean): { text: string; removed: number[] } {
-  if (enabled) {
-    // Outside punctuation is retained, including quotes and a period after >.
-    // The first < and last > define the single outer pair; never strip recursively.
-    const open = text.indexOf('<');
-    const close = text.lastIndexOf('>');
-    const outside = /^[\p{P}\p{S}\s]*$/u;
-    if (open >= 0 && close > open && outside.test(text.slice(0, open)) && outside.test(text.slice(close + 1))) {
-      return { text: text.slice(0, open) + text.slice(open + 1, close) + text.slice(close + 1), removed: [open, close] };
+  const unchanged = { text, removed: [] as number[] };
+  if (!enabled) return unchanged;
+  const outside = /^[\p{P}\p{S}\s]*$/u;
+  const removed: number[] = [];
+  let depth = 0;
+  let open = -1;
+  let after = 0;
+  for (let i = 0; i < text.length; i++) {
+    if (text[i] === '<') {
+      if (depth === 0) {
+        if (!outside.test(text.slice(after, i))) return unchanged;
+        open = i;
+      }
+      depth++;
+    } else if (text[i] === '>') {
+      if (depth === 0) return unchanged;
+      if (--depth === 0) {
+        removed.push(open, i);
+        after = i + 1;
+      }
     }
   }
-  return { text, removed: [] };
+  if (depth !== 0) {
+    // Preserve #94's single wrapper around a comparison: <a < b> -> a < b.
+    // Do not use this fallback across sibling groups or multiple closing brackets.
+    const close = text.indexOf('>');
+    if (removed.length || close <= open || close !== text.lastIndexOf('>') || text.indexOf('<', close) !== -1
+      || !outside.test(text.slice(close + 1))) return unchanged;
+    removed.push(open, close);
+    after = close + 1;
+  }
+  if (!removed.length || !outside.test(text.slice(after))) return unchanged;
+  const parts: string[] = [];
+  let from = 0;
+  for (const position of removed) {
+    parts.push(text.slice(from, position));
+    from = position + 1;
+  }
+  parts.push(text.slice(from));
+  return { text: parts.join(''), removed };
 }
 
 /** Cached timestamps belong to the speech text. Return copies in document coordinates. */

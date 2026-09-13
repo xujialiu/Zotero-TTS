@@ -522,7 +522,7 @@ ztts-auto-scroll-toast-sentence = 自动滚动：每句居中
 ztts-auto-scroll-toast-outside = 自动滚动：超出视图时滚动
 
 ztts-strip-angle-brackets =
-    .label = 朗读时去掉句子两端的尖括号
+    .label = 朗读时去掉包围文字的尖括号
 ztts-help-strip-angle-brackets =
     .value = ?
-    .help = 朗读 < > 内的文字时去掉包围它的尖括号，保留括号外的标点。例如，<你好>。按“你好。”朗读。适用于所有语音。修改后，停止并重新打开朗读即可生效。
+    .help = 朗读 < > 内的文字时去掉包围它的尖括号，保留括号外的标点。支持由空格或标点分隔的多组文字，例如，<登录> <注册> 按“登录 注册”朗读。如果括号组外还有普通文字，则保留原文。适用于所有语音。修改后，停止并重新打开朗读即可生效。

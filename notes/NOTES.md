@@ -397,3 +397,9 @@ cite `notes/NOTES.md` with a date or a section title resolve through this index.
 ### [2026-09-13](NOTES_2026-09-13.md)
 
 - Bracket preparation verified through Fish and a native transport stub (issue #94)
+
+- Multiple bracketed phrases cross the single-pair boundary (issue #96)
+
+- Sibling wrappers retain ordered source offsets (issue #96)
+
+- Multiple-group requests verified in the live reader (issue #96)
