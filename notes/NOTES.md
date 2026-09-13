@@ -404,11 +404,17 @@ cite `notes/NOTES.md` with a date or a section title resolve through this index.
 
 - A prepared native controller carries the new voice to a safe boundary (issue #95)
 
+- Multiple bracketed phrases cross the single-pair boundary (issue #96)
+
+- Sibling wrappers retain ordered source offsets (issue #96)
+
 - The beta3 native handoff passed its first live pass (issue #95)
 
 - Follow-up separates native single-player policy from blocked audio contexts (issue #95)
 
 - Sentence-wide validation hid usable Kokoro word boundaries (issue #95)
+
+- Multiple-group requests verified in the live reader (issue #96)
 
 - Real Kokoro timings begin before sample zero (issue #95)
 

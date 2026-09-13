@@ -53,6 +53,15 @@ screen, the complete Run JavaScript code, the expected output.
   the earlier synthetic-only coverage for that path; other providers,
   subjective continuity and the separately listed lifecycle gaps remain.
 
+- Multiple angle-bracket groups (#96, [section 3g](cases/angle-brackets.md),
+  item 8): [1.12.5-beta4](runs/2026-09-13-1.12.5-beta4/report.md) verified
+  real Kokoro requests/ranges, cache, prefetch, session opt-out, empty
+  groups and a restored native transport stub through the live reader's
+  direct interface. The fixture does not contain the exact multi-group
+  source, so its document segmentation is not verified. AudioContext stayed
+  suspended at time 0; continuous playback, listening and moving highlights
+  remain unverified. Chinese live locale rendering was not tested.
+
 - Auto-scroll modes (#93, [section 3f](cases/auto-scroll.md)): the beta3
   bridge pass verified mode targets, real clocks, input intent and the
   shortcut, but PDF and scrolled EPUB smooth requests did not change

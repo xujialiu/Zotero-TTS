@@ -590,4 +590,4 @@ ztts-strip-angle-brackets =
     .label = Remove enclosing angle brackets <> when reading
 ztts-help-strip-angle-brackets =
     .value = ?
-    .help = Angle brackets <> may cause errors with TTS services. Read the text inside < > without the enclosing brackets, keeping punctuation outside them. For example, <Hello>. is read as Hello. Applies to all voices. Changes take effect after stopping and reopening Read Aloud.
+    .help = Angle brackets <> may cause errors with TTS services. Read the text inside < > without the enclosing brackets, keeping punctuation outside them. Multiple groups separated by spaces or punctuation are supported: <Log in> <Register> is read as Log in Register. Ordinary words outside the groups keep the original text unchanged. Applies to all voices. Changes take effect after stopping and reopening Read Aloud.

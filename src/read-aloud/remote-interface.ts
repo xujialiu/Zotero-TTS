@@ -435,7 +435,7 @@ export function createRemoteInterface(deps: RemoteInterfaceDeps): RemoteInterfac
         deps.debug?.('angle brackets: empty interior; playing a short pause');
         return { audio: deps.adoptAudio ? deps.adoptAudio(pause) : pause, timestamps: wholeSegmentTimestamp(originalText) };
       }
-      if (prepared.removed.length) deps.debug?.(`angle brackets: removed one enclosing pair from ${originalText.length} chars`);
+      if (prepared.removed.length) deps.debug?.(`angle brackets: removed ${prepared.removed.length / 2} enclosing pair(s) from ${originalText.length} chars`);
       if (!decoded) {
         // Not one of ours: Zotero's own voice, handled by Zotero's own code
         const iface = native();

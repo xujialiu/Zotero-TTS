@@ -22,6 +22,61 @@ function setup() {
 }
 
 describe('angle brackets at the speech boundary', () => {
+  it.each([
+    ['<Log in> <Register> <Play as guest>', 'Log in Register Play as guest'],
+    ['<A><B>', 'AB'], ['“<A>”, <B>!', '“A”, B!'],
+    [' <A>\n<B> ', ' A\nB '], ['<<A>> <B>', '<A> B'],
+    ['<<A> <B>>', '<A> <B>'], ['<a < b> <C>', '<a < b> <C>'],
+    ['a < b > c', 'a < b > c'], ['<A> and <B>', '<A> and <B>'],
+    ['<A> <B', '<A> <B'], ['A> <B>', 'A> <B>'],
+    ['<A>> <B>', '<A>> <B>'], ['<A> <B>>', '<A> <B>>'],
+    ['<a < b> <', '<a < b> <'],
+  ])('handles bracket groups in %s', (input, expected) => {
+    expect(prepareSpeechText(input, true).text).toBe(expected);
+    expect(prepareSpeechText(input, false)).toEqual({ text: input, removed: [] });
+  });
+
+  it.each([voice, { id: 'native' }])('maps every group back to original words through %s', async (v) => {
+    const s = setup();
+    const original = '<Log in> <Register> <Play as guest>';
+    const cleaned = 'Log in Register Play as guest';
+    const source = Object.freeze({ text: original, lang: 'en' });
+    const words = ['Log', 'in', 'Register', 'Play', 'as', 'guest'];
+    s.raw.timestamps = words.map((word, i) => ({ start: i, end: i + 0.5,
+      charStart: cleaned.indexOf(word), charEnd: cleaned.indexOf(word) + word.length }));
+    const saved = structuredClone(s.raw.timestamps);
+    const remote = createRemoteInterface(s.deps);
+    for (let i = 0; i < 2; i++) {
+      const result = await remote.getAudio(source, v);
+      const timestamps = result.timestamps as SynthesisResult['timestamps'];
+      expect(timestamps?.map(t => original.slice(t.charStart, t.charEnd))).toEqual(words);
+      expect(timestamps?.map(t => [t.start, t.end])).toEqual(saved.map(t => [t.start, t.end]));
+    }
+    expect(source.text).toBe(original);
+    expect(s.raw.timestamps).toEqual(saved);
+    if (v.id === 'native') {
+      expect(s.nativeAudio).toHaveBeenCalledWith({ ...source, text: cleaned }, v);
+    } else {
+      expect(s.synthesize).toHaveBeenCalledWith(cleaned, expect.anything());
+      expect(s.synthesize).toHaveBeenCalledTimes(1);
+      expect((await remote.getAudio({ text: cleaned }, v)).timestamps).toEqual(saved);
+      expect(s.synthesize).toHaveBeenCalledTimes(1);
+    }
+    s.setEnabled(false);
+    await remote.getAudio(source, v);
+    if (v.id === 'native') expect(s.nativeAudio).toHaveBeenLastCalledWith(source, v);
+    else expect(s.synthesize).toHaveBeenLastCalledWith(original, expect.anything());
+  });
+
+  it('restores UTF-16 ranges across adjacent deletions and outside punctuation', () => {
+    const source = '“<😀><你好>!”';
+    const prepared = prepareSpeechText(source, true);
+    expect(prepared.text).toBe('“😀你好!”');
+    const timestamps = [[0, 1], [1, 3], [3, 5], [5, 7]].map(([charStart, charEnd]) =>
+      ({ start: 0, end: 1, charStart, charEnd }));
+    expect(restoreSpeechOffsets(timestamps, prepared.removed)
+      .map(t => source.slice(t.charStart, t.charEnd))).toEqual(['“', '😀', '你好', '!”']);
+  });
   it('keeps UTF-16 ranges and reads native arrays without calling their map method', () => {
     const source = '😀“<你好>。”';
     const prepared = prepareSpeechText(source, true);
@@ -110,7 +165,7 @@ describe('angle brackets at the speech boundary', () => {
 
   it.each([voice, { id: 'native' }])('skips an empty interior without contacting %s', async (v) => {
     const s = setup(); const remote = createRemoteInterface(s.deps);
-    for (const text of ['<>', '<   >']) {
+    for (const text of ['<>', '<   >', '<> <   >']) {
       const r = await remote.getAudio({ text }, v);
       expect(r.audio!.size).toBeGreaterThan(0);
       expect(r.error).toBeUndefined();
@@ -125,13 +180,13 @@ describe('angle brackets at the speech boundary', () => {
   });
 
   it('prefetches prepared text but finds following sentences by the original text', async () => {
-    const s = setup(); const upcoming = vi.fn(() => ['<Following sentence.>']);
+    const s = setup(); const upcoming = vi.fn(() => ['<Following> <sentence.>']);
     const remote = createRemoteInterface({ ...s.deps, getPrefetch: () => ({ enabled: true, count: 1 }), getUpcomingTexts: upcoming });
     await remote.getAudio({ text: '<Hello>' }, voice);
     await vi.waitFor(() => expect(s.synthesize).toHaveBeenCalledTimes(2));
     expect(upcoming).toHaveBeenCalledWith('<Hello>', 1);
     expect(s.synthesize).toHaveBeenLastCalledWith('Following sentence.', expect.anything());
-    await remote.getAudio({ text: '<Following sentence.>' }, voice);
+    await remote.getAudio({ text: '<Following> <sentence.>' }, voice);
     expect(s.synthesize).toHaveBeenCalledTimes(2);
   });
 });

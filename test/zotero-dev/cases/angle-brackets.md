@@ -1,6 +1,6 @@
 [Checklist index](../README.md)
 
-## 3g. Enclosing angle brackets (issue #94)
+## 3g. Enclosing angle brackets (issues #94, #96)
 
 Run the [baseline](../baseline.md), then import
 `test/fixtures/angle-brackets/angle-brackets.epub` as a temporary standalone
@@ -46,6 +46,25 @@ original values in the workflow's order, with reading memory last.
 7. **Cleanup.** Restore every probe, preference and debug-store flag, close
    and erase the fixture, remove its reading-position record, and compare
    the user's tabs and settings to the baseline. Report any mismatch.
+8. **Multiple groups (#96).** Before cleanup,
+   capture an outgoing request for the exact source
+   `<Log in> <Register> <Play as guest>`; expect
+   `Log in Register Play as guest`. Check all six word ranges against the
+   original source, then repeat through the cache and prefetch routes.
+   Confirm the native transport stub receives the same prepared text and
+   maps ranges back without changing segment metadata. With the setting
+   off at a new session, expect the full original string. Check
+   `“<A>”, <B>!` -> `“A”, B!`, `<<A>> <B>` -> `<A> B`, and unchanged
+   `<A> <B`, `<A>> <B>`, `<A> and <B>`, and `a < b > c`.
+   Use restored request probes without modifying user documents. If the
+   fixture's segmenter does not produce the exact source, record that
+   limitation and distinguish direct interface checks from playback.
+   The 1.12.5-beta4 run verified these paths through the fixture reader's
+   direct remote interface, including all six real Kokoro word ranges,
+   cached and prefetched audio, native metadata/ranges through a restored
+   stub, session opt-out, and multiple empty groups without synthesis.
+   The existing fixture does not contain the exact multi-group source;
+   its seven real segments separately verified source-position preservation.
 
 Unit-only edge coverage includes nested pairs (one removal), punctuation
 before and after the pair, fullwidth brackets, UTF-16 position mapping,
@@ -55,6 +74,12 @@ in time remains a human observation. Save scripts actually used and sanitized
 run evidence under the checklist's `scripts/` and `runs/` directories.
 
 ## Retained run
+
+[1.12.5-beta4 evidence](../runs/2026-09-13-1.12.5-beta4/report.md) and
+[multiple-group scripts](../scripts/multiple-angle-brackets/README.md)
+cover issue #96. User preferences, readers and position storage were restored.
+The AudioContext remained suspended, so continuous playback and moving
+highlights remain unverified; Chinese live locale rendering was not tested.
 
 [1.12.4-beta2 evidence](../runs/2026-09-13-1.12.4-beta2/report.md) and
 [recorded scripts](../scripts/angle-brackets/README.md): request preparation,
