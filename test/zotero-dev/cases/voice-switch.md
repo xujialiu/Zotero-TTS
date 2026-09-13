@@ -1,6 +1,28 @@
 # 4a. Previous and next voice (issue #95)
 
 Run the [baseline](../baseline.md) first and [cleanup](../cleanup.md) last.
+
+Real-provider follow-up: use real Kokoro audio and capture
+`wordDecision` plus `audioReady` from `diagnostics.voiceSwitch()`. Prove
+that target audio became ready while the same old sentence was still
+playing, then observe the first shared word boundary and adopted offset.
+Use the existing alignment pipeline, including number/phrase bridges and
+zero-duration tokens, rather than exclusively idealized fixture timings.
+Any fallback must be explained by the recorded timing availability or by
+playback having already passed the prepared segment. Coordinate access
+with the owner before launching zotero-tester when another agent is using Zotero.
+
+The [beta5 real Kokoro run](../runs/2026-09-13-1.12.5-beta5/report.md)
+reproduced sentence fallback caused by a negative leading timestamp. The
+[beta6 run](../runs/2026-09-13-1.12.5-beta6/report.md) verified the correction
+in both directions using real Jadzia/Jessica audio: target ready at 313/148 ms,
+old and new still on segment 7, word handoff at char 20/14, native positive
+seek offsets, one target request, no sample, and original source positions.
+Use its [executed scripts](../scripts/voice-switch-kokoro-beta6/README.md)
+for future real-provider checks. The captured negative-start arrays are also
+pinned by `test/fixtures/voice-switch/kokoro-negative-start.json` and the
+matcher regression tests. These observations do not grade subjective sound
+quality or assert word-level timing accuracy for every provider.
 Use an isolated fixture, recording and restoring every changed preference
 with its user-value status. Preserve the user's transport, selection and
 open tabs. Never use paid synthesis merely to check handoff mechanics.

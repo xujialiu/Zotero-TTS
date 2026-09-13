@@ -1,4 +1,4 @@
-import { adjacentVoice, playerVoices, wordHandoff } from '../core/voice-switch';
+import { adjacentVoice, playerVoices, inspectWordHandoff } from '../core/voice-switch';
 import { withTimeout } from '../core/timeout';
 import type { AnyFn } from './proto-patches';
 
@@ -12,7 +12,9 @@ export interface VoiceSwitcherDeps {
   debug?(message: string): void;
 }
 type Boundary = { kind: 'word' | 'sentence'; index: number; offset: number; charStart: number; from: string; to: string };
-type Report = { pending: string | null; stage: string; prepared: number[]; last: Boundary | null };
+type AudioReady = { index: number; elapsedMs: number; playingIndex: number; progress: number; oldTimings: number; newTimings: number };
+type Report = { pending: string | null; stage: string; prepared: number[]; last: Boundary | null;
+  wordDecision: string | null; audioReady: AudioReady[] };
 type Pending = {
   reader: any; manager: any; old: any; target: any; segments: any; catalog: any; prepared: any;
   originalVoice: string; rate: number; selection: () => void; ready: Set<number>;
@@ -123,18 +125,24 @@ export function createVoiceSwitcher(deps: VoiceSwitcherDeps): VoiceSwitcher {
     if (p.disarm && p.armedNode !== c._sourceNode) {
       p.disarm(); p.disarm = undefined; p.armedNode = undefined;
     }
-    if (p.disarm || !p.ready.has(index) || c._currentIndex !== index || !c._isPlaying) return !!p.disarm;
+    if (p.disarm) return true;
+    if (!p.ready.has(index)) { report(p).wordDecision = 'audio-not-ready-for-current-segment'; return false; }
+    if (c._currentIndex !== index || !c._isPlaying) { report(p).wordDecision = 'old-source-not-playing'; return false; }
     const node = c._sourceNode, context = c._audioContext;
-    if (!node || context?.state !== 'running') return false;
+    if (!node || context?.state !== 'running') { report(p).wordDecision = 'old-output-not-running'; return false; }
     const buffer = p.prepared._audioBuffers.get(index);
     const progress = Number(c._currentPlaybackTime);
-    const boundary = wordHandoff(String(p.segments[index]?.text ?? ''), c._currentTimestamps,
-      p.prepared._segmentTimestamps.get(index), progress, Number(c._currentBuffer?.duration), Number(buffer?.duration));
+    const decision = inspectWordHandoff(String(p.segments[index]?.text ?? ''), c._currentTimestamps,
+      p.prepared._segmentTimestamps.get(index), progress + p.rate * 0.04, Number(c._currentBuffer?.duration), Number(buffer?.duration));
+    report(p).wordDecision = decision.reason;
+    const boundary = decision.boundary;
     if (!boundary) return false;
     // Use the native buffer-to-context mapping, avoiding time spent reading
     // and validating the two timestamp arrays altogether.
     const when = Number(c._playbackStartContextTime) + (boundary.end - Number(c._playbackOffset)) / Number(c._playbackRate);
-    if (!Number.isFinite(when) || when - Number(context.currentTime) < 0.04) return false;
+    if (!Number.isFinite(when) || when - Number(context.currentTime) < 0.04) {
+      report(p).wordDecision = 'boundary-too-close'; return false;
+    }
     const previous = node.onended;
     const handler = exported(() => {
       // The audio clock, not a highlight timer, has finished this word.
@@ -180,7 +188,17 @@ export function createVoiceSwitcher(deps: VoiceSwitcherDeps): VoiceSwitcher {
       if (!valid(p)) return;
       if (context?.state !== 'running') throw new Error('Zotero-TTS: the new voice audio output is not running');
       p.ready.add(index); report(p).prepared = [...p.ready];
+      const observed: AudioReady = { index, elapsedMs: Date.now() - p.started,
+        playingIndex: Number(p.old._position), progress: Number(p.old._currentPlaybackTime),
+        oldTimings: Number(p.old._currentTimestamps?.length ?? 0),
+        newTimings: Number(p.prepared._segmentTimestamps.get(index)?.length ?? 0) };
+      report(p).audioReady.push(observed);
+      if (report(p).audioReady.length > 8) report(p).audioReady.shift();
+      deps.debug?.(`voice audio ready: segment ${index}, ${observed.elapsedMs} ms, playing ${observed.playingIndex} at ${observed.progress}, timings ${observed.oldTimings}/${observed.newTimings}`);
       p.missed = Math.max(p.missed, Number(p.old._position) - index);
+      // Audio is available now: schedule the first safe word boundary without
+      // waiting for the next polling tick (or another sentence request).
+      armWord(p);
     } catch (e) { fail(p, e); }
     finally { p.loading = false; }
   }
@@ -224,7 +242,7 @@ export function createVoiceSwitcher(deps: VoiceSwitcherDeps): VoiceSwitcher {
     const p: Pending = { reader, manager, old, target, selection, segments: manager._segments, catalog: manager.allVoices, originalVoice: manager.selectedVoiceID,
       rate: manager.speed, prepared: null, ready: new Set(), loading: false, missed: 0, started: Date.now(), undo: [] };
     const last = reports.get(reader)?.last ?? null;
-    reports.set(reader, { pending: String(target.id), stage: 'preparing', prepared: [], last });
+    reports.set(reader, { pending: String(target.id), stage: 'preparing', prepared: [], last, wordDecision: null, audioReady: [] });
     pending.set(reader, p);
     try {
       // Manual actions cancel synchronously, before they change playback. A

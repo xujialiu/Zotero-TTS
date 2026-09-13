@@ -339,7 +339,13 @@ npm run site          # the public docs site → site/, what .github/workflows/p
 npm run docs:pin      # record which English revision each .zh.md follows
 ```
 
-After any change: tests, typecheck, build — then the xpi goes into the
+**Simple requests do not need testing** (settled 2026-09-13): for small,
+straightforward changes such as settings labels, help text, documentation,
+or formatting, review the diff and finish. Do not run tests, typecheck,
+builds, or live Zotero verification, or delegate testing, unless the user
+explicitly asks. When a commit is requested, commit after reviewing the diff.
+
+For changes beyond these simple requests: tests, typecheck, build — then the xpi goes into the
 running Zotero through the zotero-dev bridge (`zotero_plugin_install`
 upgrades it in place, no restart) and the live verification below runs
 there.

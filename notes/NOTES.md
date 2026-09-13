@@ -407,3 +407,9 @@ cite `notes/NOTES.md` with a date or a section title resolve through this index.
 - The beta3 native handoff passed its first live pass (issue #95)
 
 - Follow-up separates native single-player policy from blocked audio contexts (issue #95)
+
+- Sentence-wide validation hid usable Kokoro word boundaries (issue #95)
+
+- Real Kokoro timings begin before sample zero (issue #95)
+
+- Beta6 hands real Kokoro audio over within the sentence (issue #95)

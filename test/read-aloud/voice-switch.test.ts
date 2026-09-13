@@ -67,6 +67,17 @@ function setup(timings = true) {
 beforeEach(() => vi.useFakeTimers());
 afterEach(() => vi.useRealTimers());
 describe('prepared native voice handoff', () => {
+  it('arms as soon as decoded audio is ready, before the next polling tick', async () => {
+    const f = setup(); f.switcher.step(f.reader, 1);
+    await vi.advanceTimersByTimeAsync(120);
+    expect(f.old._sourceNode.stop).not.toHaveBeenCalled();
+    f.fetched.resolve({ duration: 4 });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(f.old._sourceNode.stop).toHaveBeenCalledWith(10.25);
+    expect(f.switcher.inspect(f.reader)).toMatchObject({ wordDecision: 'shared-word-boundary',
+      audioReady: [{ index: 0, elapsedMs: 120, playingIndex: 0, progress: 0.15, oldTimings: 3, newTimings: 3 }] });
+    f.switcher.dispose();
+  });
   it('keeps the old voice until audio is decoded and the scheduled word has ended', async () => {
     const f = setup(); f.switcher.step(f.reader, 1);
     await vi.advanceTimersByTimeAsync(150);
@@ -84,6 +95,7 @@ describe('prepared native voice handoff', () => {
     const f = setup(false); f.switcher.step(f.reader, 1);
     f.fetched.resolve({ duration: 4 }); await vi.advanceTimersByTimeAsync(200);
     expect(f.requests).toContain(1); expect(f.select).not.toHaveBeenCalled();
+    expect(f.switcher.inspect(f.reader)?.wordDecision).toBe('no-old-timings');
     expect(f.old._sourceNode.stop).not.toHaveBeenCalled();
     f.old._position = 1; f.manager._activeSegment = f.segments[1];
     f.old._speakInternal(); await vi.advanceTimersByTimeAsync(0);
@@ -152,6 +164,7 @@ describe('prepared native voice handoff', () => {
     f.old._position = 2; f.old._currentIndex = 2; f.manager._activeSegment = f.segments[2];
     f.fetched.resolve({ duration: 4 }); await vi.advanceTimersByTimeAsync(100);
     expect(f.requests).toEqual([0, 5]); expect(f.plays).toEqual([]);
+    expect(f.switcher.inspect(f.reader)?.audioReady[0]).toMatchObject({ index: 0, playingIndex: 2 });
     f.old._position = 5; f.old._speakInternal(); await vi.advanceTimersByTimeAsync(0);
     expect(f.plays).toEqual([{ id: 'b', index: 5, offset: 0 }]); f.switcher.dispose();
   });

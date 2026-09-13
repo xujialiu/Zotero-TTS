@@ -1,0 +1,241 @@
+{
+  "build": {
+    "pluginVersion": "1.12.5-beta5",
+    "xpiSha256": "75E1EDBFC52553A7041E987A1339D7530FF0AB761C55F2AAD186DBAF4D785BAC",
+    "bundleSha256": "F1E21B59EF53434DF21B4CFC659762C56CB732FA94396F9A3C2DDFCA069B05CC",
+    "zoteroVersion": "10.0.2-beta.9+c77df79af",
+    "platform": "WINNT"
+  },
+  "provider": {
+    "engine": "kokoro",
+    "baseURLHost": "h200-kokoro.xujialiu.top",
+    "configuredVoice": "af_bella",
+    "headers": "set; length 151; value withheld",
+    "filteredKokoroVoices": 30,
+    "selectedOld": "local::af_jadzia",
+    "selectedTarget": "local::af_jessica"
+  },
+  "baseline": {
+    "userReader": {
+      "itemID": 19598,
+      "tabID": "tab-B6Gfh9ig",
+      "active": true,
+      "paused": true,
+      "selectedVoice": "local::af_jadzia",
+      "speed": 1.8,
+      "position": 530,
+      "audioState": "running"
+    },
+    "selectedTabID": "tab-B6Gfh9ig",
+    "positionRows": 66,
+    "positionQueued": 0,
+    "settingsWindowOpen": false,
+    "debugStoring": true,
+    "volume": { "value": 100, "user": false },
+    "sameForAllDocuments": { "value": true, "user": false },
+    "syncPositions": { "value": true, "user": true },
+    "autoUploadSettings": { "value": true, "user": true },
+    "syncSettings": { "value": false, "user": false },
+    "readAloudMemory": { "present": true, "chars": 59, "user": true },
+    "readerReadAloudVoices": { "present": true, "chars": 839, "user": true }
+  },
+  "startup": { "steps": 23, "allOk": true, "failed": [] },
+  "audioClock": {
+    "status": "PASS",
+    "trustedKeyReturns": [0, 1, true, true],
+    "first": { "audioState": "suspended", "audioTime": 0, "position": 0 },
+    "last": { "audioState": "running", "audioTime": 1.392, "position": 1, "pausedAfter": true }
+  },
+  "plainSentence": {
+    "fixture": "fixture-a.pdf",
+    "segmentIndex": 7,
+    "text": "A reader that skips by paragraph should land here, at the beginning of the second paragraph, and then at the beginning of the third.",
+    "textChars": 132,
+    "segmentGranularity": "sentence",
+    "timings": {
+      "local::af_jadzia": {
+        "duration": 6.696,
+        "minStart": -0.004541666666666666,
+        "firstWordEnd": 0.07045833333333329,
+        "startsMonotonic": true,
+        "laterStartNonmonotonic": false,
+        "timestamps": [
+          { "start": -0.004541666666666666, "end": 0.07045833333333329, "charStart": 0, "charEnd": 1 },
+          { "start": 0.07045833333333329, "end": 0.42045833333333327, "charStart": 2, "charEnd": 8 },
+          { "start": 0.42045833333333327, "end": 0.6204583333333333, "charStart": 9, "charEnd": 13 },
+          { "start": 0.6204583333333333, "end": 0.9704583333333333, "charStart": 14, "charEnd": 19 },
+          { "start": 0.9704583333333333, "end": 1.1454583333333335, "charStart": 20, "charEnd": 22 },
+          { "start": 1.1454583333333335, "end": 1.7204583333333332, "charStart": 23, "charEnd": 32 },
+          { "start": 1.7204583333333332, "end": 1.9204583333333334, "charStart": 33, "charEnd": 39 },
+          { "start": 1.9204583333333334, "end": 2.220458333333333, "charStart": 40, "charEnd": 44 },
+          { "start": 2.220458333333333, "end": 2.770458333333333, "charStart": 45, "charEnd": 49 },
+          { "start": 2.770458333333333, "end": 2.8829583333333333, "charStart": 51, "charEnd": 53 },
+          { "start": 2.882958333333333, "end": 2.970458333333333, "charStart": 54, "charEnd": 57 },
+          { "start": 2.970458333333333, "end": 3.407958333333333, "charStart": 58, "charEnd": 67 },
+          { "start": 3.407958333333333, "end": 3.4829583333333334, "charStart": 68, "charEnd": 70 },
+          { "start": 3.4829583333333334, "end": 3.582958333333333, "charStart": 71, "charEnd": 74 },
+          { "start": 3.582958333333333, "end": 3.9204583333333334, "charStart": 75, "charEnd": 81 },
+          { "start": 3.9204583333333334, "end": 4.620458333333334, "charStart": 82, "charEnd": 91 },
+          { "start": 4.620458333333334, "end": 4.732958333333333, "charStart": 93, "charEnd": 96 },
+          { "start": 4.732958333333333, "end": 4.970458333333333, "charStart": 97, "charEnd": 101 },
+          { "start": 4.970458333333333, "end": 5.057958333333334, "charStart": 102, "charEnd": 104 },
+          { "start": 5.057958333333334, "end": 5.145458333333333, "charStart": 105, "charEnd": 108 },
+          { "start": 5.145458333333333, "end": 5.607958333333333, "charStart": 109, "charEnd": 118 },
+          { "start": 5.607958333333333, "end": 5.682958333333334, "charStart": 119, "charEnd": 121 },
+          { "start": 5.682958333333334, "end": 5.807958333333334, "charStart": 122, "charEnd": 125 },
+          { "start": 5.807958333333334, "end": 6.720458333333333, "charStart": 126, "charEnd": 131 }
+        ]
+      },
+      "local::af_jessica": {
+        "duration": 6.432,
+        "minStart": 0.02537500000000001,
+        "firstWordEnd": 0.10037500000000002,
+        "startsMonotonic": true,
+        "laterStartNonmonotonic": false,
+        "timestamps": [
+          { "start": 0.02537500000000001, "end": 0.10037500000000002, "charStart": 0, "charEnd": 1 },
+          { "start": 0.10037500000000002, "end": 0.4503750000000001, "charStart": 2, "charEnd": 8 },
+          { "start": 0.4503750000000001, "end": 0.650375, "charStart": 9, "charEnd": 13 },
+          { "start": 0.650375, "end": 1.000375, "charStart": 14, "charEnd": 19 },
+          { "start": 1.000375, "end": 1.1753749999999998, "charStart": 20, "charEnd": 22 },
+          { "start": 1.1753749999999998, "end": 1.750375, "charStart": 23, "charEnd": 32 },
+          { "start": 1.750375, "end": 1.9253749999999998, "charStart": 33, "charEnd": 39 },
+          { "start": 1.9253749999999998, "end": 2.225375, "charStart": 40, "charEnd": 44 },
+          { "start": 2.225375, "end": 2.600375, "charStart": 45, "charEnd": 49 },
+          { "start": 2.600375, "end": 2.687875, "charStart": 51, "charEnd": 53 },
+          { "start": 2.687875, "end": 2.775375, "charStart": 54, "charEnd": 57 },
+          { "start": 2.775375, "end": 3.162875, "charStart": 58, "charEnd": 67 },
+          { "start": 3.162875, "end": 3.237875, "charStart": 68, "charEnd": 70 },
+          { "start": 3.237875, "end": 3.3253749999999997, "charStart": 71, "charEnd": 74 },
+          { "start": 3.3253749999999997, "end": 3.650375, "charStart": 75, "charEnd": 81 },
+          { "start": 3.650375, "end": 4.387875, "charStart": 82, "charEnd": 91 },
+          { "start": 4.387875, "end": 4.512875, "charStart": 93, "charEnd": 96 },
+          { "start": 4.512875, "end": 4.7253750000000005, "charStart": 97, "charEnd": 101 },
+          { "start": 4.7253750000000005, "end": 4.812875, "charStart": 102, "charEnd": 104 },
+          { "start": 4.812875, "end": 4.900375, "charStart": 105, "charEnd": 108 },
+          { "start": 4.900375, "end": 5.337875, "charStart": 109, "charEnd": 118 },
+          { "start": 5.337875, "end": 5.4128750000000005, "charStart": 119, "charEnd": 121 },
+          { "start": 5.4128750000000005, "end": 5.5378750000000005, "charStart": 122, "charEnd": 125 },
+          { "start": 5.5378750000000005, "end": 6.500375, "charStart": 126, "charEnd": 131 }
+        ]
+      }
+    },
+    "handoff": {
+      "status": "FAIL word handoff; sentence fallback",
+      "direction": "next",
+      "readerIndex": 1,
+      "oldVoice": "local::af_jadzia",
+      "targetVoice": "local::af_jessica",
+      "targetControllerAtMs": 135,
+      "targetRequestAtMs": 135,
+      "diagnosticAudioReady": [
+        { "index": 7, "elapsedMs": 152, "playingIndex": 7, "progress": 0.432, "oldTimings": 24, "newTimings": 24 },
+        { "index": 8, "elapsedMs": 172, "playingIndex": 7, "progress": 0.432, "oldTimings": 24, "newTimings": 9 }
+      ],
+      "oldAliveAtReady": true,
+      "oldSourceAtReady": true,
+      "wordDecision": "invalid-timing-order",
+      "pending": null,
+      "stage": "committed",
+      "prepared": [7, 8],
+      "last": { "kind": "sentence", "index": 8, "offset": 0, "charStart": 0, "from": "local::af_jadzia", "to": "local::af_jessica" },
+      "preparedPlay": { "observedAtMs": 3729, "index": 8, "offset": 0, "speed": 1.8 },
+      "naturalStopObservedAtMs": 3724,
+      "numericWordStop": false,
+      "traceCount": 42,
+      "traceFirst": { "ms": 2, "position": 7, "progress": 0.144, "audioState": "running", "audioTime": 0.18933333333333333, "oldAlive": true },
+      "traceReady": { "ms": 182, "position": 7, "progress": 0.4512, "audioState": "running", "audioTime": 0.36, "oldAlive": true },
+      "traceLast": { "ms": 3808, "position": 8, "progress": 0.144, "audioState": "running", "audioTime": 3.6613333333333333, "oldAlive": false }
+    },
+    "initialUncachedAttempt": {
+      "targetVoice": "local::af_jessica",
+      "targetAudioReadyElapsedMs": 747,
+      "playingIndex": 7,
+      "progress": 1.4208,
+      "oldTimings": 24,
+      "newTimings": 24,
+      "wordDecision": "invalid-timing-order",
+      "stage": "failed",
+      "note": "The first target request was uncached; the probe's reader-realm promise wrapper produced test-only console noise, so this attempt is supporting evidence rather than the clean result."
+    }
+  },
+  "fastReturnExploratory": {
+    "status": "NOT TESTABLE; exploratory reverse run had test-only cross-realm instrumentation errors",
+    "oldVoice": "local::af_jessica",
+    "targetVoice": "local::af_jadzia",
+    "oldDuration": 6.432,
+    "targetDuration": 6.696,
+    "diagnosticAudioReady": [
+      { "index": 7, "elapsedMs": 157, "playingIndex": 7, "progress": 0.432, "oldTimings": 24, "newTimings": 24 },
+      { "index": 8, "elapsedMs": 172, "playingIndex": 7, "progress": 0.432, "oldTimings": 24, "newTimings": 9 }
+    ],
+    "wordDecision": "invalid-timing-order",
+    "stage": "failed",
+    "prepared": [7, 8],
+    "last": null,
+    "cacheBeforeController": false,
+    "note": "The 157 ms return is evidence of a fast response, but cache status was not proven; this run is excluded from the clean result because the first instrumentation wrapped a reader-realm promise."
+  },
+  "numericPhrase": {
+    "text": "We scanned 3 by 3 mm today.",
+    "textChars": 27,
+    "results": [
+      {
+        "voice": "local::af_bella",
+        "elapsedMs": 162,
+        "audioBytes": 31916,
+        "timestampCount": 7,
+        "note": null,
+        "timestamps": [
+          { "start": -0.0032916666666666927, "end": 0.12170833333333331, "charStart": 0, "charEnd": 2, "sourceSlice": "We" },
+          { "start": 0.12170833333333331, "end": 0.48420833333333335, "charStart": 3, "charEnd": 10, "sourceSlice": "scanned" },
+          { "start": 0.48420833333333335, "end": 0.7217083333333334, "charStart": 11, "charEnd": 12, "sourceSlice": "3" },
+          { "start": 0.7217083333333334, "end": 0.8842083333333333, "charStart": 13, "charEnd": 15, "sourceSlice": "by" },
+          { "start": 0.8842083333333333, "end": 1.1092083333333334, "charStart": 16, "charEnd": 17, "sourceSlice": "3" },
+          { "start": 1.1092083333333334, "end": 1.1717083333333334, "charStart": 18, "charEnd": 20, "sourceSlice": "mm" },
+          { "start": 1.1717083333333334, "end": 2.0717083333333335, "charStart": 21, "charEnd": 26, "sourceSlice": "today" }
+        ]
+      },
+      {
+        "voice": "local::af_jadzia",
+        "elapsedMs": 169,
+        "audioBytes": 29612,
+        "timestampCount": 7,
+        "note": null,
+        "timestamps": [
+          { "start": -0.007916666666666627, "end": 0.09208333333333335, "charStart": 0, "charEnd": 2, "sourceSlice": "We" },
+          { "start": 0.09208333333333335, "end": 0.4170833333333333, "charStart": 3, "charEnd": 10, "sourceSlice": "scanned" },
+          { "start": 0.4170833333333333, "end": 0.6045833333333333, "charStart": 11, "charEnd": 12, "sourceSlice": "3" },
+          { "start": 0.6045833333333333, "end": 0.7420833333333332, "charStart": 13, "charEnd": 15, "sourceSlice": "by" },
+          { "start": 0.7420833333333332, "end": 0.9295833333333332, "charStart": 16, "charEnd": 17, "sourceSlice": "3" },
+          { "start": 0.9295833333333332, "end": 0.9920833333333332, "charStart": 18, "charEnd": 20, "sourceSlice": "mm" },
+          { "start": 0.9920833333333332, "end": 1.8420833333333333, "charStart": 21, "charEnd": 26, "sourceSlice": "today" }
+        ]
+      }
+    ],
+    "startsMonotonicAfterFirst": true,
+    "note": "Both real responses preserve the numeric phrase as separate aligned tokens; each also has a small negative first start."
+  },
+  "cleanup": {
+    "fixtureReaderRemaining": 0,
+    "fixtureItemRemaining": 0,
+    "selectedTab": "tab-B6Gfh9ig",
+    "userReader": { "itemID": 19598, "active": true, "paused": true, "selectedVoice": "local::af_jadzia", "position": 530 },
+    "volume": { "value": 100, "user": false },
+    "sameForAllDocuments": { "value": true, "user": false },
+    "syncPositions": { "value": true, "user": true },
+    "autoUploadSettings": { "value": true, "user": true },
+    "readAloudMemoryEqualToBaseline": true,
+    "readerReadAloudVoicesEqualToBaseline": true,
+    "localHeadersEqualToBaseline": true,
+    "positionRows": 66,
+    "positionQueued": 0,
+    "positionLastError": null,
+    "debugStoring": true
+  },
+  "errors": {
+    "pluginErrors": [],
+    "knownZoteroNoise": ["Missing resource in locale en-CA/AU/NZ", "InvalidStateError: Navigated away from page on fixture close"],
+    "testInstrumentationNoise": ["Permission denied to access property then", "ReferenceError: lexical declaration mw before initialization"]
+  }
+}

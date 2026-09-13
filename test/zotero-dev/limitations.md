@@ -47,6 +47,11 @@ screen, the complete Run JavaScript code, the expected output.
   adoption and the armed stop's late reschedule remain unverified live.
   Zotero normally permits only one unpaused reader, so the dual-playing
   fixture additionally needs an explicitly restored status callback guard.
+  The later [beta6 real Kokoro run](runs/2026-09-13-1.12.5-beta6/report.md)
+  verified same-sentence word handoff in both directions with actual audio
+  and provider timestamps, including negative leading starts. It replaces
+  the earlier synthetic-only coverage for that path; other providers,
+  subjective continuity and the separately listed lifecycle gaps remain.
 
 - Auto-scroll modes (#93, [section 3f](cases/auto-scroll.md)): the beta3
   bridge pass verified mode targets, real clocks, input intent and the
