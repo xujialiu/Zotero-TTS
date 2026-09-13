@@ -1,2 +1,2 @@
-Executed: test/zotero-dev/scripts/manual-follow/beta2/19-pdf-visibility-outside-controlled.js
+Executed: test/zotero-dev/runs/2026-09-13-1.12.6-beta2-manual-follow/scripts/19-pdf-visibility-outside-controlled.js
 Result summary from returned JSON: mode=outside; trusted wheel events had trusted=true and deltaY=220. Partial controlled move scrollTop 0->200 held following=true/interacting=true and settled following=true. Complete controlled move 0->800 put the fragment screen rect above the viewport; held/settled following=false/interacting=false/reason=wheel; direct explicit lock restored following=true/reason=explicit. restoredMode={value:"sentence",user:false}; final={scrollTop:0,following:true,reason:"explicit"}.

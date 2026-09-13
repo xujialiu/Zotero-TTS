@@ -76,9 +76,9 @@ word, or hidden-reader recovery. Those remain unit-covered or human/fixture
 checks and were not manufactured in this pass.
 
 Reusable scripts are in
-`../../scripts/auto-scroll-beta3/`. The unchanged identity, audio, PDF geometry,
+`test/zotero-dev/runs/2026-09-12-1.12.3-beta3/scripts/`. The unchanged identity, audio, PDF geometry,
 and corrected PDF PageDown scripts used in the run remain in
-`../../scripts/auto-scroll/` and were not modified.
+`test/zotero-dev/runs/2026-09-12-1.12.3-beta2/scripts/` and were not modified.
 
 Cleanup errors read at the end were two Zotero `InvalidStateError: Navigated
 away from page` teardown entries, one known Xray warning from the temporary

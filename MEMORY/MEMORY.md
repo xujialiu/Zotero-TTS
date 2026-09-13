@@ -316,7 +316,7 @@ WebDAV), highlight colors.
   2026-08-31 session's second day cost six times what a fresh one would
   have). Everything a step needs is read in one call — never one file
   per call — and what only the agent needs (its rulebook, the checklist
-  section it will run) is not read at all.
+  case it will run) is not read at all.
 - **Git housekeeping** (updated 2026-09-12): the main session performs
   commits, pulls, branch cleanup, tags, pushes, fast-forward merges and
   releases directly, following `MEMORY/git-workflow.md`. Do not delegate
@@ -440,17 +440,24 @@ before the issue is written.
   human can judge. Work the list until it is empty, then a last pass for
   whatever was fixed along the way. A failure stops the pass: fix, rebuild,
   reinstall, re-run from the first check.
-- **The list is `test/zotero-dev/README.md`** (settled 2026-09-01): the complete
-  live checklist, one section per area, every item a behavior, its check
-  (a diagnostic or an observation) and the expected output; the fixtures
-  it uses are `test/fixtures/`. **A feature adds its items there before
-  it merges** — the check that proves the new behavior by its mechanism,
-  what it may touch, what only a human can judge — and its verification
-  brief runs that section plus the baseline (section 0). The tester's
-  report ends with those items drafted in the case file's shape from what it
-  measured; the session pastes and trims them rather than reading the
-  section to write them. A fix that changes an expected output changes
-  it there in the same commit. The
+- **The list is `test/zotero-dev/README.md`** (settled 2026-09-01): the index
+  of the live checklist, whose `cases/` hold one behavior each, every item
+  a check of it (a diagnostic or an observation) and the expected output;
+  the fixtures it uses are `test/fixtures/`. **A feature adds its items to
+  its case file before it merges** — the check that proves the new
+  behavior by its mechanism, what it may touch, what only a human can
+  judge — and its verification brief runs that case plus the baseline
+  (section 0). The tester's report ends with those items drafted in the
+  case file's shape from what it measured; the session pastes and trims
+  them rather than reading the case to write them. A fix that changes an
+  expected output changes it there in the same commit. **A case holds
+  one behavior** (settled 2026-09-13): one user-facing feature, whose
+  checks stay in its case wherever they run. A feature or fix whose
+  behavior no case holds gets a case file of its own rather than growing
+  a neighbor — cited by its file name, its items numbered from 1, its line
+  added under its group in the index in the same change — and a case that
+  has come to hold several is split, every item keeping its number as a
+  `### <section>.<item>` heading so older references still resolve. The
   **whole checklist runs only when the user asks for it** — never on a
   session's own initiative: not after a release, not after a Zotero
   update, not because a batch of features landed, however much changed.
@@ -462,16 +469,37 @@ before the issue is written.
   `limitations.md` holds both human-only checks and coverage gaps. Do not
   create a separate `manual.md`. Preserve existing case numbers when moving
   checks so prior reports and cross-references remain usable.
-  For every new live test, retain the scripts that actually ran under
-  `test/zotero-dev/scripts/`, together with prerequisites, fixtures,
-  expected output, permitted state changes, and restoration steps. The
-  tester supplies these artifacts and the main session saves them, including
-  successful scripts even though they are omitted from the short report.
-  Save sanitized evidence in `test/zotero-dev/runs/<date>-<build>/`: plugin
+  For every new live test, retain the scripts that actually ran, together
+  with prerequisites, fixtures, expected output, permitted state changes,
+  and restoration steps. The tester supplies these artifacts and the main
+  session saves them, including successful scripts even though they are
+  omitted from the short report.
+  Save sanitized evidence in `test/zotero-dev/runs/<date>-<build>-<topic>/`
+  (the topic the case or issue, since parallel worktrees have given two
+  builds one version; earlier directories keep their names): plugin
   version and build hash, Zotero version and platform, case numbers,
   observed and expected values, PASS / FAIL / NOT TESTABLE / PENDING,
-  restoration status, and remaining work. Never commit credentials or raw
-  preference snapshots. Link the cases to their reusable scripts.
+  restoration status, remaining work, and in its `scripts/` every script
+  the run executed, exactly as executed, failed attempts labeled. Never
+  commit credentials or raw preference snapshots.
+  **One scripts folder per case** (settled 2026-09-13): `cases/<name>.md`
+  keeps its reusable scripts in `test/zotero-dev/scripts/<name>/`, which
+  holds a `README.md` and the scripts and nothing else — no subfolder per
+  run, build or issue, and never a second folder beside it. The folder is
+  the case's current kit: a run that revised a script replaces it there, a
+  new check adds its script, a script that no longer works or is no longer
+  needed leaves, and only scripts that ran successfully are in it. The
+  README gives the order, what each script checks and expects, the
+  literals to adapt, the state it touches, the cleanup, the limits, the
+  case's runs with the items each observed PASS or FAIL and any NOT
+  TESTABLE attempts, and the run each script was last executed in; the
+  next run of the case starts there, and the case file links it and cites
+  a run only where an expected output or limitation comes from it. A run
+  covering several cases updates the kit of each case it produced a
+  reusable script for; research files its evidence under the case holding
+  the behavior it examined, creating that case and folder when none
+  exists. A new case gets its folder and README in the same change that
+  adds the case file.
   Do not rerun tests for this documentation reorganization or backfill
   unverified scripts. Backfill existing cases incrementally during the next
   full pass the user requests, from the scripts and observations of that
@@ -479,8 +507,8 @@ before the issue is written.
   checks every case again. Continuing an interrupted run first verifies
   build identity, environment, and restored state; changed conditions
   invalidate affected results, and the failure/rebuild rule above still
-  applies. Keep per-section baseline and cleanup rather than sharing
-  unverified temporary state across sections.
+  applies. Keep per-case baseline and cleanup rather than sharing
+  unverified temporary state across cases.
 - **The user takes over only** when a check needs a human — how a voice
   sounds, whether the word highlight keeps pace, how the popup behaves in
   motion (screenshots are static; nothing here records) — or when the

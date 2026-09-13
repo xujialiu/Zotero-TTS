@@ -1,4 +1,4 @@
-Executed: test/zotero-dev/scripts/manual-follow/beta2/23-epub-paginated-setup.js then 24-epub-paginated-navigation-sentence.js and 27-epub-paginated-navigation-outside.js
+Executed: test/zotero-dev/runs/2026-09-13-1.12.6-beta2-manual-follow/scripts/23-epub-paginated-setup.js then 24-epub-paginated-navigation-sentence.js and 27-epub-paginated-navigation-outside.js
 23 setup: flow=paginated, offset=10799, position=50, 3 visible sentence fragments; diagnostic kind=epub patched=true following=true.
 24 sentence: navigateToNextPage returned synchronously (returnedPromise=false), offset 10799->21598, immediate following=true/interacting=true, after 260ms following=false/interacting=false/reason=navigation; explicit lock restored following=true. Pagedown route observed trusted keydown but no offset movement (ret [0,true]), retained as NOT TESTABLE.
 27 outside: same offset transition 10799->21598, immediate following=true/interacting=true, settled following=false/interacting=false/reason=navigation; explicit lock restored following=true. Final returned to offset=10799 and mode=sentence.

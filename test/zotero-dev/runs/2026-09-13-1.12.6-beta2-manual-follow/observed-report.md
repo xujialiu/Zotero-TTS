@@ -39,4 +39,4 @@ Fixture readers and items are gone, the settings window is closed as found, the 
 
 ## Checklist additions
 
-The successful behavior rows above should be transferred to test/zotero-dev/cases/manual-follow.md under the current 3i section, with reusable scripts linked from test/zotero-dev/scripts/manual-follow/ and this sanitized run linked from test/zotero-dev/runs/2026-09-13-1.12.6-beta2/. The held-input, native PageDown, pointer/touch, cross-column/oversized and natural-pixel gaps remain pending until a rebuilt candidate is available.
+The successful behavior rows above should be transferred to test/zotero-dev/cases/manual-follow.md under the current 3i section, with reusable scripts linked from test/zotero-dev/scripts/manual-follow/ and this sanitized run linked from test/zotero-dev/runs/2026-09-13-1.12.6-beta2-manual-follow/. The held-input, native PageDown, pointer/touch, cross-column/oversized and natural-pixel gaps remain pending until a rebuilt candidate is available.

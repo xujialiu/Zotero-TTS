@@ -5,7 +5,7 @@ zotero-dev bridge, so that a full pass leaves nothing out. **The whole
 checklist runs only when the user asks for it** — a Zotero major update, a
 batch of features landed, a release that carried either are the occasions
 they may choose to ask on; no session runs it on its own. What runs
-without being asked is **one section** plus the baseline, for a branch's
+without being asked is **one case** plus the baseline, for a branch's
 own verification. A feature adds its items here before it merges
 (MEMORY/MEMORY.md, "Driving Zotero live") — drafted by the tester at the end of
 its report, from what the run measured, and pasted by the session; a fix
@@ -13,10 +13,10 @@ that changed an expected output changes it here in the same commit.
 
 How to run it is [the tester workflow](../../agents/zotero-tester.md) — the bridge's tools,
 the polling windows, the state rules, the report. This directory is *what* to
-check. A session running Fable, Astra, or Opus hands each section to the
+check. A session running Fable, Astra, or Opus hands each case to the
 `zotero-tester` agent as a verification brief and confirms the report
 field by field; any other model drives the bridge itself by the same
-rulebook. Sections run
+rulebook. Cases run
 one at a time — there is one Zotero — and each restores what it touched
 before the next starts; reuse or replace the tester according to MEMORY/MEMORY.md's per-run context-cost rule. Every item names the check and the expected
 output; "derive" means the agent takes the expected output from `src/`
@@ -27,46 +27,127 @@ the third the 1.11.0 pass of 2026-09-06 on Windows
 (notes/NOTES_2026-09-06.md); the expected outputs below are what they
 measured, updated for the fixes since where marked.
 
-## Sections
+## Cases
 
-Original section and item numbers remain stable. Cross-references such as
-section 3 or §3a refer to the entries below. Paths written inside code
-spans are relative to the repository root. Run sections sequentially,
-with the baseline and restoration for each.
+One case, one behavior. The numbered sections the checklist grew up with
+were split into cases on 2026-09-13, and every item kept its number as a
+heading in its case (`### 3.9` is item 9 of section 3), so cross-references
+such as §4.4, item 5.4 or §3a still resolve through the numbers listed here.
+Paths written inside code spans are relative to the repository root. Run
+cases one at a time, with the baseline and restoration for each; a case that
+opens a fixture ends with item 3.26's teardown ([playback](cases/playback.md)).
 
-- [0. Before every section — the baseline](baseline.md)
-- [1. Startup, the settings pane, providers, system voices](cases/settings-providers.md)
-- [1a. Fish Audio: the cloud voices and the server block (issue #89, 1.11.8)](cases/fish-audio.md)
+- [0. Before every case — the baseline](baseline.md)
+
+### The plugin and its settings pane
+
+- [Install, in-place reinstall and reload](cases/plugin-lifecycle.md) — 1.1, 5.6, 5.7
+- [The settings pane: its layout, the About group and the help icons](cases/settings-pane.md) — 1.2, 1.4
+- [The plugin's strings in Zotero's language](cases/localization.md) — 1.10–1.12
+- [The plugin's icon](cases/plugin-icon.md) — 1.13
+- [A provider section: locked fields, Test connection and Enable](cases/provider-controls.md) — 1.3, 1.5, 1.6
+
+### Providers
+
+- [The OpenAI section's server presets and Xiaomi MiMo](cases/openai-presets.md) — 1.7
+- [System voices](cases/system-voices.md) — 1.8
+- [Cloudflare Workers AI](cases/cloudflare.md) — 1.14, 2.9, 3.15
+- [Speechify](cases/speechify.md) — 1.15, 2.10, 3.22, 3.23, 3.28
+- [1a. Fish Audio: the cloud voices](cases/fish-audio.md) — 1a.1–1a.8, 1a.14
+- [1a. Fish Speech: a server of the owner's own](cases/fish-speech.md) — 1a.9–1a.13
 - [1b. Fish Audio voice sources (issue #91)](cases/fish-voice-sources.md)
-- [1c. Fish UI refinement and English regions (issue #91, beta5)](cases/fish-ui-regions.md)
+- [1c. Fish settings refinement (issue #91, beta5)](cases/fish-settings-refinement.md)
+- [Fish English voices under their regions (issue #91, beta5)](cases/fish-english-regions.md)
+- [3h. Fish cloud short-text language hints (issue #98)](cases/fish-language-hints.md)
+- [Kokoro word timestamps on rewritten words](cases/kokoro-word-alignment.md) — 3.24, 3.25
+
+### Voices
+
+- [The voice browser: the listing, the default voice and speed](cases/voice-browser.md) — 1.9, 2.1, 2.2, 2.7
+- [Favorite voices](cases/favorites.md) — 2.3–2.5, 2.8
+- [Voice samples in the browser](cases/voice-samples.md) — 2.6
+- [The player's voice list](cases/reader-voice-list.md) — 3.1, 3.3
+- [A voice list landing on the playing voice keeps the controller](cases/unchanged-voice.md) — 3.27
+- [The remembered voice](cases/remembered-voice.md) — 3.2, 3.11, 4.7
+- [A PDF's raw /Lang tag](cases/raw-lang-tag.md) — 3.12–3.14
 - [1d. Regional picks stay selected in PDF and EPUB (issue #91, beta6)](cases/regional-picks.md)
-- [2. The voice browser, favorites, the default voice](cases/voice-browser.md)
-- [3. The Read Aloud integration on a fixture](cases/playback.md)
-- [3a. The whole sentence on screen (issue #83, 1.11.7)](cases/whole-sentence.md)
+- [4a. Previous and next voice (issue #95)](cases/voice-switch.md)
+
+### Reading
+
+- [Playback on a fixture](cases/playback.md) — 3.4, 3.26
+- [Invisible text and empty audio](cases/silent-segments.md) — 3.6, 3.7
+- [Prefetch and cache](cases/prefetch-cache.md) — 3.8
+- [The reading guard](cases/reading-guard.md) — 3.9
+- [The pauses between sentences and paragraphs](cases/sentence-pauses.md) — 3.10
+- [Text stored decomposed](cases/decomposed-text.md) — 3.16–3.18
 - [3b. A page's first line put back (issue #87, 1.11.7)](cases/page-first-line.md)
+- [3e. Open the player expanded (issue #81)](cases/player-expanded.md)
+- [3g. Enclosing brackets (issues #94, #96, #101)](cases/angle-brackets.md)
+- [4b. The volume (issue #62)](cases/volume.md)
+
+### The highlight and following
+
+- [The highlight and its colors](cases/highlight.md) — 3.5, 5.5
+- [3a. The whole sentence on screen (issue #83, 1.11.7)](cases/whole-sentence.md)
 - [3c. The colors follow the first page (issue #88, 1.11.7)](cases/page-colors.md)
 - [3d. Plugin-owned PDF following (issue #90, 1.12.1-beta3)](cases/pdf-follow.md)
-- [3e. Open the player expanded (issue #81)](cases/player-expanded.md)
 - [3f. Auto-scroll modes (issue #93)](cases/auto-scroll.md)
-- [4a. Previous and next voice (issue #95)](cases/voice-switch.md)
-- [3g. Enclosing brackets (issues #94, #96, #101)](cases/angle-brackets.md)
-- [3h. Fish cloud short-text language hints (issue #98)](cases/fish-language-hints.md)
 - [3i. Manual navigation while the sentence remains visible (issue #100)](cases/manual-follow.md)
-- [4. Shortcuts, the toast, the recorder, two tabs](cases/shortcuts.md)
-- [4a. The volume (issue #62)](cases/volume.md)
-- [5. Reading positions, colors, the lifecycle](cases/positions-lifecycle.md)
-- [6. Sync — reading positions and settings over WebDAV (1.10.4; the settings sync 1.11.7)](cases/webdav-sync.md)
+
+### Keys
+
+- [The player keys and the tab they reach](cases/player-keys.md) — 4.1–4.3, 4.5, 4.6
+- [Shift+Enter — go to reading position](cases/return-key.md) — 4.4
+- [The shortcut recorder](cases/shortcut-recorder.md) — 4.8
+- [Stop reading everywhere](cases/stop-key.md) — 4.9
+- [Word highlight on / off](cases/word-highlight-key.md) — 4.10
+
+### Positions, sync and backup
+
+- [Reading positions](cases/reading-positions.md) — 5.1–5.4, 5.8
+- [Reading position sync over WebDAV](cases/position-sync.md) — 6.1–6.5, 6.10
+- [Settings backup](cases/settings-backup.md) — 3.21, 6.6–6.9
+- [Settings sync over WebDAV](cases/settings-sync.md) — 3.19, 6.11–6.15, 6.17–6.19
+- [Synced settings wait while a tab reads](cases/settings-sync-while-reading.md) — 1.16, 6.16
+- [A synced provider that fails its check goes off here only](cases/settings-sync-provider-check.md) — 3.20, 6.20
+
+### The end of a pass
+
 - [7. Errors and the end of a pass](cleanup.md)
 - [8. What only a human can check](limitations.md)
 - [9. Not covered, and why](limitations.md)
 
+### Split on 2026-09-13
+
+Notes and older run reports name the case files these came from.
+
+| Old case file | Now |
+| --- | --- |
+| `settings-providers.md` (section 1) | plugin-lifecycle, settings-pane, provider-controls, openai-presets, system-voices, voice-browser (1.9), localization, plugin-icon, cloudflare, speechify, settings-sync-while-reading (1.16) |
+| `fish-audio.md` (1a) | fish-audio, fish-speech |
+| `fish-ui-regions.md` (1c) | fish-settings-refinement, fish-english-regions |
+| `voice-browser.md` (section 2) | voice-browser, favorites, voice-samples, cloudflare (2.9), speechify (2.10) |
+| `playback.md` (section 3) | reader-voice-list, remembered-voice, playback, highlight, silent-segments, prefetch-cache, reading-guard, sentence-pauses, cloudflare (3.15), raw-lang-tag, decomposed-text, settings-sync (3.19), settings-sync-provider-check (3.20), settings-backup (3.21), speechify (3.22, 3.23), kokoro-word-alignment |
+| `shortcuts.md` (section 4) | player-keys, return-key, remembered-voice (4.7), shortcut-recorder, stop-key, word-highlight-key |
+| `positions-lifecycle.md` (section 5) | reading-positions, highlight (5.5), plugin-lifecycle (5.6, 5.7) |
+| `webdav-sync.md` (section 6) | position-sync, settings-backup (6.6–6.9), settings-sync (6.11–6.15, 6.17–6.19), settings-sync-while-reading (6.16), settings-sync-provider-check (6.20) |
+
+Items 3.27 ([unchanged-voice](cases/unchanged-voice.md)) and 3.28
+([speechify](cases/speechify.md)) were items 3.19 and 3.20 until
+2026-09-10, when the checklist change for #68 wrote over them; they are
+back under new numbers.
+
 ## Reusable checks
 
-Keep fixtures in `test/fixtures/`. For future tests, retain verified bridge
-scripts in `scripts/` here, with their prerequisites, expected results,
-allowed state changes, and cleanup. Save a sanitized run report under
-`runs/<date>-<build>/` with build identity, environment, case numbers,
-observations, status, and any remaining cleanup. Never save credentials
+Keep fixtures in `test/fixtures/`. Every case file has one
+[scripts folder](scripts/README.md) of the same name — `cases/voice-switch.md`
+keeps its scripts in `scripts/voice-switch/` — holding only a `README.md` and
+the scripts: the case's current kit, with its order, expected results,
+allowed state changes, cleanup and runs. Save a sanitized run report under
+`runs/<date>-<build>-<topic>/` with build identity, environment, case numbers,
+observations, status, and any remaining cleanup, and the scripts exactly as
+the run executed them in its `scripts/`. Never save credentials
 or raw preference backups in this repository. The main session saves the
 artifacts supplied by the tester; the tester remains read-only on code.
 

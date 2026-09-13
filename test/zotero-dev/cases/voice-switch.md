@@ -1,3 +1,5 @@
+[Checklist index](../README.md) · [Scripts](../scripts/voice-switch/README.md)
+
 # 4a. Previous and next voice (issue #95)
 
 Run the [baseline](../baseline.md) first and [cleanup](../cleanup.md) last.
@@ -18,7 +20,7 @@ reproduced sentence fallback caused by a negative leading timestamp. The
 in both directions using real Jadzia/Jessica audio: target ready at 313/148 ms,
 old and new still on segment 7, word handoff at char 20/14, native positive
 seek offsets, one target request, no sample, and original source positions.
-Use its [executed scripts](../scripts/voice-switch-kokoro-beta6/README.md)
+Use its [executed scripts](../runs/2026-09-13-1.12.5-beta6/scripts/README.md)
 for future real-provider checks. The captured negative-start arrays are also
 pinned by `test/fixtures/voice-switch/kokoro-negative-start.json` and the
 matcher regression tests. These observations do not grade subjective sound
@@ -27,7 +29,7 @@ Use an isolated fixture, recording and restoring every changed preference
 with its user-value status. Preserve the user's transport, selection and
 open tabs. Never use paid synthesis merely to check handoff mechanics.
 
-Executed scripts: [initial beta3 run](../scripts/voice-switch/README.md).
+Executed scripts: [initial beta3 run](../runs/2026-09-13-1.12.5-beta3/scripts/README.md).
 Evidence: [beta3 report](../runs/2026-09-13-1.12.5-beta3/report.md).
 The initial transport used `segmentGranularity: word`; its audio handoff
 observations establish native source/controller behavior, but not the
@@ -35,7 +37,7 @@ production `sentence` granularity's visible word highlighting. Its shared
 voice and several lifecycle attempts were inconclusive, as the report says.
 
 The [follow-up report](../runs/2026-09-13-1.12.5-beta3-followup/report.md)
-and [scripts](../scripts/voice-switch-followup/README.md) add valid sentence
+and [scripts](../runs/2026-09-13-1.12.5-beta3-followup/scripts/README.md) add valid sentence
 granularity, PDF word-to-display rectangle matching, and live speed, skip,
 manual voice and deactivate cancellation. New audio contexts stayed
 suspended even inside a trusted key handler, so this follow-up did not
@@ -57,7 +59,7 @@ Do not count that guarded scenario as an ordinary supported Zotero state.
    favorites-only filtering, first/last wrap, one voice, rebinding, clearing,
    repeat suppression and an editable field. A paused selection stays
    paused and does not request a sample.
-   Reuse the [regional fallback scripts](../scripts/voice-switch-regional/README.md);
+   Reuse the [regional fallback scripts](../runs/2026-09-13-1.12.6-beta/scripts/README.md);
    [the 1.12.6-beta report](../runs/2026-09-13-1.12.6-beta/report.md)
    records this paused native-manager check, with no provider synthesis.
 3. **Word handoff.** Use a native RemoteReadAloudController with controlled
@@ -93,10 +95,11 @@ array callback traps and malformed timestamp combinations. Real bridge
 verification must prove controller adoption and scheduled source stops;
 a diagnostic alone does not prove the sound was heard. Human judgment is
 required for natural pronunciation, the perceptual gap at the handoff and
-whether highlighting feels synchronized. Save executed scripts and results
-under the corresponding scripts/runs directories and link them here.
+whether highlighting feels synchronized. Keep the scripts that worked in
+`scripts/voice-switch/`, and what ran with the results under `runs/<run>/`;
+list the run in the kit's README.
 
-Real provider checks can reuse the [all-provider scripts](../scripts/voice-switch-all-providers/README.md).
+Real provider checks can reuse the [all-provider scripts](../runs/2026-09-13-1.12.6-beta-all-providers/scripts/README.md).
 The [1.12.6-beta provider report](../runs/2026-09-13-1.12.6-beta-all-providers/report.md)
 records eight within-source cases and seven cross-source pairs in both
 directions. Cross-source runs use cached real audio; they do not establish

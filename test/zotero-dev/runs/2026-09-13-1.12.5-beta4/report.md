@@ -68,7 +68,7 @@ The first native attempt in the first pass closed only the Read Aloud popup.
 voice, premium zero). That result was discarded. The fixture reader was then
 fully closed and polled out of `Zotero.Reader._readers` before patching the
 existing user-reader prototype. The corrected run is
-`scripts/multiple-angle-brackets/03-native-multi-group-stub.js` and produced
+`test/zotero-dev/runs/2026-09-13-1.12.5-beta4/scripts/03-native-multi-group-stub.js` and produced
 the PASS row above.
 
 ## Restoration and errors
@@ -90,9 +90,9 @@ cache, prefetch and empty-interior lines.
 ## Retained scripts and checklist draft
 
 The scripts actually used are indexed in
-`test/zotero-dev/scripts/multiple-angle-brackets/README.md`. The older case 3g
+`test/zotero-dev/runs/2026-09-13-1.12.5-beta4/scripts/README.md`. The older case 3g
 setup, source-position and cleanup probes remain linked under
-`test/zotero-dev/scripts/angle-brackets/`; the first-pass scripts in this new
+`test/zotero-dev/runs/2026-09-13-1.12.4-beta2/scripts/`; the first-pass scripts in this new
 directory retain the adapted item-25444 source and outputs used for the
 provider, cache, prefetch and session checks.
 

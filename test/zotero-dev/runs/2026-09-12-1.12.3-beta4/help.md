@@ -28,7 +28,7 @@ closed and position unchanged; beta4 remains installed. No playback, reader
 navigation, provider, voice, locale, OS audio, or WebDAV operation was run.
 
 Reusable scripts are in
-`../../scripts/auto-scroll-help/`: `startup.js`, `baseline.js`,
+`test/zotero-dev/runs/2026-09-12-1.12.3-beta4/scripts/`: `startup.js`, `baseline.js`,
 `reader-snapshot.js`, `inspect-rows.js`, `hover-sentence.js`,
 `hover-outside.js`, `radio-binding.js`, and `keyboard-probe.js`.
 

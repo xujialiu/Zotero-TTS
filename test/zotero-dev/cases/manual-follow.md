@@ -1,4 +1,4 @@
-[Checklist index](../README.md)
+[Checklist index](../README.md) · [Scripts](../scripts/manual-follow/README.md)
 
 ## 3i. Manual navigation while the sentence remains visible (issue #100)
 
@@ -81,7 +81,8 @@ beta4 mode matrix applies to its unchanged follow code.
    listeners or dead-object errors. Unit coverage is recorded separately
    where a deterministic live fixture is unavailable.
 
-Retain scripts actually run and sanitized results under the usual
-`scripts/` and `runs/` directories; link them here after the pass. Do not
-label synthetic events as trusted input or target calculations as visible
-animation. File backup/restore and sync schema round-trips are automated.
+Keep the scripts that worked in `scripts/manual-follow/`, and what ran
+with the sanitized results under `runs/<run>/`; list the run in the kit's
+README. Do not label synthetic events as trusted input or target
+calculations as visible animation. File backup/restore and sync schema
+round-trips are automated.

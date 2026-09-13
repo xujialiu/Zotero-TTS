@@ -31,7 +31,7 @@ dead-object error predated the pass; plugin/dead-object counts did not
 increase at fixture closure. The first restoration/audit attempts and
 their corrected 26b/28 results are retained rather than overwritten.
 
-Executed scripts: [beta4 scripts](../../scripts/manual-follow/beta4/).
+Executed scripts: [beta4 scripts](scripts/).
 Numbered `.raw.txt` files here preserve the actual sanitized tool returns.
 The raw preference backup stays in temporary runtime storage, not this
 repository. Final evidence is `28-final-audit-corrected.raw.txt`.

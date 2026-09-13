@@ -1,0 +1,1 @@
+return (() => { const s = Zotero.__zttsAllHandoff; if (!s) throw new Error('baseline script has not run'); s.spec = { label: 'Chatterbox to Fish', mode: 'cross', from: 'openai::', to: 'fish::', direction: -1 }; return JSON.stringify(s.spec); })()

@@ -1,3 +1,3 @@
-Executed: test/zotero-dev/scripts/manual-follow/beta2/64-position-final-stats.js
+Executed: test/zotero-dev/runs/2026-09-13-1.12.6-beta2-manual-follow/scripts/64-position-final-stats.js
 Result:
 {"rows":66,"loaded":66,"queued":0,"lastError":null,"readers":[{"itemID":19598,"active":true,"stored":true}],"live":{"tabs":1,"uninits":1}}

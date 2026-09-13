@@ -1,3 +1,3 @@
-Executed: test/zotero-dev/scripts/manual-follow/beta2/63-final-state-concise.js
+Executed: test/zotero-dev/runs/2026-09-13-1.12.6-beta2-manual-follow/scripts/63-final-state-concise.js
 Result:
 {"settingsOpen":false,"readerCount":1,"userOk":true,"prefs":{"extensions.zotero.zotero-tts.readAloud.keepFollowingWhileVisible":{"v":true,"u":false},"extensions.zotero.zotero-tts.readAloud.autoScrollMode":{"v":"sentence","u":true},"extensions.zotero.zotero-tts.readAloud.volume":{"v":100,"u":false},"extensions.zotero.zotero-tts.webdav.syncPositions":{"v":true,"u":true},"extensions.zotero.zotero-tts.webdav.autoUploadSettings":{"v":true,"u":true},"extensions.zotero.zotero-tts.webdav.syncSettings":{"v":false,"u":false},"extensions.zotero.reader.readAloud.highlightGranularity":{"v":"word","u":true}},"memoryEqual":true,"voicesEqual":true,"fixturesGone":true}

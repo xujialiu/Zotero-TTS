@@ -1,4 +1,4 @@
-[Checklist index](../README.md)
+[Checklist index](../README.md) · [Scripts](../scripts/angle-brackets/README.md)
 
 ## 3g. Enclosing brackets (issues #94, #96, #101)
 
@@ -94,26 +94,27 @@ Unit-only edge coverage includes nested pairs (one removal), punctuation
 before and after the pair, fullwidth brackets, UTF-16 position mapping,
 immutable cached timestamps, and concurrent cache/prefetch behavior.
 Whether the resulting speech sounds natural and the moving highlight feels
-in time remains a human observation. Save scripts actually used and sanitized
-run evidence under the checklist's `scripts/` and `runs/` directories.
+in time remains a human observation. Keep the scripts that worked in
+`scripts/angle-brackets/`, and what ran with the sanitized evidence under
+`runs/<run>/`.
 
 ## Retained run
 
 [1.12.5-beta4 evidence](../runs/2026-09-13-1.12.5-beta4/report.md) and
-[multiple-group scripts](../scripts/multiple-angle-brackets/README.md)
+[multiple-group scripts](../runs/2026-09-13-1.12.5-beta4/scripts/README.md)
 cover issue #96. User preferences, readers and position storage were restored.
 The AudioContext remained suspended, so continuous playback and moving
 highlights remain unverified; Chinese live locale rendering was not tested.
 
 [1.12.4-beta2 evidence](../runs/2026-09-13-1.12.4-beta2/report.md) and
-[recorded scripts](../scripts/angle-brackets/README.md): request preparation,
+[recorded scripts](../runs/2026-09-13-1.12.4-beta2/scripts/README.md): request preparation,
 coordinate mapping, cache/prefetch and session behavior passed. Continuous
 playback was not testable with the suspended AudioContext; native transport
 was stubbed and Chinese locale rendering was not exercised live.
 
 
 [1.12.6-beta3 evidence](../runs/2026-09-13-1.12.6-beta3/report.md) and
-[configurable-pair scripts](../scripts/bracket-pairs/README.md) cover #101:
+[configurable-pair scripts](../runs/2026-09-13-1.12.6-beta3/scripts/README.md) cover #101:
 the unbound checkbox, input locks, validation/recovery, external refresh,
 activation snapshots for both settings, real Fish requests and word ranges,
 cache/prefetch, mixed/malformed groups, and empty-pair silence. Native

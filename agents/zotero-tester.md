@@ -329,26 +329,44 @@ entries with the count between), the expected output, and PASS / FAIL /
 NOT TESTABLE with the reason. Below the table, verbatim — the script as
 run and the output as it came back — only for the rows that are FAIL or
 NOT TESTABLE and for anything the brief did not anticipate; a PASS row's
-script is not repeated. Then the items for `test/zotero-dev/README.md` that the
-run measured, drafted in the relevant case file's shape under the section they belong
-to — the behavior, the check, the expected output as observed — so the
+script is not repeated. Then the items for `test/zotero-dev/cases/` that the
+run measured, drafted in the shape of the case file that holds that behavior,
+or as a new case file when none does (one case, one behavior) — the
+behavior, the check, the expected output as observed — so the
 session pastes them; a fix that changed an expected output shows the old
 value and the new.
 
 For new tests, also supply the reusable scripts that actually ran, including
 PASS cases, and sanitized run evidence for the main session to save under
 `test/zotero-dev/scripts/` and `test/zotero-dev/runs/`, as MEMORY/MEMORY.md requires.
+**Stage them in the repository's layout** (2026-09-13), in the run's scratch
+directory, so the main session copies both trees into `test/zotero-dev/` as
+they are: `runs/<run>/` — `<run>` is `<date>-<build>-<topic>` — with the
+report, the sanitized outputs and `scripts/` holding every script exactly as
+executed, failed attempts labeled; and `scripts/<case>/` — `<case>` the case
+file's name without `.md` — the case's kit as it should stand after the run:
+a `README.md` and the scripts, no subfolders, starting from the kit's current
+files, with the scripts this run revised replacing theirs, new checks added,
+scripts that no longer work dropped, only scripts that ran successfully, and
+the README brought up to date (order, expectations, literals to adapt,
+cleanup, limits, the case's runs, where each script was last executed). A
+run that covers several cases stages the kit of each case it produced a
+reusable script for. Where your definition has no Write or Edit tool, create
+these files through the shell (a Python heredoc on Windows, per
+MEMORY/MEMORY.md's Platform notes), only under the scratch directory.
 **Retain scripts during testing** (user instruction, 2026-09-13): save the
-actual executed scripts as files in the run's scratch directory as the work
+actual executed scripts as files in that staging layout as the work
 proceeds, and send their paths to the main session at completed checkpoints
 for incremental archiving; do not wait until the entire run ends. Distinguish
 executed revisions from prepared or revised scripts that have not run. Include
 prerequisites, fixtures, expected output, permitted state changes, and cleanup
 steps; never include credentials or raw preference snapshots. On later runs,
-reuse or adapt these files after checking the current build and environment,
-so the same procedure does not have to be rediscovered or reconstructed from
-conversation history. Retain successful scripts too; a prose report alone
-does not satisfy this requirement. Reuse methods, never old PASS results.
+start from `test/zotero-dev/scripts/<case>/README.md` and reuse or adapt the
+kit's scripts for the items in hand after checking the current build and
+environment, so the same procedure does not have to be rediscovered or
+reconstructed from conversation history. Retain successful scripts too; a
+prose report alone does not satisfy this requirement. Reuse methods, never old
+PASS results.
 Keep these artifacts separate from the concise report. Backfill older cases
 when they are next run in a user-requested full pass; do not run extra checks
 just to fill the archive.

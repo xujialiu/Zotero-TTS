@@ -1,10 +1,10 @@
-[Checklist index](../README.md)
+[Checklist index](../README.md) · [Scripts](../scripts/fish-language-hints/README.md)
 
 ## 3h. Fish cloud short-text language hints (issue #98)
 
 **Verified mechanisms on 1.12.6-beta2.** See the
 [run report](../runs/2026-09-13-1.12.6-beta2-language-hints/report.md) and
-[retained scripts](../scripts/fish-language-hints/README.md). Listening and
+[retained scripts](../runs/2026-09-13-1.12.6-beta2-language-hints/scripts/README.md). Listening and
 moving highlights remain human checks. Initial user-popup visibility was
 not captured, so exact visibility restoration is unproven. Fish Speech
 Local was not live-tested; its repair and language policy are deferred to #99.

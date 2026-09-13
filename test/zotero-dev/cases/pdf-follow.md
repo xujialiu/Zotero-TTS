@@ -1,8 +1,8 @@
-[Checklist index](../README.md)
+[Checklist index](../README.md) · [Scripts](../scripts/pdf-follow/README.md)
 
 ## 3d. Plugin-owned PDF following (issue #90, 1.12.1-beta3)
 
-Run §0 and §3a alongside this section. The measured fixture is the owner's
+Run §0 and §3a alongside this case. The measured fixture is the owner's
 PDF beginning "Getting the scale right…" (library title `manuscript`,
 121 segments, Kokoro-af_alloy at 3×). Use only a permitted document and
 save its reading position, zoom, find/split state and window state first.

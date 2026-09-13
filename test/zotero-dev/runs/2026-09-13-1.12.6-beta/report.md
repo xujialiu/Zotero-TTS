@@ -27,7 +27,7 @@ paused pass does not establish audio advancement, pronunciation, audible
 continuity or subjective display behavior.
 
 The reusable scripts that ran are in
-`test/zotero-dev/scripts/voice-switch-regional/`. The exact sanitized run
+`test/zotero-dev/runs/2026-09-13-1.12.6-beta/scripts/`. The exact sanitized run
 fields are in `evidence.json` beside this report. No production source was
 changed during live verification. The installed fixed beta remains installed;
 the user's volume, sync switches, remembered voice, native voice preference,

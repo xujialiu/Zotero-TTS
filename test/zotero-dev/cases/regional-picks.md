@@ -1,9 +1,9 @@
-[Checklist index](../README.md)
+[Checklist index](../README.md) · [Scripts](../scripts/regional-picks/README.md)
 
 ## 1d. Regional picks stay selected in PDF and EPUB (issue #91, beta6)
 
 The owner approved the UI and requested this regression fix and a Luna-max
-tester pass. Run the baseline, this section, and the final Fish controls
+tester pass. Run the baseline, this case, and the final Fish controls
 from 1b/1c; do not run the whole plugin checklist.
 
 1. Import an owned PDF fixture and an EPUB fixture. Keep the owner's

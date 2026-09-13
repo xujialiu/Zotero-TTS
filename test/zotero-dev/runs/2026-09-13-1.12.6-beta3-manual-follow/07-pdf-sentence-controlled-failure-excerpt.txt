@@ -1,4 +1,4 @@
-Executed: test/zotero-dev/scripts/manual-follow/beta2/16-pdf-visibility-sentence-controlled-movement.js
+Executed: test/zotero-dev/runs/2026-09-13-1.12.6-beta2-manual-follow/scripts/16-pdf-visibility-sentence-controlled-movement.js
 Result excerpt (verbatim fields from returned JSON):
 complete.afterMove: {"scrollTop":800,"following":true,"interacting":true,"visible":true}
 complete.held: {"scrollTop":800,"following":false,"interacting":false,"visible":true,"reason":"wheel"}

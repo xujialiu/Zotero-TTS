@@ -19,4 +19,4 @@ The forward response arrived while the old voice was reading `skips`, so the mat
 
 This beta6 run directly confirms that the beta5 failure was caused by rejecting the negative leading start. The beta6 arrays still contain the provider's small negative first start (-0.004500000000000004 for af_jadzia), while later starts are ordered; both directions nevertheless produce a word handoff. No numeric request was repeated; the real numeric/phrase response is retained in the beta5 evidence.
 
-The copied scripts that actually ran are under scripts/voice-switch-kokoro-beta6/README.md. They use the real provider and the clean cache polling instrumentation; no reader-realm promise was wrapped. No production source was changed during this verification.
+The copied scripts that actually ran are under test/zotero-dev/runs/2026-09-13-1.12.5-beta6/scripts/README.md. They use the real provider and the clean cache polling instrumentation; no reader-realm promise was wrapped. No production source was changed during this verification.

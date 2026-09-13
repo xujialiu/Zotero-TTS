@@ -53,8 +53,8 @@ it does not rewrite the spoken audio.
 
 ## Reproduction and restoration
 
-Scripts: [request capture](../../scripts/fish-pronunciation/capture.js) and
-[PCM comparison](../../scripts/fish-pronunciation/compare-pcm.js).
+Scripts: [request capture](scripts/capture.js) and
+[PCM comparison](scripts/compare-pcm.js).
 Exact capture results are in evidence.json alongside this report.
 
 Prerequisite: the same paused EPUB and segment indices, populated Dax caches,

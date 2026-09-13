@@ -1,4 +1,4 @@
-[Checklist index](../README.md)
+[Checklist index](../README.md) · [Scripts](../scripts/whole-sentence/README.md)
 
 ## 3a. The whole sentence on screen (issue #83, 1.11.7)
 

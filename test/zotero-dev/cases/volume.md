@@ -1,6 +1,6 @@
-[Checklist index](../README.md)
+[Checklist index](../README.md) · [Scripts](../scripts/volume/README.md)
 
-## 4a. The volume (issue #62)
+## 4b. The volume (issue #62)
 
 A gain ahead of Zotero's own filter chain in every controller, at the
 percent in `readAloud.volume` (0–100, default 100 = Zotero unchanged and

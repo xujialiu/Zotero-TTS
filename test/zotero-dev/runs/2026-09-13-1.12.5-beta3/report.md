@@ -29,7 +29,7 @@
 
 ## Scripts and sanitized evidence
 
-The exact executed scripts are retained in [scripts/voice-switch](../../scripts/voice-switch/README.md). The sequence was baseline, sync/mute, fixture import/readiness, native transport setup, trusted clock start, word handoff, menu/key checks, sentence fallback, cancellation/failure, regional probe, second fixture setup and exploratory shared-voice attempts, overtaken preparation, and cleanup. The exploratory shared scripts remain linked for reproducibility but are explicitly excluded from the PASS table.
+The exact executed scripts are retained in [test/zotero-dev/runs/2026-09-13-1.12.5-beta3/scripts](scripts/README.md). The sequence was baseline, sync/mute, fixture import/readiness, native transport setup, trusted clock start, word handoff, menu/key checks, sentence fallback, cancellation/failure, regional probe, second fixture setup and exploratory shared-voice attempts, overtaken preparation, and cleanup. The exploratory shared scripts remain linked for reproducibility but are explicitly excluded from the PASS table.
 
 The controlled transport generated silent WAV fixtures and timestamps from the actual fixture segment text. It did not call a paid provider or fabricate timestamps for real speech. The native `AudioContext` clock was running during the accepted word, sentence and overtaken checks. Subjective pronunciation, perceptual gap and naturalness remain human-only.
 

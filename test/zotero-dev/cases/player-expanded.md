@@ -1,3 +1,5 @@
+[Checklist index](../README.md) · [Scripts](../scripts/player-expanded/README.md)
+
 # 3e. Open the player expanded (issue #81)
 
 Status: **core live checks and focused follow-up completed** on 1.12.3-beta. See the
@@ -5,7 +7,7 @@ Status: **core live checks and focused follow-up completed** on 1.12.3-beta. See
 The checklist below states expectations; a pending row in that report
 must not be counted as a successful check.
 
-Run section 0 first, then this section and cleanup. Use PDF and EPUB
+Run section 0 first, then this case and cleanup. Use PDF and EPUB
 fixtures, two tabs, and a separate reader window. Preserve the user's
 `readAloud.openExpanded` preference (including whether it has a user value),
 voice, speed, positions, and original player states. Restore them afterward.
@@ -53,6 +55,6 @@ after successful automatic expansion expect `enabled: true`, `popup: true`,
    the timing experience is a human check, not a diagnostic claim.
 
 Settings default, backup/restore, and sync eligibility are automated
-checks. Actual methods: [first pass](../scripts/player-expanded-first-pass/README.md)
-and [follow-up](../scripts/player-expanded-follow-up/README.md). Their reuse
+checks. Actual methods: [first pass](../runs/2026-09-12-1.12.3-beta/scripts/first-pass/README.md)
+and [follow-up](../runs/2026-09-12-1.12.3-beta/scripts/follow-up/README.md). Their reuse
 instructions identify fixed fixture IDs and the confounded exception test.

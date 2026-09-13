@@ -1,4 +1,4 @@
-[Checklist index](../README.md)
+[Checklist index](../README.md) · [Scripts](../scripts/page-first-line/README.md)
 
 ## 3b. A page's first line put back (issue #87, 1.11.7)
 

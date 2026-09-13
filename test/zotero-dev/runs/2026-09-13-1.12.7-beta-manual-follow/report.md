@@ -23,7 +23,7 @@ This run intentionally covers only fresh identity, settings, one PDF cycle, one 
 
 ## Artifacts
 
-- [Executed scripts](../../scripts/manual-follow/merged-beta/)
+- [Executed scripts](scripts/)
 - [Artifact identity](00-artifact-identity.raw.txt)
 - [Baseline raw return](00-baseline.raw.txt)
 - [Startup raw return](02-startup.raw.txt)

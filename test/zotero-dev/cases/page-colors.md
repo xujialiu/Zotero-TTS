@@ -1,4 +1,4 @@
-[Checklist index](../README.md)
+[Checklist index](../README.md) · [Scripts](../scripts/page-colors/README.md)
 
 ## 3c. The colors follow the first page (issue #88, 1.11.7)
 

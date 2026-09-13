@@ -57,7 +57,7 @@ examples or plays through them continuously.
 
 The exact bridge scripts, prerequisites, expected values and cleanup procedure
 are indexed in
-[`scripts/bracket-pairs/README.md`](../../scripts/bracket-pairs/README.md).
+[`test/zotero-dev/runs/2026-09-13-1.12.6-beta3/scripts/README.md`](scripts/README.md).
 Sanitized outputs are in [`outputs/`](outputs/), with build/environment data in
 [`metadata.json`](metadata.json), cleanup evidence in
 [`outputs/25-cleanup.json`](outputs/25-cleanup.json), and the final error read

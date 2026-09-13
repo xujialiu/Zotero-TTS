@@ -1,4 +1,4 @@
-[Checklist index](../README.md)
+[Checklist index](../README.md) · [Scripts](../scripts/fish-voice-sources/README.md)
 
 ## 1b. Fish Audio voice sources (issue #91)
 
@@ -82,4 +82,4 @@ works. Guard Cancel passed for source and refresh. Positive stop/refresh,
 backup/restore and fresh playback stayed unit-covered because the user's
 paused reader was protected. Every changed setting and reader state was
 restored; Debug storing off, auto-upload restored on; no new plugin or
-dead-object error. Full evidence: [2026-09-12 notes](../notes/NOTES_2026-09-12.md).
+dead-object error. Full evidence: [2026-09-12 notes](../../../notes/NOTES_2026-09-12.md).

@@ -40,11 +40,11 @@ active, and the delayed context still reported activation active. It does not
 identify whether the remaining block is an audio backend/device condition or
 another browser policy; the probe therefore remains NOT TESTABLE for
 clock-dependent handoff behavior.
-The exact setup/probe/cleanup scripts are [09](../../scripts/voice-switch-followup/09-autoplay-setup.js), [10](../../scripts/voice-switch-followup/10-autoplay-context-probe.js), and [11](../../scripts/voice-switch-followup/11-autoplay-cleanup.js).
+The exact setup/probe/cleanup scripts are [09](scripts/09-autoplay-setup.js), [10](scripts/10-autoplay-context-probe.js), and [11](scripts/11-autoplay-cleanup.js).
 
 ## Reproducible scripts
 
-The scripts that ran are under [scripts/voice-switch-followup](../../scripts/voice-switch-followup/README.md):
+The scripts that ran are under [test/zotero-dev/runs/2026-09-13-1.12.5-beta3-followup/scripts](scripts/README.md):
 
 - `00-setup-and-helpers.js` — refreshed the baseline, disabled transport, muted playback, and defined the per-fixture native remotes.
 - `01-open-fixture-a.js`, `02-open-fixture-b.js`, and `03-open-popups-and-prepare.js` — imported the two existing PDFs, opened their readers, loaded the controlled catalog, and prepared paused sessions.

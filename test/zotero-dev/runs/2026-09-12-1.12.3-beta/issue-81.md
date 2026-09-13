@@ -37,7 +37,7 @@ distinguishes measurements from remaining work and cleanup incidents.
 ## Follow-up results
 
 Actual [scripts and outputs](follow-up-evidence.md) and
-[reuse instructions](../../scripts/player-expanded-follow-up/README.md)
+[reuse instructions](scripts/follow-up/README.md)
 are preserved separately. The same XPI was tested; no code changed.
 
 | Check | Observed | Status |
@@ -108,6 +108,6 @@ of a perceptible flash or acceptable delay; those remain human judgments.
 
 The first pass used inline scripts. The actual source for five successful
 checks/cleanup operations is archived with
-[reuse precautions](../../scripts/player-expanded-first-pass/README.md).
+[reuse precautions](scripts/first-pass/README.md).
 The failed snapshot report and erroneous cleanup sequence are retained as
 non-executable evidence in `harness-evidence/`; neither is a reusable method.
