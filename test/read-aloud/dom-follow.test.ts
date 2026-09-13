@@ -47,13 +47,38 @@ function fixture() {
   const helper = view._readAloud = new Helper();
   const reader = { _window: {}, _internalReader: { _primaryView: view } };
   let mode: 'outside' | 'sentence' = 'outside';
-  const deps = { mode: () => mode, resuming: () => false, wordTiming: () => 'real' as const, error: vi.fn() };
+  const deps = { mode: () => mode, keepFollowingWhileVisible: () => false, resuming: () => false, wordTiming: () => 'real' as const, error: vi.fn() };
   const module = createDOMFollow(deps);
   const push = (key: string, word?: string) => helper.setState({ active: true, popupOpen: true, activeSegment: { position: key, sourcePosition: key }, activeWordSourcePosition: word });
   return { view, helper, module, reader, range, push, win, nativeNavigate, rendered, deps, mode: (v: typeof mode) => { mode = v; } };
 }
 
 describe('EPUB auto-scroll', () => {
+  it('retains partial fragments after navigation and disengages only once all are out', () => {
+    vi.useFakeTimers(); const f = fixture(); f.deps.keepFollowingWhileVisible = () => true;
+    f.module.attach(f.reader); f.push(f.range('a', 900, 1050)); f.win.scrollTo.mockClear();
+    f.view.navigateToNextPage(); f.push('a');
+    expect(f.module.inspect(f.reader)).toMatchObject({ following: true, interacting: true });
+    expect(f.win.scrollTo).toHaveBeenCalledTimes(1);
+    f.range('a', -50, 10); f.win.dispatchEvent(new Event('scroll')); vi.runAllTimers();
+    expect(f.module.inspect(f.reader)).toMatchObject({ following: true, interacting: false });
+    f.view.navigateToNextPage(); f.range('a', -50, 0); f.win.dispatchEvent(new Event('scroll'));
+    expect(f.module.inspect(f.reader).following).toBe(false);
+    f.module.dispose(); vi.runAllTimers(); vi.useRealTimers();
+  });
+  it('uses sentence fragments in paginated word mode and keeps disengagement across settings', () => {
+    vi.useFakeTimers(); const f = fixture(); f.deps.keepFollowingWhileVisible = () => true;
+    f.view.flowMode = 'paginated'; f.module.attach(f.reader);
+    f.push(f.range('sentence', 900, 1020), f.range('word', 1010, 1020));
+    f.view.navigateToNextPage(); vi.runAllTimers();
+    expect(f.module.inspect(f.reader).following).toBe(true);
+    f.view.navigateToNextPage(); f.range('sentence', -100, 0); f.win.dispatchEvent(new Event('scroll'));
+    expect(f.module.inspect(f.reader).following).toBe(false);
+    f.range('sentence', 100, 200); f.deps.keepFollowingWhileVisible = () => false; f.mode('sentence'); f.module.refresh();
+    f.deps.keepFollowingWhileVisible = () => true; f.module.refresh();
+    expect(f.module.inspect(f.reader).following).toBe(false);
+    f.module.dispose(); vi.runAllTimers(); vi.useRealTimers();
+  });
   it('keeps manual disengagement through a native playback-toggle lock', () => {
     const f = fixture(); f.module.attach(f.reader); f.push(f.range('a', 700, 750));
     f.view._onManualNavigation();

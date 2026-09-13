@@ -1,0 +1,3 @@
+Executed: test/zotero-dev/scripts/manual-follow/beta2/60-restore-prefs-min.js
+Result:
+{"readAloud.volume":{"value":100,"user":false},"webdav.syncPositions":{"value":true,"user":true},"webdav.autoUploadSettings":{"value":true,"user":true},"webdav.syncSettings":{"value":false,"user":false},"readAloud.keepFollowingWhileVisible":{"value":true,"user":false},"readAloud.autoScrollMode":{"value":"sentence","user":true}}

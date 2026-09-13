@@ -69,13 +69,64 @@ function fixture(deps: Partial<Parameters<typeof createPdfFollow>[0]> = {}) {
   const reader = { _window: win, _internalReader: { _primaryView: view } };
   const follow = vi.fn();
   const error = vi.fn();
-  const controller = createPdfFollow({ follow, error, ...deps });
+  const controller = createPdfFollow({ follow, error, keepFollowingWhileVisible: () => false, ...deps });
   const state = (index = 1) => ({ active: true, popupOpen: true, paused: false, segments: [], activeSegment: { sourcePosition: { pageIndex: index } } });
   const flush = () => { const pending = [...frames.values()]; frames.clear(); pending.forEach(fn => fn()); };
   const start = () => { controller.attach(reader, view); view.setReadAloudState(state()); };
   return { controller, reader, view, win, document, container, state, follow, error, original, returned, find, flush, frames, start, View };
 }
 const followOptions = { ifNeeded: true, inline: 'nearest', visibilityMargin: -200, behavior: 'smooth' };
+
+describe('PDF manual visibility (#100)', () => {
+  it('keeps following through partial movement, then stops on complete disappearance', () => {
+    vi.useFakeTimers();
+    let visible = true;
+    const f = fixture({ keepFollowingWhileVisible: () => true, captureVisibility: () => () => visible });
+    f.start(); f.follow.mockClear(); f.container.emit('wheel', { deltaY: 30 });
+    f.view.setReadAloudState(f.state(2));
+    expect(f.follow).not.toHaveBeenCalled();
+    expect(f.controller.inspect(f.view)).toMatchObject({ following: true, interacting: true });
+    f.container.emit('scroll'); vi.runAllTimers();
+    expect(f.controller.inspect(f.view)).toMatchObject({ following: true, interacting: false });
+    expect(f.follow).toHaveBeenCalledOnce();
+    f.container.emit('wheel', { deltaY: 300 }); visible = false; f.container.emit('scroll');
+    expect(f.controller.inspect(f.view).following).toBe(false);
+    f.controller.dispose(); vi.useRealTimers();
+  });
+  it('defers semantic navigation until its resulting viewport is known', () => {
+    vi.useFakeTimers(); let visible = true;
+    const f = fixture({ keepFollowingWhileVisible: () => true, captureVisibility: () => () => visible });
+    f.start(); expect(f.view.navigateToNextPage()).toBe('next');
+    expect(f.controller.inspect(f.view).following).toBe(true);
+    visible = false; f.container.emit('scroll');
+    expect(f.controller.inspect(f.view).following).toBe(false);
+    f.controller.dispose(); vi.runAllTimers(); vi.useRealTimers();
+  });
+  it('keeps a held navigation key protected until keyup and cancels on explicit return', () => {
+    vi.useFakeTimers();
+    const f = fixture({ keepFollowingWhileVisible: () => true, captureVisibility: () => () => true });
+    f.start(); f.follow.mockClear(); f.document.emit('keydown', { key: 'PageDown', target: f.container });
+    vi.advanceTimersByTime(1000);
+    expect(f.controller.inspect(f.view).interacting).toBe(true); expect(f.follow).not.toHaveBeenCalled();
+    f.win.emit('keyup', { key: 'PageDown' }); vi.runAllTimers();
+    expect(f.controller.inspect(f.view).interacting).toBe(false); expect(f.follow).toHaveBeenCalledOnce();
+    f.container.emit('wheel', { deltaY: 30 });
+    f.view.lockPositionToReadAloud(); f.view.setReadAloudState(f.state());
+    expect(f.controller.inspect(f.view)).toMatchObject({ interacting: false, following: true });
+    f.controller.dispose(); vi.runAllTimers(); vi.useRealTimers();
+  });
+  it('preserves asynchronous navigation Promise identity and waits for completion', async () => {
+    vi.useFakeTimers(); let finish!: (v: string) => void;
+    const result = new Promise<string>(resolve => { finish = resolve; });
+    const f = fixture({ keepFollowingWhileVisible: () => true, captureVisibility: () => () => true });
+    f.View.prototype.navigateToNextPage = () => result as any;
+    f.start(); expect(f.view.navigateToNextPage()).toBe(result);
+    vi.advanceTimersByTime(1000); expect(f.controller.inspect(f.view).interacting).toBe(true);
+    finish('next'); await result; vi.runAllTimers();
+    expect(f.controller.inspect(f.view).interacting).toBe(false);
+    f.controller.dispose(); vi.useRealTimers();
+  });
+});
 
 describe('PDF follow ownership (#90)', () => {
   it('does not mistake the native playback toggle lock for explicit return', () => {

@@ -1,0 +1,5 @@
+Executed: test/zotero-dev/scripts/manual-follow/beta2/21-epub-scrolled-setup-rev2.js then 22-epub-scrolled-visibility-sentence.js
+21 setup: flow=scrolled, position=2, 3 range rects at document y 113.083-133.083, 143.617-163.617, 174.150-194.150, diagnostic kind=epub patched=true following=true.
+22 sentence mode: trusted wheel event trusted=true; controlled scrollY 0->180 left one visible fragment, held following=true/interacting=true and after 360ms following=true/interacting=false; auto-follow returned scrollY to 0. Controlled scrollY 0->800 left zero visible fragments and settled following=false/interacting=false/reason=wheel; explicit lock returned following=true/reason=explicit. final scrollY=0, following=true, mode=sentence.
+Executed: C:\Users\xujia\AppData\Local\Temp\ztts100-beta3-20260913/14b-epub-scrolled-outside.js
+Outside mode: same 3-fragment geometry; partial scrollY 0->180 left visibleFragments=1 and settled following=true; complete 0->800 left visibleFragments=0 and settled following=false/reason=wheel; explicit lock returned following=true/reason=explicit; final scrollY=0 following=true. Wheel event trusted=true.

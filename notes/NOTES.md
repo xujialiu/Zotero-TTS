@@ -439,3 +439,9 @@ cite `notes/NOTES.md` with a date or a section title resolve through this index.
 - Fish cloud hint mechanics pass live; a malformed test stream caused the visible error (issue #98)
 
 - Configured providers and official tiers hand over at supported boundaries (issue #95)
+
+- Manual navigation waits for sentence disappearance (issue #100)
+
+- The fixture-close check reaches dead nested reader dependencies (issue #100)
+
+- Beta3 retains following through partial visibility and closes cleanly (issue #100)

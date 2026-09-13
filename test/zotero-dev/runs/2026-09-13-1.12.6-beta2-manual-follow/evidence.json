@@ -1,0 +1,193 @@
+{
+  "artifact": {
+    "xpi": "C:\\Users\\xujia\\orca\\workspaces\\zotero_plugin_tts\\scroll\\build\\zotero-tts.xpi",
+    "xpiSha256": "7712ceeec81144f5f5ae220edde61190f02a6e868ff1e83037265a6b71a36051",
+    "bundleSha256": "139ad6d6799228faf268bfb3ed89fdc73d84d1eda949090810822bfce040f58b",
+    "zotero": "10.0.2-beta.9+c77df79af",
+    "platform": "Windows / Firefox 140"
+  },
+  "startup": {
+    "version": "1.12.6-beta2",
+    "okSteps": 23,
+    "failed": []
+  },
+  "ui": {
+    "checkboxId": "ztts-keep-following-visible",
+    "preference": "extensions.zotero.zotero-tts.readAloud.keepFollowingWhileVisible",
+    "label": "Keep auto-scroll while the sentence is visible",
+    "effectiveUnset": true,
+    "clickTrace": [
+      { "checked": true, "value": true, "user": false },
+      { "checked": false, "value": false, "user": true },
+      { "checked": true, "value": true, "user": false }
+    ],
+    "helpChecks": {
+      "completeDisappearance": true,
+      "partialVisibility": true,
+      "inputWait": true,
+      "offBehavior": true
+    },
+    "readersUnchanged": true
+  },
+  "audioClock": {
+    "script": "07-audio-clock-probe-pdf.js",
+    "trustedKeyReturn": [0, 1, true, true],
+    "first": { "active": true, "paused": false, "position": 0, "context": "suspended", "time": 0, "source": false },
+    "last": { "active": true, "paused": false, "position": 1, "context": "running", "time": 1.712, "source": true },
+    "clockMoved": true
+  },
+  "pdf": {
+    "sentenceMode": {
+      "automaticOnly": {
+        "scrollTop": 700,
+        "following": true,
+        "interacting": false,
+        "sentence": [212.94117647058826, 184.14379084967322, 624.2810457516342, 217.10457516339852],
+        "cut": true
+      },
+      "partial": {
+        "trustedWheel": { "trusted": true, "deltaY": 220, "target": "div" },
+        "controlledScroll": { "from": 0, "to": 200 },
+        "sentence": [212.94117647058826, 184.14379084967322, 624.2810457516342, 217.10457516339852],
+        "viewport": { "scrollTop": 200, "clientHeight": 1038 },
+        "positiveIntersectionPx": 17.104575163398522,
+        "held": { "following": true, "interacting": true },
+        "settled": { "following": true, "interacting": false, "lastReason": "cut", "lastTop": 0 }
+      },
+      "complete": {
+        "trustedWheel": { "trusted": true, "deltaY": 220, "target": "div" },
+        "controlledScroll": { "from": 0, "to": 800 },
+        "sentence": [212.94117647058826, 184.14379084967322, 624.2810457516342, 217.10457516339852],
+        "visibleFragments": 0,
+        "settled": { "following": false, "interacting": false, "reason": "wheel" },
+        "explicitLock": { "following": true, "reason": "explicit" }
+      }
+    },
+    "outsideMode": {
+      "partialSettled": { "following": true, "interacting": false, "lastReason": "return" },
+      "completeSettled": { "following": false, "interacting": false, "reason": "wheel" },
+      "explicitLock": { "following": true, "reason": "explicit" }
+    },
+    "playbackAdvancement": {
+      "script": "51-pdf-playback-advancement-min.js",
+      "first": { "position": 0, "context": "running", "clock": 85.77866666666667, "following": true },
+      "last": { "position": 2, "context": "running", "clock": 89.18933333333334, "following": true },
+      "positions": [0, 1, 2],
+      "clockMoved": true
+    }
+  },
+  "epub": {
+    "scrolledSentenceMode": {
+      "flow": "scrolled",
+      "position": 2,
+      "fragmentsDocument": [
+        [595.2833251953125, 113.08332824707031, 1240, 133.08332824707031],
+        [440, 143.61666870117188, 1240, 163.61666870117188],
+        [440, 174.14999389648438, 515.6499938964844, 194.14999389648438]
+      ],
+      "partial": {
+        "scrollY": 180,
+        "visibleFragments": 1,
+        "following": true,
+        "interacting": true
+      },
+      "partialSettled": { "scrollY": 0, "visibleFragments": 3, "following": true },
+      "complete": { "scrollY": 800, "visibleFragments": 0, "following": false, "reason": "wheel" }
+    },
+    "paginatedSentenceMode": {
+      "startOffset": 10799,
+      "nextPageOffset": 21598,
+      "startVisibleFragments": 3,
+      "navigationImmediate": { "following": true, "interacting": true },
+      "navigationSettled": { "following": false, "interacting": false, "reason": "navigation" },
+      "explicitLock": { "following": true, "reason": "explicit" }
+    },
+    "paginatedOutsideMode": {
+      "startOffset": 10799,
+      "nextPageOffset": 21598,
+      "navigationSettled": { "following": false, "interacting": false, "reason": "navigation" },
+      "explicitLock": { "following": true, "reason": "explicit" }
+    }
+  },
+  "offPersistence": {
+    "keepFollowingWhileVisible": false,
+    "trustedWheel": { "trusted": true, "deltaY": 220 },
+    "immediate": { "following": false, "interacting": false, "reason": "wheel" },
+    "controlledVisibleMove": { "from": 0, "to": 20, "following": false },
+    "directResume": { "active": true, "paused": false, "following": false, "reason": "wheel" },
+    "nativeResume": { "active": true, "paused": false, "following": false, "reason": "wheel" },
+    "laterSentence": { "position": 1, "following": false, "reason": "wheel" },
+    "modeChanges": { "outside": { "following": false }, "sentence": { "following": false } },
+    "explicitRestore": { "following": true, "reason": "explicit" }
+  },
+  "restoration": {
+    "settingsOpen": false,
+    "readerCount": 1,
+    "userReaderUnchanged": true,
+    "fixturesGone": true,
+    "position": { "rows": 66, "loaded": 66, "queued": 0, "lastError": null },
+    "prefs": {
+      "keep": { "value": true, "user": false },
+      "autoScrollMode": { "value": "sentence", "user": true },
+      "volume": { "value": 100, "user": false },
+      "syncPositions": { "value": true, "user": true },
+      "autoUploadSettings": { "value": true, "user": true },
+      "syncSettings": { "value": false, "user": false },
+      "highlightGranularity": { "value": "word", "user": true },
+      "memoryEqual": true,
+      "voicesEqual": true
+    }
+  },
+  "failure": {
+    "firstProductFailureScript": "57-cleanup-close-fixtures-min2.js",
+    "rawConsoleInspection": {
+      "script": "65-console-dead-object-inspection.js",
+      "output": "65-console-dead-object-inspection-output.json",
+      "totalConsoleMessages": 57,
+      "matchingDeadObjectMessages": 2,
+      "stackProperty": null
+    },
+    "priorOffsetMapping": {
+      "status": "RETRACTED",
+      "reason": "The raw nsIConsoleService records report lineNumber 0 and columnNumber offsets; without a source map, mapping those offsets to unrelated source modules was not attributable."
+    },
+    "timestamps": [
+      "2026-09-13T14:42:00.096+08:00",
+      "2026-09-13T14:42:00.097+08:00"
+    ],
+    "exceptions": [
+      {
+        "message": "can't access dead object",
+        "stack": [
+          "at jar:file:///C:/Users/xujia/AppData/Roaming/Zotero/Zotero/Profiles/c6rx776m.default/extensions/zotero-tts@xujialiu.top.xpi!/content/zotero-tts.js:0:13346"
+        ],
+        "firstApplicationFrame": {
+          "url": "jar:file:///C:/Users/xujia/AppData/Roaming/Zotero/Zotero/Profiles/c6rx776m.default/extensions/zotero-tts@xujialiu.top.xpi!/content/zotero-tts.js",
+          "reportedLine": 0,
+          "reportedColumn": 13346,
+          "timeStamp": 1789281720097,
+          "stackProperty": null,
+          "attribution": "first and only application frame reported by nsIConsoleService; source mapping retracted"
+        }
+      },
+      {
+        "message": "can't access dead object",
+        "stack": [
+          "at jar:file:///C:/Users/xujia/AppData/Roaming/Zotero/Zotero/Profiles/c6rx776m.default/extensions/zotero-tts@xujialiu.top.xpi!/content/zotero-tts.js:0:13689"
+        ],
+        "firstApplicationFrame": {
+          "url": "jar:file:///C:/Users/xujia/AppData/Roaming/Zotero/Zotero/Profiles/c6rx776m.default/extensions/zotero-tts@xujialiu.top.xpi!/content/zotero-tts.js",
+          "reportedLine": 0,
+          "reportedColumn": 13689,
+          "timeStamp": 1789281720096,
+          "stackProperty": null,
+          "attribution": "first and only application frame reported by nsIConsoleService; source mapping retracted"
+        }
+      }
+    ],
+    "otherObservedTeardownErrors": [
+      "InvalidStateError: Navigated away from page at 14:41:59",
+      "InvalidStateError: Navigated away from page at 14:42:00"
+    ]
+  }
+}

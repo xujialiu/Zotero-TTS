@@ -1,0 +1,2 @@
+LogError hook removal result: {"hookWasInstalled":true,"records":0,"hookPresent":false}
+Transient fixture globals removed: {"removed":{"baseline":true,"fixtures":true},"remaining":{"baseline":false,"fixtures":false}}

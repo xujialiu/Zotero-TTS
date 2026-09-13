@@ -51,6 +51,7 @@ with the baseline and restoration for each.
 - [4a. Previous and next voice (issue #95)](cases/voice-switch.md)
 - [3g. Enclosing angle brackets (issue #94)](cases/angle-brackets.md)
 - [3h. Fish cloud short-text language hints (issue #98)](cases/fish-language-hints.md)
+- [3i. Manual navigation while the sentence remains visible (issue #100)](cases/manual-follow.md)
 - [4. Shortcuts, the toast, the recorder, two tabs](cases/shortcuts.md)
 - [4a. The volume (issue #62)](cases/volume.md)
 - [5. Reading positions, colors, the lifecycle](cases/positions-lifecycle.md)

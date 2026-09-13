@@ -1,8 +1,10 @@
 /** EPUB following with explicit input intent and whole-range geometry (#93). */
 import { autoScrollMode } from '../core/settings';
 import { followTarget, RETARGET_MS, type Box, type SentenceInViewDeps } from './sentence-in-view';
+import { createManualFollow, intersectsViewport, type ManualFollow } from './manual-follow';
 
 interface Owned {
+  manual: ManualFollow;
   reader: any; view: any; helper: any;
   following: boolean; active: boolean; paused: boolean; force: boolean;
   key: string | null; mode: string; pending: boolean; reason: string;
@@ -31,9 +33,22 @@ export function createDOMFollow(deps: SentenceInViewDeps) {
 
   function disengage(r: Owned, reason: string) {
     if (r.navigating || !r.following) return;
+    r.manual.cancel();
     r.following = false; r.force = false; r.pending = false; r.reason = reason;
     const win = r.view.iframeWindow;
     win.scrollTo(win.scrollX, win.scrollY);
+  }
+
+  function navigateManually(r: Owned, original: any, self: any, args: any[]) {
+    if (r.navigating) return Reflect.apply(original, self, args);
+    r.manual.begin('navigation');
+    const done = r.manual.task();
+    try {
+      const result: any = Reflect.apply(original, self, args);
+      if (result?.then) Reflect.apply(result.then, result, [exported(done, r.view), exported(done, r.view)]);
+      else done();
+      return result;
+    } catch (error) { done(); throw error; }
   }
 
   function visible(r: Owned) {
@@ -63,6 +78,7 @@ export function createDOMFollow(deps: SentenceInViewDeps) {
 
   function run(r: Owned, state = waive(r.helper.state)) {
     if (disposed || dead(r.view) || !r.following || !state?.active || !state.popupOpen || state.annotationPopup || !r.view.initialized) return;
+    if (r.manual.active) { r.manual.retry(); return; }
     if (!visible(r)) { r.pending = true; return; }
     const selector = r.helper._resolveSegmentSelector(state);
     if (!selector) return;
@@ -146,6 +162,7 @@ export function createDOMFollow(deps: SentenceInViewDeps) {
 
   function release(r: Owned) {
     records.delete(r.view);
+    r.manual.cancel();
     for (const undo of r.undo.reverse()) { try { undo(); } catch (e) { deps.error(e); } }
   }
 
@@ -162,7 +179,29 @@ export function createDOMFollow(deps: SentenceInViewDeps) {
       const state = waive(helper.state);
       const r: Owned = { reader, view, helper, following: !!state?.active && helper.positionLocked !== false,
         active: !!state?.active, paused: !!state?.paused, force: false, key: null, mode: autoScrollMode(deps.mode?.()),
-        pending: false, reason: 'initial', last: null, navigating: 0, undo: [] };
+        pending: false, reason: 'initial', last: null, navigating: 0, undo: [], manual: null! };
+      r.manual = createManualFollow({
+        enabled: () => deps.keepFollowingWhileVisible?.() !== false,
+        following: () => r.following && !disposed && !dead(r.view),
+        capture: () => {
+          const selector = r.helper._resolveSegmentSelector(waive(r.helper.state));
+          return () => {
+            if (!visible(r) || !r.view.initialized || !selector) return null;
+            const doc = r.view.iframeDocument, win = r.view.iframeWindow;
+            const width = doc.documentElement.clientWidth || win.innerWidth;
+            const height = doc.documentElement.clientHeight || win.innerHeight;
+            if (!(width > 0 && height > 0)) return null;
+            // No displayed range for a known sentence means its EPUB section is off screen.
+            const boxes = rects(r.view.toDisplayedRange(selector));
+            for (const box of boxes) if (intersectsViewport(box, [0, 0, width, height])) return true;
+            return false;
+          };
+        },
+        stop: () => { const win = r.view.iframeWindow; win.scrollTo(win.scrollX, win.scrollY); },
+        disengage: reason => disengage(r, reason),
+        resume: () => { r.last = null; attempt(r); },
+        error: deps.error,
+      });
       try {
         own(r, 'positionLocked', false);
         // Native scroll handlers are already bound. This flag bypasses only
@@ -170,26 +209,26 @@ export function createDOMFollow(deps: SentenceInViewDeps) {
         own(r, 'scrolling', true);
         shadow(r, helper, 'setPositionLocked', original => function(this: any, locked: boolean) {
           if (locked && deps.resuming?.(r.reader)) return Reflect.apply(original, this, [locked]);
-          if (locked) { r.following = true; r.force = true; r.reason = 'explicit'; }
-          else disengage(r, 'navigation');
+          if (locked) { r.manual.cancel(); r.following = true; r.force = true; r.reason = 'explicit'; }
+          else if (!r.navigating) r.manual.begin('navigation');
           return Reflect.apply(original, this, [locked]);
         });
         shadow(r, helper, 'setState', original => function(this: any, rawState: any) {
           const state = waive(rawState);
-          if (state?.active && !r.active) { r.following = true; r.key = null; r.last = null; r.reason = 'session'; }
+          if (state?.active && !r.active) { r.manual.cancel(); r.following = true; r.key = null; r.last = null; r.reason = 'session'; }
           r.active = !!state?.active; r.paused = !!state?.paused;
-          if (!r.active || !state.popupOpen) { r.following = false; r.pending = false; }
+          if (!r.active || !state.popupOpen) { r.manual.cancel(); r.following = false; r.pending = false; }
           // Mount/navigate before native spotlight rendering, as Zotero does.
           attempt(r, rawState);
           return Reflect.apply(original, this, [rawState]);
         });
         shadow(r, view, 'navigate', original => function(this: any, ...args: any[]) {
-          if (!waive(args[1])?.skipHistory) disengage(r, 'navigation');
+          if (!waive(args[1])?.skipHistory) return navigateManually(r, original, this, args);
           return Reflect.apply(original, this, args);
         });
-        for (const name of ['navigateBack', 'navigateForward', 'findNext', 'findPrevious']) {
+        for (const name of ['navigateBack', 'navigateForward', 'navigateToNextPage', 'navigateToPreviousPage', 'navigateToFirstPage', 'navigateToLastPage', 'findNext', 'findPrevious']) {
           shadow(r, view, name, original => function(this: any, ...args: any[]) {
-            disengage(r, 'navigation'); return Reflect.apply(original, this, args);
+            return navigateManually(r, original, this, args);
           });
         }
         shadow(r, view, 'destroy', original => function(this: any, ...args: any[]) {
@@ -197,23 +236,28 @@ export function createDOMFollow(deps: SentenceInViewDeps) {
         });
         const win = view.iframeWindow, doc = view.iframeDocument;
         const content = (e: any) => !e.target?.closest?.('input, textarea, select, button, [contenteditable="true"], [role="dialog"], [role="menu"]');
-        listen(r, doc, 'wheel', e => { if (e.isTrusted !== false && !e.ctrlKey && !e.metaKey && (e.deltaX || e.deltaY) && content(e)) disengage(r, 'wheel'); });
-        listen(r, doc, 'touchmove', e => { if (e.isTrusted !== false && !e.defaultPrevented && e.touches?.length === 1 && content(e)) disengage(r, 'touch'); });
+        listen(r, doc, 'wheel', e => { if (e.isTrusted !== false && !e.ctrlKey && !e.metaKey && (e.deltaX || e.deltaY) && content(e)) r.manual.begin('wheel'); });
+        listen(r, doc, 'touchmove', e => { if (e.isTrusted !== false && !e.defaultPrevented && e.touches?.length === 1 && content(e)) { r.manual.hold(true); r.manual.begin('touch'); } });
         listen(r, doc, 'keydown', e => {
           if (e.isTrusted !== false && !e.defaultPrevented && !e.ctrlKey && !e.metaKey && !e.altKey &&
-            ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'PageUp', 'PageDown', 'Home', 'End', ' ', 'Spacebar'].includes(e.key) && content(e)) disengage(r, 'keyboard');
+            ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'PageUp', 'PageDown', 'Home', 'End', ' ', 'Spacebar'].includes(e.key) && content(e)) { r.manual.hold(true, 'keyboard'); r.manual.begin('keyboard'); }
         });
+        listen(r, win, 'keyup', e => { if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'PageUp', 'PageDown', 'Home', 'End', ' ', 'Spacebar'].includes(e.key)) r.manual.hold(false, 'keyboard'); });
+        listen(r, win, 'blur', () => r.manual.releaseHolds());
         listen(r, doc, 'pointerdown', e => {
           if (e.isTrusted === false || e.button !== 0 || !content(e)) return;
+          r.manual.hold(true);
           const root = doc.documentElement;
           if ((root.scrollHeight > root.clientHeight && e.clientX >= root.clientWidth) ||
-            (root.scrollWidth > root.clientWidth && e.clientY >= root.clientHeight)) disengage(r, 'scrollbar');
+            (root.scrollWidth > root.clientWidth && e.clientY >= root.clientHeight)) r.manual.begin('scrollbar');
         });
         listen(r, doc, 'pointermove', e => {
           if (e.isTrusted === false || !e.buttons || !content(e) || doc.getSelection?.()?.isCollapsed !== false) return;
-          if (e.clientX < 20 || e.clientY < 20 || e.clientX > win.innerWidth - 20 || e.clientY > win.innerHeight - 20) disengage(r, 'selection');
+          if (e.clientX < 20 || e.clientY < 20 || e.clientX > win.innerWidth - 20 || e.clientY > win.innerHeight - 20) r.manual.begin('selection');
         });
-        const restore = () => { if (r.following) { r.pending = true; attempt(r); } };
+        listen(r, win, 'scroll', () => r.manual.scroll());
+        for (const name of ['pointerup', 'pointercancel', 'touchend', 'touchcancel', 'blur']) listen(r, win, name, () => r.manual.hold(false));
+        const restore = () => { if (r.following) { if (!visible(r)) r.manual.releaseHolds(); r.pending = true; attempt(r); } };
         for (const name of ['resize', 'focus', 'pageshow']) listen(r, win, name, restore);
         listen(r, doc, 'visibilitychange', restore);
         if (reader._window) for (const name of ['sizemodechange', 'focus']) listen(r, reader._window, name, restore);
@@ -229,7 +273,7 @@ export function createDOMFollow(deps: SentenceInViewDeps) {
     inspect(reader: any): Record<string, unknown> {
       const view = waive(reader?._internalReader?._lastView ?? reader?._internalReader?._primaryView);
       const r = records.get(view);
-      return r ? { kind: 'epub', patched: true, following: r.following, pending: r.pending, mode: autoScrollMode(deps.mode?.()),
+      return r ? { kind: 'epub', patched: true, following: r.following, interacting: r.manual.active, keepFollowingWhileVisible: deps.keepFollowingWhileVisible?.() !== false, pending: r.pending, mode: autoScrollMode(deps.mode?.()),
         flow: r.view.flowMode, reason: r.reason, last: r.last } : { kind: 'dom', patched: false };
     },
     dispose() { disposed = true; for (const r of [...records.values()]) release(r); },

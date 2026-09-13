@@ -1,0 +1,3 @@
+Executed: test/zotero-dev/scripts/manual-follow/beta2/57-cleanup-close-fixtures-min2.js
+Result summary: PDF item 25480 close popup/error=null and reader left=0; current EPUB item 25482 close popup/error=null and reader left=0. Selected tab restored to tab-fdppZ8SC. User reader item 19598 remained active=true paused=true position=6. Position store at this point: loaded=66 queued=0 writing=false lastError=null database rows=68 (fixture rows pending erase).
+Temporary logError hook records after both closes: count=0.

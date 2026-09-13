@@ -1,0 +1,3 @@
+Executed: C:\Users\xujia\AppData\Local\Temp\ztts100-beta3-20260913/21b-erase-all-fixtures.js
+Result:
+{"out":[{"id":25480,"erased":true,"error":null},{"id":25482,"erased":true,"error":null},{"id":25481,"erased":true,"error":null}]}

@@ -1,0 +1,1 @@
+return (async()=>{const root=Zotero.__ztts100,out=[];for(const n of['pdf','epub']){const slot=root[n],item=Zotero.Items.get(slot.itemID);let e=null;try{if(item)await item.eraseTx()}catch(q){e=String(q)}out.push({n,id:slot.itemID,erased:!Zotero.Items.get(slot.itemID),error:e})}await new Promise(q=>setTimeout(q,500));return JSON.stringify({out})})()

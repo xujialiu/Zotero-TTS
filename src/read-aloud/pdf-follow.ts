@@ -9,6 +9,7 @@
  * Only deliberate input/navigation changes our lock; no timer infers intent.
  */
 import { createProtoPatches, type AnyFn } from './proto-patches';
+import { createManualFollow, type ManualFollow } from './manual-follow';
 
 export function isFollowCall(options: unknown): boolean {
   if (!options || typeof options !== 'object') return false;
@@ -17,6 +18,8 @@ export function isFollowCall(options: unknown): boolean {
 }
 
 interface Deps {
+  keepFollowingWhileVisible?(): boolean;
+  captureVisibility?(view: any): () => boolean | null;
   resuming?(reader: any): boolean;
   exportFunction?(fn: AnyFn, target: object): AnyFn;
   waiveXrays?(value: unknown): unknown;
@@ -28,6 +31,7 @@ interface Deps {
 }
 
 interface OwnedView {
+  manual: ManualFollow;
   id: number;
   reader: any;
   view: any;
@@ -89,6 +93,7 @@ export function createPdfFollow(deps: Deps) {
 
   function run(r: OwnedView): void {
     if (disposed || dead(r.view) || !records.has(r.id) || !r.following) return;
+    if (r.manual.active) { r.manual.retry(); return; }
     bindFind(r);
     const state = waive(r.view._readAloudState);
     if (!state?.active || !state.popupOpen || state.annotationPopup || !state.activeSegment?.sourcePosition) return;
@@ -104,6 +109,7 @@ export function createPdfFollow(deps: Deps) {
 
   function schedule(r: OwnedView): void {
     if (!r.following || !r.active || dead(r.view)) return;
+    if (!visible(r)) r.manual.releaseHolds();
     r.reset = true;
     r.pending = true;
     if (!visible(r) || r.frame !== null) return;
@@ -115,6 +121,7 @@ export function createPdfFollow(deps: Deps) {
 
   function disengage(r: OwnedView, reason: string): void {
     if (!r.following) return;
+    r.manual.cancel();
     r.following = false;
     r.force = false;
     r.reason = reason;
@@ -128,14 +135,24 @@ export function createPdfFollow(deps: Deps) {
     deps.debug?.(`pdf follow: manual ${reason}`);
   }
 
+  function navigateManually(r: OwnedView, reason: string, original: AnyFn, self: any, args: any[]): any {
+    r.manual.begin(reason);
+    const done = r.manual.task();
+    try {
+      const result = Reflect.apply(original, self, args);
+      if (result?.then) Reflect.apply(result.then, result, [exported(done, r.view), exported(done, r.view)]);
+      else done();
+      return result;
+    } catch (error) { done(); throw error; }
+  }
+
   function bindFind(r: OwnedView): void {
     const find = waive(r.view._findController);
     if (!find || find === r.find || typeof find._onNavigate !== 'function') return;
     const descriptor = Object.getOwnPropertyDescriptor(find, '_onNavigate');
     const original = find._onNavigate;
     const wrapper = exported(function(this: any, ...args: any[]) {
-      disengage(r, 'find');
-      return Reflect.apply(original, this, args);
+      return navigateManually(r, 'find', original, this, args);
     }, find);
     find._onNavigate = wrapper;
     r.find = find;
@@ -176,16 +193,19 @@ export function createPdfFollow(deps: Deps) {
     const c = containerOf(r.view);
     const win = r.view._iframeWindow;
     listen(r, c, 'wheel', e => {
-      if (e.isTrusted !== false && !e.ctrlKey && !e.metaKey && (e.deltaX || e.deltaY) && inViewer(r, e.target)) disengage(r, 'wheel');
+      if (e.isTrusted !== false && !e.ctrlKey && !e.metaKey && (e.deltaX || e.deltaY) && inViewer(r, e.target)) r.manual.begin('wheel');
     }, true);
     // After window-capture shortcuts/selection handling, before PDF.js's
     // window-bubble Home/End/page-fit navigation consumes the same keys.
     listen(r, win.document, 'keydown', e => {
       const pageTarget = [win.document.body, win.document.documentElement].some(node => node && (node === e.target || node.isSameNode?.(e.target)));
-      if (e.isTrusted !== false && !e.defaultPrevented && !e.ctrlKey && !e.metaKey && !e.altKey && PAGE_KEYS.has(e.key) && (pageTarget || inViewer(r, e.target))) disengage(r, 'keyboard');
+      if (e.isTrusted !== false && !e.defaultPrevented && !e.ctrlKey && !e.metaKey && !e.altKey && PAGE_KEYS.has(e.key) && (pageTarget || inViewer(r, e.target))) { r.manual.hold(true, 'keyboard'); r.manual.begin('keyboard'); }
     }, true);
+    listen(r, win, 'keyup', e => { if (PAGE_KEYS.has(e.key)) r.manual.hold(false, 'keyboard'); }, true);
+    listen(r, win, 'blur', () => r.manual.releaseHolds());
     listen(r, c, 'pointerdown', e => {
       if (e.isTrusted === false || e.button !== 0 || !inViewer(r, e.target)) return;
+      r.manual.hold(true);
       const rect = c.getBoundingClientRect();
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;
@@ -193,22 +213,23 @@ export function createPdfFollow(deps: Deps) {
       const top = c.clientTop ?? 0;
       const vertical = c.scrollHeight > c.clientHeight && (x < left || x >= left + c.clientWidth);
       const horizontal = c.scrollWidth > c.clientWidth && (y < top || y >= top + c.clientHeight);
-      if (vertical || horizontal) { disengage(r, 'scrollbar'); return; }
+      if (vertical || horizontal) { r.manual.begin('scrollbar'); return; }
       r.pointer = { x: e.clientX, y: e.clientY, id: e.pointerId, type: e.pointerType ?? 'mouse' };
     }, true);
     listen(r, win, 'pointermove', e => {
       const p = r.pointer;
       if (!p || e.isTrusted === false || (p.id !== undefined && p.id !== e.pointerId) || p.type !== 'mouse' || !e.buttons) return;
       if (Math.hypot(e.clientX - p.x, e.clientY - p.y) < 3) return;
-      if (r.view._tool?.type === 'hand') { disengage(r, 'pan'); return; }
+      if (r.view._tool?.type === 'hand') { r.manual.begin('pan'); return; }
       const rect = c.getBoundingClientRect();
       const edge = e.clientY < rect.top + 20 || e.clientY > rect.bottom - 20 || e.clientX < rect.left + 20 || e.clientX > rect.right - 20;
-      if (edge && r.view.action?.type === 'selectText') disengage(r, 'selection');
+      if (edge && r.view.action?.type === 'selectText') r.manual.begin('selection');
     });
-    for (const type of ['pointerup', 'pointercancel', 'blur']) listen(r, win, type, () => { r.pointer = null; });
+    for (const type of ['pointerup', 'pointercancel', 'touchend', 'touchcancel', 'blur']) listen(r, win, type, () => { r.pointer = null; r.manual.hold(false); });
+    listen(r, c, 'scroll', () => r.manual.scroll());
     listen(r, c, 'touchmove', e => {
       if (e.isTrusted === false || e.defaultPrevented || e.touches?.length !== 1 || !inViewer(r, e.target)) return;
-      if ((r.view._tool?.type === 'pointer' || e.target?.id === 'viewer') && r.view.action?.type !== 'selectText') disengage(r, 'pan');
+      if ((r.view._tool?.type === 'pointer' || e.target?.id === 'viewer') && r.view.action?.type !== 'selectText') { r.manual.hold(true); r.manual.begin('pan'); }
     });
     listen(r, win.document, 'visibilitychange', () => schedule(r));
     for (const type of ['resize', 'focus', 'pageshow']) listen(r, win, type, () => schedule(r));
@@ -221,6 +242,7 @@ export function createPdfFollow(deps: Deps) {
 
   function release(r: OwnedView): void {
     records.delete(r.id);
+    r.manual.cancel();
     cancelFrame(r);
     for (const undo of r.undo.reverse()) { try { undo(); } catch (e) { deps.error(e); } }
     if (dead(r.view)) return;
@@ -247,7 +269,19 @@ export function createPdfFollow(deps: Deps) {
     const r: OwnedView = { id: ++nextId, reader, view, originalNavigate, descriptor,
       following: !!state?.active && view._readAloudPositionLocked !== false,
       active: !!state?.active, paused: !!state?.paused, pending: false, reset: true, force: false, reason: 'initial',
-      frame: null, frameWindow: null, undo: [], find: null, pointer: null };
+      frame: null, frameWindow: null, undo: [], find: null, pointer: null, manual: null! };
+    r.manual = createManualFollow({
+      enabled: () => deps.keepFollowingWhileVisible?.() !== false,
+      following: () => r.following && !disposed && !dead(r.view),
+      capture: () => {
+        const probe = deps.captureVisibility?.(r.view) ?? (() => null);
+        return () => visible(r) ? probe() : null;
+      },
+      stop: () => { cancelFrame(r); r.pending = false; containerOf(r.view)?.scrollTo(containerOf(r.view).scrollLeft, containerOf(r.view).scrollTop); },
+      disengage: reason => disengage(r, reason),
+      resume: () => { r.reset = true; run(r); },
+      error: deps.error,
+    });
     try {
       Object.defineProperty(view, '_readAloudPositionLocked', { configurable: true, enumerable: descriptor?.enumerable ?? true,
         get: exported(() => false, view), set: exported(() => {}, view) });
@@ -287,10 +321,10 @@ export function createPdfFollow(deps: Deps) {
         const result = Reflect.apply(original, this, args);
         if (r) {
           const state = waive(args[0]);
-          if (state?.active && !r.active) { r.following = true; r.reason = 'session'; r.reset = true; deps.clear?.(r.view); }
+          if (state?.active && !r.active) { r.manual.cancel(); r.following = true; r.reason = 'session'; r.reset = true; deps.clear?.(r.view); }
           r.active = !!state?.active;
           r.paused = !!state?.paused;
-          if (!state?.active || !state.popupOpen) { r.following = false; r.pending = false; cancelFrame(r); }
+          if (!state?.active || !state.popupOpen) { r.manual.cancel(); r.following = false; r.pending = false; cancelFrame(r); }
           run(r);
         }
         return result;
@@ -298,14 +332,14 @@ export function createPdfFollow(deps: Deps) {
       patches.shadow(proto, 'lockPositionToReadAloud', original => function(this: any, ...args: any[]) {
         const r = get(this);
         if (r && deps.resuming?.(r.reader)) return Reflect.apply(original, this, args);
-        if (r) { r.following = true; r.reason = 'explicit'; r.reset = true; r.force = true; }
+        if (r) { r.manual.cancel(); r.following = true; r.reason = 'explicit'; r.reset = true; r.force = true; }
         return Reflect.apply(original, this, args);
       });
       for (const name of ['navigate', ...NAVIGATION]) {
         if (typeof proto[name] !== 'function') continue;
         patches.shadow(proto, name, original => function(this: any, ...args: any[]) {
           const r = get(this);
-          if (r && (name !== 'navigate' || !waive(args[1])?.skipHistory)) disengage(r, 'navigation');
+          if (r && (name !== 'navigate' || !waive(args[1])?.skipHistory)) return navigateManually(r, 'navigation', original, this, args);
           return Reflect.apply(original, this, args);
         });
       }
@@ -314,7 +348,7 @@ export function createPdfFollow(deps: Deps) {
         const ranges = waive(args[0]);
         if (r && Array.isArray(ranges)) {
           for (let i = 0; i < ranges.length; i++) {
-            if (ranges[i]?.head && !ranges[i].collapsed) { disengage(r, 'selection'); break; }
+            if (ranges[i]?.head && !ranges[i].collapsed) return navigateManually(r, 'selection', original, this, args);
           }
         }
         return Reflect.apply(original, this, args);
@@ -322,6 +356,7 @@ export function createPdfFollow(deps: Deps) {
       if (typeof proto.setSuspended === 'function') patches.shadow(proto, 'setSuspended', original => function(this: any, ...args: any[]) {
         const result = Reflect.apply(original, this, args);
         const r = get(this);
+        if (r && args[0]) r.manual.releaseHolds();
         if (r && !args[0]) schedule(r);
         return result;
       });
@@ -341,7 +376,7 @@ export function createPdfFollow(deps: Deps) {
     refresh() { for (const r of records.values()) run(r); },
     inspect(view: any): Record<string, unknown> {
       const r = recordOf(waive(view));
-      return r ? { owned: true, following: r.following, pending: r.pending, reason: r.reason, visible: visible(r) } : { owned: false };
+      return r ? { owned: true, following: r.following, interacting: r.manual.active, keepFollowingWhileVisible: deps.keepFollowingWhileVisible?.() !== false, pending: r.pending, reason: r.reason, visible: visible(r) } : { owned: false };
     },
     patchCounts: () => patches.counts(),
     dispose(): void {

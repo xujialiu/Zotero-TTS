@@ -1,0 +1,10 @@
+Executed: test/zotero-dev/scripts/manual-follow/beta2/16-pdf-visibility-sentence-controlled-movement.js
+Result excerpt (verbatim fields from returned JSON):
+complete.afterMove: {"scrollTop":800,"following":true,"interacting":true,"visible":true}
+complete.held: {"scrollTop":800,"following":false,"interacting":false,"visible":true,"reason":"wheel"}
+complete.settled: {"scrollTop":800,"following":false,"interacting":false,"visible":true,"reason":"wheel"}
+complete.returnAfterComplete.after: {"scrollTop":800,"following":false,"interacting":false,"visible":true,"reason":"wheel"}
+returnAfterComplete.ret: [0,0,true,true]
+restoredMode: {"value":"sentence","user":true}
+final: {"scrollTop":0,"following":false,"interacting":false,"reason":"wheel"}
+Interpretation: controlled disappearance disengaged as expected; trusted Shift+Enter path did not restore in this run. Direct explicit-lock recovery was run separately.

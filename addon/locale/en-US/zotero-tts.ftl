@@ -551,6 +551,12 @@ ztts-substitute-paid = Zotero-TTS: { $missing } is not offered here, and no Loca
 
 ## Auto-scroll
 
+ztts-keep-following-visible =
+    .label = Keep auto-scroll while the sentence is visible
+ztts-help-keep-following-visible =
+    .value = ?
+    .help = On by default. In PDFs and EPUBs, scrolling or navigating stops auto-scroll only when the entire sentence highlight leaves the view. Any visible part keeps following enabled. Auto-scroll waits while you move the page. Turn this off to stop following as soon as you scroll or navigate. After following stops, use Go to reading position to resume it.
+
 ztts-auto-scroll =
     .value = Auto-scroll
 ztts-auto-scroll-sentence =
@@ -559,10 +565,10 @@ ztts-auto-scroll-outside =
     .label = Scroll when outside the view
 ztts-help-auto-scroll-sentence =
     .value = ?
-    .help = Center the whole sentence vertically whenever a new sentence starts, even if it is already visible. Word highlights do not repeatedly recenter a fitting sentence. For PDFs and EPUBs; paginated EPUBs keep their pages. Manual navigation suspends following; Go to reading position resumes it.
+    .help = Center the whole sentence vertically whenever a new sentence starts, even if it is already visible. Word highlights do not repeatedly recenter a fitting sentence. For PDFs and EPUBs; paginated EPUBs keep their pages. Go to reading position resumes following after you browse away.
 ztts-help-auto-scroll-outside =
     .value = ?
-    .help = Leave a fully visible sentence in place. Scroll to center it only when any part leaves the view. For PDFs and EPUBs; paginated EPUBs keep their pages. Sentences taller than the view start at their beginning, then follow the current word when available. Manual navigation suspends following; Go to reading position resumes it.
+    .help = Leave a fully visible sentence in place. Scroll to center it only when any part leaves the view. For PDFs and EPUBs; paginated EPUBs keep their pages. Sentences taller than the view start at their beginning, then follow the current word when available. Go to reading position resumes following after you browse away.
 
 ztts-key-auto-scroll =
     .value = Auto-scroll mode

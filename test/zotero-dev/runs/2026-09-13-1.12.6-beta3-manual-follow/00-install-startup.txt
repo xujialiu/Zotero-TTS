@@ -1,0 +1,5 @@
+Installed XPI: build/zotero-tts.xpi
+XPI SHA256: 9d77e0d0b0b344f340bffbff5b75ed67778befe6993dec99f5cca4652eeb7d87
+Bundle SHA256: 4555be8b670c264d2d6b7635ee417c75123d1276c4d5a167b4ecade05ebe5b40
+Plugin list: Zotero-TTS v1.12.6-beta3
+Startup diagnostic: all 23 steps ok; failed=[]

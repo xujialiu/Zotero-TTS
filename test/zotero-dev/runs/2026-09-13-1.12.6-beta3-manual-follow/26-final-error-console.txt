@@ -1,0 +1,5 @@
+Executed: zotero_read_errors(lines=200) after fixture closure, erase and preference restoration.
+Found 2 error(s):
+[15:22:27] InvalidStateError: Navigated away from page
+[15:16:04] InvalidStateError: Navigated away from page
+Neither entry had a plugin stack. No "can't access dead object" entries were present; dedicated console inspection returned matchingDeadObjectMessages=0.

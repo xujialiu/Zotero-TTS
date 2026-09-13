@@ -1,0 +1,17 @@
+## Install hook (executed exactly as one line)
+
+return (()=>{if(Zotero.__ztts100LogErrorHookInstalled)return JSON.stringify({installed:true,records:Zotero.__ztts100LogErrorRecords?.length??0});const original=Zotero.logError,records=[];const hook=function(error,...args){try{records.push({at:Date.now(),message:String(error),stack:error?.stack??null,fileName:error?.fileName??null,lineNumber:error?.lineNumber??null,columnNumber:error?.columnNumber??null})}catch(e){}return Reflect.apply(original,this,[error,...args])};Zotero.__ztts100LogErrorOriginal=original;Zotero.__ztts100LogErrorRecords=records;Zotero.__ztts100LogErrorHook=hook;Zotero.logError=hook;Zotero.__ztts100LogErrorHookInstalled=true;return JSON.stringify({installed:true,records:0,at:Date.now()})})()
+
+Output: `Result: {"installed":true,"records":0,"at":1789283757653}`
+
+## Check records (executed exactly as one line)
+
+return (()=>{const rec=Zotero.__ztts100LogErrorRecords??[];return JSON.stringify({count:rec.length,records:rec})})()
+
+Outputs after the two bounded fixture-close routes and after fixture erase: `Result: {"count":0,"records":[]}`
+
+## Remove hook (executed exactly as one line)
+
+return (()=>{const installed=!!Zotero.__ztts100LogErrorHookInstalled,records=Zotero.__ztts100LogErrorRecords?.length??0;if(installed&&Zotero.__ztts100LogErrorOriginal)Zotero.logError=Zotero.__ztts100LogErrorOriginal;for(const k of ['__ztts100LogErrorHookInstalled','__ztts100LogErrorHook','__ztts100LogErrorOriginal','__ztts100LogErrorRecords']){try{delete Zotero[k]}catch(e){}}return JSON.stringify({hookWasInstalled:installed,records,hookPresent:!!Zotero.__ztts100LogErrorHookInstalled})})()
+
+Output: `Result: {"hookWasInstalled":true,"records":0,"hookPresent":false}`

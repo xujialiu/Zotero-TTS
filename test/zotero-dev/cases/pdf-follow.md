@@ -9,6 +9,11 @@ save its reading position, zoom, find/split state and window state first.
 No provider or shortcut changes are required. Counts/positions below are
 beta3 observations, not constants to assert at another viewport.
 
+For the immediate-disengagement cases below, turn off
+`readAloud.keepFollowingWhileVisible` and restore its original value and
+user-value flag afterward. The default-on visibility behavior is covered
+in [section 3i](manual-follow.md).
+
 1. **Ownership after an in-place install.** All 20 startup steps are ok,
    `failed: []`. The idle PDF reports `owned: true`, `patched: true`,
    `following: false`, `pending: false`, `last: null`. Its

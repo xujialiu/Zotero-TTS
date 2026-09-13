@@ -39,8 +39,11 @@ historical values are not fresh PASS results on another build.
    its centered target, including a sentence already visible near an
    edge. Repeated word updates within the same sentence do not produce
    new centering requests. Prove audio advancement, not only word timers.
-4. **Manual intent and explicit return.** Trusted wheel or PageDown
-   suspends following in both formats. Later real sentences and mode
+4. **Manual intent and explicit return.** With Keep auto-scroll while the
+   sentence is visible turned off, trusted wheel or PageDown suspends
+   following in both formats. With it on (the default since #100), only
+   complete sentence disappearance during navigation suspends following;
+   run [section 3i](manual-follow.md) for that distinction. Later real sentences and mode
    changes do not reactivate it. Neither direct playback resume nor the
    native play/pause toggle reactivates it. Test PageDown independently
    from wheel input and record its exact target/event path.

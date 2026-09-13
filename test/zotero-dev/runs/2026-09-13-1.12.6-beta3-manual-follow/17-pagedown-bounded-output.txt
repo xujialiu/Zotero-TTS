@@ -1,0 +1,3 @@
+Executed: test/zotero-dev/scripts/manual-follow/beta2/24-epub-paginated-navigation-sentence.js and bounded alternative 26-epub-paginated-pagedown-rev3-outer-constructor.js
+24 observed trusted key path but no native movement: ret=[0,true], seen key field was empty, offset stayed 10799; no reliable hold/movement evidence.
+26 corrected inner-window constructor: ret=[2,true], seen=[], offset stayed 10799 through 470ms; PageDown native movement remains NOT TESTABLE in this bridge. Existing unit coverage covers async/failed navigation and Promise identity.

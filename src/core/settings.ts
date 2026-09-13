@@ -82,6 +82,7 @@ export interface Settings {
   readAloud: {
     /** Follow only clipped content, or center each new sentence. */
     autoScrollMode: AutoScrollMode;
+    keepFollowingWhileVisible: boolean;
     /** Expand each newly shown player once, leaving manual folding alone. */
     openExpanded: boolean;
     /** Remove enclosing angle brackets from speech text at the next reading session. */
@@ -203,6 +204,7 @@ export const DEFAULTS: Settings = {
   },
   readAloud: {
     autoScrollMode: 'sentence',
+    keepFollowingWhileVisible: true,
     sameForAllDocuments: true,
     globalSpeed: true,
     favoriteVoices: '',
@@ -328,6 +330,7 @@ export function loadSettings(prefs: PrefsBackend): Settings {
     },
     readAloud: {
       autoScrollMode: autoScrollMode(prefs.get(PREF_PREFIX + 'readAloud.autoScrollMode')),
+      keepFollowingWhileVisible: prefs.get(PREF_PREFIX + 'readAloud.keepFollowingWhileVisible') !== false,
       sameForAllDocuments: bool(prefs, 'readAloud.sameForAllDocuments', DEFAULTS.readAloud.sameForAllDocuments),
       globalSpeed: bool(prefs, 'readAloud.globalSpeed', DEFAULTS.readAloud.globalSpeed),
       favoriteVoices: str(prefs, 'readAloud.favoriteVoices', DEFAULTS.readAloud.favoriteVoices),

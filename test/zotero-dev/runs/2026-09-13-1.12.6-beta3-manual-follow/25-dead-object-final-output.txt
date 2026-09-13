@@ -1,0 +1,3 @@
+Executed: test/zotero-dev/scripts/manual-follow/beta2/65-console-dead-object-inspection.js
+Result:
+{"totalConsoleMessages":2,"matchingDeadObjectMessages":0,"matches":[]}

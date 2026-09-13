@@ -499,6 +499,12 @@ ztts-substitute-paid = Zotero-TTS：这里没有提供 { $missing }，也没有�
 
 ## Auto-scroll
 
+ztts-keep-following-visible =
+    .label = 句子可见时保持自动滚动
+ztts-help-keep-following-visible =
+    .value = ?
+    .help = 默认开启。在 PDF 和 EPUB 中，滚动或导航只有让整句高亮完全离开视图才会退出自动滚动；只要还有一部分可见，就保持跟随。移动页面期间，自动滚动会暂时等待。关闭后，滚动或导航会立即退出跟随。退出后，使用“回到朗读位置”恢复。
+
 ztts-auto-scroll =
     .value = 自动滚动
 ztts-auto-scroll-sentence =
@@ -507,10 +513,10 @@ ztts-auto-scroll-outside =
     .label = 超出视图时滚动
 ztts-help-auto-scroll-sentence =
     .value = ?
-    .help = 每句开始时，将整句移到视图的垂直中央，即使它已经完全可见。逐词高亮不会让能完整显示的句子反复居中。适用于 PDF 和 EPUB；EPUB 翻页模式保留原来的分页。手动浏览会暂停跟随；“回到朗读位置”可恢复跟随。
+    .help = 每句开始时，将整句移到视图的垂直中央，即使它已经完全可见。逐词高亮不会让能完整显示的句子反复居中。适用于 PDF 和 EPUB；EPUB 翻页模式保留原来的分页。浏览其他位置后，“回到朗读位置”可恢复跟随。
 ztts-help-auto-scroll-outside =
     .value = ?
-    .help = 整句完全可见时保持原位；只有句子有部分超出视图时，才滚动并将整句居中。适用于 PDF 和 EPUB；EPUB 翻页模式保留原来的分页。超长句子先显示句首，有逐词定位时再跟随当前单词。手动浏览会暂停跟随；“回到朗读位置”可恢复跟随。
+    .help = 整句完全可见时保持原位；只有句子有部分超出视图时，才滚动并将整句居中。适用于 PDF 和 EPUB；EPUB 翻页模式保留原来的分页。超长句子先显示句首，有逐词定位时再跟随当前单词。浏览其他位置后，“回到朗读位置”可恢复跟随。
 
 ztts-key-auto-scroll =
     .value = 自动滚动模式

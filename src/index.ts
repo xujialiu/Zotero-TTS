@@ -32,6 +32,7 @@ import { redeliverInterfaces, restoreInterfaces } from './read-aloud/interface-r
 import { createReadAloudMemorySync, type ReadAloudMemorySync } from './read-aloud/memory-sync';
 import { createHighlightStyling, type HighlightStyling } from './read-aloud/highlight-style';
 import { createDOMFollow } from './read-aloud/dom-follow';
+import { liveReaderValue } from './read-aloud/reader-access';
 import { createResumeGuard } from './read-aloud/resume-guard';
 import { createSentenceInView, type SentenceInView, type SentenceInViewDeps } from './read-aloud/sentence-in-view';
 import { createSkippedLines, type SkippedLines } from './read-aloud/skipped-lines';
@@ -1195,8 +1196,8 @@ async function startPositionTracking(): Promise<void> {
       const item = reader?.itemID ? Zotero.Items.get(reader.itemID) : null;
       return item && typeof item.libraryID === 'number' && item.key ? { lib: item.libraryID, key: item.key } : null;
     },
-    managerOf: (reader: any) => reader?._internalReader?._readAloudManager ?? null,
-    savedPositionOf: (reader: any) => reader?._internalReader?._state?.readAloudState?.savedPosition ?? null,
+    managerOf: (reader: any) => liveReaderValue(reader, value => Components.utils.isDeadWrapper(value), '_internalReader', '_readAloudManager'),
+    savedPositionOf: (reader: any) => liveReaderValue(reader, value => Components.utils.isDeadWrapper(value), '_internalReader', '_state', 'readAloudState', 'savedPosition'),
     setTimeout: (fn, ms) => setTimeout(fn, ms),
     clearTimeout: (handle: any) => clearTimeout(handle),
     now: () => Date.now(),
@@ -1530,6 +1531,7 @@ function startSentenceInView(): void {
   const deps: SentenceInViewDeps = {
     resuming: (reader) => followResumeGuard?.resuming(reader) ?? false,
     mode: () => autoScrollMode(prefs.get(PREF_PREFIX + 'readAloud.autoScrollMode')),
+    keepFollowingWhileVisible: () => prefs.get(PREF_PREFIX + 'readAloud.keepFollowingWhileVisible') !== false,
     exportFunction: (fn, target) => Components.utils.exportFunction(fn, target),
     // What the reader hands an exported function arrives behind Xray wrappers (see highlight-style.ts)
     waiveXrays: (value) => ((value && typeof value === 'object') || typeof value === 'function' ? Components.utils.waiveXrays(value) : value),
@@ -1662,7 +1664,7 @@ function startPlayerExpanded(): void {
   stopPlayerExpanded();
   playerExpanded = createPlayerExpanded({
     enabled: () => loadSettings(prefs).readAloud.openExpanded,
-    documentOf: (reader: any) => reader?._iframeWindow?.document ?? null,
+    documentOf: (reader: any) => liveReaderValue(reader, value => Components.utils.isDeadWrapper(value), '_iframeWindow', 'document'),
     observe: (doc, changed) => {
       const win = doc.defaultView as any;
       const callback = Components.utils.exportFunction(() => changed(), win);
@@ -1694,7 +1696,7 @@ function startFavoriteMarks(): void {
       const s = loadSettings(prefs).readAloud;
       return { favorites: parseFavoriteVoices(s.favoriteVoices), favoritesOnly: s.favoritesOnly };
     },
-    documentOf: (reader: any) => reader?._iframeWindow?.document ?? null,
+    documentOf: (reader: any) => liveReaderValue(reader, value => Components.utils.isDeadWrapper(value), '_iframeWindow', 'document'),
     isDead: (value) => Components.utils.isDeadWrapper(value),
     error: (e) => Zotero.logError(e),
     debug: (message) => Zotero.debug('[zotero-tts] ' + message),

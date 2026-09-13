@@ -199,7 +199,13 @@ describe('followTarget', () => {
  * both PDF rects and container boxes.
  */
 function fakeReader(options: { scrollTop?: number; state?: unknown } = {}) {
+  const listeners = new Map<string, (e: any) => void>();
   const container = {
+    addEventListener: (name: string, fn: (e: any) => void) => listeners.set(name, fn),
+    removeEventListener: (name: string) => listeners.delete(name),
+    emit: (name: string, e: any = {}) => listeners.get(name)?.({ isTrusted: true, target: container, ...e }),
+    contains: (target: any) => target === container,
+    getBoundingClientRect: () => ({ left: 0, top: 0, right: 1184, bottom: 994 }),
     scrollTop: options.scrollTop ?? 2357,
     scrollLeft: 0,
     clientWidth: 1184,
@@ -253,6 +259,29 @@ function makeDeps(over: Partial<SentenceInViewDeps> = {}) {
 const A_POSITION = { pageIndex: 1, rects: [A_HEAD], nextPageRects: [A_TAIL] };
 
 describe('createSentenceInView', () => {
+  it('uses actual PDF fragments across pages, rather than the space between them', () => {
+    vi.useFakeTimers();
+    const module = createSentenceInView(makeDeps());
+    const { reader, view, container } = fakeReader({ scrollTop: 1000 });
+    module.attach(reader);
+    const position = { pageIndex: 0, rects: [[10, 900, 500, 950]], nextPageRects: [[10, 1980, 500, 2010]] };
+    push(view, position); container.emit('wheel', { deltaY: 1 });
+    container.emit('scroll'); vi.runAllTimers();
+    expect(module.inspect(reader)).toMatchObject({ following: true, interacting: false });
+    container.emit('wheel', { deltaY: -30 }); container.scrollTop = 980;
+    container.emit('scroll');
+    // The viewport now lies in whitespace between the two real fragments.
+    expect(module.inspect(reader).following).toBe(false);
+    module.dispose(); vi.runAllTimers(); vi.useRealTimers();
+  });
+  it('does not interpret unavailable next-page geometry as complete disappearance', () => {
+    vi.useFakeTimers(); const module = createSentenceInView(makeDeps());
+    const { reader, view, container } = fakeReader({ scrollTop: 1000 }); module.attach(reader);
+    push(view, { pageIndex: 2, rects: [[10, 900, 500, 950]], nextPageRects: [[10, 1980, 500, 2010]] });
+    container.emit('wheel', { deltaY: 1 }); container.emit('scroll'); vi.runAllTimers();
+    expect(module.inspect(reader)).toMatchObject({ following: true, interacting: true });
+    module.dispose(); vi.runAllTimers(); vi.useRealTimers();
+  });
   it('centers one time per sentence, applies mode changes and forces explicit returns', () => {
     let mode: 'outside' | 'sentence' = 'sentence';
     const deps = makeDeps({ mode: () => mode });
