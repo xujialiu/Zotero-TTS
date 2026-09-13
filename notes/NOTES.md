@@ -423,3 +423,5 @@ cite `notes/NOTES.md` with a date or a section title resolve through this index.
 - Native regional pools include voices that change the displayed group (issue #97)
 
 - Regional shortcuts verified against a native compatible pool (issue #97)
+
+- Configured providers and official tiers hand over at supported boundaries (issue #95)

@@ -1,0 +1,1 @@
+return (() => { const s = Zotero.__zttsAllHandoff; if (!s) throw new Error('baseline script has not run'); s.spec = { label: 'Windows System within-source', mode: 'same', provider: 'system::', direction: 1 }; return JSON.stringify(s.spec); })()

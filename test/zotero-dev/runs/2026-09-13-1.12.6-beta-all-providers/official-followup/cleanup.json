@@ -1,0 +1,232 @@
+{
+  "status": "PASS",
+  "errors": [],
+  "fixture": {
+    "readerClosed": true,
+    "itemErased": true,
+    "itemID": 25474,
+    "key": "DS9PLYH4",
+    "title": "Zotero-TTS official voice handoff fixture 1789275685680"
+  },
+  "restored": {
+    "openai.enabled": {
+      "value": false,
+      "user": true
+    },
+    "openai.server": {
+      "value": "mimo",
+      "user": true
+    },
+    "openai.baseURL": {
+      "value": "https://api.xiaomimimo.com",
+      "user": true
+    },
+    "openai.model": {
+      "value": "mimo-v2.5-tts",
+      "user": true
+    },
+    "openai.voice": {
+      "value": "alloy",
+      "user": false
+    },
+    "openai.voices": {
+      "value": "",
+      "user": false
+    },
+    "openai.apiKey": {
+      "equalToBaseline": true,
+      "chars": 51,
+      "user": true
+    },
+    "openai.headers": {
+      "equalToBaseline": true,
+      "chars": 0,
+      "user": false
+    },
+    "openai.presetValues": {
+      "equalToBaseline": true,
+      "chars": 611,
+      "user": true
+    },
+    "azure.enabled": {
+      "value": false,
+      "user": false
+    },
+    "azure.apiKey": {
+      "equalToBaseline": true,
+      "chars": 84,
+      "user": true
+    },
+    "azure.region": {
+      "value": "eastasia",
+      "user": false
+    },
+    "azure.voice": {
+      "value": "zh-CN-XiaoxiaoNeural",
+      "user": false
+    },
+    "cloudflare.enabled": {
+      "value": false,
+      "user": false
+    },
+    "cloudflare.accountId": {
+      "value": "",
+      "user": false
+    },
+    "cloudflare.apiToken": {
+      "equalToBaseline": true,
+      "chars": 0,
+      "user": false
+    },
+    "speechify.enabled": {
+      "value": false,
+      "user": false
+    },
+    "speechify.apiKey": {
+      "equalToBaseline": true,
+      "chars": 46,
+      "user": true
+    },
+    "fish.enabled": {
+      "value": true,
+      "user": true
+    },
+    "fish.apiKey": {
+      "equalToBaseline": true,
+      "chars": 51,
+      "user": true
+    },
+    "fish.freeOnly": {
+      "value": true,
+      "user": false
+    },
+    "fish.voices": {
+      "value": "",
+      "user": false
+    },
+    "fish.includeOfficial": {
+      "value": true,
+      "user": false
+    },
+    "fish.includeOwn": {
+      "value": true,
+      "user": false
+    },
+    "fish.includeManual": {
+      "value": true,
+      "user": false
+    },
+    "fishspeech.enabled": {
+      "value": false,
+      "user": false
+    },
+    "fishspeech.baseURL": {
+      "value": "https://h200-fish-audio.xujialiu.top",
+      "user": true
+    },
+    "fishspeech.headers": {
+      "equalToBaseline": true,
+      "chars": 151,
+      "user": true
+    },
+    "local.enabled": {
+      "value": false,
+      "user": false
+    },
+    "local.engine": {
+      "value": "kokoro",
+      "user": false
+    },
+    "local.baseURL": {
+      "value": "https://h200-kokoro.xujialiu.top",
+      "user": true
+    },
+    "local.voice": {
+      "value": "af_bella",
+      "user": false
+    },
+    "local.headers": {
+      "equalToBaseline": true,
+      "chars": 151,
+      "user": true
+    },
+    "system.enabled": {
+      "value": false,
+      "user": false
+    },
+    "readAloud.volume": {
+      "value": 100,
+      "user": false
+    },
+    "readAloud.sameForAllDocuments": {
+      "value": true,
+      "user": false
+    },
+    "readAloud.memory": {
+      "equalToBaseline": true,
+      "chars": 84,
+      "user": true
+    },
+    "webdav.syncPositions": {
+      "value": true,
+      "user": true
+    },
+    "webdav.autoUploadSettings": {
+      "value": true,
+      "user": true
+    },
+    "webdav.syncSettings": {
+      "value": false,
+      "user": false
+    },
+    "prefetch": {
+      "value": 5,
+      "user": true
+    },
+    "prefetchEnabled": {
+      "value": true,
+      "user": false
+    },
+    "reader.readAloudVoices": {
+      "equalToBaseline": true,
+      "chars": 827,
+      "user": true
+    }
+  },
+  "final": {
+    "readers": [
+      {
+        "index": 0,
+        "itemID": 19598,
+        "title": "Clinically applicable deep learning for diagnosis and referral in retinal disease",
+        "tabID": "tab-fdppZ8SC",
+        "active": true,
+        "paused": true,
+        "selected": "fish::en/9fa4b7a1b67446b48208f2f5d4bcd8da",
+        "tier": "local",
+        "position": 6,
+        "currentIndex": null,
+        "audioState": "running"
+      }
+    ],
+    "selectedTab": "tab-fdppZ8SC",
+    "selectedTabRestored": true,
+    "nativeStubRestored": true,
+    "settingsWindowOpen": false,
+    "debugStoring": true,
+    "position": {
+      "rows": 66,
+      "queued": 0,
+      "lastError": null
+    },
+    "errorSummary": {
+      "debugLines": 306139,
+      "pluginLines": 4156,
+      "deadObjectLines": 0,
+      "errorStoreCount": 26,
+      "pluginErrorEntries": 0,
+      "deadErrorEntries": 0,
+      "zoteroReadErrorsObserved": 120
+    }
+  }
+}

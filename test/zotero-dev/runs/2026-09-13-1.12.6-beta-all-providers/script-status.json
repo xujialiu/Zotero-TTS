@@ -1,0 +1,70 @@
+{
+  "executed": [
+    "00-baseline-redacted.js",
+    "01-config-summary.js",
+    "02-disable-sync-and-mute.js",
+    "03-mode-all-configured.js",
+    "03-mode-chatterbox-fish.js",
+    "04-apply-config.js",
+    "05-open-fixture.js",
+    "05-inspect-menu.js",
+    "05-set-fixture-language-mul.js",
+    "07-spec-fish-same.js",
+    "07-spec-mimo-same.js",
+    "07-spec-azure-same.js",
+    "07-spec-speechify-same.js",
+    "07-spec-fishspeech-same.js",
+    "07-spec-kokoro-same.js",
+    "07-spec-system-same.js",
+    "07-spec-chatterbox-same.js",
+    "07-spec-cross-azure-fish-forward.js",
+    "07-spec-cross-fish-azure-reverse.js",
+    "07-spec-cross-fish-kokoro-forward.js",
+    "07-spec-cross-kokoro-fish-reverse.js",
+    "07-spec-cross-kokoro-speechify-forward.js",
+    "07-spec-cross-speechify-kokoro-reverse.js",
+    "07-spec-cross-speechify-system-forward.js",
+    "07-spec-cross-system-speechify-reverse.js",
+    "07-spec-cross-fish-fishspeech-forward.js",
+    "07-spec-cross-fishspeech-fish-reverse.js",
+    "07-spec-cross-fishspeech-openai-forward.js",
+    "07-spec-cross-openai-fishspeech-reverse.js",
+    "07-spec-cross-fish-chatterbox-forward.js",
+    "07-spec-cross-chatterbox-fish-reverse.js",
+    "08-start-handoff.js (activation/resume + 420-iteration revision for Speechify retry onward)",
+    "09-poll-handoff.js",
+    "10-capture-handoff.js",
+    "11-close-fixture.js",
+    "12-remove-native-test-stub.js",
+    "12-restore-native-test-stub.js",
+    "13-official-tier-probe.js"
+  ],
+  "pending": [
+    "06-wait-catalog-window.js (not needed: 05-open-fixture observed the final catalog)",
+    "99-cleanup-restore.js (will run after this save)"
+  ],
+  "attempts": [
+    {
+      "script": "08-start-handoff.js pre-activation revision",
+      "case": "Speechify within-source",
+      "status": "NOT TESTABLE",
+      "reason": "fixture context was suspended during the 2.7 s start window; retry with activation/resume and 6.3 s window passed"
+    },
+    {
+      "script": "08-start-handoff.js pre-activation revision",
+      "case": "Fish Speech within-source",
+      "status": "NOT TESTABLE",
+      "reason": "provider audio did not arrive during the 2.7 s start window; retry with 6.3 s window passed"
+    },
+    {
+      "script": "07-spec-mimo-same.js before fixture",
+      "case": "MiMo within-source",
+      "status": "NOT TESTABLE",
+      "reason": "spec was sent before opening the disposable fixture; no provider result"
+    }
+  ],
+  "archiveReview": {
+    "cleanup": "99-cleanup-restore.js completed after evidence was saved; cleanup.json records the result.",
+    "officialHandoff": "Standard and Premium same-tier shortcut word handoffs passed; see official-followup/report.md and its separate script-status.json."
+  }
+}

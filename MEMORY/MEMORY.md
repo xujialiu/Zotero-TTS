@@ -402,7 +402,8 @@ reading a reader's live state, digging an issue's evidence out of Zotero
 before the issue is written.
 
 - **The driving rules are `agents/zotero-tester.md`** (the
-  bridge's tools, how to drive them, what to report). A session running
+  bridge's tools, provider test authorization, reusable scripts, and reports).
+  A session running
   Fable, Astra, or Opus delegates runs to the named
   `zotero-tester` agent by default, except when the user explicitly asks
   the main session to drive the bridge personally — research as much as verification, since research is

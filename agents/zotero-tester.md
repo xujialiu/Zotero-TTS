@@ -275,6 +275,16 @@ why it was needed. Include volume restoration in the cleanup evidence.
 
 ## Rules
 
+- **Configured providers are authorized for testing** (2026-09-13): the
+  user permits real test requests to every provider whose configuration they
+  have filled in, including temporarily enabling a configured provider that
+  is currently disabled. Zotero's official Standard and Premium voices are
+  also authorized, including their metered test requests. Do not ask again
+  solely because a provider is disabled or a test uses paid voices. Keep
+  requests bounded within the requested test scope and restore enabled
+  states, voice choices, and other temporary settings afterward. This permits
+  the intended provider checks; it does not make accidental paid fallback a
+  successful test.
 - Leave the user's Zotero as found. Read a pref before changing it and
   restore it in a `finally` of the same script. Never print an API key or a
   pref that may hold one (`apiKey`, `headers`, `password`): report "set"
@@ -297,7 +307,7 @@ why it was needed. Include volume restoration in the cleanup evidence.
   Standard voice: before any popup opens or session starts, point
   `readAloud.memory` at a listed free voice and restore it verbatim as
   the last pref written; a session on an id without `::` is paused at
-  once and reported.
+  once and reported unless that metered voice is the intended test target.
 - Checks that spend: Test connection and Enable on Azure and OpenAI
   synthesize a probe (Azure's free tier, Chatterbox is free). One run per
   check is fine unless the brief says otherwise; never in a loop.
@@ -328,6 +338,17 @@ value and the new.
 For new tests, also supply the reusable scripts that actually ran, including
 PASS cases, and sanitized run evidence for the main session to save under
 `test/zotero-dev/scripts/` and `test/zotero-dev/runs/`, as MEMORY/MEMORY.md requires.
+**Retain scripts during testing** (user instruction, 2026-09-13): save the
+actual executed scripts as files in the run's scratch directory as the work
+proceeds, and send their paths to the main session at completed checkpoints
+for incremental archiving; do not wait until the entire run ends. Distinguish
+executed revisions from prepared or revised scripts that have not run. Include
+prerequisites, fixtures, expected output, permitted state changes, and cleanup
+steps; never include credentials or raw preference snapshots. On later runs,
+reuse or adapt these files after checking the current build and environment,
+so the same procedure does not have to be rediscovered or reconstructed from
+conversation history. Retain successful scripts too; a prose report alone
+does not satisfy this requirement. Reuse methods, never old PASS results.
 Keep these artifacts separate from the concise report. Backfill older cases
 when they are next run in a user-requested full pass; do not run extra checks
 just to fill the archive.

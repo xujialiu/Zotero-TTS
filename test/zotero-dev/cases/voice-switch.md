@@ -95,3 +95,11 @@ a diagnostic alone does not prove the sound was heard. Human judgment is
 required for natural pronunciation, the perceptual gap at the handoff and
 whether highlighting feels synchronized. Save executed scripts and results
 under the corresponding scripts/runs directories and link them here.
+
+Real provider checks can reuse the [all-provider scripts](../scripts/voice-switch-all-providers/README.md).
+The [1.12.6-beta provider report](../runs/2026-09-13-1.12.6-beta-all-providers/report.md)
+records eight within-source cases and seven cross-source pairs in both
+directions. Cross-source runs use cached real audio; they do not establish
+cold-request latency or exhaust all provider combinations. The linked official
+follow-up verifies Standard and Premium same-tier word handoffs; cross-tier
+manual changes rebuild the native controller and are outside #95's shortcut pool.
