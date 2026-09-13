@@ -1,6 +1,6 @@
 [Checklist index](../README.md)
 
-## 3g. Enclosing angle brackets (issues #94, #96)
+## 3g. Enclosing brackets (issues #94, #96, #101)
 
 Run the [baseline](../baseline.md), then import
 `test/fixtures/angle-brackets/angle-brackets.epub` as a temporary standalone
@@ -10,8 +10,10 @@ disable automatic settings/position uploads for the run, and restore the
 original values in the workflow's order, with reading memory last.
 
 1. **Default and UI.** In Reading, the checkbox
-   `ztts-strip-angle-brackets` is bound to
+   `ztts-strip-angle-brackets` controls
    `extensions.zotero.zotero-tts.readAloud.stripAngleBrackets`, default true.
+   It is unbound so invalid input can be refused before enabling. The
+   text field defaults to the angle and square bracket pairs.
    English and Chinese labels and the help text explain outside punctuation
    and stopping/reopening Read Aloud. The setting survives backup/restore
    and belongs to settings sync (also covered by unit tests).
@@ -69,6 +71,25 @@ original values in the workflow's order, with reading memory last.
    The existing fixture does not contain the exact multi-group source;
    its seven real segments separately verified source-position preservation.
 
+9. **Configurable pairs (#101).** Enabled locks the input; disabling unlocks
+   it and permits a space-separated list such as `<> [] () 【】`. Re-enable
+   validates and locks. Empty input, `<`, `aa`, `**`, and duplicate `<> <>`
+   each show a localized error. Cancel preserves the draft and keeps the
+   switch off; Use defaults writes `<> []` and enables/locks. External
+   preference writes and backup refresh update both controls. Inspect the
+   visible row and dialog labels; do not switch Zotero's live locale.
+   Capture outgoing `<Hello> [World]` -> `Hello World` and
+   `【Hello】 (World)` -> `Hello World` with the corresponding configuration.
+   Verify native metadata and offsets via the restored stub, real plugin
+   word ranges, cache reuse, and prefetch with the custom list.
+   Mixed nesting `<[Hello]> [<World>]` retains `[Hello] <World>`;
+   malformed `<[Hello>]` remains unchanged. Multiple empty pairs skip
+   synthesis. Original document coordinates remain unchanged.
+   `diagnostics.textSettings()` now includes `configuredPairs` and
+   `effectivePairs`: editing a list while active/paused changes only the
+   former; stopping and reactivating updates the latter. Restore the list's
+   value and user-value flag along with the existing baseline preferences.
+
 Unit-only edge coverage includes nested pairs (one removal), punctuation
 before and after the pair, fullwidth brackets, UTF-16 position mapping,
 immutable cached timestamps, and concurrent cache/prefetch behavior.
@@ -89,3 +110,14 @@ highlights remain unverified; Chinese live locale rendering was not tested.
 coordinate mapping, cache/prefetch and session behavior passed. Continuous
 playback was not testable with the suspended AudioContext; native transport
 was stubbed and Chinese locale rendering was not exercised live.
+
+
+[1.12.6-beta3 evidence](../runs/2026-09-13-1.12.6-beta3/report.md) and
+[configurable-pair scripts](../scripts/bracket-pairs/README.md) cover #101:
+the unbound checkbox, input locks, validation/recovery, external refresh,
+activation snapshots for both settings, real Fish requests and word ranges,
+cache/prefetch, mixed/malformed groups, and empty-pair silence. Native
+metadata, ranges, sample and errors passed through a restored transport stub.
+Exact example strings were supplied through the fixture reader's remote
+interface; they are not evidence of the fixture's sentence segmentation.
+Continuous playback, listening and moving highlights remain unverified.

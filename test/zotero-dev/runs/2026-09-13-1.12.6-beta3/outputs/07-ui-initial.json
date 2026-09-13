@@ -1,0 +1,19 @@
+{
+  "checkbox": {
+    "id": "ztts-strip-angle-brackets",
+    "checked": true,
+    "disabled": false,
+    "preference": null,
+    "label": "Remove enclosing brackets when reading",
+    "l10nID": "ztts-strip-angle-brackets"
+  },
+  "input": {
+    "id": "ztts-bracket-pairs",
+    "value": "<> []",
+    "disabled": true,
+    "ariaLabel": "Bracket pairs to remove",
+    "l10nID": "ztts-bracket-pairs"
+  },
+  "rowText": "Remove enclosing brackets when reading",
+  "help": "Remove the outer brackets from each group while keeping its words, outside punctuation, and spacing. Separate pairs with spaces, for example <> [] () 【】. Turn this off to edit the list, then check it to validate and enable it. Ordinary words outside the groups keep the original text unchanged. Applies to all voices after stopping and reopening Read Aloud."
+}

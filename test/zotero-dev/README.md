@@ -49,7 +49,7 @@ with the baseline and restoration for each.
 - [3e. Open the player expanded (issue #81)](cases/player-expanded.md)
 - [3f. Auto-scroll modes (issue #93)](cases/auto-scroll.md)
 - [4a. Previous and next voice (issue #95)](cases/voice-switch.md)
-- [3g. Enclosing angle brackets (issue #94)](cases/angle-brackets.md)
+- [3g. Enclosing brackets (issues #94, #96, #101)](cases/angle-brackets.md)
 - [3h. Fish cloud short-text language hints (issue #98)](cases/fish-language-hints.md)
 - [4. Shortcuts, the toast, the recorder, two tabs](cases/shortcuts.md)
 - [4a. The volume (issue #62)](cases/volume.md)

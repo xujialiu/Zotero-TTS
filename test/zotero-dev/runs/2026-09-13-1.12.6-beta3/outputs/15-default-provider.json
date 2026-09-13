@@ -1,0 +1,16 @@
+{
+  "source": "<Hello> [World]",
+  "configuredPairs": "<> []",
+  "calls": [{ "path": "/v1/tts/stream/with-timestamp", "method": "POST", "text": "Hello World", "format": "mp3" }],
+  "result": {
+    "audioBytes": 7104,
+    "error": null,
+    "timestamps": [
+      { "start": 0, "end": 0.32, "charStart": 1, "charEnd": 6, "sourceSlice": "Hello" },
+      { "start": 0.32, "end": 0.72, "charStart": 9, "charEnd": 14, "sourceSlice": "World" }
+    ],
+    "sourceUnchanged": true,
+    "segmentTextAfter": "<Hello> [World]"
+  },
+  "error": null
+}

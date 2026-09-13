@@ -439,3 +439,7 @@ cite `notes/NOTES.md` with a date or a section title resolve through this index.
 - Fish cloud hint mechanics pass live; a malformed test stream caused the visible error (issue #98)
 
 - Configured providers and official tiers hand over at supported boundaries (issue #95)
+
+- Bracket lists share one scan and one activation snapshot (issue #101)
+
+- Configurable bracket pairs passed the live request and settings checks (issue #101)

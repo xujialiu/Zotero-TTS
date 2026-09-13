@@ -271,12 +271,13 @@ language, voice.
 - *Extra pause between paragraphs* — added on top where a paragraph
   begins, at 1× speed, shortened in step with the speed. On at 200 ms by
   default. Off, Zotero's own pause, the same at every speed.
-- *Remove enclosing angle brackets when reading* — on by default for every
-  voice. `<Hello>.` is read as `Hello.`; punctuation outside the brackets
-  stays. Multiple groups work too: `<Log in> <Register>` is read as
-  `Log in Register`. Ordinary words outside the groups keep the original
-  text unchanged. The document is unchanged. Stop and reopen Read Aloud
-  after changing this setting.
+- *Remove enclosing brackets when reading* — on by default for every voice,
+  with `<> []` as the default pairs. `<Hello> [World].` is read as
+  `Hello World.`, keeping outside punctuation and spacing. Turn it off
+  to edit the pairs, separated by spaces, then check it to validate and
+  enable. Invalid input offers a choice to use the defaults or keep editing.
+  Ordinary words outside the groups keep the original text unchanged.
+  The document is unchanged. Stop and reopen Read Aloud after a change.
 - *Prefetch upcoming sentences* — the ones ahead are synthesized while the
   current one plays, so playback never waits for the server. It needs the
   cache below, and keeps it switched on.

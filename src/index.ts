@@ -452,6 +452,7 @@ function buildReaderInterface(reader: any, targetWindow: any, native: () => unkn
           const s = loadSettings(prefs);
           return { enabled: s.prefetchEnabled, count: s.prefetch };
         },
+        getBracketPairs: () => textSettings?.pairs(reader) ?? loadSettings(prefs).readAloud.bracketPairs,
         getStripAngleBrackets: () => textSettings?.enabled(reader) ?? loadSettings(prefs).readAloud.stripAngleBrackets,
         getUpcomingTexts: (text, count) => upcomingSegmentTexts(reader, text, count),
         // Built from the voice id, not from the enabled flags: Zotero
@@ -1831,6 +1832,7 @@ function startTextSettings(): void {
   stopTextSettings();
   textSettings = createTextSettings({
     getEnabled: () => loadSettings(prefs).readAloud.stripAngleBrackets,
+    getPairs: () => loadSettings(prefs).readAloud.bracketPairs,
     exportFunction: (fn, target) => Components.utils.exportFunction(fn, target),
     waiveXrays: (value) => ((value && typeof value === 'object') || typeof value === 'function' ? Components.utils.waiveXrays(value) : value),
     isDead: (value) => Components.utils.isDeadWrapper(value),

@@ -535,7 +535,13 @@ ztts-auto-scroll-toast-sentence = 自动滚动：每句居中
 ztts-auto-scroll-toast-outside = 自动滚动：超出视图时滚动
 
 ztts-strip-angle-brackets =
-    .label = 朗读时去掉包围文字的尖括号 <>
+    .label = 朗读时去掉包围文字的括号
+ztts-bracket-pairs =
+    .aria-label = 要去掉的括号对
 ztts-help-strip-angle-brackets =
     .value = ?
-    .help = 尖括号 <> 可能导致 TTS 服务出现异常。朗读 < > 内的文字时去掉包围它的尖括号，保留括号外的标点。支持由空格或标点分隔的多组文字，例如，<登录> <注册> 按“登录 注册”朗读。如果括号组外还有普通文字，则保留原文。适用于所有语音。修改后，停止并重新打开朗读即可生效。
+    .help = 去掉每组文字的外层括号，保留里面的文字、外面的标点和间隔。括号对之间用空格分隔，例如 <> [] () 【】。取消勾选后可以编辑列表，重新勾选时会检查并启用。如果括号组外还有普通文字，则保留原文。适用于所有语音，停止并重新打开朗读后生效。
+ztts-bracket-use-defaults = 使用默认值
+ztts-bracket-error-empty = 请至少输入一组括号对，多组之间用空格分隔。是否改用默认列表 <> []？
+ztts-bracket-error-entry = 括号对“{ $entry }”无效。每组必须恰好包含两个不同的标点或符号。是否改用默认列表 <> []？
+ztts-bracket-error-duplicate = 括号对“{ $entry }”重复。每组只能输入一次。是否改用默认列表 <> []？
