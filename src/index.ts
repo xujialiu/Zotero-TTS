@@ -34,6 +34,7 @@ import { createHighlightStyling, type HighlightStyling } from './read-aloud/high
 import { createDOMFollow } from './read-aloud/dom-follow';
 import { liveReaderValue } from './read-aloud/reader-access';
 import { createResumeGuard } from './read-aloud/resume-guard';
+import { createSelectionStart } from './read-aloud/selection-start';
 import { createSentenceInView, type SentenceInView, type SentenceInViewDeps } from './read-aloud/sentence-in-view';
 import { createSkippedLines, type SkippedLines } from './read-aloud/skipped-lines';
 import { createSystemVoiceHiding, type SystemVoiceHiding } from './read-aloud/system-voices';
@@ -135,6 +136,7 @@ let highlightStyling: HighlightStyling | null = null;
 let sentenceInView: SentenceInView | null = null;
 let domFollowing: ReturnType<typeof createDOMFollow> | null = null;
 let followResumeGuard: ReturnType<typeof createResumeGuard> | null = null;
+let selectionStart: ReturnType<typeof createSelectionStart> | null = null;
 let autoScrollObserver: unknown = null;
 /** A page's first line Zotero's document analysis threw out, put back before the sentences are cut (read-aloud/skipped-lines.ts, issue #87). */
 let skippedLines: SkippedLines | null = null;
@@ -421,6 +423,7 @@ function buildReaderInterface(reader: any, targetWindow: any, native: () => unkn
           // The same views: the PDF one's follow is taken over here (issue #83)
           sentenceInView?.attach(reader);
           followResumeGuard?.attach(reader);
+          selectionStart?.attach(reader);
           domFollowing?.attach(reader);
           // The structure is materialized when the first segments are
           // requested, after this listing: the shadow is in place first (issue #87)
@@ -660,6 +663,7 @@ function watchReader(reader: any): void {
   highlightStyling?.attach(reader);
   sentenceInView?.attach(reader);
   followResumeGuard?.attach(reader);
+  selectionStart?.attach(reader);
   domFollowing?.attach(reader);
   skippedLines?.attach(reader);
   systemVoiceHiding?.attach(reader);
@@ -974,8 +978,8 @@ function startReadAloudShortcuts(pluginID: string): void {
     // Zotero's own start: selection > near-view saved position > first
     // visible segment; an idle reader opens the popup and auto-plays
     startReadAloud: (reader: any) => reader?._internalReader?.startReadAloudAtPosition?.(),
-    // The popup's play button; unpausing with a selection restarts from it
-    // (Zotero native, reader.js ~83595)
+    // The popup's play button; native state handling restarts from a selection
+    // on unpause (reader.js _onReadAloudEngineStateChanged, 83880).
     togglePaused: (reader: any) => reader?._internalReader?.toggleReadAloudPaused?.(),
     // Zotero's EPUB, snapshot and Reading Mode views act on the push below
     // only when it is their first: forget the state they hold (issue #76).
@@ -1574,6 +1578,19 @@ function stopSentenceInView(): void {
   sentenceInView = null;
 }
 
+// ---- Start at a sentence's opening character -------------------------------
+
+function startSelectionStart(): void {
+  selectionStart?.dispose();
+  selectionStart = createSelectionStart({
+    exportFunction: (fn, target) => Components.utils.exportFunction(fn, target),
+    waiveXrays: (value) => ((value && typeof value === 'object') || typeof value === 'function' ? Components.utils.waiveXrays(value) : value),
+    isDead: (value) => Components.utils.isDeadWrapper(value),
+    error: (e) => Zotero.logError(e),
+  });
+  for (const reader of Zotero.Reader._readers ?? []) selectionStart.attach(reader);
+}
+
 // ---- A page's first line put back ------------------------------------------
 //
 // Zotero's document analysis can throw a page's first line out of the reading
@@ -1928,6 +1945,7 @@ async function startup({ id, version, rootURI }: StartupParams): Promise<void> {
       ['highlight colors', startHighlightStyling],
       ['sentence in view', startSentenceInView],
       ['skipped lines', startSkippedLines],
+      ['selection start', startSelectionStart],
       [
         'system speech helper',
         () => {
@@ -2004,6 +2022,8 @@ async function shutdown(reason?: number): Promise<void> {
   stopSentenceInView();
   stopHighlightStyling();
   stopSkippedLines();
+  selectionStart?.dispose();
+  selectionStart = null;
   stopSpeechBackend();
   stopSystemVoiceHiding();
   stopMultilingualFirst();
@@ -2287,6 +2307,13 @@ const diagnostics = {
       null,
       1,
     ),
+  /** Whether the boundary patch ran, as seen from the plugin sandbox. */
+  selectionStart: () => JSON.stringify({
+    patches: selectionStart?.patchCounts(),
+    readers: (Zotero.Reader._readers ?? []).map((r: any) => ({
+      itemID: safe(() => r.itemID), state: safe(() => selectionStart?.inspect(r)),
+    })),
+  }),
   /**
    * What the smart play key (Shift+Space) would do on each reader right
    * now, mirroring smartPlay's dispatch (notes/shift_space_logic.md):

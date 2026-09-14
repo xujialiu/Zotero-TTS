@@ -99,6 +99,7 @@ opens a fixture ends with item 3.26's teardown ([playback](cases/playback.md)).
 ### Keys
 
 - [The player keys and the tab they reach](cases/player-keys.md) — 4.1–4.3, 4.5, 4.6
+- [Start at the selected sentence (issue #105)](cases/selection-start.md)
 - [Shift+Enter — go to reading position](cases/return-key.md) — 4.4
 - [The shortcut recorder](cases/shortcut-recorder.md) — 4.8
 - [Stop reading everywhere](cases/stop-key.md) — 4.9
