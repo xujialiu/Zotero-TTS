@@ -349,6 +349,14 @@
                 preference="extensions.zotero.zotero-tts.readAloud.restoreSkippedLines"/>
       <label class="ztts-help" value="?" data-l10n-id="ztts-help-skipped-lines" data-l10n-attrs="help"/>
     </hbox>
+    <!-- A paragraph Zotero's document analysis cut in the middle of a sentence,
+         joined back before the sentences are cut (read-aloud/paragraph-parts.ts,
+         issue #104). Read when a document's structure loads: no reading guard -->
+    <hbox align="center">
+      <checkbox data-l10n-id="ztts-split-sentences"
+                preference="extensions.zotero.zotero-tts.readAloud.joinSplitSentences"/>
+      <label class="ztts-help" value="?" data-l10n-id="ztts-help-split-sentences" data-l10n-attrs="help"/>
+    </hbox>
     <hbox align="center">
       <checkbox id="ztts-strip-angle-brackets" data-l10n-id="ztts-strip-angle-brackets"/>
       <label class="ztts-help" value="?" data-l10n-id="ztts-help-strip-angle-brackets" data-l10n-attrs="help"/>

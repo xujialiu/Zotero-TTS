@@ -84,6 +84,7 @@ opens a fixture ends with item 3.26's teardown ([playback](cases/playback.md)).
 - [3b. A page's first line put back (issue #87, 1.11.7)](cases/page-first-line.md)
 - [3e. Open the player expanded (issue #81)](cases/player-expanded.md)
 - [3g. Enclosing brackets (issues #94, #96, #101)](cases/angle-brackets.md)
+- [3j. A sentence across Zotero's paragraph break, read as one (issue #104, 1.12.8)](cases/paragraph-parts.md)
 - [4b. The volume (issue #62)](cases/volume.md)
 
 ### The highlight and following

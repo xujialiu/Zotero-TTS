@@ -126,6 +126,13 @@ export interface Settings {
      * structure loads, so a change applies to documents opened after it.
      */
     restoreSkippedLines: boolean;
+    /**
+     * Join a paragraph Zotero's document analysis cut in the middle of a
+     * sentence, so the sentence is read and highlighted as one
+     * (read-aloud/paragraph-parts.ts, issue #104). Read when a document's
+     * structure loads, like restoreSkippedLines.
+     */
+    joinSplitSentences: boolean;
   };
   /** The colors of Zotero's Read Aloud highlights (read-aloud/highlight-style.ts); opacities in percent. */
   highlight: {
@@ -222,6 +229,9 @@ export const DEFAULTS: Settings = {
     // On by the owner's decision (issue #87): a line put back is part of a
     // sentence, and the off state is for a page header read aloud
     restoreSkippedLines: true,
+    // On by the owner's decision (issue #104): the off state is for a join
+    // that swallowed a real paragraph break
+    joinSplitSentences: true,
     openExpanded: false,
     stripAngleBrackets: true,
     bracketPairs: '<> []',
@@ -343,6 +353,7 @@ export function loadSettings(prefs: PrefsBackend): Settings {
       paragraphDelayMs: num(prefs, 'readAloud.paragraphDelayMs', DEFAULTS.readAloud.paragraphDelayMs, 0, MAX_PAUSE_MS),
       volume: num(prefs, 'readAloud.volume', DEFAULTS.readAloud.volume, VOLUME_MIN, VOLUME_MAX),
       restoreSkippedLines: bool(prefs, 'readAloud.restoreSkippedLines', DEFAULTS.readAloud.restoreSkippedLines),
+      joinSplitSentences: bool(prefs, 'readAloud.joinSplitSentences', DEFAULTS.readAloud.joinSplitSentences),
       openExpanded: bool(prefs, 'readAloud.openExpanded', DEFAULTS.readAloud.openExpanded),
       stripAngleBrackets: bool(prefs, 'readAloud.stripAngleBrackets', DEFAULTS.readAloud.stripAngleBrackets),
       bracketPairs: str(prefs, 'readAloud.bracketPairs', DEFAULTS.readAloud.bracketPairs),

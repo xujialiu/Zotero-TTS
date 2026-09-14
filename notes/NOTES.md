@@ -463,3 +463,4 @@ then) and is in the git history before that day.
 
 - Zotero's block model cuts a paragraph mid-page, and its part-linking rule cannot rejoin a short last line (issue #104)
 - No run archive, a kit runner inside Zotero, and a tester that reads only its workflow
+- The cut paragraph joined back before the sentences are cut, and the runner's first kit (issue #104)

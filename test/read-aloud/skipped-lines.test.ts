@@ -368,3 +368,46 @@ describe('createSkippedLines', () => {
     expect(skipped.inspect(null)).toMatchObject({ patched: false });
   });
 });
+
+describe('createSkippedLines with the paragraph join (issue #104)', () => {
+  /** The manuscript with its page-3 paragraph cut mid-sentence: block 17 stops at "source of", block 18 carries on in lowercase. */
+  function cut(): BlockLike[] {
+    const content = manuscript();
+    content[17] = block({ previousPart: [15], pageRects: [[2, 90.02, 685.58, 315.13, 696.5]], texts: ['axial elongation, is also the source of'] });
+    content[18] = block({ pageRects: [[2, 90.02, 600, 522.1, 672]], texts: ['the error. Uncorrected images nevertheless remain common in the literature of the field.'] });
+    return content;
+  }
+
+  it('joins the cut paragraph after the restore, links it through the deps and reports it', async () => {
+    const structure = { metadata: { processor: { type: 'pdf' } }, content: cut() };
+    const { reader, internal } = fakeReader(structure);
+    const cloneInto = vi.fn((_reader: unknown, value: unknown) => structuredClone(value));
+    const d = deps({ joinEnabled: () => true, cloneInto });
+    const skipped = createSkippedLines(d);
+    skipped.attach(reader);
+    await internal._loadSDT();
+    expect(structure.content[16].nextPart).toEqual([17]);
+    expect(structure.content[17].nextPart).toEqual([18]);
+    expect(structure.content[18].previousPart).toEqual([17]);
+    expect(cloneInto).toHaveBeenCalledTimes(6);
+    expect(d.lines).toHaveLength(3);
+    expect(d.lines[2]).toMatch(/^paragraph parts joined on page 3: "…[^"]+source of" \+ "the error\. Uncorrected[^"]*" \(blocks 17 and 18\)$/);
+    expect(skipped.inspect(reader)).toMatchObject({ joinEnabled: true, joined: [{ after: 17, before: 18, page: 2 }] });
+    // Cached by Zotero: the second load finds the pair linked and joins nothing more
+    await internal._loadSDT();
+    expect(d.lines).toHaveLength(3);
+  });
+
+  it('leaves the paragraphs alone while the second switch is off or absent, and says so', async () => {
+    for (const over of [{ joinEnabled: () => false }, {}]) {
+      const structure = { metadata: { processor: { type: 'pdf' } }, content: cut() };
+      const { reader, internal } = fakeReader(structure);
+      const skipped = createSkippedLines(deps(over));
+      skipped.attach(reader);
+      await internal._loadSDT();
+      expect(structure.content[17].nextPart).toBeUndefined();
+      expect(structure.content[16].flowClass).toBe('body');
+      expect(skipped.inspect(reader)).toMatchObject({ joinEnabled: false, joined: [] });
+    }
+  });
+});

@@ -44,6 +44,7 @@
  */
 
 import { createProtoPatches, type AnyFn } from './proto-patches';
+import { findSplitParagraphs, joinParagraphParts } from './paragraph-parts';
 
 /** A block of the structure pack as this module reads it; refs are index paths, `[15]` for a top-level block. */
 export interface BlockLike {
@@ -298,6 +299,8 @@ export interface SkippedLinesDeps {
   isDead?(value: unknown): boolean;
   /** The switch: `readAloud.restoreSkippedLines`, read when a structure lands. */
   enabled(): boolean;
+  /** The second switch, `readAloud.joinSplitSentences`: join the paragraphs Zotero cut mid-sentence (paragraph-parts.ts, issue #104). Off when absent. */
+  joinEnabled?(): boolean;
   error(e: unknown): void;
   debug?(message: string): void;
 }
@@ -305,7 +308,7 @@ export interface SkippedLinesDeps {
 export interface SkippedLines {
   /** Shadow `_loadSDT` on this reader's internal reader; true once it is. */
   attach(reader: any): boolean;
-  /** For diagnostics.skippedLines(): the patch, the switch, whether the structure is loaded, and every line put back. */
+  /** For diagnostics.skippedLines(): the patch, the two switches, whether the structure is loaded, every line put back and every paragraph joined. */
   inspect(reader: any): Record<string, unknown>;
   patchCounts(): { total: number; live: number };
   dispose(): void;
@@ -314,6 +317,8 @@ export interface SkippedLines {
 interface Repair {
   at: number;
   restored: Array<{ index: number; after: number; before: number; page: number; chars: number; head: string }>;
+  /** The paragraphs joined back (issue #104): the blocks, the page the first ends on, and the join's two ends. */
+  joined: Array<{ after: number; before: number; page: number; chars: number; head: string }>;
 }
 
 function ownerOf(obj: unknown, name: string): any {
@@ -337,20 +342,35 @@ export function createSkippedLines(deps: SkippedLinesDeps): SkippedLines {
     try {
       const structure = waive(waive(sdt)?.structure);
       if (!structure) return;
-      const record: Repair = { at: Date.now(), restored: [] };
+      const record: Repair = { at: Date.now(), restored: [], joined: [] };
+      const makeRef = (ref: number[]) => (deps.cloneInto ? deps.cloneInto(reader, ref) : ref);
       if (deps.enabled()) {
         const content = waive(structure.content);
         const lines = findSkippedLines(content, waive(structure.metadata) ?? null);
         if (lines.length) {
-          restoreSkippedLines(content, lines, (ref) => (deps.cloneInto ? deps.cloneInto(reader, ref) : ref));
+          restoreSkippedLines(content, lines, makeRef);
           for (const line of lines) {
             record.restored.push({ index: line.index, after: line.after, before: line.before, page: line.page, chars: line.text.length, head: line.text.slice(0, 60) });
             deps.debug?.(`skipped line restored on page ${line.page + 1}: "${line.text}" (${line.text.length} chars) between blocks ${line.after} and ${line.before}`);
           }
         }
       }
+      // After the restore, so a line put back is in its chain before the paragraphs are judged (issue #104)
+      if (deps.joinEnabled?.()) {
+        const content = waive(structure.content);
+        const joins = findSplitParagraphs(content, waive(structure.metadata) ?? null);
+        if (joins.length) {
+          joinParagraphParts(content, joins, makeRef);
+          for (const join of joins) {
+            const tail = join.textA.trim().slice(-30);
+            const headText = join.textB.trim().slice(0, 30);
+            record.joined.push({ after: join.after, before: join.before, page: join.page, chars: join.textA.length + join.textB.length, head: `${tail} | ${headText}` });
+            deps.debug?.(`paragraph parts joined on page ${join.page + 1}: "…${tail}" + "${headText}…" (blocks ${join.after} and ${join.before})`);
+          }
+        }
+      }
       // Zotero caches the structure, so a later load resolves the same object and restores nothing: what the first walk did stays on record
-      if (!repairs.has(reader) || record.restored.length) repairs.set(reader, record);
+      if (!repairs.has(reader) || record.restored.length || record.joined.length) repairs.set(reader, record);
     } catch (e) {
       deps.error(e);
     }
@@ -393,7 +413,7 @@ export function createSkippedLines(deps: SkippedLinesDeps): SkippedLines {
 
   function inspect(reader: any): Record<string, unknown> {
     const internal = reader?._internalReader;
-    if (!internal || typeof internal !== 'object') return { patched: false, enabled: safeEnabled(), loaded: false, restored: [] };
+    if (!internal || typeof internal !== 'object') return { patched: false, enabled: safeEnabled(), joinEnabled: safeJoinEnabled(), loaded: false, restored: [], joined: [] };
     const proto = ownerOf(internal, '_loadSDT');
     const patched = !!proto && patches.has(proto, '_loadSDT');
     let loaded = false;
@@ -409,12 +429,20 @@ export function createSkippedLines(deps: SkippedLinesDeps): SkippedLines {
       deps.error(e);
     }
     const repair = repairs.get(reader);
-    return { patched, enabled: safeEnabled(), loaded, excluded, restored: repair?.restored ?? [], at: repair?.at ?? null };
+    return { patched, enabled: safeEnabled(), joinEnabled: safeJoinEnabled(), loaded, excluded, restored: repair?.restored ?? [], joined: repair?.joined ?? [], at: repair?.at ?? null };
   }
 
   function safeEnabled(): boolean | null {
     try {
       return deps.enabled();
+    } catch {
+      return null;
+    }
+  }
+
+  function safeJoinEnabled(): boolean | null {
+    try {
+      return deps.joinEnabled ? deps.joinEnabled() : false;
     } catch {
       return null;
     }

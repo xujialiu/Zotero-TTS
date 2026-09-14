@@ -1579,6 +1579,8 @@ function stopSentenceInView(): void {
 // Zotero's document analysis can throw a page's first line out of the reading
 // order when a sentence runs onto it; see read-aloud/skipped-lines.ts for how
 // the structure is repaired per reader before the sentences are cut (issue #87).
+// The same walk joins a paragraph Zotero cut in the middle of a sentence
+// (read-aloud/paragraph-parts.ts, issue #104).
 
 function startSkippedLines(): void {
   stopSkippedLines();
@@ -1595,6 +1597,7 @@ function startSkippedLines(): void {
     exportTo: (reader: any, fn) => (reader?._iframeWindow ? Components.utils.exportFunction(fn, reader._iframeWindow) : fn),
     isDead: (value) => Components.utils.isDeadWrapper(value),
     enabled: () => loadSettings(prefs).readAloud.restoreSkippedLines,
+    joinEnabled: () => loadSettings(prefs).readAloud.joinSplitSentences,
     error: (e) => Zotero.logError(e),
     debug: (message) => Zotero.debug('[zotero-tts] ' + message),
   });
@@ -2181,7 +2184,11 @@ const diagnostics = {
    * restored — its block index, the blocks the chain jumped from and to,
    * the page, the length and the first 60 characters. The debug log
    * carries one `skipped line restored on page N: "…" (M chars) between
-   * blocks a and b` line per line put back.
+   * blocks a and b` line per line put back. Since issue #104 also the
+   * second switch (`joinEnabled`) and every paragraph joined back
+   * (`joined`: the two blocks, the page, the combined length and the
+   * join's two ends), with one `paragraph parts joined on page N: "…" +
+   * "…" (blocks a and b)` debug line per join.
    */
   skippedLines: () => JSON.stringify((Zotero.Reader._readers ?? []).map((r: any) => skippedLines?.inspect(r) ?? null), null, 1),
   systemVoices: () => JSON.stringify((Zotero.Reader._readers ?? []).map((r: any) => systemVoiceHiding?.inspect(r) ?? null), null, 1),

@@ -27,6 +27,7 @@ it adds voices to the player's **Local** tier and tunes what is around them.
 - 🔖 **Resume where you stopped** — close a document, open it again later, press `Shift+Space`, and Read Aloud starts at the sentence you left off on. [→ Resume where you stopped](#resume-where-you-stopped)
 - 📄 **The whole sentence on screen** — while a PDF is read, a sentence that runs past the bottom of the window, onto the next page or into the next column is scrolled into view instead of left cut, and `Shift+Enter` brings it back the same way. [→ Reading](#reading)
 - 📃 **No line lost at a page turn** — when a sentence runs onto the next page and Zotero would skip that page's first line, the line is read and highlighted like any other. [→ Reading](#reading)
+- 🧵 **No sentence cut in two** — when Zotero breaks a paragraph in the middle of a sentence, the halves are read and highlighted as one sentence. [→ Reading](#reading)
 - 🎧 **A voice browser** in the settings: every voice by tier and language, a play button for a short sample, hearts for favorites, and a switch to offer only the favorites. [→ Voice browser](#voice-browser)
 - ✨ **Word *and* sentence highlighting at once**, in your own colors and opacities — for Zotero's voices too. [→ Highlight](#highlight)
 - ⌨️ **Keyboard shortcuts** for speed, volume, jumping by sentence or paragraph, reading from the selection, the player's options panel, auto-scroll mode, the word highlight on or off, and stopping Read Aloud in every tab at once. All rebindable. [→ Shortcuts](#keyboard-shortcuts)
@@ -251,7 +252,7 @@ language, voice.
 ### Reading
 
 <details>
-<summary><b>Expanded player, one voice everywhere, pauses, prefetch, cache, the whole sentence on screen, a page's first line</b></summary>
+<summary><b>Expanded player, one voice everywhere, pauses, prefetch, cache, the whole sentence on screen, a page's first line, a sentence split in two</b></summary>
 
 - *Open the player expanded* — show the speed and voice controls whenever
   the player opens. Off by default. You can still fold them away for that
@@ -313,6 +314,11 @@ language, voice.
   straight past it, and the join sounds like a sentence. On, the line is
   read and highlighted like any other. Off if a page header is ever read
   aloud; a change applies to documents opened from then on.
+- *Read a sentence Zotero split in two as one* — Zotero sometimes breaks a
+  paragraph in the middle of a sentence and reads the halves as two
+  sentences, with a pause between them. On, the halves are read and
+  highlighted as one. Off if two paragraphs are ever read as one; a change
+  applies to documents opened from then on.
 
 </details>
 
