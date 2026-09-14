@@ -470,3 +470,7 @@ then) and is in the git history before that day.
 - Regional shortcut filtering does not constrain the manual voice menu (issue #106)
 - The current US pool contains 44 generic English voices (issue #106)
 - One list passes in both reader formats and the real Fish catalog (issue #106)
+
+- Manual sentence placement is separate from playback resume (issue #107)
+
+- Interior resume targets verify centering, not just return (issue #107)

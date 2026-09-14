@@ -100,3 +100,33 @@ describe('manual follow visibility gate (#100)', () => {
     f.visible(true); f.gate.scroll(); vi.runAllTimers(); expect(f.deps.resume).not.toHaveBeenCalled();
   });
 });
+
+
+describe('manual sentence protection (#107)', () => {
+  it('waits for a different visible sentence and keeps the same sentence protected on reentry', () => {
+    vi.useFakeTimers(); let key = 'a'; let visible = true; let following = true;
+    const resume = vi.fn(() => { following = true; });
+    const gate = createManualFollow({ enabled: () => true, following: () => following,
+      sentenceKey: () => key, capture: () => () => visible, stop: vi.fn(),
+      disengage: () => { following = false; }, resume, error: vi.fn() });
+    gate.begin('wheel'); vi.runAllTimers();
+    expect(gate.sentenceProtected).toBe(true); expect(gate.interacting).toBe(false);
+    visible = false; gate.scroll(); vi.runAllTimers();
+    visible = true; gate.scroll(); vi.runAllTimers(); expect(resume).not.toHaveBeenCalled();
+    key = 'b'; visible = false; gate.retry(); vi.runAllTimers(); expect(resume).not.toHaveBeenCalled();
+    visible = true; gate.scroll(); vi.runAllTimers(); expect(resume).toHaveBeenCalledOnce();
+    gate.cancel();
+  });
+  it('protects a new sentence when more manual input arrives and waits through pause and held tasks', () => {
+    vi.useFakeTimers(); let key = 'a'; let paused = false; const resume = vi.fn();
+    const gate = createManualFollow({ enabled: () => true, following: () => true,
+      sentenceKey: () => key, paused: () => paused, capture: () => () => true,
+      stop: vi.fn(), disengage: vi.fn(), resume, error: vi.fn() });
+    gate.begin('wheel'); key = 'b'; gate.begin('wheel'); vi.runAllTimers();
+    expect(resume).not.toHaveBeenCalled();
+    key = 'c'; paused = true; gate.retry(); vi.runAllTimers(); expect(resume).not.toHaveBeenCalled();
+    paused = false; gate.hold(true); const done = gate.task(); gate.retry(); vi.runAllTimers();
+    gate.hold(false); vi.runAllTimers(); expect(resume).not.toHaveBeenCalled();
+    done(); vi.runAllTimers(); expect(resume).toHaveBeenCalledOnce(); gate.cancel();
+  });
+});

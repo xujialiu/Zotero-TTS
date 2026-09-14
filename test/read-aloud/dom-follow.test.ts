@@ -180,7 +180,7 @@ describe('EPUB auto-scroll', () => {
     const f = fixture(); f.module.attach(f.reader);
     const key = f.range('a', 700, 750); f.push(key);
     f.helper.state.paused = true; f.mode('sentence'); f.module.refresh();
-    expect(f.win.scrollTo).toHaveBeenCalledWith(expect.objectContaining({ top: 1225 }));
+    expect(f.win.scrollTo).not.toHaveBeenCalled();
     expect(f.helper.state.paused).toBe(true);
     f.view._onManualNavigation(); f.win.scrollTo.mockClear();
     f.mode('outside'); f.module.refresh(); f.mode('sentence'); f.module.refresh();
@@ -201,5 +201,36 @@ describe('EPUB auto-scroll', () => {
     handlers.pointermove({ buttons: 1, clientX: 1, clientY: 1 });
     expect(module.inspect(f.reader).following).toBe(false);
     module.dispose();
+  });
+});
+
+
+describe('EPUB manual sentence placement and pause (#107)', () => {
+  it.each(['scrolled', 'paginated'])('protects the current sentence in %s flow', flow => {
+    vi.useFakeTimers(); const f = fixture(); f.view.flowMode = flow; f.deps.keepFollowingWhileVisible = () => true;
+    try {
+      f.module.attach(f.reader); f.push(f.range('a', 100, 150));
+      f.view.navigateToNextPage(); f.range('a', -40, 10); f.win.dispatchEvent(new Event('scroll'));
+      f.win.scrollTo.mockClear(); f.nativeNavigate.mockClear(); vi.advanceTimersByTime(200);
+      f.push('a'); f.range('a', -50, 0); f.win.dispatchEvent(new Event('scroll')); vi.advanceTimersByTime(200);
+      f.range('a', -40, 10); f.win.dispatchEvent(new Event('scroll')); vi.advanceTimersByTime(200);
+      expect(f.win.scrollTo.mock.calls.filter((call: unknown[]) => typeof call[0] === 'object')).toHaveLength(0);
+      expect(f.nativeNavigate).not.toHaveBeenCalled();
+      f.push(f.range('b', 1100, 1150)); vi.advanceTimersByTime(200);
+      expect(f.nativeNavigate).not.toHaveBeenCalled();
+      f.range('b', -40, 10); f.win.dispatchEvent(new Event('scroll')); vi.advanceTimersByTime(200);
+      expect(flow === 'scrolled' ? f.win.scrollTo : f.nativeNavigate).toHaveBeenCalled();
+    } finally { f.module.dispose(); vi.useRealTimers(); }
+  });
+  it('does not center while paused and always centers on resume from outside', () => {
+    const f = fixture(); f.module.attach(f.reader); f.push(f.range('a', 100, 150));
+    try {
+      f.win.scrollTo.mockClear();
+      f.helper.setState({ ...f.helper.state, paused: true }); f.mode('sentence'); f.module.refresh();
+      expect(f.win.scrollTo.mock.calls.filter((call: unknown[]) => typeof call[0] === 'object')).toHaveLength(0);
+      f.view.navigateToNextPage(); f.range('a', 2000, 2050); f.win.scrollTo.mockClear();
+      f.helper.setState({ ...f.helper.state, paused: false });
+      expect(f.win.scrollTo).toHaveBeenCalledWith({ behavior: 'smooth', top: 2525 });
+    } finally { f.module.dispose(); }
   });
 });

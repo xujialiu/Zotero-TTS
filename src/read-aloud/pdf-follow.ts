@@ -93,6 +93,7 @@ export function createPdfFollow(deps: Deps) {
 
   function run(r: OwnedView): void {
     if (disposed || dead(r.view) || !records.has(r.id)) return;
+    if (r.paused && !r.force) return;
     if (r.manual.suspended) { r.manual.retry(); return; }
     if (!r.following) return;
     if (r.manual.active) { r.manual.retry(); return; }
@@ -110,6 +111,7 @@ export function createPdfFollow(deps: Deps) {
   }
 
   function schedule(r: OwnedView): void {
+    if (r.paused && !r.force) return;
     if ((!r.following && !r.manual.suspended) || !r.active || dead(r.view)) return;
     if (!visible(r)) r.manual.releaseHolds();
     r.reset = true;
@@ -275,6 +277,8 @@ export function createPdfFollow(deps: Deps) {
       enabled: () => deps.keepFollowingWhileVisible?.() !== false,
       following: () => r.following && !disposed && !dead(r.view),
       available: () => r.active && !disposed && !dead(r.view),
+      paused: () => r.paused,
+      sentenceKey: () => { const position = waive(r.view._readAloudState)?.activeSegment?.sourcePosition; return position ? JSON.stringify(position) : null; },
       capture: () => {
         const probe = deps.captureVisibility?.(r.view) ?? (() => null);
         return () => visible(r) ? probe() : null;
@@ -324,6 +328,13 @@ export function createPdfFollow(deps: Deps) {
         if (r) {
           const state = waive(args[0]);
           if (state?.active && !r.active) { r.manual.cancel(); r.following = true; r.reason = 'session'; r.reset = true; deps.clear?.(r.view); }
+          if (state?.active && r.active && r.paused && !state.paused) {
+            r.manual.cancel(); r.following = true; r.reason = 'resume'; r.reset = true; r.force = true;
+          }
+          if (state?.paused && !r.paused) {
+            cancelFrame(r); r.pending = false; r.force = false;
+            const c = containerOf(r.view); c?.scrollTo(c.scrollLeft, c.scrollTop);
+          }
           r.active = !!state?.active;
           r.paused = !!state?.paused;
           if (!state?.active || !state.popupOpen) { r.manual.cancel(); r.following = false; r.pending = false; cancelFrame(r); }
@@ -378,7 +389,7 @@ export function createPdfFollow(deps: Deps) {
     refresh() { for (const r of records.values()) run(r); },
     inspect(view: any): Record<string, unknown> {
       const r = recordOf(waive(view));
-      return r ? { owned: true, following: r.following, interacting: r.manual.active, visibilityPaused: r.manual.suspended, keepFollowingWhileVisible: deps.keepFollowingWhileVisible?.() !== false, pending: r.pending, reason: r.reason, visible: visible(r) } : { owned: false };
+      return r ? { owned: true, following: r.following, paused: r.paused, sentenceProtected: r.manual.sentenceProtected, interacting: r.manual.interacting, visibilityPaused: r.manual.suspended, keepFollowingWhileVisible: deps.keepFollowingWhileVisible?.() !== false, pending: r.pending, reason: r.reason, visible: visible(r) } : { owned: false };
     },
     patchCounts: () => patches.counts(),
     dispose(): void {

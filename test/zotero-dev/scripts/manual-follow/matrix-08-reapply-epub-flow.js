@@ -1,1 +1,0 @@
-return (async()=>{const slot=Zotero.__ztts100.epub,r=slot.reader,v=r._internalReader._primaryView,sleep=t=>new Promise(q=>setTimeout(q,t));let error=null;try{await v.setFlowMode('scrolled')}catch(e){error=String(e)}await sleep(800);return JSON.stringify({error,flow:v.flowMode,pageMapping:!!v.pageMapping,ranges:!!v.pageMapping?.ranges,tabID:r.tabID})})()

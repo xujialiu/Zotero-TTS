@@ -560,7 +560,7 @@ ztts-keep-following-visible =
     .label = Keep auto-scroll while the sentence is visible
 ztts-help-keep-following-visible =
     .value = ?
-    .help = On by default. In PDFs and EPUBs, scrolling or navigating pauses auto-scroll when the entire sentence highlight leaves the view. Following resumes automatically when any part of the current sentence becomes visible again. Auto-scroll waits while you move the page. Turn this off to stop following as soon as you scroll or navigate and resume only with Go to reading position or a skip button.
+    .help = On by default. In PDFs and EPUBs, manual scrolling keeps the current sentence where you put it, even at the edge. Following resumes when a later sentence is visible and you finish moving the page. While paused, the page stays put. Resuming playback always returns to the current sentence. Go to reading position and skip buttons also restore following. Turn this off to suspend following on any manual navigation until you resume playback, return or skip.
 
 ztts-auto-scroll =
     .value = Auto-scroll

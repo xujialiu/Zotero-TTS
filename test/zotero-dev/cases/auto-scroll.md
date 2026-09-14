@@ -41,14 +41,13 @@ historical values are not fresh PASS results on another build.
    new centering requests. Prove audio advancement, not only word timers.
 4. **Manual intent and explicit return.** With Keep auto-scroll while the
    sentence is visible turned off, trusted wheel or PageDown suspends
-   following in both formats. With it on (the default since #100), only
-   complete sentence disappearance during navigation suspends following;
-   run [section 3i](manual-follow.md) for that distinction and automatic
-   resumption when the current sentence reenters. With the switch off,
-   later real sentences and mode changes do not reactivate following.
-   Neither direct playback resume nor the native play/pause toggle
-   reactivates legacy disengagement. Test PageDown independently
-   from wheel input and record its exact target/event path.
+   following in both formats. With it on, manual navigation protects the
+   current sentence's placement; run [section 3i](manual-follow.md) for
+   later-visible-sentence recovery and paused behavior (#107). With the
+   switch off, later sentences and mode changes do not reactivate following.
+   Resuming from pause always returns and restores following, even outside
+   the view; the pause half of the toggle never forces a return. Test PageDown
+   independently from wheel input and record its exact target/event path.
    Go to reading position returns to the
    current sentence even while paused, and resumes the selected mode.
    Explicit previous/next sentence behaves the same. Delayed automatic

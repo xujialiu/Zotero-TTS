@@ -295,20 +295,24 @@ language, voice.
   the beginning can be located reliably. Paginated EPUBs keep their pages.
   Document boundaries may limit centering.
 - *Browse while listening* — by default, manual scrolling or page navigation
-  pauses following only when the entire sentence highlight leaves the view.
-  Any visible part keeps following enabled, and auto-scroll waits while you
-  move the page. If the current sentence becomes visible again, following
-  resumes automatically after you finish moving the page. This also works
-  when speech reaches a sentence already in view.
+  keeps the current sentence where you put it, even if part is outside the
+  view. Moving that same sentence back into view does not recenter it.
+  Following resumes when a later sentence is visible and you finish moving
+  the page. If later sentences stay outside the view, the page stays put.
+  Normal playback without manual browsing still brings clipped text into view.
   Turn off *Keep auto-scroll while the sentence is visible* to suspend
   following as soon as you scroll or navigate and resume only on request.
-  *Go to reading position* (default `Shift+Enter`) returns and
-  resumes the selected mode; the player's skip buttons also resume it.
-  Changing either setting does not interrupt audio or force the page back
-  while the current sentence is outside the view. Automatic scrolling,
-  zoom and window changes do not by themselves turn following off.
-  Both settings are saved, backed up and synchronized
-  with your other settings.
+- *Pause and return* — while paused, the page stays where you leave it.
+  Resuming playback immediately centers the current sentence and restores
+  following, even if you have browsed away. *Go to reading position*
+  (default `Shift+Enter`) and the player's skip buttons also locate the
+  sentence and restore following, including while paused.
+  Paginated EPUBs navigate to the sentence's page; document boundaries and
+  sentences taller than the view may limit centering.
+  Changing either auto-scroll setting does not interrupt audio or override
+  manual sentence placement. Automatic scrolling, zoom and window changes
+  do not by themselves turn following off. Both settings are saved, backed
+  up and synchronized with your other settings.
 - *Read a page's first line when Zotero would skip it* — a sentence that
   runs onto the next page can lose that page's first line: Zotero reads
   straight past it, and the join sounds like a sentence. On, the line is

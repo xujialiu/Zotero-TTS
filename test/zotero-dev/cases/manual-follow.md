@@ -23,63 +23,80 @@ The beta4 reentry pass (2026-09-13, 1.12.6-beta4 manual-follow)
 verified automatic viewport reentry and controlled sentence-state reentry;
 natural audio progression was unavailable and is not a live PASS.
 
-The merged 1.12.7-beta check (2026-09-13, 1.12.7-beta manual-follow)
+The historical merged 1.12.7-beta check (2026-09-13, 1.12.7-beta manual-follow)
 establishes final installation identity, both settings features, one PDF
 and one scrolled EPUB reentry cycle, and clean restoration. The broader
 beta4 mode matrix applies to its unchanged follow code.
 
-1. **Default and UI.** Highlight contains Keep auto-scroll while the
-   sentence is visible, bound to `readAloud.keepFollowingWhileVisible`.
-   An unset preference is true. The adjacent help describes complete
-   disappearance, partial visibility, waiting during input and the off
-   behavior. Click both states and restore the original value. Existing
-   follow state, voice and playback are unaffected by the setting itself.
-2. **Partial and complete disappearance.** For PDF and scrolled EPUB,
-   trusted wheel input arms `interacting: true`, with `following: true`.
-   Move the actual viewport so a real sentence fragment remains visible:
-   following stays true. Move every fragment out: following becomes false.
-   Leave it outside across later state updates: no follow target or
-   automatic movement. Move any part of the current sentence back in:
-   following automatically becomes true after the gesture ends, without
-   explicit locking. `visibilityPaused` distinguishes that wait from
-   legacy disengagement and clears on resumption. Repeat departure/reentry.
-   Record input provenance, exact viewport/fragment coordinates and
-   diagnostic state. Repeat in both auto-scroll modes and while paused.
-3. **Whole sentence.** Include a PDF next-page or next-column fragment and
-   a multiline EPUB sentence. Any visible fragment retains following;
-   whitespace between invisible fragments does not. Word highlight mode
-   uses the sentence, including when the current word is already off screen.
-   A sentence larger than the viewport uses the same fragment rule.
-4. **Gesture priority.** During continuous wheel input, scrollbar or
-   selection-edge dragging and permitted touch/hand panning, stop the
-   previous automatic animation and issue no new follow target. Holding
-   the pointer still must not resume following until release. On release,
-   a retained follower resumes the selected mode. Record actual movement
-   separately from target requests; subjective comfort is human-only.
-5. **Navigation and pagination.** PageDown, page/history/find navigation
-   is judged after movement, including asynchronous EPUB navigation and
-   paginated spreads. Preserve native return values and page layout. A
-   sentence transition during the gesture still yields page control;
-   visibility checks use the current sentence. While visibility-paused,
-   speech reaching a sentence already in view restores following. A new
-   sentence outside the viewport in ordinary uninterrupted playback still
-   follows normally. Long/failed asynchronous
-   navigation and precise Promise identity also have unit coverage.
-6. **Off and persistent disengagement.** With the switch off, trusted
-   wheel/keyboard input immediately disengages even while the sentence
-   remains visible. Later sentences, scrolling back, changing either
-   setting and both native/direct playback resume keep it disengaged.
-   Explicit Go to reading position/skip restores the selected mode.
-7. **Automatic movement and lifecycle.** Automatic scrolling, native
-   delayed scroll notifications, zoom, backgrounding and restoration
-   without a manual gesture do not disengage. Unknown/hidden geometry
-   is not proof of disappearance. Returning after an unfinished gesture
-   retries current-sentence visibility before following. With the switch
-   on, visible reentry after restoration resumes following; with it off,
-   manual disengagement persists. Verify independent split views
-   and dispose/reload with pending gesture work: no retained timers,
-   listeners or dead-object errors. Unit coverage is recorded separately
-   where a deterministic live fixture is unavailable.
+The following expectations supersede same-sentence reentry and paused
+centering from #100. Issue #107 protects manual sentence placement.
+
+### 3i.1. Default and help
+
+The existing keep-following switch remains default on. Help explains manual
+sentence placement, later-visible-sentence recovery, paused stillness and
+unconditional return on playback resume. Setting changes alone never move a
+paused/protected sentence.
+
+### 3i.2. Partial disappearance and reentry
+
+PDF and scrolled/paginated EPUB, both modes: manually clip the current sentence
+with trusted input and measured viewport movement. After 180 ms and repeated
+same-sentence/word pushes, no automatic target is issued. `sentenceProtected:
+true` persists; `interacting: false` marks gesture completion. Fully move it
+out, then partly back: still no centering for this sentence. Advance to a
+later offscreen sentence: no scroll. A later sentence with a visible fragment
+resumes after the gesture ends; protection and `visibilityPaused` clear.
+
+### 3i.3. Whole sentence
+
+Use actual PDF cross-page/column and multiline EPUB fragments, not their union's
+whitespace. Sentence geometry governs even with word highlighting. Oversized
+sentences and unknown next-page geometry retain the same visibility rules.
+Unit geometry coverage is distinct from live fixture coverage.
+
+### 3i.4. Gesture priority
+
+Held keys, pointer/touch, scrollbar/selection-edge/hand dragging and asynchronous
+navigation keep priority across sentence changes. Further manual input protects
+the sentence current at that input. Releasing a gesture does not recenter that
+same sentence. Record trusted input and movement separately; smoothness and
+comfort are human-only. Long tasks/Promise identity have unit coverage.
+
+### 3i.5. Navigation and pagination
+
+Preserve native navigation return values and EPUB page layout. A later sentence
+outside the view waits after manual navigation; speech reaching visible text
+resumes following after the gesture. State-controlled transitions and actual
+audio progression are reported separately. Without manual intervention, normal
+playback still follows offscreen next sentences and brings clipped text/real
+words into view (#83). Explicit return and sentence/paragraph skips locate
+while paused or playing; paginated EPUBs locate the sentence's page.
+
+### 3i.6. Off and persistent disengagement
+
+With keep-following off, manual input disengages until explicit return/skip or
+playback resume. Later sentences, scrolling back and mode changes alone never
+restore following. Resume from pause restores following even with this switch
+off; the earlier #100 expectation that it stayed disengaged is superseded.
+
+### 3i.7. Automatic movement and lifecycle
+
+Automatic notifications alone never disengage. Unknown/hidden geometry waits.
+Focus/resize never overrides paused/protected placement. Check independent
+views and dispose with pending gesture work. Fixture closure must introduce no
+dead-object errors. Restore prefs/user flags, volume, sync/backup and user tabs.
+
+### 3i.8. Paused stillness and playback resume
+
+Pause stops pending/in-flight automatic movement. Edge clipping, complete
+exit/reentry, state pushes, focus/resize and setting changes while paused issue
+no new automatic target (`paused: true`). Resume at fully visible, partially
+visible and fully offscreen positions, both modes and keep-switch values:
+`following: true`, `reason: resume`, protection cleared, immediate forced
+centering (paginated EPUB locates the page; boundaries/oversized sentences may
+limit centering). Verify actual player/native toggle and direct playback paths,
+not just synthetic state. The pause half of the toggle never forces return.
 
 Keep the scripts that worked in `scripts/manual-follow/` and list the run
 in the kit's README; its table is on the issue. Do not label synthetic events as trusted input or target

@@ -279,7 +279,7 @@ describe('createSentenceInView', () => {
     const { reader, view, container } = fakeReader({ scrollTop: 1000 }); module.attach(reader);
     push(view, { pageIndex: 2, rects: [[10, 900, 500, 950]], nextPageRects: [[10, 1980, 500, 2010]] });
     container.emit('wheel', { deltaY: 1 }); container.emit('scroll'); vi.runAllTimers();
-    expect(module.inspect(reader)).toMatchObject({ following: true, interacting: true });
+    expect(module.inspect(reader)).toMatchObject({ following: true, interacting: false, sentenceProtected: true });
     module.dispose(); vi.runAllTimers(); vi.useRealTimers();
   });
   it('centers one time per sentence, applies mode changes and forces explicit returns', () => {

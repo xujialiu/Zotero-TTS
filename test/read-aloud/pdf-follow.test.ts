@@ -78,7 +78,7 @@ function fixture(deps: Partial<Parameters<typeof createPdfFollow>[0]> = {}) {
 const followOptions = { ifNeeded: true, inline: 'nearest', visibilityMargin: -200, behavior: 'smooth' };
 
 describe('PDF manual visibility (#100)', () => {
-  it('allows normal sentence following without input and restores a visible paused sentence after focus', () => {
+  it('allows normal sentence following but keeps a paused sentence still after focus', () => {
     vi.useFakeTimers(); let visible = false;
     const f = fixture({ keepFollowingWhileVisible: () => true, captureVisibility: () => () => visible });
     f.start(); f.follow.mockClear(); f.view.setReadAloudState(f.state(2));
@@ -87,8 +87,8 @@ describe('PDF manual visibility (#100)', () => {
     f.follow.mockClear(); f.view.setReadAloudState({ ...f.state(2), paused: true });
     vi.runAllTimers(); expect(f.follow).not.toHaveBeenCalled();
     visible = true; f.win.emit('focus'); f.flush(); vi.runAllTimers();
-    expect(f.controller.inspect(f.view)).toMatchObject({ following: true, visibilityPaused: false });
-    expect(f.follow).toHaveBeenCalledOnce();
+    expect(f.controller.inspect(f.view)).toMatchObject({ following: false, visibilityPaused: true });
+    expect(f.follow).not.toHaveBeenCalled();
     f.controller.dispose(); vi.runAllTimers(); vi.useRealTimers();
   });
   it('resumes on partial reentry and stays still while the current sentence is outside', () => {
@@ -137,7 +137,8 @@ describe('PDF manual visibility (#100)', () => {
     vi.advanceTimersByTime(1000);
     expect(f.controller.inspect(f.view).interacting).toBe(true); expect(f.follow).not.toHaveBeenCalled();
     f.win.emit('keyup', { key: 'PageDown' }); vi.runAllTimers();
-    expect(f.controller.inspect(f.view).interacting).toBe(false); expect(f.follow).toHaveBeenCalledOnce();
+    expect(f.controller.inspect(f.view).interacting).toBe(false); expect(f.follow).not.toHaveBeenCalled();
+    f.view.setReadAloudState(f.state(2)); vi.runAllTimers(); expect(f.follow).toHaveBeenCalledOnce();
     f.container.emit('wheel', { deltaY: 30 });
     f.view.lockPositionToReadAloud(); f.view.setReadAloudState(f.state());
     expect(f.controller.inspect(f.view)).toMatchObject({ interacting: false, following: true });
@@ -157,7 +158,7 @@ describe('PDF manual visibility (#100)', () => {
 });
 
 describe('PDF follow ownership (#90)', () => {
-  it('does not mistake the native playback toggle lock for explicit return', () => {
+  it('centers on playback resume while suppressing the incidental native toggle lock', () => {
     const guard = createResumeGuard({ error: vi.fn() });
     const f = fixture({ resuming: reader => guard.resuming(reader) });
     const internal = f.reader._internalReader as any;
@@ -166,8 +167,9 @@ describe('PDF follow ownership (#90)', () => {
     f.view.setReadAloudState({ ...f.state(), paused: true });
     f.container.emit('wheel', { deltaY: 50 }); f.follow.mockClear();
     internal.toggleReadAloudPaused();
-    expect(f.controller.inspect(f.view).following).toBe(false);
-    expect(f.follow).not.toHaveBeenCalled();
+    expect(f.controller.inspect(f.view)).toMatchObject({ following: true, reason: 'resume' });
+    expect(f.follow.mock.calls[0][4]).toBe(true);
+    f.follow.mockClear();
     f.view.lockPositionToReadAloud(); f.view.setReadAloudState(f.state());
     expect(f.controller.inspect(f.view).following).toBe(true);
     expect(f.follow).toHaveBeenCalledOnce();
@@ -264,7 +266,7 @@ describe('PDF follow ownership (#90)', () => {
     expect(f.controller.inspect(f.view)).toMatchObject({ following: false, reason: 'pan' });
   });
 
-  it('keeps manual navigation disengaged when playback resumes, even if the sentence is visible', () => {
+  it('forces a return on playback resume whether the sentence is visible or outside', () => {
     const f = fixture(); f.start();
     f.view.setReadAloudState({ ...f.state(), paused: true });
     f.container.emit('wheel', { deltaY: 10 });
@@ -272,14 +274,14 @@ describe('PDF follow ownership (#90)', () => {
     expect(f.controller.inspect(f.view)).toMatchObject({ following: false });
     f.follow.mockClear();
     f.view.setReadAloudState(f.state());
-    expect(f.controller.inspect(f.view)).toMatchObject({ following: false, reason: 'wheel' });
-    expect(f.follow).not.toHaveBeenCalled();
+    expect(f.controller.inspect(f.view)).toMatchObject({ following: true, reason: 'resume' });
+    expect(f.follow.mock.calls[0][4]).toBe(true);
     f.view.setReadAloudState({ ...f.state(), paused: true });
     f.container.emit('wheel', { deltaY: 1000 });
     f.view._isPositionInViewBounds = () => false;
     f.follow.mockClear(); f.view.setReadAloudState(f.state());
-    expect(f.controller.inspect(f.view)).toMatchObject({ following: false });
-    expect(f.follow).not.toHaveBeenCalled();
+    expect(f.controller.inspect(f.view)).toMatchObject({ following: true, reason: 'resume' });
+    expect(f.follow.mock.calls[0][4]).toBe(true);
   });
 
   it('distinguishes the scrollbar gutter from a click in the gray page margin', () => {
@@ -321,14 +323,16 @@ describe('PDF follow ownership (#90)', () => {
     expect(f.controller.inspect(f.view)).toMatchObject({ following: false, reason: 'find' });
   });
 
-  it('defers hidden scrolling and restores the latest state once, even while paused', () => {
+  it('cancels hidden scrolling on pause and centers the latest state only on resume', () => {
     const f = fixture(); f.win.windowState = 2; f.start();
     f.view.setReadAloudState({ ...f.state(9), paused: true });
     expect(f.follow).not.toHaveBeenCalled();
-    expect(f.controller.inspect(f.view)).toMatchObject({ following: true, pending: true });
+    expect(f.controller.inspect(f.view)).toMatchObject({ following: true, pending: false });
     f.win.windowState = 1;
     f.win.emit('sizemodechange'); f.document.emit('visibilitychange');
-    expect(f.frames.size).toBe(1); f.flush();
+    expect(f.frames.size).toBe(0); f.flush();
+    expect(f.follow).not.toHaveBeenCalled();
+    f.view.setReadAloudState(f.state(9));
     expect(f.follow).toHaveBeenCalledTimes(1);
     expect(f.view._readAloudState.activeSegment.sourcePosition.pageIndex).toBe(9);
     expect(f.follow.mock.calls[0][3]).toBe(true);
@@ -432,4 +436,52 @@ describe('PDF follow ownership (#90)', () => {
     expect(f.win.count() + f.document.count() + f.container.count()).toBe(0);
     expect(f.frames.size).toBe(0);
   });
+});
+
+
+describe('manual sentence placement and pause (#107)', () => {
+  it('protects the manually placed sentence through clipping, reentry and state pushes', () => {
+    vi.useFakeTimers(); let visible = true;
+    const f = fixture({ keepFollowingWhileVisible: () => true, captureVisibility: () => () => visible });
+    try {
+      f.start(); f.container.emit('wheel', { deltaY: 30 }); f.follow.mockClear();
+      f.container.emit('scroll'); vi.advanceTimersByTime(200);
+      f.view.setReadAloudState(f.state());
+      expect(f.follow).not.toHaveBeenCalled();
+      visible = false; f.container.emit('scroll'); vi.advanceTimersByTime(200);
+      visible = true; f.container.emit('scroll'); vi.advanceTimersByTime(200);
+      expect(f.follow).not.toHaveBeenCalled();
+      visible = false; f.view.setReadAloudState(f.state(2)); vi.advanceTimersByTime(200);
+      expect(f.follow).not.toHaveBeenCalled();
+      visible = true; f.container.emit('scroll'); vi.advanceTimersByTime(200);
+      expect(f.follow).toHaveBeenCalledOnce();
+    } finally { f.controller.dispose(); vi.useRealTimers(); }
+  });
+  it('never follows paused state or restoration, but resume forces an offscreen return', () => {
+    const f = fixture({ keepFollowingWhileVisible: () => true, captureVisibility: () => () => false });
+    try {
+      f.start(); f.follow.mockClear();
+      f.view.setReadAloudState({ ...f.state(), paused: true });
+      f.win.emit('focus'); f.flush(); f.controller.refresh();
+      expect(f.follow).not.toHaveBeenCalled();
+      f.container.emit('wheel', { deltaY: 3000 });
+      f.view.setReadAloudState(f.state());
+      expect(f.follow).toHaveBeenCalledOnce();
+      expect(f.follow.mock.calls[0][4]).toBe(true);
+    } finally { f.controller.dispose(); }
+  });
+});
+
+
+it('pause cancels a queued PDF restoration and still allows explicit paused return', () => {
+  const f = fixture();
+  try {
+    f.start(); f.win.emit('focus'); expect(f.frames.size).toBe(1);
+    f.view.setReadAloudState({ ...f.state(), paused: true });
+    expect(f.frames.size).toBe(0);
+    f.follow.mockClear(); f.win.emit('focus'); f.flush();
+    expect(f.follow).not.toHaveBeenCalled();
+    f.view.lockPositionToReadAloud(); f.view.setReadAloudState({ ...f.state(), paused: true });
+    expect(f.follow).toHaveBeenCalledOnce(); expect(f.follow.mock.calls[0][4]).toBe(true);
+  } finally { f.controller.dispose(); }
 });

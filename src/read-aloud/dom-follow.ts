@@ -77,6 +77,7 @@ export function createDOMFollow(deps: SentenceInViewDeps) {
 
   function run(r: Owned, state = waive(r.helper.state)) {
     if (disposed || dead(r.view) || !state?.active || !state.popupOpen || state.annotationPopup || !r.view.initialized) return;
+    if (state.paused && !r.force) return;
     if (r.manual.suspended) { r.manual.retry(); return; }
     if (!r.following) return;
     if (r.manual.active) { r.manual.retry(); return; }
@@ -185,6 +186,8 @@ export function createDOMFollow(deps: SentenceInViewDeps) {
         enabled: () => deps.keepFollowingWhileVisible?.() !== false,
         following: () => r.following && !disposed && !dead(r.view),
         available: () => r.active && !disposed && !dead(r.view),
+        paused: () => r.paused,
+        sentenceKey: () => { const position = waive(r.helper.state)?.activeSegment?.sourcePosition; return position ? JSON.stringify(position) : null; },
         capture: () => {
           const selector = r.helper._resolveSegmentSelector(waive(r.helper.state));
           return () => {
@@ -218,6 +221,13 @@ export function createDOMFollow(deps: SentenceInViewDeps) {
         shadow(r, helper, 'setState', original => function(this: any, rawState: any) {
           const state = waive(rawState);
           if (state?.active && !r.active) { r.manual.cancel(); r.following = true; r.key = null; r.last = null; r.reason = 'session'; }
+          if (state?.active && r.active && r.paused && !state.paused) {
+            r.manual.cancel(); r.following = true; r.force = true; r.last = null; r.reason = 'resume';
+          }
+          if (state?.paused && !r.paused) {
+            r.pending = false; r.force = false;
+            const win = r.view.iframeWindow; win.scrollTo(win.scrollX, win.scrollY);
+          }
           r.active = !!state?.active; r.paused = !!state?.paused;
           if (!r.active || !state.popupOpen) { r.manual.cancel(); r.following = false; r.pending = false; }
           // Mount/navigate before native spotlight rendering, as Zotero does.
@@ -259,7 +269,7 @@ export function createDOMFollow(deps: SentenceInViewDeps) {
         });
         listen(r, win, 'scroll', () => r.manual.scroll());
         for (const name of ['pointerup', 'pointercancel', 'touchend', 'touchcancel', 'blur']) listen(r, win, name, () => r.manual.hold(false));
-        const restore = () => { if (r.following || r.manual.suspended) { if (!visible(r)) r.manual.releaseHolds(); r.pending = true; attempt(r); } };
+        const restore = () => { if (r.paused && !r.force) return; if (r.following || r.manual.suspended) { if (!visible(r)) r.manual.releaseHolds(); r.pending = true; attempt(r); } };
         for (const name of ['resize', 'focus', 'pageshow']) listen(r, win, name, restore);
         listen(r, doc, 'visibilitychange', restore);
         if (reader._window) for (const name of ['sizemodechange', 'focus']) listen(r, reader._window, name, restore);
@@ -275,7 +285,7 @@ export function createDOMFollow(deps: SentenceInViewDeps) {
     inspect(reader: any): Record<string, unknown> {
       const view = waive(reader?._internalReader?._lastView ?? reader?._internalReader?._primaryView);
       const r = records.get(view);
-      return r ? { kind: 'epub', patched: true, following: r.following, interacting: r.manual.active, visibilityPaused: r.manual.suspended, keepFollowingWhileVisible: deps.keepFollowingWhileVisible?.() !== false, pending: r.pending, mode: autoScrollMode(deps.mode?.()),
+      return r ? { kind: 'epub', patched: true, following: r.following, paused: r.paused, sentenceProtected: r.manual.sentenceProtected, interacting: r.manual.interacting, visibilityPaused: r.manual.suspended, keepFollowingWhileVisible: deps.keepFollowingWhileVisible?.() !== false, pending: r.pending, mode: autoScrollMode(deps.mode?.()),
         flow: r.view.flowMode, reason: r.reason, last: r.last } : { kind: 'dom', patched: false };
     },
     dispose() { disposed = true; for (const r of [...records.values()]) release(r); },
