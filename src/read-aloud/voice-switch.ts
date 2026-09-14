@@ -1,6 +1,5 @@
 import { adjacentVoice, playerVoices, inspectWordHandoff } from '../core/voice-switch';
 import { withTimeout } from '../core/timeout';
-import { dropdownLanguage } from './language-dropdown';
 import type { AnyFn } from './proto-patches';
 
 export type VoiceNotice = 'preparing' | 'selected' | 'failed' | 'unavailable';
@@ -279,15 +278,7 @@ export function createVoiceSwitcher(deps: VoiceSwitcherDeps): VoiceSwitcher {
     try {
       const manager = managerOf(reader);
       if (!manager?.active) return;
-      let list = playerVoices<any>(manager.voicesForLanguage);
-      // Native regional pools also offer generic/wildcard fallbacks. Selecting
-      // one changes the popup's region, so keyboard cycling skips them (#97).
-      // Use the selected voice, as the popup does, not a stale requested region.
-      const current = list.find(v => v.id === manager.selectedVoiceID);
-      const language = typeof current?.language === 'string' ? dropdownLanguage(current.language) : '';
-      if (language.includes('-')) {
-        list = list.filter(v => typeof v.language === 'string' && dropdownLanguage(v.language) === language);
-      }
+      const list = playerVoices<any>(manager.voicesForLanguage);
       const selected = pending.get(reader)?.target.id ?? manager.selectedVoiceID;
       const voice = adjacentVoice(list, selected, direction);
       if (!voice) {

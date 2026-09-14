@@ -1,5 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createVoiceSwitcher } from '../../src/read-aloud/voice-switch';
+import { createPlayerVoiceList } from '../../src/read-aloud/player-voice-list';
+
+const listCleanup: (() => void)[] = [];
 
 const words = [{ start: 0, end: 0.4, charStart: 0, charEnd: 3 }, { start: 0.5, end: 0.9, charStart: 4, charEnd: 7 },
   { start: 1, end: 1.4, charStart: 8, charEnd: 13 }];
@@ -45,7 +48,8 @@ function setup(timings = true) {
   const voices: any[] = ['a', 'b', 'c'].map(id => ({ id, label: id.toUpperCase(), segmentGranularity: 'sentence',
     getController: vi.fn(function (this: any, _segments: unknown, index: number) { return new Controller(this, index); }) }));
   const old = new Controller(voices[0]); old._paused = false;
-  const manager: any = { active: true, paused: false, speed: 1, selectedVoiceID: 'a', voicesForLanguage: voices, allVoices: voices,
+  const manager: any = { active: true, paused: false, speed: 1, selectedVoiceID: 'a', nativeVoices: voices, allVoices: voices,
+    get voicesForLanguage() { return this.nativeVoices; },
     _controller: old, _segments: segments, _activeSegment: segments[0], _segmentGranularity: 'sentence',
     selectVoice: vi.fn(function (this: any, id: string) {
       this.selectedVoiceID = id; this._controller.destroy();
@@ -61,17 +65,19 @@ function setup(timings = true) {
   };
   const reader = { _internalReader: { _readAloudManager: manager } };
   const notice = vi.fn(), error = vi.fn();
+  const list = createPlayerVoiceList({ error });
+  list.attach(reader); listCleanup.push(list.dispose);
   const switcher = createVoiceSwitcher({ notice, error });
   return { switcher, reader, manager, select: manager.selectVoice, old, voices, fetched, plays, notice, error, segments, requests };
 }
 beforeEach(() => vi.useFakeTimers());
-afterEach(() => vi.useRealTimers());
+afterEach(() => { for (const dispose of listCleanup.splice(0)) dispose(); vi.useRealTimers(); });
 describe('prepared native voice handoff', () => {
   it.each([-1, 1] as const)('keeps regional selection and wrap inside US voices (%s)', direction => {
     const f = setup(); f.manager.paused = true;
     f.voices[0].language = 'en-US'; f.voices[1].language = 'en'; f.voices[2].language = 'en-US';
     f.manager.region = 'GB'; // The displayed region comes from the selected voice.
-    f.manager.voicesForLanguage = Object.assign([...f.voices, { id: 'wild', language: '*' }],
+    f.manager.nativeVoices = Object.assign([...f.voices, { id: 'wild', language: '*' }],
       { filter: () => [], find: () => undefined });
     f.switcher.step(f.reader, direction);
     expect(f.manager.selectedVoiceID).toBe('c');

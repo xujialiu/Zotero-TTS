@@ -7,16 +7,16 @@ batch of features landed, a release that carried either are the occasions
 they may choose to ask on; no session runs it on its own. What runs
 without being asked is **one case** plus the baseline, for a branch's
 own verification. A feature adds its items here before it merges
-(MEMORY/MEMORY.md, "Driving Zotero live") — drafted by the tester at the end of
-its report, from what the run measured, and pasted by the session; a fix
+(MEMORY/MEMORY.md, "Driving Zotero live") — drafted by the main session
+before verification, then corrected from the tester's report; a fix
 that changed an expected output changes it here in the same commit.
 
 How to run it is [the tester workflow](../../agents/zotero-tester.md) — the bridge's tools,
 the polling windows, the state rules, the report. This directory is *what* to
-check. A session running Fable, Astra, or Opus hands each case to the
+check. The main session hands each case to the
 `zotero-tester` agent as a verification brief and confirms the report
-field by field; any other model drives the bridge itself by the same
-rulebook. Cases run
+field by field. An explicit user request to test personally overrides
+delegation; bug and feature research may be driven directly. Cases run
 one at a time — there is one Zotero — and each restores what it touched
 before the next starts; reuse or replace the tester according to MEMORY/MEMORY.md's per-run context-cost rule. Every item names the check and the expected
 output; "derive" means the agent takes the expected output from `src/`
@@ -67,6 +67,7 @@ opens a fixture ends with item 3.26's teardown ([playback](cases/playback.md)).
 - [Favorite voices](cases/favorites.md) — 2.3–2.5, 2.8
 - [Voice samples in the browser](cases/voice-samples.md) — 2.6
 - [The player's voice list](cases/reader-voice-list.md) — 3.1, 3.3
+- [One regional list for the player and shortcuts (issue #106)](cases/player-voice-list.md)
 - [A voice list landing on the playing voice keeps the controller](cases/unchanged-voice.md) — 3.27
 - [The remembered voice](cases/remembered-voice.md) — 3.2, 3.11, 4.7
 - [A PDF's raw /Lang tag](cases/raw-lang-tag.md) — 3.12–3.14

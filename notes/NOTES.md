@@ -467,3 +467,6 @@ then) and is in the git history before that day.
 - A selected sentence's first character belongs to the previous segment at lookup (issue #105)
 - Boundary correction preserves native selection handling on unpause (issue #105)
 - The second sentence proves the boundary fix through the key (issue #105)
+- Regional shortcut filtering does not constrain the manual voice menu (issue #106)
+- The current US pool contains 44 generic English voices (issue #106)
+- One list passes in both reader formats and the real Fish catalog (issue #106)

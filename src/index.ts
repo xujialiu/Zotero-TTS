@@ -44,6 +44,7 @@ import { createPauses, pauseSettingsOf, type Pauses } from './read-aloud/pauses'
 import { createUnchangedVoice, type UnchangedVoice } from './read-aloud/unchanged-voice';
 import { createVolumeControl, type VolumeControl } from './read-aloud/volume';
 import { createVoiceSwitcher, type VoiceSwitcher } from './read-aloud/voice-switch';
+import { createPlayerVoiceList } from './read-aloud/player-voice-list';
 import { settleVolumePref, VOLUME_OBSERVER } from './core/read-aloud-volume';
 import { HIGHLIGHT_LEVEL_PREF, type HighlightLevel, type WordTiming } from './core/highlight-level';
 import { createPositionSync, ACTIVE_TICK_MS, IDLE_TICK_MS, type PositionSync } from './read-aloud/position-sync';
@@ -152,6 +153,7 @@ let pauses: Pauses | null = null;
 /** How loud Read Aloud plays, for every voice (read-aloud/volume.ts, issue #62), and the pref observer that moves every open chain. */
 let volumeControl: VolumeControl | null = null;
 let voiceSwitcher: VoiceSwitcher | null = null;
+let playerVoiceList: ReturnType<typeof createPlayerVoiceList> | null = null;
 /** A voice list landing on the voice already playing keeps the controller (read-aloud/unchanged-voice.ts, issue #75). */
 let unchangedVoice: UnchangedVoice | null = null;
 let textSettings: ReturnType<typeof createTextSettings> | null = null;
@@ -442,6 +444,7 @@ function buildReaderInterface(reader: any, targetWindow: any, native: () => unkn
           pauses?.attach(reader);
           volumeControl?.attach(reader);
           unchangedVoice?.attach(reader);
+          playerVoiceList?.attach(reader);
           textSettings?.attach(reader);
         },
         // The list this reader is about to receive: the remembered voice is
@@ -672,6 +675,7 @@ function watchReader(reader: any): void {
   pauses?.attach(reader);
   volumeControl?.attach(reader);
   unchangedVoice?.attach(reader);
+  playerVoiceList?.attach(reader);
   textSettings?.attach(reader);
   const iframe = reader._iframeWindow;
   if (iframe) {
@@ -1816,6 +1820,14 @@ function stopVolume(): void {
 
 function startVoiceSwitcher(): void {
   voiceSwitcher?.dispose();
+  playerVoiceList?.dispose();
+  playerVoiceList = createPlayerVoiceList({
+    exportFunction: (fn, target) => Components.utils.exportFunction(fn, target),
+    waiveXrays: value => Components.utils.waiveXrays(value),
+    isDead: value => Components.utils.isDeadWrapper(value),
+    error: error => Zotero.logError(error),
+  });
+  for (const reader of Zotero.Reader._readers ?? []) playerVoiceList.attach(reader);
   voiceSwitcher = createVoiceSwitcher({
     exportFunction: (fn, target) => Components.utils.exportFunction(fn, target),
     waiveXrays: value => Components.utils.waiveXrays(value),
@@ -2000,6 +2012,8 @@ async function shutdown(reason?: number): Promise<void> {
   stopReadAloudShortcuts();
   voiceSwitcher?.dispose();
   voiceSwitcher = null;
+  playerVoiceList?.dispose();
+  playerVoiceList = null;
   stopPlayerExpanded();
   // A settings change still inside its quiet period goes up now, bounded;
   // then the observers come off
@@ -2267,6 +2281,7 @@ const diagnostics = {
    */
   textSettings: () => JSON.stringify((Zotero.Reader._readers ?? []).map((r: any) => textSettings?.inspect(r) ?? null), null, 1),
   unchangedVoice: () => JSON.stringify((Zotero.Reader._readers ?? []).map((r: any) => unchangedVoice?.inspect(r) ?? null), null, 1),
+  playerVoiceList: () => JSON.stringify((Zotero.Reader._readers ?? []).map((r: any) => playerVoiceList?.inspect(r) ?? null), null, 1),
   /**
    * The undo logs of the five modules that shadow a reader-side prototype
    * (read-aloud/proto-patches.ts): `total` entries held, `live` of them
@@ -2285,6 +2300,7 @@ const diagnostics = {
         pauses: safe(() => pauses?.patchCounts()) ?? null,
         volume: safe(() => volumeControl?.patchCounts()) ?? null,
         unchangedVoice: safe(() => unchangedVoice?.patchCounts()) ?? null,
+        playerVoiceList: safe(() => playerVoiceList?.patchCounts()) ?? null,
         textSettings: safe(() => textSettings?.patchCounts()) ?? null,
         // Which instance serves each tab (issue #38): `hijacked` — the
         // reader carries this instance's own method; `slotsCurrent` — both
