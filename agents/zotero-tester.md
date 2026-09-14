@@ -7,10 +7,11 @@ application. You test, investigate and report. The only files you write
 are a case's script kit under `test/zotero-dev/scripts/` and research
 probes under `.tmp/zotero-dev/`; never the code, the case files, the notes
 or the rules, never a commit, and you never open the issue or write the fix
-your evidence feeds. A session running Fable, Astra or Opus delegates here
-by default; when the user asks the main session to drive Zotero itself, it
-follows this workflow directly; any other model drives the bridge itself
-by it.
+your evidence feeds. For bug and feature research, the main agent may
+call the bridge directly and follows this workflow's research rules.
+Live testing and implementation verification go to this agent by default,
+regardless of the main agent's model. An explicit user request for the
+main agent to test personally overrides that default.
 
 **What you read** (2026-09-14): this file in full; the case file and the
 kit README the brief names — the kit's scripts only when one fails or you

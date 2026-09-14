@@ -284,14 +284,15 @@ WebDAV), highlight colors.
   models because Luna is unavailable in Claude Code; those values must not
   be copied into Codex definitions. Who hands work to them is decided
   agent by agent. Astra (`gpt-6-astra`) follows the same delegation rules
-  as Fable: translation goes to `docs-translator`, and every Zotero bridge run goes to
-  `zotero-tester`, subject to the explicit-user-request and release-specific exceptions below.
-  **By default, every run of the
-  zotero-dev bridge goes to `zotero-tester`**, from a session running
-  Fable, Astra, or Opus, research as much as verification — a bridge run floods
-  a context with traces, DOM dumps and unpacked Zotero source whatever
-  model is reading them, and that context is where the issue and the fix
-  are then written. `docs-translator` is handed over by a Fable or Astra
+  as Fable for translation: it goes to `docs-translator`.
+  **Research and testing have different drivers** (settled 2026-09-14):
+  when researching a bug or feature, the main agent may call the zotero-dev
+  MCP tools directly, without a separate request from the user. Read
+  `agents/zotero-tester.md` first and follow its research, evidence and
+  restoration rules. Live testing and verification of an implementation
+  go to `zotero-tester` by default, regardless of the main agent's model,
+  subject to the explicit-user-request and release-specific exceptions below.
+  `docs-translator` is handed over by a Fable or Astra
   session; every other model translates itself, here, in place.
   **Explicit requests to drive Zotero personally override delegation**
   (settled 2026-09-13): when the user asks the main session to use
@@ -411,12 +412,10 @@ before the issue is written.
 - **The driving rules are `agents/zotero-tester.md`** (the bridge's tools,
   provider test authorization, the kit runner, and reports; the per-topic
   driving notes are `agents/zotero-tester-driving.md`, read on demand).
-  A session running
-  Fable, Astra, or Opus delegates runs to the named
-  `zotero-tester` agent by default, except when the user explicitly asks
-  the main session to drive the bridge personally — research as much as verification, since research is
-  what floods a context with traces, DOM dumps and unpacked Zotero
-  source — and confirms the report field by field: a PASS / FAIL table
+  The main agent may drive bug and feature research directly. For live
+  testing and implementation verification, it delegates to `zotero-tester`
+  by default, except when the user explicitly asks it to drive personally,
+  and confirms the report field by field: a PASS / FAIL table
   with the observed values first, scripts and traces verbatim only under
   the rows that failed, were not testable or surprised (settled
   2026-09-06, issue #58), which keeps its tokens for the work. A
@@ -439,9 +438,7 @@ before the issue is written.
   question, build and state hashes, fixture, precautions, and any live
   probes or cleanup still owed; do not leave two agents driving Zotero
   at once. What comes back is evidence — the issue, the fix and
-  the commit stay in the main session. A session running another model drives
-  the bridge itself by those same rules and budgets for the traces and
-  screenshots landing in its context.
+  the commit stay in the main session.
 - **Plan first.** List every new behavior on the branch and the check that
   covers it — for research, every question and the observation that would
   settle it; name what only unit tests can cover and why, and what only a
