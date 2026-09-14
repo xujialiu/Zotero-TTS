@@ -1,7 +1,0 @@
-{
-  "configured": true,
-  "active": true,
-  "paused": true,
-  "error": null,
-  "fixtureSettings": { "patched": true, "active": true, "configured": true, "effective": true, "configuredPairs": "<> []", "effectivePairs": "<> []" }
-}

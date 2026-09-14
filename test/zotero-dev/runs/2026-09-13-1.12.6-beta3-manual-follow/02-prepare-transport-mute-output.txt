@@ -1,2 +1,0 @@
-Result:
-{"baselinePresent":true,"before":{"webdav.syncPositions":{"value":true,"user":true},"webdav.autoUploadSettings":{"value":true,"user":true},"webdav.syncSettings":{"value":false,"user":false},"readAloud.volume":{"value":100,"user":false}},"during":{"webdav.syncPositions":{"value":false,"user":false},"webdav.autoUploadSettings":{"value":false,"user":false},"webdav.syncSettings":{"value":false,"user":false},"readAloud.volume":{"value":0,"user":true}},"debugStoring":true}

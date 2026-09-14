@@ -1,2 +1,0 @@
-Result:
-[{"kind":"pdf","present":true,"itemID":25487,"tabID":"tab-olk8u5EG","popupError":null,"closeError":null,"left":0},{"kind":"epub","present":true,"itemID":25488,"tabID":"tab-I0yfNnCl","popupError":null,"closeError":null,"left":0}]

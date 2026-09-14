@@ -121,7 +121,7 @@ old run's PASS results are not a fresh pass.
   writes its literal back.
 - **Preferences, rebuilt from this run's 01.** The run's restore survives
   only as a redacted transcript,
-  [13-final-preference-restore.redacted.js.txt](../../runs/2026-09-13-1.12.6-beta2-language-hints/scripts/13-final-preference-restore.redacted.js.txt),
+  `13-final-preference-restore.redacted.js.txt`,
   holding that run's values and a placeholder memory; it is not a script
   and is not in this kit. Restore from 01's output instead: `cacheAudio`,
   `prefetchEnabled` and `readAloud.stripAngleBrackets` first, then
@@ -180,23 +180,30 @@ old run's PASS results are not a fresh pass.
 
 ## Runs
 
+The run archive that held each run's report and scripts was removed on
+2026-09-14 (a run's table is on its issue since then); the last column names
+what it held, and the git history before that day still has the files.
+
 | Run | Items observed | Evidence |
 | --- | --- | --- |
-| 2026-09-13-1.12.5-pronunciation | Research only, before #98 was opened, on the owner's own book; no case item | [report](../../runs/2026-09-13-1.12.5-pronunciation/report.md) · [scripts](../../runs/2026-09-13-1.12.5-pronunciation/scripts/) |
-| 2026-09-13-1.12.6-beta2-language-hints | 1–5 and 7 PASS (7 without the user's popup visibility, which was not captured); 6 NOT TESTABLE (human); the Fish Speech Local exclusion NOT RUN (#99) | [report](../../runs/2026-09-13-1.12.6-beta2-language-hints/report.md) · [scripts](../../runs/2026-09-13-1.12.6-beta2-language-hints/scripts/) |
+| 2026-09-13-1.12.5-pronunciation | Research only, before #98 was opened, on the owner's own book; no case item | report (2026-09-13, 1.12.5 pronunciation) · scripts (2026-09-13, 1.12.5 pronunciation) |
+| 2026-09-13-1.12.6-beta2-language-hints | 1–5 and 7 PASS (7 without the user's popup visibility, which was not captured); 6 NOT TESTABLE (human); the Fish Speech Local exclusion NOT RUN (#99) | report (2026-09-13, 1.12.6-beta2 language-hints) · scripts (2026-09-13, 1.12.6-beta2 language-hints) |
 
 ## Where each script comes from
 
+The middle column is the file's name in that run's archive, removed on
+2026-09-14 and kept in the git history before that day.
+
 | Script | Executed as | Run |
 | --- | --- | --- |
-| 01-baseline-snapshot.js | [01-baseline-snapshot.js](../../runs/2026-09-13-1.12.6-beta2-language-hints/scripts/01-baseline-snapshot.js) | 2026-09-13-1.12.6-beta2-language-hints |
-| 02-mute-and-sync-off.js | [02-temporary-mute-and-sync-off.js](../../runs/2026-09-13-1.12.6-beta2-language-hints/scripts/02-temporary-mute-and-sync-off.js) | 2026-09-13-1.12.6-beta2-language-hints |
-| 03-real-fish-request-capture.js | [03-real-fish-request-capture.js](../../runs/2026-09-13-1.12.6-beta2-language-hints/scripts/03-real-fish-request-capture.js) | 2026-09-13-1.12.6-beta2-language-hints |
-| 04-cache-locale-stub.js | [07-cache-locale-good-stub.js](../../runs/2026-09-13-1.12.6-beta2-language-hints/scripts/07-cache-locale-good-stub.js) | 2026-09-13-1.12.6-beta2-language-hints |
-| 05-popup-sse-stub.js | [08-popup-good-sse-stub.js](../../runs/2026-09-13-1.12.6-beta2-language-hints/scripts/08-popup-good-sse-stub.js) | 2026-09-13-1.12.6-beta2-language-hints |
-| 06-prefetch-locale-stub.js | [09-prefetch-good-stub.js](../../runs/2026-09-13-1.12.6-beta2-language-hints/scripts/09-prefetch-good-stub.js) | 2026-09-13-1.12.6-beta2-language-hints |
-| 07-local-stub-no-cue.js | [10-local-stub-no-cue.js](../../runs/2026-09-13-1.12.6-beta2-language-hints/scripts/10-local-stub-no-cue.js) | 2026-09-13-1.12.6-beta2-language-hints |
-| 08-native-stub-no-cue.js | [11-native-stub-no-cue.js](../../runs/2026-09-13-1.12.6-beta2-language-hints/scripts/11-native-stub-no-cue.js) | 2026-09-13-1.12.6-beta2-language-hints |
-| 09-unspaced-language-stub.js | [12-unspaced-language-stub.js](../../runs/2026-09-13-1.12.6-beta2-language-hints/scripts/12-unspaced-language-stub.js) | 2026-09-13-1.12.6-beta2-language-hints |
-| 10-fixture-cleanup.js | [15-fixture-24426-cleanup.js](../../runs/2026-09-13-1.12.6-beta2-language-hints/scripts/15-fixture-24426-cleanup.js) | 2026-09-13-1.12.6-beta2-language-hints |
-| 11-final-state-audit.js | [14-final-state-audit.js](../../runs/2026-09-13-1.12.6-beta2-language-hints/scripts/14-final-state-audit.js) | 2026-09-13-1.12.6-beta2-language-hints |
+| 01-baseline-snapshot.js | `01-baseline-snapshot.js` | 2026-09-13-1.12.6-beta2-language-hints |
+| 02-mute-and-sync-off.js | `02-temporary-mute-and-sync-off.js` | 2026-09-13-1.12.6-beta2-language-hints |
+| 03-real-fish-request-capture.js | `03-real-fish-request-capture.js` | 2026-09-13-1.12.6-beta2-language-hints |
+| 04-cache-locale-stub.js | `07-cache-locale-good-stub.js` | 2026-09-13-1.12.6-beta2-language-hints |
+| 05-popup-sse-stub.js | `08-popup-good-sse-stub.js` | 2026-09-13-1.12.6-beta2-language-hints |
+| 06-prefetch-locale-stub.js | `09-prefetch-good-stub.js` | 2026-09-13-1.12.6-beta2-language-hints |
+| 07-local-stub-no-cue.js | `10-local-stub-no-cue.js` | 2026-09-13-1.12.6-beta2-language-hints |
+| 08-native-stub-no-cue.js | `11-native-stub-no-cue.js` | 2026-09-13-1.12.6-beta2-language-hints |
+| 09-unspaced-language-stub.js | `12-unspaced-language-stub.js` | 2026-09-13-1.12.6-beta2-language-hints |
+| 10-fixture-cleanup.js | `15-fixture-24426-cleanup.js` | 2026-09-13-1.12.6-beta2-language-hints |
+| 11-final-state-audit.js | `14-final-state-audit.js` | 2026-09-13-1.12.6-beta2-language-hints |

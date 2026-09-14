@@ -1,1 +1,0 @@
-return (() => { const s = Zotero.__zttsAllHandoff; if (!s) throw new Error('baseline script has not run'); s.spec = { label: 'Fish Speech to MiMo', mode: 'cross', from: 'fishspeech::', to: 'openai::', direction: 1 }; return JSON.stringify(s.spec); })()

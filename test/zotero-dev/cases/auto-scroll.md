@@ -9,12 +9,12 @@ Use `diagnostics.autoScroll()` for both formats and
 `diagnostics.sentenceInView()` for PDF geometry. This is a focused pass,
 not permission to run the entire checklist.
 
-Recorded runs: [beta2 failure and routing correction](../runs/2026-09-12-1.12.3-beta2/report.md),
-[beta3 verification](../runs/2026-09-12-1.12.3-beta3/issue-93.md),
-[per-option help verification](../runs/2026-09-12-1.12.3-beta4/help.md).
-Reusable scripts: [beta2 probes](../runs/2026-09-12-1.12.3-beta2/scripts/README.md),
-[beta3 probes](../runs/2026-09-12-1.12.3-beta3/scripts/README.md),
-[help probes](../runs/2026-09-12-1.12.3-beta4/scripts/README.md).
+Recorded runs: beta2 failure and routing correction (2026-09-12, 1.12.3-beta2),
+beta3 verification (2026-09-12, 1.12.3-beta3),
+per-option help verification (2026-09-12, 1.12.3-beta4).
+Reusable scripts: beta2 probes (2026-09-12, 1.12.3-beta2),
+beta3 probes (2026-09-12, 1.12.3-beta3),
+help probes (2026-09-12, 1.12.3-beta4).
 These records distinguish observed behavior from untested cases; their
 historical values are not fresh PASS results on another build.
 
@@ -82,8 +82,8 @@ historical values are not fresh PASS results on another build.
    restore its original binding after checking.
 
 Keep the scripts that worked in `test/zotero-dev/scripts/auto-scroll/` with
-prerequisites, expected results and restoration, and what ran with the
-sanitized evidence under `runs/<run>/`. Restore only state touched by the pass:
+prerequisites, expected results and restoration; the run's table is on the
+issue. Restore only state touched by the pass:
 preferences, voice/speed, flow, zoom, player, position and temporary items.
 Preserve the original transport/bookmark snapshot throughout retries.
 

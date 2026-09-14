@@ -1,2 +1,0 @@
-Result:
-{"fixture":"pdf","itemID":25480,"reader":true,"openError":null,"tabID":"tab-mXCxzJyL","manager":true,"view":true,"controller":false,"active":false,"paused":true,"selected":null,"tier":null,"position":null}

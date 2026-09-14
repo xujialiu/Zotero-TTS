@@ -7,11 +7,11 @@ fixtures, both auto-scroll modes and both EPUB flows. Save original
 preferences (including user-value flags), transport/bookmark/view state
 before changing them. No WebDAV upload or full-checklist pass is required.
 
-Historical evidence: [beta2 report](../runs/2026-09-13-1.12.6-beta2-manual-follow/observed-report.md)
+Historical evidence: beta2 report (2026-09-13, 1.12.6-beta2 manual-follow)
 and [reusable scripts](../scripts/manual-follow/README.md). The beta2
 teardown failure is retained; earlier PASS rows are not a fresh pass.
 
-The [beta3 combined-build pass](../runs/2026-09-13-1.12.6-beta3-manual-follow/observed-report.md)
+The beta3 combined-build pass (2026-09-13, 1.12.6-beta3 manual-follow)
 rechecked the core behavior and closed the fixture readers without new
 dead-object errors. Natural input/animation and the explicitly listed
 bridge/fixture gaps remain distinct from that mechanism verification.
@@ -19,11 +19,11 @@ The later owner follow-up adds automatic resumption on reentry. Beta2/3
 record the earlier persistent disengagement behavior and do not verify
 this follow-up.
 
-The [beta4 reentry pass](../runs/2026-09-13-1.12.6-beta4-manual-follow/report.md)
+The beta4 reentry pass (2026-09-13, 1.12.6-beta4 manual-follow)
 verified automatic viewport reentry and controlled sentence-state reentry;
 natural audio progression was unavailable and is not a live PASS.
 
-The [merged 1.12.7-beta check](../runs/2026-09-13-1.12.7-beta-manual-follow/report.md)
+The merged 1.12.7-beta check (2026-09-13, 1.12.7-beta manual-follow)
 establishes final installation identity, both settings features, one PDF
 and one scrolled EPUB reentry cycle, and clean restoration. The broader
 beta4 mode matrix applies to its unchanged follow code.
@@ -81,8 +81,7 @@ beta4 mode matrix applies to its unchanged follow code.
    listeners or dead-object errors. Unit coverage is recorded separately
    where a deterministic live fixture is unavailable.
 
-Keep the scripts that worked in `scripts/manual-follow/`, and what ran
-with the sanitized results under `runs/<run>/`; list the run in the kit's
-README. Do not label synthetic events as trusted input or target
+Keep the scripts that worked in `scripts/manual-follow/` and list the run
+in the kit's README; its table is on the issue. Do not label synthetic events as trusted input or target
 calculations as visible animation. File backup/restore and sync schema
 round-trips are automated.

@@ -1,1 +1,0 @@
-return (() => { const s = Zotero.__zttsAllHandoff; if (!s) throw new Error('baseline script has not run'); s.spec = { label: 'Azure within-source', mode: 'same', provider: 'azure::', direction: 1 }; return JSON.stringify(s.spec); })()

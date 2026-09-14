@@ -1,2 +1,0 @@
-Result:
-{"ret":[0,1,true,true],"pauseError":null,"samples":{"first":{"t":0,"active":true,"paused":false,"position":0,"context":"suspended","time":0,"source":false},"last":{"t":1750,"active":true,"paused":false,"position":1,"context":"running","time":1.7226666666666666,"source":true},"count":8},"clockMoved":true}

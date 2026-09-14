@@ -312,113 +312,120 @@ voices.
 
 ## Runs
 
+The run archive that held each run's report and scripts was removed on
+2026-09-14 (a run's table is on its issue since then); the last column names
+what it held, and the git history before that day still has the files.
+
 | Run | Items observed | Evidence |
 | --- | --- | --- |
-| 2026-09-13-1.12.5-beta2 | None: an install record with a clean startup diagnostic; behavior not run, superseded by beta3 | [report](../../runs/2026-09-13-1.12.5-beta2/report.md); no scripts |
-| 2026-09-13-1.12.5-beta3 | 1–6 and 8 PASS on a controlled native transport; 7 NOT TESTABLE (exploratory shared-voice attempts); the one-voice list, favorites-only filtering and armed-stop cancellation NOT TESTABLE | [report](../../runs/2026-09-13-1.12.5-beta3/report.md) · [scripts](../../runs/2026-09-13-1.12.5-beta3/scripts/) |
-| 2026-09-13-1.12.5-beta3-followup | 6 PASS (speed, skip, manual voice pick, deactivate) and 8 PASS; the word handoff with the PDF highlight (3), shared voice (7) and the armed stop's return (6) NOT TESTABLE because fresh audio contexts stayed suspended | [report](../../runs/2026-09-13-1.12.5-beta3-followup/report.md) · [scripts](../../runs/2026-09-13-1.12.5-beta3-followup/scripts/) |
-| 2026-09-13-1.12.5-beta5 | 3 FAIL with real Kokoro (a negative leading timestamp forced a sentence fallback); numeric-phrase alignment PASS; 8 PASS; the reverse probe NOT TESTABLE (exploratory instrumentation) | [report](../../runs/2026-09-13-1.12.5-beta5/report.md) · [scripts](../../runs/2026-09-13-1.12.5-beta5/scripts/) |
-| 2026-09-13-1.12.5-beta6 | 3 PASS in both directions with real Kokoro; 8 PASS | [report](../../runs/2026-09-13-1.12.5-beta6/report.md) · [scripts](../../runs/2026-09-13-1.12.5-beta6/scripts/) |
-| 2026-09-13-1.12.6-beta | 1 and 2 PASS for #97 on a paused controlled transport; 8 PASS | [report](../../runs/2026-09-13-1.12.6-beta/report.md) · [scripts](../../runs/2026-09-13-1.12.6-beta/scripts/) |
-| 2026-09-13-1.12.6-beta-all-providers | 3 (word) and 4 (sentence fallback) PASS in 8 within-source cases and 7 cross-source pairs both ways; 8 PASS; three first attempts NOT TESTABLE and then passed (a 2.7 s start window for Speechify and Fish Speech, the MiMo spec sent before the fixture); its manual Standard and Premium probe is outside #95 | [report](../../runs/2026-09-13-1.12.6-beta-all-providers/report.md) · [scripts](../../runs/2026-09-13-1.12.6-beta-all-providers/scripts/) |
-| 2026-09-13-1.12.6-beta-all-providers/official-followup | 3 PASS (Standard and Premium same-tier word handoffs); 2 PASS (each tier menu holds only its own tier, with and without Kokoro); 8 PASS | [report](../../runs/2026-09-13-1.12.6-beta-all-providers/official-followup/report.md) · [scripts](../../runs/2026-09-13-1.12.6-beta-all-providers/scripts/official-followup/) |
+| 2026-09-13-1.12.5-beta2 | None: an install record with a clean startup diagnostic; behavior not run, superseded by beta3 | report (2026-09-13, 1.12.5-beta2); no scripts |
+| 2026-09-13-1.12.5-beta3 | 1–6 and 8 PASS on a controlled native transport; 7 NOT TESTABLE (exploratory shared-voice attempts); the one-voice list, favorites-only filtering and armed-stop cancellation NOT TESTABLE | report (2026-09-13, 1.12.5-beta3) · scripts (2026-09-13, 1.12.5-beta3) |
+| 2026-09-13-1.12.5-beta3-followup | 6 PASS (speed, skip, manual voice pick, deactivate) and 8 PASS; the word handoff with the PDF highlight (3), shared voice (7) and the armed stop's return (6) NOT TESTABLE because fresh audio contexts stayed suspended | report (2026-09-13, 1.12.5-beta3 followup) · scripts (2026-09-13, 1.12.5-beta3 followup) |
+| 2026-09-13-1.12.5-beta5 | 3 FAIL with real Kokoro (a negative leading timestamp forced a sentence fallback); numeric-phrase alignment PASS; 8 PASS; the reverse probe NOT TESTABLE (exploratory instrumentation) | report (2026-09-13, 1.12.5-beta5) · scripts (2026-09-13, 1.12.5-beta5) |
+| 2026-09-13-1.12.5-beta6 | 3 PASS in both directions with real Kokoro; 8 PASS | report (2026-09-13, 1.12.5-beta6) · scripts (2026-09-13, 1.12.5-beta6) |
+| 2026-09-13-1.12.6-beta | 1 and 2 PASS for #97 on a paused controlled transport; 8 PASS | report (2026-09-13, 1.12.6-beta) · scripts (2026-09-13, 1.12.6-beta) |
+| 2026-09-13-1.12.6-beta-all-providers | 3 (word) and 4 (sentence fallback) PASS in 8 within-source cases and 7 cross-source pairs both ways; 8 PASS; three first attempts NOT TESTABLE and then passed (a 2.7 s start window for Speechify and Fish Speech, the MiMo spec sent before the fixture); its manual Standard and Premium probe is outside #95 | report (2026-09-13, 1.12.6-beta all-providers) · scripts (2026-09-13, 1.12.6-beta all-providers) |
+| 2026-09-13-1.12.6-beta-all-providers/official-followup | 3 PASS (Standard and Premium same-tier word handoffs); 2 PASS (each tier menu holds only its own tier, with and without Kokoro); 8 PASS | report (2026-09-13, 1.12.6-beta all-providers) · scripts (2026-09-13, 1.12.6-beta all-providers) |
 
 ## Where each script comes from
 
+The middle column is the file's name in that run's archive, removed on
+2026-09-14 and kept in the git history before that day.
+
 | Script | Executed as | Run |
 | --- | --- | --- |
-| `native-00-startup-diagnostic.js` | [00-startup.js](../../runs/2026-09-13-1.12.5-beta3/scripts/00-startup.js) | 2026-09-13-1.12.5-beta3 |
-| `native-01-baseline-snapshot.js` | [01-baseline-snapshot.js](../../runs/2026-09-13-1.12.5-beta3/scripts/01-baseline-snapshot.js) | 2026-09-13-1.12.5-beta3 |
-| `native-02-disable-sync-and-mute.js` | [02-disable-sync-and-mute.js](../../runs/2026-09-13-1.12.5-beta3/scripts/02-disable-sync-and-mute.js) | 2026-09-13-1.12.5-beta3 |
-| `native-03-import-fixture.js` | [03-fixture-import.js](../../runs/2026-09-13-1.12.5-beta3/scripts/03-fixture-import.js) | 2026-09-13-1.12.5-beta3 |
-| `native-04-open-fixture.js` | [04-fixture-open-and-readiness.js](../../runs/2026-09-13-1.12.5-beta3/scripts/04-fixture-open-and-readiness.js) | 2026-09-13-1.12.5-beta3 |
-| `native-05-install-native-transport.js` | [05-native-transport-stub.js](../../runs/2026-09-13-1.12.5-beta3/scripts/05-native-transport-stub.js) | 2026-09-13-1.12.5-beta3 |
-| `native-06-seed-voice-and-pause.js` | [06-seed-fixture-voice-and-pause.js](../../runs/2026-09-13-1.12.5-beta3/scripts/06-seed-fixture-voice-and-pause.js) | 2026-09-13-1.12.5-beta3 |
-| `native-07-trusted-start-audio-clock.js` | [07-trusted-start-and-audio-clock.js](../../runs/2026-09-13-1.12.5-beta3/scripts/07-trusted-start-and-audio-clock.js) | 2026-09-13-1.12.5-beta3 |
-| `native-08-word-handoff.js` | [08-word-handoff-native.js](../../runs/2026-09-13-1.12.5-beta3/scripts/08-word-handoff-native.js) | 2026-09-13-1.12.5-beta3 |
-| `native-09-source-position-probe.js` | [08b-source-position-probe.js](../../runs/2026-09-13-1.12.5-beta3/scripts/08b-source-position-probe.js) | 2026-09-13-1.12.5-beta3 |
-| `native-10-menu-and-trusted-keys.js` | [09-list-and-trusted-keys.js](../../runs/2026-09-13-1.12.5-beta3/scripts/09-list-and-trusted-keys.js) | 2026-09-13-1.12.5-beta3 |
-| `native-11-sentence-fallback.js` | [10-sentence-fallback-native.js](../../runs/2026-09-13-1.12.5-beta3/scripts/10-sentence-fallback-native.js) | 2026-09-13-1.12.5-beta3 |
-| `native-12-rapid-and-return-cancel.js` | [11-rapid-and-return-cancel.js](../../runs/2026-09-13-1.12.5-beta3/scripts/11-rapid-and-return-cancel.js) | 2026-09-13-1.12.5-beta3 |
-| `native-13-pause-and-failure.js` | [12-pause-and-failure.js](../../runs/2026-09-13-1.12.5-beta3/scripts/12-pause-and-failure.js) | 2026-09-13-1.12.5-beta3 |
-| `native-14-regional-menu-probe.js` | [14-regional-menu-probe.js](../../runs/2026-09-13-1.12.5-beta3/scripts/14-regional-menu-probe.js) | 2026-09-13-1.12.5-beta3 |
-| `native-15-preparation-overtaken.js` | [22-preparation-overtaken.js](../../runs/2026-09-13-1.12.5-beta3/scripts/22-preparation-overtaken.js) | 2026-09-13-1.12.5-beta3 |
-| `native-16-cleanup-and-restore.js` | [99-cleanup-and-restore.js](../../runs/2026-09-13-1.12.5-beta3/scripts/99-cleanup-and-restore.js) | 2026-09-13-1.12.5-beta3 |
-| `cancel-00-setup-and-helpers.js` | [00-setup-and-helpers.js](../../runs/2026-09-13-1.12.5-beta3-followup/scripts/00-setup-and-helpers.js) | 2026-09-13-1.12.5-beta3-followup |
-| `cancel-01-open-fixture-a.js` | [01-open-fixture-a.js](../../runs/2026-09-13-1.12.5-beta3-followup/scripts/01-open-fixture-a.js) | 2026-09-13-1.12.5-beta3-followup |
-| `cancel-02-open-fixture-b.js` | [02-open-fixture-b.js](../../runs/2026-09-13-1.12.5-beta3-followup/scripts/02-open-fixture-b.js) | 2026-09-13-1.12.5-beta3-followup |
-| `cancel-03-open-players-and-pause.js` | [03-open-popups-and-prepare.js](../../runs/2026-09-13-1.12.5-beta3-followup/scripts/03-open-popups-and-prepare.js) | 2026-09-13-1.12.5-beta3-followup |
-| `cancel-04-independent-playing-guard.js` | [05-enable-independent-playing.js](../../runs/2026-09-13-1.12.5-beta3-followup/scripts/05-enable-independent-playing.js) | 2026-09-13-1.12.5-beta3-followup |
-| `cancel-05-cancellation-actions.js` | [07-cancellation-actions.js](../../runs/2026-09-13-1.12.5-beta3-followup/scripts/07-cancellation-actions.js) | 2026-09-13-1.12.5-beta3-followup |
-| `cancel-06-cleanup-and-restore.js` | [08-cleanup-and-restore.js](../../runs/2026-09-13-1.12.5-beta3-followup/scripts/08-cleanup-and-restore.js) | 2026-09-13-1.12.5-beta3-followup |
-| `kokoro-00-baseline-snapshot.js` | [00-baseline-snapshot.js](../../runs/2026-09-13-1.12.5-beta6/scripts/00-baseline-snapshot.js) | 2026-09-13-1.12.5-beta6 |
-| `kokoro-01-disable-sync-and-mute.js` | [01-disable-sync-and-mute.js](../../runs/2026-09-13-1.12.5-beta6/scripts/01-disable-sync-and-mute.js) | 2026-09-13-1.12.5-beta6 |
-| `kokoro-02-open-fixture.js` | [02-fixture-a-open.js](../../runs/2026-09-13-1.12.5-beta6/scripts/02-fixture-a-open.js) | 2026-09-13-1.12.5-beta6 |
-| `kokoro-03-word-handoff-next.js` | [04-real-kokoro-word-handoff.js](../../runs/2026-09-13-1.12.5-beta6/scripts/04-real-kokoro-word-handoff.js) | 2026-09-13-1.12.5-beta6 |
-| `kokoro-04-word-handoff-previous.js` | [05-real-kokoro-warmed-reverse.js](../../runs/2026-09-13-1.12.5-beta6/scripts/05-real-kokoro-warmed-reverse.js) | 2026-09-13-1.12.5-beta6 |
-| `kokoro-05-cleanup-and-restore.js` | [99-cleanup-and-restore.js](../../runs/2026-09-13-1.12.5-beta6/scripts/99-cleanup-and-restore.js) | 2026-09-13-1.12.5-beta6 |
-| `alignment-00-baseline-snapshot.js` | [00-baseline-snapshot.js](../../runs/2026-09-13-1.12.5-beta5/scripts/00-baseline-snapshot.js) | 2026-09-13-1.12.5-beta5 |
-| `alignment-01-disable-sync-and-mute.js` | [01-disable-sync-and-mute.js](../../runs/2026-09-13-1.12.5-beta5/scripts/01-disable-sync-and-mute.js) | 2026-09-13-1.12.5-beta5 |
-| `alignment-02-open-fixture.js` | [02-fixture-a-open.js](../../runs/2026-09-13-1.12.5-beta5/scripts/02-fixture-a-open.js) | 2026-09-13-1.12.5-beta5 |
-| `alignment-03-numeric-phrase-timestamps.js` | [06-real-kokoro-numeric-alignment.js](../../runs/2026-09-13-1.12.5-beta5/scripts/06-real-kokoro-numeric-alignment.js) | 2026-09-13-1.12.5-beta5 |
-| `alignment-04-cleanup-and-restore.js` | [99-cleanup-and-restore.js](../../runs/2026-09-13-1.12.5-beta5/scripts/99-cleanup-and-restore.js) | 2026-09-13-1.12.5-beta5 |
-| `regional-00-baseline-snapshot.js` | [00-baseline-snapshot.js](../../runs/2026-09-13-1.12.6-beta/scripts/00-baseline-snapshot.js) | 2026-09-13-1.12.6-beta |
-| `regional-01-disable-sync-and-mute.js` | [01-disable-sync-and-mute.js](../../runs/2026-09-13-1.12.6-beta/scripts/01-disable-sync-and-mute.js) | 2026-09-13-1.12.6-beta |
-| `regional-02-import-fixture.js` | [02-fixture-import.js](../../runs/2026-09-13-1.12.6-beta/scripts/02-fixture-import.js) | 2026-09-13-1.12.6-beta |
-| `regional-03-open-fixture.js` | [03-open-and-readiness.js](../../runs/2026-09-13-1.12.6-beta/scripts/03-open-and-readiness.js) | 2026-09-13-1.12.6-beta |
-| `regional-04-install-regional-transport.js` | [04-native-transport-regional.js](../../runs/2026-09-13-1.12.6-beta/scripts/04-native-transport-regional.js) | 2026-09-13-1.12.6-beta |
-| `regional-05-seed-voice-and-pause.js` | [05-seed-and-pause.js](../../runs/2026-09-13-1.12.6-beta/scripts/05-seed-and-pause.js) | 2026-09-13-1.12.6-beta |
-| `regional-06-regional-keys-paused.js` | [06-regional-keys-paused.js](../../runs/2026-09-13-1.12.6-beta/scripts/06-regional-keys-paused.js) | 2026-09-13-1.12.6-beta |
-| `regional-07-mechanism-diagnostic.js` | [07-diagnostic.js](../../runs/2026-09-13-1.12.6-beta/scripts/07-diagnostic.js) | 2026-09-13-1.12.6-beta |
-| `regional-08-cleanup-and-restore.js` | [99-cleanup-and-restore.js](../../runs/2026-09-13-1.12.6-beta/scripts/99-cleanup-and-restore.js) | 2026-09-13-1.12.6-beta |
-| `providers-00-baseline-redacted.js` | [00-baseline-redacted.js](../../runs/2026-09-13-1.12.6-beta-all-providers/scripts/00-baseline-redacted.js) | 2026-09-13-1.12.6-beta-all-providers |
-| `providers-01-config-summary.js` | [01-config-summary.js](../../runs/2026-09-13-1.12.6-beta-all-providers/scripts/01-config-summary.js) | 2026-09-13-1.12.6-beta-all-providers |
-| `providers-02-disable-sync-and-mute.js` | [02-disable-sync-and-mute.js](../../runs/2026-09-13-1.12.6-beta-all-providers/scripts/02-disable-sync-and-mute.js) | 2026-09-13-1.12.6-beta-all-providers |
-| `providers-03-mode-all-configured.js` | [03-mode-all-configured.js](../../runs/2026-09-13-1.12.6-beta-all-providers/scripts/03-mode-all-configured.js) | 2026-09-13-1.12.6-beta-all-providers |
-| `providers-03-mode-chatterbox-fish.js` | [03-mode-chatterbox-fish.js](../../runs/2026-09-13-1.12.6-beta-all-providers/scripts/03-mode-chatterbox-fish.js) | 2026-09-13-1.12.6-beta-all-providers |
-| `providers-04-apply-config.js` | [04-apply-config.js](../../runs/2026-09-13-1.12.6-beta-all-providers/scripts/04-apply-config.js) | 2026-09-13-1.12.6-beta-all-providers |
-| `providers-05-open-fixture.js` | [05-open-fixture.js](../../runs/2026-09-13-1.12.6-beta-all-providers/scripts/05-open-fixture.js) | 2026-09-13-1.12.6-beta-all-providers |
-| `providers-06-inspect-menu.js` | [05-inspect-menu.js](../../runs/2026-09-13-1.12.6-beta-all-providers/scripts/05-inspect-menu.js) | 2026-09-13-1.12.6-beta-all-providers |
-| `providers-07-set-language-mul.js` | [05-set-fixture-language-mul.js](../../runs/2026-09-13-1.12.6-beta-all-providers/scripts/05-set-fixture-language-mul.js) | 2026-09-13-1.12.6-beta-all-providers |
-| `providers-08-spec-fish-same.js` | [07-spec-fish-same.js](../../runs/2026-09-13-1.12.6-beta-all-providers/scripts/07-spec-fish-same.js) | 2026-09-13-1.12.6-beta-all-providers |
-| `providers-08-spec-azure-same.js` | [07-spec-azure-same.js](../../runs/2026-09-13-1.12.6-beta-all-providers/scripts/07-spec-azure-same.js) | 2026-09-13-1.12.6-beta-all-providers |
-| `providers-08-spec-speechify-same.js` | [07-spec-speechify-same.js](../../runs/2026-09-13-1.12.6-beta-all-providers/scripts/07-spec-speechify-same.js) | 2026-09-13-1.12.6-beta-all-providers |
-| `providers-08-spec-kokoro-same.js` | [07-spec-kokoro-same.js](../../runs/2026-09-13-1.12.6-beta-all-providers/scripts/07-spec-kokoro-same.js) | 2026-09-13-1.12.6-beta-all-providers |
-| `providers-08-spec-system-same.js` | [07-spec-system-same.js](../../runs/2026-09-13-1.12.6-beta-all-providers/scripts/07-spec-system-same.js) | 2026-09-13-1.12.6-beta-all-providers |
-| `providers-08-spec-azure-to-fish-next.js` | [07-spec-cross-azure-fish-forward.js](../../runs/2026-09-13-1.12.6-beta-all-providers/scripts/07-spec-cross-azure-fish-forward.js) | 2026-09-13-1.12.6-beta-all-providers |
-| `providers-08-spec-fish-to-azure-previous.js` | [07-spec-cross-fish-azure-reverse.js](../../runs/2026-09-13-1.12.6-beta-all-providers/scripts/07-spec-cross-fish-azure-reverse.js) | 2026-09-13-1.12.6-beta-all-providers |
-| `providers-08-spec-fish-to-kokoro-next.js` | [07-spec-cross-fish-kokoro-forward.js](../../runs/2026-09-13-1.12.6-beta-all-providers/scripts/07-spec-cross-fish-kokoro-forward.js) | 2026-09-13-1.12.6-beta-all-providers |
-| `providers-08-spec-kokoro-to-fish-previous.js` | [07-spec-cross-kokoro-fish-reverse.js](../../runs/2026-09-13-1.12.6-beta-all-providers/scripts/07-spec-cross-kokoro-fish-reverse.js) | 2026-09-13-1.12.6-beta-all-providers |
-| `providers-08-spec-kokoro-to-speechify-next.js` | [07-spec-cross-kokoro-speechify-forward.js](../../runs/2026-09-13-1.12.6-beta-all-providers/scripts/07-spec-cross-kokoro-speechify-forward.js) | 2026-09-13-1.12.6-beta-all-providers |
-| `providers-08-spec-speechify-to-kokoro-previous.js` | [07-spec-cross-speechify-kokoro-reverse.js](../../runs/2026-09-13-1.12.6-beta-all-providers/scripts/07-spec-cross-speechify-kokoro-reverse.js) | 2026-09-13-1.12.6-beta-all-providers |
-| `providers-08-spec-speechify-to-system-next.js` | [07-spec-cross-speechify-system-forward.js](../../runs/2026-09-13-1.12.6-beta-all-providers/scripts/07-spec-cross-speechify-system-forward.js) | 2026-09-13-1.12.6-beta-all-providers |
-| `providers-08-spec-system-to-speechify-previous.js` | [07-spec-cross-system-speechify-reverse.js](../../runs/2026-09-13-1.12.6-beta-all-providers/scripts/07-spec-cross-system-speechify-reverse.js) | 2026-09-13-1.12.6-beta-all-providers |
-| `providers-08-spec-mimo-same.js` | [07-spec-mimo-same.js](../../runs/2026-09-13-1.12.6-beta-all-providers/scripts/07-spec-mimo-same.js) | 2026-09-13-1.12.6-beta-all-providers |
-| `providers-08-spec-fishspeech-same.js` | [07-spec-fishspeech-same.js](../../runs/2026-09-13-1.12.6-beta-all-providers/scripts/07-spec-fishspeech-same.js) | 2026-09-13-1.12.6-beta-all-providers |
-| `providers-08-spec-fish-to-fishspeech-next.js` | [07-spec-cross-fish-fishspeech-forward.js](../../runs/2026-09-13-1.12.6-beta-all-providers/scripts/07-spec-cross-fish-fishspeech-forward.js) | 2026-09-13-1.12.6-beta-all-providers |
-| `providers-08-spec-fishspeech-to-fish-previous.js` | [07-spec-cross-fishspeech-fish-reverse.js](../../runs/2026-09-13-1.12.6-beta-all-providers/scripts/07-spec-cross-fishspeech-fish-reverse.js) | 2026-09-13-1.12.6-beta-all-providers |
-| `providers-08-spec-fishspeech-to-mimo-next.js` | [07-spec-cross-fishspeech-openai-forward.js](../../runs/2026-09-13-1.12.6-beta-all-providers/scripts/07-spec-cross-fishspeech-openai-forward.js) | 2026-09-13-1.12.6-beta-all-providers |
-| `providers-08-spec-mimo-to-fishspeech-previous.js` | [07-spec-cross-openai-fishspeech-reverse.js](../../runs/2026-09-13-1.12.6-beta-all-providers/scripts/07-spec-cross-openai-fishspeech-reverse.js) | 2026-09-13-1.12.6-beta-all-providers |
-| `providers-08-spec-chatterbox-same.js` | [07-spec-chatterbox-same.js](../../runs/2026-09-13-1.12.6-beta-all-providers/scripts/07-spec-chatterbox-same.js) | 2026-09-13-1.12.6-beta-all-providers |
-| `providers-08-spec-fish-to-chatterbox-next.js` | [07-spec-cross-fish-chatterbox-forward.js](../../runs/2026-09-13-1.12.6-beta-all-providers/scripts/07-spec-cross-fish-chatterbox-forward.js) | 2026-09-13-1.12.6-beta-all-providers |
-| `providers-08-spec-chatterbox-to-fish-previous.js` | [07-spec-cross-chatterbox-fish-reverse.js](../../runs/2026-09-13-1.12.6-beta-all-providers/scripts/07-spec-cross-chatterbox-fish-reverse.js) | 2026-09-13-1.12.6-beta-all-providers |
-| `providers-09-start-handoff.js` | [08-start-handoff.js](../../runs/2026-09-13-1.12.6-beta-all-providers/scripts/08-start-handoff.js) | 2026-09-13-1.12.6-beta-all-providers |
-| `providers-10-poll-handoff.js` | [09-poll-handoff.js](../../runs/2026-09-13-1.12.6-beta-all-providers/scripts/09-poll-handoff.js) | 2026-09-13-1.12.6-beta-all-providers |
-| `providers-11-capture-handoff.js` | [10-capture-handoff.js](../../runs/2026-09-13-1.12.6-beta-all-providers/scripts/10-capture-handoff.js) | 2026-09-13-1.12.6-beta-all-providers |
-| `providers-12-close-fixture.js` | [11-close-fixture.js](../../runs/2026-09-13-1.12.6-beta-all-providers/scripts/11-close-fixture.js) | 2026-09-13-1.12.6-beta-all-providers |
-| `providers-13-cleanup-restore.js` | [99-cleanup-restore.js](../../runs/2026-09-13-1.12.6-beta-all-providers/scripts/99-cleanup-restore.js) | 2026-09-13-1.12.6-beta-all-providers |
-| `official-00-baseline-redacted.js` | [00-baseline-redacted.js](../../runs/2026-09-13-1.12.6-beta-all-providers/scripts/official-followup/00-baseline-redacted.js) | 2026-09-13-1.12.6-beta-all-providers/official-followup |
-| `official-01-mute-and-disable-providers.js` | [01-mute-disable-providers.js](../../runs/2026-09-13-1.12.6-beta-all-providers/scripts/official-followup/01-mute-disable-providers.js) | 2026-09-13-1.12.6-beta-all-providers/official-followup |
-| `official-02-remove-native-test-stub.js` | [02-remove-native-test-stub.js](../../runs/2026-09-13-1.12.6-beta-all-providers/scripts/official-followup/02-remove-native-test-stub.js) | 2026-09-13-1.12.6-beta-all-providers/official-followup |
-| `official-03-open-fixture.js` | [03-open-fixture.js](../../runs/2026-09-13-1.12.6-beta-all-providers/scripts/official-followup/03-open-fixture.js) | 2026-09-13-1.12.6-beta-all-providers/official-followup |
-| `official-04-spec-standard.js` | [04-spec-standard.js](../../runs/2026-09-13-1.12.6-beta-all-providers/scripts/official-followup/04-spec-standard.js) | 2026-09-13-1.12.6-beta-all-providers/official-followup |
-| `official-04-spec-premium.js` | [04-spec-premium.js](../../runs/2026-09-13-1.12.6-beta-all-providers/scripts/official-followup/04-spec-premium.js) | 2026-09-13-1.12.6-beta-all-providers/official-followup |
-| `official-05-start-handoff.js` | [05-start-handoff.js](../../runs/2026-09-13-1.12.6-beta-all-providers/scripts/official-followup/05-start-handoff.js) | 2026-09-13-1.12.6-beta-all-providers/official-followup |
-| `official-06-poll-handoff.js` | [06-poll-handoff.js](../../runs/2026-09-13-1.12.6-beta-all-providers/scripts/official-followup/06-poll-handoff.js) | 2026-09-13-1.12.6-beta-all-providers/official-followup |
-| `official-07-capture-handoff.js` | [07-capture-handoff.js](../../runs/2026-09-13-1.12.6-beta-all-providers/scripts/official-followup/07-capture-handoff.js) | 2026-09-13-1.12.6-beta-all-providers/official-followup |
-| `official-08-tier-menus.js` | [08-cross-tier-entrypoint.js](../../runs/2026-09-13-1.12.6-beta-all-providers/scripts/official-followup/08-cross-tier-entrypoint.js) | 2026-09-13-1.12.6-beta-all-providers/official-followup |
-| `official-09-close-fixture.js` | [09-close-fixture.js](../../runs/2026-09-13-1.12.6-beta-all-providers/scripts/official-followup/09-close-fixture.js) | 2026-09-13-1.12.6-beta-all-providers/official-followup |
-| `official-10-enable-kokoro.js` | [11-enable-kokoro-local.js](../../runs/2026-09-13-1.12.6-beta-all-providers/scripts/official-followup/11-enable-kokoro-local.js) | 2026-09-13-1.12.6-beta-all-providers/official-followup |
-| `official-11-tier-menus-with-kokoro.js` | [12-cross-tier-local.js](../../runs/2026-09-13-1.12.6-beta-all-providers/scripts/official-followup/12-cross-tier-local.js) | 2026-09-13-1.12.6-beta-all-providers/official-followup |
-| `official-12-restore-native-test-stub.js` | [10-restore-native-test-stub.js](../../runs/2026-09-13-1.12.6-beta-all-providers/scripts/official-followup/10-restore-native-test-stub.js) | 2026-09-13-1.12.6-beta-all-providers/official-followup |
-| `official-13-cleanup-restore.js` | [99-cleanup-restore-executed-rev1.js](../../runs/2026-09-13-1.12.6-beta-all-providers/scripts/official-followup/99-cleanup-restore-executed-rev1.js) | 2026-09-13-1.12.6-beta-all-providers/official-followup |
+| `native-00-startup-diagnostic.js` | `00-startup.js` | 2026-09-13-1.12.5-beta3 |
+| `native-01-baseline-snapshot.js` | `01-baseline-snapshot.js` | 2026-09-13-1.12.5-beta3 |
+| `native-02-disable-sync-and-mute.js` | `02-disable-sync-and-mute.js` | 2026-09-13-1.12.5-beta3 |
+| `native-03-import-fixture.js` | `03-fixture-import.js` | 2026-09-13-1.12.5-beta3 |
+| `native-04-open-fixture.js` | `04-fixture-open-and-readiness.js` | 2026-09-13-1.12.5-beta3 |
+| `native-05-install-native-transport.js` | `05-native-transport-stub.js` | 2026-09-13-1.12.5-beta3 |
+| `native-06-seed-voice-and-pause.js` | `06-seed-fixture-voice-and-pause.js` | 2026-09-13-1.12.5-beta3 |
+| `native-07-trusted-start-audio-clock.js` | `07-trusted-start-and-audio-clock.js` | 2026-09-13-1.12.5-beta3 |
+| `native-08-word-handoff.js` | `08-word-handoff-native.js` | 2026-09-13-1.12.5-beta3 |
+| `native-09-source-position-probe.js` | `08b-source-position-probe.js` | 2026-09-13-1.12.5-beta3 |
+| `native-10-menu-and-trusted-keys.js` | `09-list-and-trusted-keys.js` | 2026-09-13-1.12.5-beta3 |
+| `native-11-sentence-fallback.js` | `10-sentence-fallback-native.js` | 2026-09-13-1.12.5-beta3 |
+| `native-12-rapid-and-return-cancel.js` | `11-rapid-and-return-cancel.js` | 2026-09-13-1.12.5-beta3 |
+| `native-13-pause-and-failure.js` | `12-pause-and-failure.js` | 2026-09-13-1.12.5-beta3 |
+| `native-14-regional-menu-probe.js` | `14-regional-menu-probe.js` | 2026-09-13-1.12.5-beta3 |
+| `native-15-preparation-overtaken.js` | `22-preparation-overtaken.js` | 2026-09-13-1.12.5-beta3 |
+| `native-16-cleanup-and-restore.js` | `99-cleanup-and-restore.js` | 2026-09-13-1.12.5-beta3 |
+| `cancel-00-setup-and-helpers.js` | `00-setup-and-helpers.js` | 2026-09-13-1.12.5-beta3-followup |
+| `cancel-01-open-fixture-a.js` | `01-open-fixture-a.js` | 2026-09-13-1.12.5-beta3-followup |
+| `cancel-02-open-fixture-b.js` | `02-open-fixture-b.js` | 2026-09-13-1.12.5-beta3-followup |
+| `cancel-03-open-players-and-pause.js` | `03-open-popups-and-prepare.js` | 2026-09-13-1.12.5-beta3-followup |
+| `cancel-04-independent-playing-guard.js` | `05-enable-independent-playing.js` | 2026-09-13-1.12.5-beta3-followup |
+| `cancel-05-cancellation-actions.js` | `07-cancellation-actions.js` | 2026-09-13-1.12.5-beta3-followup |
+| `cancel-06-cleanup-and-restore.js` | `08-cleanup-and-restore.js` | 2026-09-13-1.12.5-beta3-followup |
+| `kokoro-00-baseline-snapshot.js` | `00-baseline-snapshot.js` | 2026-09-13-1.12.5-beta6 |
+| `kokoro-01-disable-sync-and-mute.js` | `01-disable-sync-and-mute.js` | 2026-09-13-1.12.5-beta6 |
+| `kokoro-02-open-fixture.js` | `02-fixture-a-open.js` | 2026-09-13-1.12.5-beta6 |
+| `kokoro-03-word-handoff-next.js` | `04-real-kokoro-word-handoff.js` | 2026-09-13-1.12.5-beta6 |
+| `kokoro-04-word-handoff-previous.js` | `05-real-kokoro-warmed-reverse.js` | 2026-09-13-1.12.5-beta6 |
+| `kokoro-05-cleanup-and-restore.js` | `99-cleanup-and-restore.js` | 2026-09-13-1.12.5-beta6 |
+| `alignment-00-baseline-snapshot.js` | `00-baseline-snapshot.js` | 2026-09-13-1.12.5-beta5 |
+| `alignment-01-disable-sync-and-mute.js` | `01-disable-sync-and-mute.js` | 2026-09-13-1.12.5-beta5 |
+| `alignment-02-open-fixture.js` | `02-fixture-a-open.js` | 2026-09-13-1.12.5-beta5 |
+| `alignment-03-numeric-phrase-timestamps.js` | `06-real-kokoro-numeric-alignment.js` | 2026-09-13-1.12.5-beta5 |
+| `alignment-04-cleanup-and-restore.js` | `99-cleanup-and-restore.js` | 2026-09-13-1.12.5-beta5 |
+| `regional-00-baseline-snapshot.js` | `00-baseline-snapshot.js` | 2026-09-13-1.12.6-beta |
+| `regional-01-disable-sync-and-mute.js` | `01-disable-sync-and-mute.js` | 2026-09-13-1.12.6-beta |
+| `regional-02-import-fixture.js` | `02-fixture-import.js` | 2026-09-13-1.12.6-beta |
+| `regional-03-open-fixture.js` | `03-open-and-readiness.js` | 2026-09-13-1.12.6-beta |
+| `regional-04-install-regional-transport.js` | `04-native-transport-regional.js` | 2026-09-13-1.12.6-beta |
+| `regional-05-seed-voice-and-pause.js` | `05-seed-and-pause.js` | 2026-09-13-1.12.6-beta |
+| `regional-06-regional-keys-paused.js` | `06-regional-keys-paused.js` | 2026-09-13-1.12.6-beta |
+| `regional-07-mechanism-diagnostic.js` | `07-diagnostic.js` | 2026-09-13-1.12.6-beta |
+| `regional-08-cleanup-and-restore.js` | `99-cleanup-and-restore.js` | 2026-09-13-1.12.6-beta |
+| `providers-00-baseline-redacted.js` | `00-baseline-redacted.js` | 2026-09-13-1.12.6-beta-all-providers |
+| `providers-01-config-summary.js` | `01-config-summary.js` | 2026-09-13-1.12.6-beta-all-providers |
+| `providers-02-disable-sync-and-mute.js` | `02-disable-sync-and-mute.js` | 2026-09-13-1.12.6-beta-all-providers |
+| `providers-03-mode-all-configured.js` | `03-mode-all-configured.js` | 2026-09-13-1.12.6-beta-all-providers |
+| `providers-03-mode-chatterbox-fish.js` | `03-mode-chatterbox-fish.js` | 2026-09-13-1.12.6-beta-all-providers |
+| `providers-04-apply-config.js` | `04-apply-config.js` | 2026-09-13-1.12.6-beta-all-providers |
+| `providers-05-open-fixture.js` | `05-open-fixture.js` | 2026-09-13-1.12.6-beta-all-providers |
+| `providers-06-inspect-menu.js` | `05-inspect-menu.js` | 2026-09-13-1.12.6-beta-all-providers |
+| `providers-07-set-language-mul.js` | `05-set-fixture-language-mul.js` | 2026-09-13-1.12.6-beta-all-providers |
+| `providers-08-spec-fish-same.js` | `07-spec-fish-same.js` | 2026-09-13-1.12.6-beta-all-providers |
+| `providers-08-spec-azure-same.js` | `07-spec-azure-same.js` | 2026-09-13-1.12.6-beta-all-providers |
+| `providers-08-spec-speechify-same.js` | `07-spec-speechify-same.js` | 2026-09-13-1.12.6-beta-all-providers |
+| `providers-08-spec-kokoro-same.js` | `07-spec-kokoro-same.js` | 2026-09-13-1.12.6-beta-all-providers |
+| `providers-08-spec-system-same.js` | `07-spec-system-same.js` | 2026-09-13-1.12.6-beta-all-providers |
+| `providers-08-spec-azure-to-fish-next.js` | `07-spec-cross-azure-fish-forward.js` | 2026-09-13-1.12.6-beta-all-providers |
+| `providers-08-spec-fish-to-azure-previous.js` | `07-spec-cross-fish-azure-reverse.js` | 2026-09-13-1.12.6-beta-all-providers |
+| `providers-08-spec-fish-to-kokoro-next.js` | `07-spec-cross-fish-kokoro-forward.js` | 2026-09-13-1.12.6-beta-all-providers |
+| `providers-08-spec-kokoro-to-fish-previous.js` | `07-spec-cross-kokoro-fish-reverse.js` | 2026-09-13-1.12.6-beta-all-providers |
+| `providers-08-spec-kokoro-to-speechify-next.js` | `07-spec-cross-kokoro-speechify-forward.js` | 2026-09-13-1.12.6-beta-all-providers |
+| `providers-08-spec-speechify-to-kokoro-previous.js` | `07-spec-cross-speechify-kokoro-reverse.js` | 2026-09-13-1.12.6-beta-all-providers |
+| `providers-08-spec-speechify-to-system-next.js` | `07-spec-cross-speechify-system-forward.js` | 2026-09-13-1.12.6-beta-all-providers |
+| `providers-08-spec-system-to-speechify-previous.js` | `07-spec-cross-system-speechify-reverse.js` | 2026-09-13-1.12.6-beta-all-providers |
+| `providers-08-spec-mimo-same.js` | `07-spec-mimo-same.js` | 2026-09-13-1.12.6-beta-all-providers |
+| `providers-08-spec-fishspeech-same.js` | `07-spec-fishspeech-same.js` | 2026-09-13-1.12.6-beta-all-providers |
+| `providers-08-spec-fish-to-fishspeech-next.js` | `07-spec-cross-fish-fishspeech-forward.js` | 2026-09-13-1.12.6-beta-all-providers |
+| `providers-08-spec-fishspeech-to-fish-previous.js` | `07-spec-cross-fishspeech-fish-reverse.js` | 2026-09-13-1.12.6-beta-all-providers |
+| `providers-08-spec-fishspeech-to-mimo-next.js` | `07-spec-cross-fishspeech-openai-forward.js` | 2026-09-13-1.12.6-beta-all-providers |
+| `providers-08-spec-mimo-to-fishspeech-previous.js` | `07-spec-cross-openai-fishspeech-reverse.js` | 2026-09-13-1.12.6-beta-all-providers |
+| `providers-08-spec-chatterbox-same.js` | `07-spec-chatterbox-same.js` | 2026-09-13-1.12.6-beta-all-providers |
+| `providers-08-spec-fish-to-chatterbox-next.js` | `07-spec-cross-fish-chatterbox-forward.js` | 2026-09-13-1.12.6-beta-all-providers |
+| `providers-08-spec-chatterbox-to-fish-previous.js` | `07-spec-cross-chatterbox-fish-reverse.js` | 2026-09-13-1.12.6-beta-all-providers |
+| `providers-09-start-handoff.js` | `08-start-handoff.js` | 2026-09-13-1.12.6-beta-all-providers |
+| `providers-10-poll-handoff.js` | `09-poll-handoff.js` | 2026-09-13-1.12.6-beta-all-providers |
+| `providers-11-capture-handoff.js` | `10-capture-handoff.js` | 2026-09-13-1.12.6-beta-all-providers |
+| `providers-12-close-fixture.js` | `11-close-fixture.js` | 2026-09-13-1.12.6-beta-all-providers |
+| `providers-13-cleanup-restore.js` | `99-cleanup-restore.js` | 2026-09-13-1.12.6-beta-all-providers |
+| `official-00-baseline-redacted.js` | `00-baseline-redacted.js` | 2026-09-13-1.12.6-beta-all-providers/official-followup |
+| `official-01-mute-and-disable-providers.js` | `01-mute-disable-providers.js` | 2026-09-13-1.12.6-beta-all-providers/official-followup |
+| `official-02-remove-native-test-stub.js` | `02-remove-native-test-stub.js` | 2026-09-13-1.12.6-beta-all-providers/official-followup |
+| `official-03-open-fixture.js` | `03-open-fixture.js` | 2026-09-13-1.12.6-beta-all-providers/official-followup |
+| `official-04-spec-standard.js` | `04-spec-standard.js` | 2026-09-13-1.12.6-beta-all-providers/official-followup |
+| `official-04-spec-premium.js` | `04-spec-premium.js` | 2026-09-13-1.12.6-beta-all-providers/official-followup |
+| `official-05-start-handoff.js` | `05-start-handoff.js` | 2026-09-13-1.12.6-beta-all-providers/official-followup |
+| `official-06-poll-handoff.js` | `06-poll-handoff.js` | 2026-09-13-1.12.6-beta-all-providers/official-followup |
+| `official-07-capture-handoff.js` | `07-capture-handoff.js` | 2026-09-13-1.12.6-beta-all-providers/official-followup |
+| `official-08-tier-menus.js` | `08-cross-tier-entrypoint.js` | 2026-09-13-1.12.6-beta-all-providers/official-followup |
+| `official-09-close-fixture.js` | `09-close-fixture.js` | 2026-09-13-1.12.6-beta-all-providers/official-followup |
+| `official-10-enable-kokoro.js` | `11-enable-kokoro-local.js` | 2026-09-13-1.12.6-beta-all-providers/official-followup |
+| `official-11-tier-menus-with-kokoro.js` | `12-cross-tier-local.js` | 2026-09-13-1.12.6-beta-all-providers/official-followup |
+| `official-12-restore-native-test-stub.js` | `10-restore-native-test-stub.js` | 2026-09-13-1.12.6-beta-all-providers/official-followup |
+| `official-13-cleanup-restore.js` | `99-cleanup-restore-executed-rev1.js` | 2026-09-13-1.12.6-beta-all-providers/official-followup |

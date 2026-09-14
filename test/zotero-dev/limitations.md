@@ -3,7 +3,7 @@
 Issue #81: [expanded player opening](cases/player-expanded.md) passed its
 core live checks, including PDF/EPUB and separate-window first-visible-state
 samples, missing-button recovery, timeout recovery, and reload. See the
-[run report](runs/2026-09-12-1.12.3-beta/issue-81.md) for remaining checks and
+run report (2026-09-12, 1.12.3-beta) for remaining checks and
 the restoration incident. Neither final diagnostics nor sampled states
 alone establish absence of a perceptible flash. The throwing-access live
 test proves the error handler clears the stylesheet but its visibility
@@ -38,23 +38,23 @@ screen, the complete Run JavaScript code, the expected output.
   controlled silent audio proves native clock, buffer offset and controller
   handoff behavior, not pronunciation or the perceptual gap between voices.
   Real provider timing accuracy and naturalness require listening. The
-  [initial beta3 report](runs/2026-09-13-1.12.5-beta3/report.md) explicitly
+  initial beta3 report (2026-09-13, 1.12.5-beta3) explicitly
   distinguishes its completed checks from its fixture limitations.
-  The [follow-up](runs/2026-09-13-1.12.5-beta3-followup/report.md) verified
+  The follow-up (2026-09-13, 1.12.5-beta3 followup) verified
   additional cancellation paths and PDF highlight coordinates. Its new
   audio contexts stayed suspended in both trusted synchronous and delayed
   creation; device failure was not established. Shared playing-reader
   adoption and the armed stop's late reschedule remain unverified live.
   Zotero normally permits only one unpaused reader, so the dual-playing
   fixture additionally needs an explicitly restored status callback guard.
-  The later [beta6 real Kokoro run](runs/2026-09-13-1.12.5-beta6/report.md)
+  The later beta6 real Kokoro run (2026-09-13, 1.12.5-beta6)
   verified same-sentence word handoff in both directions with actual audio
   and provider timestamps, including negative leading starts. It replaces
   the earlier synthetic-only coverage for that path; other providers,
   subjective continuity and the separately listed lifecycle gaps remain.
 
 - Multiple angle-bracket groups (#96, [section 3g](cases/angle-brackets.md),
-  item 8): [1.12.5-beta4](runs/2026-09-13-1.12.5-beta4/report.md) verified
+  item 8): 1.12.5-beta4 (2026-09-13, 1.12.5-beta4) verified
   real Kokoro requests/ranges, cache, prefetch, session opt-out, empty
   groups and a restored native transport stub through the live reader's
   direct interface. The fixture does not contain the exact multi-group
@@ -71,7 +71,7 @@ screen, the complete Run JavaScript code, the expected output.
   cross-column PDF sentence, a spread-crossing EPUB sentence following
   real words, hidden-reader recovery or every secondary-view lifecycle.
   Existing deterministic unit coverage is not a live pass for those
-  cases. See the [beta3 report](runs/2026-09-12-1.12.3-beta3/issue-93.md).
+  cases. See the beta3 report (2026-09-12, 1.12.3-beta3).
 - EPUB and snapshot readers: `test/fixtures/return-key/` holds an EPUB
   and an HTML snapshot of the same sixty numbered paragraphs (issue
   #76, `build.py`), and §4.4 drives both. The snapshot reads aloud only
@@ -117,7 +117,7 @@ screen, the complete Run JavaScript code, the expected output.
 
 - Issue #101 configurable pairs have live mechanism evidence on macOS with
   real Fish timestamps and restored native stubs; see the
-  [beta3 report](runs/2026-09-13-1.12.6-beta3/report.md).
+  beta3 report (2026-09-13, 1.12.6-beta3).
   AudioContext stayed suspended at time zero, so continuous playback,
   listening and moving highlights remain untested. The live Chinese locale
   was not switched. Fish supplied only one word timestamp for the mixed

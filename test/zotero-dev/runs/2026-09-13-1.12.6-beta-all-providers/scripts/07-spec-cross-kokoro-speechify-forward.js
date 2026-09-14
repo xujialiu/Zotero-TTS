@@ -1,1 +1,0 @@
-return (() => { const s = Zotero.__zttsAllHandoff; if (!s) throw new Error('baseline script has not run'); s.spec = { label: 'Kokoro to Speechify', mode: 'cross', from: 'local::', to: 'speechify::', direction: 1 }; return JSON.stringify(s.spec); })()

@@ -124,6 +124,9 @@ security note is in [NOTES_2026-08-22.md](NOTES_2026-08-22.md). These remain:
 
 One file per day, entries in the order they were written. Source comments that
 cite `notes/NOTES.md` with a date or a section title resolve through this index.
+Entries up to 2026-09-13 cite run directories under `test/zotero-dev/runs/`;
+that archive was deleted on 2026-09-14 (a run's table is on its issue since
+then) and is in the git history before that day.
 
 ### [2026-08-21](NOTES_2026-08-21.md)
 
@@ -455,3 +458,7 @@ cite `notes/NOTES.md` with a date or a section title resolve through this index.
 - Reentry passes on beta4 while the next release baseline is merged (issue #100)
 
 - The merged 1.12.7-beta installation passes the final reentry check (issue #100)
+
+### [2026-09-14](NOTES_2026-09-14.md)
+
+- Zotero's block model cuts a paragraph mid-page, and its part-linking rule cannot rejoin a short last line (issue #104)

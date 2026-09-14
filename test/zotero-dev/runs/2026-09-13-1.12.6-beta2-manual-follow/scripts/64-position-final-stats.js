@@ -1,1 +1,0 @@
-return (async()=>{const d=JSON.parse(await Zotero.ZoteroTTS.diagnostics.position());return JSON.stringify({rows:d.database?.rows??null,loaded:d.store?.loaded??null,queued:d.store?.queued??null,lastError:d.store?.lastError??null,readers:d.readers?.map(r=>({itemID:r.itemID,active:r.active,stored:!!r.stored}))??[],live:d.live??null})})()

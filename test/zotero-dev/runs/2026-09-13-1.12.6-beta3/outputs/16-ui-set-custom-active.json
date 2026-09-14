@@ -1,6 +1,0 @@
-{
-  "before": { "prefEnabled": true, "prefPairs": "<> []", "checked": true, "inputDisabled": true },
-  "draft": { "prefEnabled": false, "prefPairs": "【】 ()", "checked": false, "inputValue": "【】 ()", "inputDisabled": false },
-  "enabled": { "prefEnabled": true, "prefPairs": "【】 ()", "checked": true, "inputValue": "【】 ()", "inputDisabled": true },
-  "settings": { "configured": true, "effective": false, "configuredPairs": "【】 ()", "effectivePairs": "<> []" }
-}

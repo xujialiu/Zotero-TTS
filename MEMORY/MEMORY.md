@@ -447,10 +447,14 @@ before the issue is written.
   its case file before it merges** — the check that proves the new
   behavior by its mechanism, what it may touch, what only a human can
   judge — and its verification brief runs that case plus the baseline
-  (section 0). The tester's report ends with those items drafted in the
-  case file's shape from what it measured; the session pastes and trims
-  them rather than reading the case to write them. A fix that changes an
-  expected output changes it there in the same commit. **A case holds
+  (section 0). **The case is written by the main session once the fix
+  is built and its verification brief is about to go out** (settled
+  2026-09-14): its expected outputs come from the design and the
+  diagnostics the build carries, are stated before the run, and are
+  corrected from the tester's table afterwards; the tester drafts nothing
+  for `cases/`, and no case file is written during research. A fix that
+  changes an expected output changes it there in the same commit. **A
+  case holds
   one behavior** (settled 2026-09-13): one user-facing feature, whose
   checks stay in its case wherever they run. A feature or fix whose
   behavior no case holds gets a case file of its own rather than growing
@@ -471,17 +475,19 @@ before the issue is written.
   checks so prior reports and cross-references remain usable.
   For every new live test, retain the scripts that actually ran, together
   with prerequisites, fixtures, expected output, permitted state changes,
-  and restoration steps. The tester supplies these artifacts and the main
-  session saves them, including successful scripts even though they are
-  omitted from the short report.
-  Save sanitized evidence in `test/zotero-dev/runs/<date>-<build>-<topic>/`
-  (the topic the case or issue, since parallel worktrees have given two
-  builds one version; earlier directories keep their names): plugin
-  version and build hash, Zotero version and platform, case numbers,
-  observed and expected values, PASS / FAIL / NOT TESTABLE / PENDING,
-  restoration status, remaining work, and in its `scripts/` every script
-  the run executed, exactly as executed, failed attempts labeled. Never
-  commit credentials or raw preference snapshots.
+  and restoration steps: **the tester writes them itself** (settled
+  2026-09-14) into the case's kit, successful scripts included even though
+  the short report omits them, and the main session reviews the diff and
+  commits. **No run archive** (settled 2026-09-14; `test/zotero-dev/runs/`
+  was deleted that day and is in the history before it): a run's report
+  is its table — a verification's on the issue's closing comment, a
+  research run's in the issue's evidence, a user-requested full pass's in
+  that day's NOTES entry — and a failed attempt leaves one line under the
+  kit README's limits, not a file. `test/zotero-dev/` exists so the next
+  run repeats the check; the kits exist so it costs fewer tokens.
+  Research probes go to `.tmp/zotero-dev/<topic>/` (gitignored, one
+  worktree's scratch) and never into `test/zotero-dev/`. Never commit
+  credentials or raw preference snapshots.
   **One scripts folder per case** (settled 2026-09-13): `cases/<name>.md`
   keeps its reusable scripts in `test/zotero-dev/scripts/<name>/`, which
   holds a `README.md` and the scripts and nothing else — no subfolder per
@@ -489,17 +495,18 @@ before the issue is written.
   the case's current kit: a run that revised a script replaces it there, a
   new check adds its script, a script that no longer works or is no longer
   needed leaves, and only scripts that ran successfully are in it. The
-  README gives the order, what each script checks and expects, the
-  literals to adapt, the state it touches, the cleanup, the limits, the
-  case's runs with the items each observed PASS or FAIL and any NOT
-  TESTABLE attempts, and the run each script was last executed in; the
-  next run of the case starts there, and the case file links it and cites
-  a run only where an expected output or limitation comes from it. A run
-  covering several cases updates the kit of each case it produced a
-  reusable script for; research files its evidence under the case holding
-  the behavior it examined, creating that case and folder when none
-  exists. A new case gets its folder and README in the same change that
-  adds the case file.
+  README, written by the tester with the scripts, gives the order, what
+  each script checks and expects, the literals to adapt, the state it
+  touches, the cleanup, the limits, and the case's runs — date, build,
+  the issue comment holding the table, the items each observed PASS or
+  FAIL and any NOT TESTABLE attempts — with the run each script was last
+  executed in; the next run of the case starts there, and the case file
+  links it and names a run only where an expected output or limitation
+  comes from it. A run covering several cases updates the kit of each
+  case it produced a reusable script for. The tester writes under
+  `test/zotero-dev/scripts/` and nowhere else in the repository — never
+  `cases/`, `src/`, `notes/` or `MEMORY/`. A new case gets its folder and
+  README with its first verification run.
   Do not rerun tests for this documentation reorganization or backfill
   unverified scripts. Backfill existing cases incrementally during the next
   full pass the user requests, from the scripts and observations of that

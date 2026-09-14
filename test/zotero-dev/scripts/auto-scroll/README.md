@@ -212,35 +212,42 @@ pass.
 
 ## Runs
 
+The run archive that held each run's report and scripts was removed on
+2026-09-14 (a run's table is on its issue since then); the last column names
+what it held, and the git history before that day still has the files.
+
 | Run | Items observed | Evidence |
 | --- | --- | --- |
-| 2026-09-12-1.12.3-beta2 | 1, 2, 3 PASS; 4 PASS for wheel and PageDown intent, FAIL for playback resume (`following: true`, `reason: "resume"`); clipped and sentence-mode movement and the PDF page turn NOT TESTABLE; cross-page, cross-column and EPUB checks PENDING after the failure | [report](../../runs/2026-09-12-1.12.3-beta2/report.md) · [scripts](../../runs/2026-09-12-1.12.3-beta2/scripts/) |
-| 2026-09-12-1.12.3-beta3 | 1, 2, 3, 4, 6, 8 PASS in PDF and EPUB; smooth-scroll movement and the PDF page turn NOT TESTABLE; 5 and 7 not claimed | [report](../../runs/2026-09-12-1.12.3-beta3/issue-93.md) · [scripts](../../runs/2026-09-12-1.12.3-beta3/scripts/) |
-| 2026-09-12-1.12.3-beta4 | 1 PASS (help icons, tooltips, radio binding, the open reader untouched); radio keyboard traversal NOT TESTABLE | [report](../../runs/2026-09-12-1.12.3-beta4/help.md) · [scripts](../../runs/2026-09-12-1.12.3-beta4/scripts/) |
+| 2026-09-12-1.12.3-beta2 | 1, 2, 3 PASS; 4 PASS for wheel and PageDown intent, FAIL for playback resume (`following: true`, `reason: "resume"`); clipped and sentence-mode movement and the PDF page turn NOT TESTABLE; cross-page, cross-column and EPUB checks PENDING after the failure | report (2026-09-12, 1.12.3-beta2) · scripts (2026-09-12, 1.12.3-beta2) |
+| 2026-09-12-1.12.3-beta3 | 1, 2, 3, 4, 6, 8 PASS in PDF and EPUB; smooth-scroll movement and the PDF page turn NOT TESTABLE; 5 and 7 not claimed | report (2026-09-12, 1.12.3-beta3) · scripts (2026-09-12, 1.12.3-beta3) |
+| 2026-09-12-1.12.3-beta4 | 1 PASS (help icons, tooltips, radio binding, the open reader untouched); radio keyboard traversal NOT TESTABLE | report (2026-09-12, 1.12.3-beta4) · scripts (2026-09-12, 1.12.3-beta4) |
 
 ## Where each script comes from
 
+The middle column is the file's name in that run's archive, removed on
+2026-09-14 and kept in the git history before that day.
+
 | Script | Executed as | Run |
 | --- | --- | --- |
-| `settings-01-startup.js` | [startup.js](../../runs/2026-09-12-1.12.3-beta4/scripts/startup.js) | 2026-09-12-1.12.3-beta4 |
-| `settings-02-baseline.js` | [baseline.js](../../runs/2026-09-12-1.12.3-beta4/scripts/baseline.js) | 2026-09-12-1.12.3-beta4 |
-| `settings-03-reader-snapshot.js` | [reader-snapshot.js](../../runs/2026-09-12-1.12.3-beta4/scripts/reader-snapshot.js) | 2026-09-12-1.12.3-beta4 |
-| `settings-04-radio-help-rows.js` | [inspect-rows.js](../../runs/2026-09-12-1.12.3-beta4/scripts/inspect-rows.js) | 2026-09-12-1.12.3-beta4 |
-| `settings-05-hover-sentence-help.js` | [hover-sentence.js](../../runs/2026-09-12-1.12.3-beta4/scripts/hover-sentence.js) | 2026-09-12-1.12.3-beta4 |
-| `settings-06-hover-outside-help.js` | [hover-outside.js](../../runs/2026-09-12-1.12.3-beta4/scripts/hover-outside.js) | 2026-09-12-1.12.3-beta4 |
-| `settings-07-radio-binding.js` | [radio-binding.js](../../runs/2026-09-12-1.12.3-beta4/scripts/radio-binding.js) | 2026-09-12-1.12.3-beta4 |
-| `reader-01-identity-startup.js` | [identity-startup.js](../../runs/2026-09-12-1.12.3-beta2/scripts/identity-startup.js) | 2026-09-12-1.12.3-beta2, rerun unchanged in 2026-09-12-1.12.3-beta3 |
-| `reader-02-radio-and-shortcut-row.js` | [ui-binding-shortcut.js](../../runs/2026-09-12-1.12.3-beta3/scripts/ui-binding-shortcut.js) | 2026-09-12-1.12.3-beta3 |
-| `reader-03-shortcut-recorder.js` | [shortcut-recorder.js](../../runs/2026-09-12-1.12.3-beta3/scripts/shortcut-recorder.js) | 2026-09-12-1.12.3-beta3 |
-| `reader-04-audio-clock-probe.js` | [audio-clock-probe.js](../../runs/2026-09-12-1.12.3-beta2/scripts/audio-clock-probe.js) | 2026-09-12-1.12.3-beta2, rerun unchanged in 2026-09-12-1.12.3-beta3 |
-| `reader-05-pdf-outside-visible.js` | [pdf-outside-visible.js](../../runs/2026-09-12-1.12.3-beta2/scripts/pdf-outside-visible.js) | 2026-09-12-1.12.3-beta2, rerun unchanged in 2026-09-12-1.12.3-beta3 |
-| `reader-06-pdf-clipped-target.js` | [pdf-clipped-target.js](../../runs/2026-09-12-1.12.3-beta2/scripts/pdf-clipped-target.js) | 2026-09-12-1.12.3-beta2, rerun unchanged in 2026-09-12-1.12.3-beta3 |
-| `reader-07-pdf-sentence-audio.js` | [pdf-sentence-audio.js](../../runs/2026-09-12-1.12.3-beta2/scripts/pdf-sentence-audio.js) | 2026-09-12-1.12.3-beta2, rerun unchanged in 2026-09-12-1.12.3-beta3 |
-| `reader-08-pdf-manual-intent.js` | [pdf-manual-intent.js](../../runs/2026-09-12-1.12.3-beta3/scripts/pdf-manual-intent.js) | 2026-09-12-1.12.3-beta3 |
-| `reader-09-pdf-pagedown-routing.js` | [pagedown-routing.js](../../runs/2026-09-12-1.12.3-beta2/scripts/pagedown-routing.js) | 2026-09-12-1.12.3-beta2, rerun unchanged in 2026-09-12-1.12.3-beta3 |
-| `reader-10-pdf-shortcut.js` | [pdf-shortcut.js](../../runs/2026-09-12-1.12.3-beta3/scripts/pdf-shortcut.js) | 2026-09-12-1.12.3-beta3 |
-| `reader-11-epub-shortcut-before-playback.js` | [epub-shortcut-before-playback.js](../../runs/2026-09-12-1.12.3-beta3/scripts/epub-shortcut-before-playback.js) | 2026-09-12-1.12.3-beta3 |
-| `reader-12-epub-paginated-scrolled.js` | [epub-paginated-scrolled.js](../../runs/2026-09-12-1.12.3-beta3/scripts/epub-paginated-scrolled.js) | 2026-09-12-1.12.3-beta3 |
-| `reader-13-epub-manual-intent.js` | [epub-manual-intent.js](../../runs/2026-09-12-1.12.3-beta3/scripts/epub-manual-intent.js) | 2026-09-12-1.12.3-beta3 |
-| `reader-14-epub-scrolled-sentence.js` | [epub-scrolled-sentence.js](../../runs/2026-09-12-1.12.3-beta3/scripts/epub-scrolled-sentence.js) | 2026-09-12-1.12.3-beta3 |
-| `reader-15-epub-arrowright.js` | [epub-arrowright.js](../../runs/2026-09-12-1.12.3-beta3/scripts/epub-arrowright.js) | 2026-09-12-1.12.3-beta3 |
+| `settings-01-startup.js` | `startup.js` | 2026-09-12-1.12.3-beta4 |
+| `settings-02-baseline.js` | `baseline.js` | 2026-09-12-1.12.3-beta4 |
+| `settings-03-reader-snapshot.js` | `reader-snapshot.js` | 2026-09-12-1.12.3-beta4 |
+| `settings-04-radio-help-rows.js` | `inspect-rows.js` | 2026-09-12-1.12.3-beta4 |
+| `settings-05-hover-sentence-help.js` | `hover-sentence.js` | 2026-09-12-1.12.3-beta4 |
+| `settings-06-hover-outside-help.js` | `hover-outside.js` | 2026-09-12-1.12.3-beta4 |
+| `settings-07-radio-binding.js` | `radio-binding.js` | 2026-09-12-1.12.3-beta4 |
+| `reader-01-identity-startup.js` | `identity-startup.js` | 2026-09-12-1.12.3-beta2, rerun unchanged in 2026-09-12-1.12.3-beta3 |
+| `reader-02-radio-and-shortcut-row.js` | `ui-binding-shortcut.js` | 2026-09-12-1.12.3-beta3 |
+| `reader-03-shortcut-recorder.js` | `shortcut-recorder.js` | 2026-09-12-1.12.3-beta3 |
+| `reader-04-audio-clock-probe.js` | `audio-clock-probe.js` | 2026-09-12-1.12.3-beta2, rerun unchanged in 2026-09-12-1.12.3-beta3 |
+| `reader-05-pdf-outside-visible.js` | `pdf-outside-visible.js` | 2026-09-12-1.12.3-beta2, rerun unchanged in 2026-09-12-1.12.3-beta3 |
+| `reader-06-pdf-clipped-target.js` | `pdf-clipped-target.js` | 2026-09-12-1.12.3-beta2, rerun unchanged in 2026-09-12-1.12.3-beta3 |
+| `reader-07-pdf-sentence-audio.js` | `pdf-sentence-audio.js` | 2026-09-12-1.12.3-beta2, rerun unchanged in 2026-09-12-1.12.3-beta3 |
+| `reader-08-pdf-manual-intent.js` | `pdf-manual-intent.js` | 2026-09-12-1.12.3-beta3 |
+| `reader-09-pdf-pagedown-routing.js` | `pagedown-routing.js` | 2026-09-12-1.12.3-beta2, rerun unchanged in 2026-09-12-1.12.3-beta3 |
+| `reader-10-pdf-shortcut.js` | `pdf-shortcut.js` | 2026-09-12-1.12.3-beta3 |
+| `reader-11-epub-shortcut-before-playback.js` | `epub-shortcut-before-playback.js` | 2026-09-12-1.12.3-beta3 |
+| `reader-12-epub-paginated-scrolled.js` | `epub-paginated-scrolled.js` | 2026-09-12-1.12.3-beta3 |
+| `reader-13-epub-manual-intent.js` | `epub-manual-intent.js` | 2026-09-12-1.12.3-beta3 |
+| `reader-14-epub-scrolled-sentence.js` | `epub-scrolled-sentence.js` | 2026-09-12-1.12.3-beta3 |
+| `reader-15-epub-arrowright.js` | `epub-arrowright.js` | 2026-09-12-1.12.3-beta3 |

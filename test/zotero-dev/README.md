@@ -144,15 +144,17 @@ Keep fixtures in `test/fixtures/`. Every case file has one
 [scripts folder](scripts/README.md) of the same name — `cases/voice-switch.md`
 keeps its scripts in `scripts/voice-switch/` — holding only a `README.md` and
 the scripts: the case's current kit, with its order, expected results,
-allowed state changes, cleanup and runs. Save a sanitized run report under
-`runs/<date>-<build>-<topic>/` with build identity, environment, case numbers,
-observations, status, and any remaining cleanup, and the scripts exactly as
-the run executed them in its `scripts/`. Never save credentials
-or raw preference backups in this repository. The main session saves the
-artifacts supplied by the tester; the tester remains read-only on code.
+allowed state changes, cleanup and runs, written by the tester during the
+run and reviewed by the main session. There is no run archive: a run's
+table goes on its issue (a full pass's into that day's NOTES entry), and
+`runs/`, which held reports and executed scripts until 2026-09-14, is in
+the git history before that day — a case or kit that names a run's report
+or archived script means that history. Never save credentials or raw
+preference backups in this repository; the tester writes under `scripts/`
+and nowhere else.
 
 Existing cases are documentation, not a claim of a fresh pass. Backfill
-their reusable scripts and run evidence when the user next requests a
-full pass, using what actually ran. Do not rerun tests just to populate
-these directories. Human checks and coverage gaps both live in
+their reusable scripts when the user next requests a full pass, using
+what actually ran. Do not rerun tests just to populate these
+directories. Human checks and coverage gaps both live in
 [limitations](limitations.md).

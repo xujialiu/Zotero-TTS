@@ -59,7 +59,7 @@ fresh pass.
 - **The duplicate tab:** `window-01` samples the ReaderWindow. To sample
   the ReaderTab of the same attachment, put in the tab's instance ID, add
   the two lines that
-  [follow-up-evidence.md](../../runs/2026-09-12-1.12.3-beta/follow-up-evidence.md)
+  `follow-up-evidence.md`
   quotes (a focus, then `Zotero_Tabs.select(reader.tabID, true)`) before
   the document read, and archive that variant with the new run.
 - **The selected tab:** a player opened through the API renders only in
@@ -173,25 +173,32 @@ Each group restores all of this before the other group starts.
 
 ## Runs
 
+The run archive that held each run's report and scripts was removed on
+2026-09-14 (a run's table is on its issue since then); the last column names
+what it held, and the git history before that day still has the files.
+
 | Run | Items observed | Evidence |
 | --- | --- | --- |
-| 2026-09-12-1.12.3-beta, first pass | PASS: 1; 2 (PDF, EPUB, the separate window's final state); 3; 4; 5 (new readers, close); 6 (observed state only); 8 (PDF and EPUB samples only). NOT TESTABLE: the quota reminder (6). PENDING: separate-window samples (8), install with an open player (5), live fault recovery (7) | [issue-81.md](../../runs/2026-09-12-1.12.3-beta/issue-81.md) · [scripts](../../runs/2026-09-12-1.12.3-beta/scripts/first-pass/README.md) |
-| 2026-09-12-1.12.3-beta, follow-up | PASS: 2 and 8 (separate-window and duplicate-tab samples); 5 (plugin reload, startup); 7 (missing button, noncommitting click, and the throwing access for its mechanism only). Not established live: that throwing path's visible recovery (7). Not tested: a document-access failure (7), the quota reminder (6) | [issue-81.md](../../runs/2026-09-12-1.12.3-beta/issue-81.md) · [follow-up-evidence.md](../../runs/2026-09-12-1.12.3-beta/follow-up-evidence.md) · [scripts](../../runs/2026-09-12-1.12.3-beta/scripts/follow-up/README.md) |
+| 2026-09-12-1.12.3-beta, first pass | PASS: 1; 2 (PDF, EPUB, the separate window's final state); 3; 4; 5 (new readers, close); 6 (observed state only); 8 (PDF and EPUB samples only). NOT TESTABLE: the quota reminder (6). PENDING: separate-window samples (8), install with an open player (5), live fault recovery (7) | `issue-81.md` · scripts (2026-09-12, 1.12.3-beta) |
+| 2026-09-12-1.12.3-beta, follow-up | PASS: 2 and 8 (separate-window and duplicate-tab samples); 5 (plugin reload, startup); 7 (missing button, noncommitting click, and the throwing access for its mechanism only). Not established live: that throwing path's visible recovery (7). Not tested: a document-access failure (7), the quota reminder (6) | `issue-81.md` · `follow-up-evidence.md` · scripts (2026-09-12, 1.12.3-beta) |
 
 ## Where each script comes from
 
+The middle column is the file's name in that run's archive, removed on
+2026-09-14 and kept in the git history before that day.
+
 | Script | Executed as | Run |
 | --- | --- | --- |
-| `tabs-01-pdf-first-frame.js` | [pdf-first-frame.js](../../runs/2026-09-12-1.12.3-beta/scripts/first-pass/pdf-first-frame.js) | 1.12.3-beta first pass |
-| `tabs-02-options-fold.js` | [manual-collapse-pdf.js](../../runs/2026-09-12-1.12.3-beta/scripts/first-pass/manual-collapse-pdf.js) | 1.12.3-beta first pass |
-| `tabs-03-disable-while-expanded.js` | [setting-disable.js](../../runs/2026-09-12-1.12.3-beta/scripts/first-pass/setting-disable.js) | 1.12.3-beta first pass |
-| `tabs-04-disable-while-pending.js` | [pending-disable.js](../../runs/2026-09-12-1.12.3-beta/scripts/first-pass/pending-disable.js) | 1.12.3-beta first pass |
-| `tabs-05-fixture-cleanup.js` | [fixture-cleanup.js](../../runs/2026-09-12-1.12.3-beta/scripts/first-pass/fixture-cleanup.js) | 1.12.3-beta first pass |
-| `window-01-first-visible.js` | [window-first-visible.js](../../runs/2026-09-12-1.12.3-beta/scripts/follow-up/window-first-visible.js) | 1.12.3-beta follow-up |
-| `window-02-missing-options-button.js` | [missing-button.js](../../runs/2026-09-12-1.12.3-beta/scripts/follow-up/missing-button.js) | 1.12.3-beta follow-up |
-| `window-03-throwing-access-confounded.js` | [throwing-access-confounded.js](../../runs/2026-09-12-1.12.3-beta/scripts/follow-up/throwing-access-confounded.js) | 1.12.3-beta follow-up |
-| `window-04-noncommit-timeout.js` | [noncommit-timeout.js](../../runs/2026-09-12-1.12.3-beta/scripts/follow-up/noncommit-timeout.js) | 1.12.3-beta follow-up |
-| `window-05-after-plugin-reload.js` | [post-reload.js](../../runs/2026-09-12-1.12.3-beta/scripts/follow-up/post-reload.js) | 1.12.3-beta follow-up |
-| `window-06-cleanup.js` | [cleanup.js](../../runs/2026-09-12-1.12.3-beta/scripts/follow-up/cleanup.js) | 1.12.3-beta follow-up |
+| `tabs-01-pdf-first-frame.js` | `pdf-first-frame.js` | 1.12.3-beta first pass |
+| `tabs-02-options-fold.js` | `manual-collapse-pdf.js` | 1.12.3-beta first pass |
+| `tabs-03-disable-while-expanded.js` | `setting-disable.js` | 1.12.3-beta first pass |
+| `tabs-04-disable-while-pending.js` | `pending-disable.js` | 1.12.3-beta first pass |
+| `tabs-05-fixture-cleanup.js` | `fixture-cleanup.js` | 1.12.3-beta first pass |
+| `window-01-first-visible.js` | `window-first-visible.js` | 1.12.3-beta follow-up |
+| `window-02-missing-options-button.js` | `missing-button.js` | 1.12.3-beta follow-up |
+| `window-03-throwing-access-confounded.js` | `throwing-access-confounded.js` | 1.12.3-beta follow-up |
+| `window-04-noncommit-timeout.js` | `noncommit-timeout.js` | 1.12.3-beta follow-up |
+| `window-05-after-plugin-reload.js` | `post-reload.js` | 1.12.3-beta follow-up |
+| `window-06-cleanup.js` | `cleanup.js` | 1.12.3-beta follow-up |
 
 Every kit file is a byte-identical copy of the original it names.

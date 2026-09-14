@@ -1,8 +1,0 @@
-Executed: 37-off-pdf-setup-oneline.js, 38-off-pdf-setup-lock-oneline.js, 35-off-pdf-wheel-only-oneline.js, 39-off-pdf-wheel-min.js, 41-off-pdf-resume-min.js, 42-off-pdf-persistence-min.js, 43-off-pdf-explicit-restore.js, 44-restore-off-preferences.js
-37/38: keep=false user=true, mode=sentence user=true, active=true paused=true position=0 following=true after explicit lock.
-35: trusted wheel event trusted=true deltaY=220; following true->false immediately while keep=false; controlled visible move scrollTop 0->20 retained false.
-39: trusted wheel event trusted=true; following true->false immediately, reason=wheel, scrollTop 0->20, stayed false.
-41: direct resume and native resume both active=true paused=false and following=false reason=wheel.
-42: scroll back, later sentence position 1, and mode outside/sentence all remained following=false reason=wheel.
-43: explicit lock changed following=false->true reason=explicit.
-44 restoration: keep=true user=false; mode=sentence user=true, matching baseline flags.

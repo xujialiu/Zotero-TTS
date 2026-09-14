@@ -47,7 +47,7 @@ fresh baseline; old PASS results are not a fresh pass.
     `matrix-26`; the frame's center in `matrix-18` and `matrix-19`.
   - If the window size or a fixture changed, measure the fragment rects
     first; the beta4 archive's
-    [09-state-geometry.js](../../runs/2026-09-13-1.12.6-beta4-manual-follow/scripts/09-state-geometry.js)
+    `09-state-geometry.js`
     reads them. Item IDs and reader indices need no editing: the import
     scripts store the IDs in the shared global, and every check finds its
     reader by item ID.
@@ -221,67 +221,74 @@ fresh baseline; old PASS results are not a fresh pass.
 
 ## Runs
 
+The run archive that held each run's report and scripts was removed on
+2026-09-14 (a run's table is on its issue since then); the last column names
+what it held, and the git history before that day still has the files.
+
 | Run | Items observed | Evidence |
 | --- | --- | --- |
-| `2026-09-13-1.12.6-beta2-manual-follow` | 1, 2, 3 (EPUB multiline), 5, 6, 7 PASS under the earlier model (switch-on recovery needed an explicit return); 7 FAIL: two dead-object errors at fixture disposal; NOT TESTABLE: 4 (held keys, pointer, touch, scrollbar, hand panning), 5 (trusted PageDown); PENDING: 3 (PDF next-page or cross-column, oversized) | [report](../../runs/2026-09-13-1.12.6-beta2-manual-follow/observed-report.md), [scripts](../../runs/2026-09-13-1.12.6-beta2-manual-follow/scripts/), [manifest](../../runs/2026-09-13-1.12.6-beta2-manual-follow/scripts/artifact-manifest.md) |
-| `2026-09-13-1.12.6-beta3-manual-follow` | 1, 2, 3 (EPUB multiline), 5, 6, 7 PASS under the earlier model, including disposal without dead-object errors; NOT TESTABLE: 6 (trusted Shift+Enter return), 5 (PageDown), 4 (drag and pan), 3 (cross-page, oversized) | [report](../../runs/2026-09-13-1.12.6-beta3-manual-follow/observed-report.md), [scripts](../../runs/2026-09-13-1.12.6-beta3-manual-follow/scripts/), [manifest](../../runs/2026-09-13-1.12.6-beta3-manual-follow/artifact-manifest.md) |
-| `2026-09-13-1.12.6-beta4-manual-follow` | 1, 2, 5, 6, 7 PASS with automatic reentry (5's speech reentry and uninterrupted follow as controlled state); NOT TESTABLE: natural audio progression (5), natural wheel, drag and smoothness (4) | [report](../../runs/2026-09-13-1.12.6-beta4-manual-follow/report.md), [scripts](../../runs/2026-09-13-1.12.6-beta4-manual-follow/scripts/) |
-| `2026-09-13-1.12.7-beta-manual-follow` | 1, 2 PASS on the merged build (one PDF and one scrolled EPUB cycle, sentence mode); natural audio not retried | [report](../../runs/2026-09-13-1.12.7-beta-manual-follow/report.md), [scripts](../../runs/2026-09-13-1.12.7-beta-manual-follow/scripts/) |
+| `2026-09-13-1.12.6-beta2-manual-follow` | 1, 2, 3 (EPUB multiline), 5, 6, 7 PASS under the earlier model (switch-on recovery needed an explicit return); 7 FAIL: two dead-object errors at fixture disposal; NOT TESTABLE: 4 (held keys, pointer, touch, scrollbar, hand panning), 5 (trusted PageDown); PENDING: 3 (PDF next-page or cross-column, oversized) | report (2026-09-13, 1.12.6-beta2 manual-follow), scripts (2026-09-13, 1.12.6-beta2 manual-follow), manifest (2026-09-13, 1.12.6-beta2 manual-follow) |
+| `2026-09-13-1.12.6-beta3-manual-follow` | 1, 2, 3 (EPUB multiline), 5, 6, 7 PASS under the earlier model, including disposal without dead-object errors; NOT TESTABLE: 6 (trusted Shift+Enter return), 5 (PageDown), 4 (drag and pan), 3 (cross-page, oversized) | report (2026-09-13, 1.12.6-beta3 manual-follow), scripts (2026-09-13, 1.12.6-beta3 manual-follow), manifest (2026-09-13, 1.12.6-beta3 manual-follow) |
+| `2026-09-13-1.12.6-beta4-manual-follow` | 1, 2, 5, 6, 7 PASS with automatic reentry (5's speech reentry and uninterrupted follow as controlled state); NOT TESTABLE: natural audio progression (5), natural wheel, drag and smoothness (4) | report (2026-09-13, 1.12.6-beta4 manual-follow), scripts (2026-09-13, 1.12.6-beta4 manual-follow) |
+| `2026-09-13-1.12.7-beta-manual-follow` | 1, 2 PASS on the merged build (one PDF and one scrolled EPUB cycle, sentence mode); natural audio not retried | report (2026-09-13, 1.12.7-beta manual-follow), scripts (2026-09-13, 1.12.7-beta manual-follow) |
 
 ## Where each script comes from
 
+The middle column is the file's name in that run's archive, removed on
+2026-09-14 and kept in the git history before that day.
+
 | Script | Executed as | Run |
 | --- | --- | --- |
-| `quick-01-baseline.js` | [00-baseline.js](../../runs/2026-09-13-1.12.7-beta-manual-follow/scripts/00-baseline.js) | 2026-09-13-1.12.7-beta-manual-follow |
-| `quick-02-close-preferences.js` | [01-close-preferences.js](../../runs/2026-09-13-1.12.7-beta-manual-follow/scripts/01-close-preferences.js) | 2026-09-13-1.12.7-beta-manual-follow |
-| `quick-03-startup.js` | [02-startup.js](../../runs/2026-09-13-1.12.7-beta-manual-follow/scripts/02-startup.js) | 2026-09-13-1.12.7-beta-manual-follow |
-| `quick-04-settings-ui.js` | [03-ui-settings.js](../../runs/2026-09-13-1.12.7-beta-manual-follow/scripts/03-ui-settings.js) | 2026-09-13-1.12.7-beta-manual-follow |
-| `quick-05-mute-and-disable-sync.js` | [04-prepare-mute.js](../../runs/2026-09-13-1.12.7-beta-manual-follow/scripts/04-prepare-mute.js) | 2026-09-13-1.12.7-beta-manual-follow |
-| `quick-06-import-fixtures.js` | [05-import-fresh-fixtures.js](../../runs/2026-09-13-1.12.7-beta-manual-follow/scripts/05-import-fresh-fixtures.js) | 2026-09-13-1.12.7-beta-manual-follow |
-| `quick-07-open-readers.js` | [06-open-readers-flow-before-player.js](../../runs/2026-09-13-1.12.7-beta-manual-follow/scripts/06-open-readers-flow-before-player.js) | 2026-09-13-1.12.7-beta-manual-follow |
-| `quick-08-open-players-paused.js` | [07-open-pause-both.js](../../runs/2026-09-13-1.12.7-beta-manual-follow/scripts/07-open-pause-both.js) | 2026-09-13-1.12.7-beta-manual-follow |
-| `quick-09-pdf-reentry.js` | [09-pdf-reentry-cycle.js](../../runs/2026-09-13-1.12.7-beta-manual-follow/scripts/09-pdf-reentry-cycle.js) | 2026-09-13-1.12.7-beta-manual-follow |
-| `quick-10-epub-reentry.js` | [10-epub-reentry-cycle.js](../../runs/2026-09-13-1.12.7-beta-manual-follow/scripts/10-epub-reentry-cycle.js) | 2026-09-13-1.12.7-beta-manual-follow |
-| `quick-11-close-fixtures.js` | [11-close-fixtures.js](../../runs/2026-09-13-1.12.7-beta-manual-follow/scripts/11-close-fixtures.js) | 2026-09-13-1.12.7-beta-manual-follow |
-| `quick-12-erase-fixtures.js` | [12-erase-fixtures.js](../../runs/2026-09-13-1.12.7-beta-manual-follow/scripts/12-erase-fixtures.js) | 2026-09-13-1.12.7-beta-manual-follow |
-| `quick-13-restore-state.js` | [13-restore-state.js](../../runs/2026-09-13-1.12.7-beta-manual-follow/scripts/13-restore-state.js) | 2026-09-13-1.12.7-beta-manual-follow |
-| `quick-14-final-audit.js` | [14-final-audit.js](../../runs/2026-09-13-1.12.7-beta-manual-follow/scripts/14-final-audit.js) | 2026-09-13-1.12.7-beta-manual-follow |
-| `matrix-01-baseline.js` | [01-baseline-snapshot.js](../../runs/2026-09-13-1.12.6-beta4-manual-follow/scripts/01-baseline-snapshot.js) | 2026-09-13-1.12.6-beta4-manual-follow |
-| `matrix-02-close-preferences.js` | [00-close-preferences.js](../../runs/2026-09-13-1.12.6-beta4-manual-follow/scripts/00-close-preferences.js) | 2026-09-13-1.12.6-beta4-manual-follow |
-| `matrix-03-startup.js` | [02-startup.js](../../runs/2026-09-13-1.12.6-beta4-manual-follow/scripts/02-startup.js) | 2026-09-13-1.12.6-beta4-manual-follow |
-| `matrix-04-mute-and-disable-sync.js` | [03-prepare-mute.js](../../runs/2026-09-13-1.12.6-beta4-manual-follow/scripts/03-prepare-mute.js) | 2026-09-13-1.12.6-beta4-manual-follow |
-| `matrix-05-import-fixtures.js` | [04-import-fresh-fixtures.js](../../runs/2026-09-13-1.12.6-beta4-manual-follow/scripts/04-import-fresh-fixtures.js) | 2026-09-13-1.12.6-beta4-manual-follow |
-| `matrix-06-open-pdf.js` | [05-open-pdf.js](../../runs/2026-09-13-1.12.6-beta4-manual-follow/scripts/05-open-pdf.js) | 2026-09-13-1.12.6-beta4-manual-follow |
-| `matrix-07-open-epub-scrolled.js` | [06-open-epub-flow-before-player.js](../../runs/2026-09-13-1.12.6-beta4-manual-follow/scripts/06-open-epub-flow-before-player.js) | 2026-09-13-1.12.6-beta4-manual-follow |
-| `matrix-08-reapply-epub-flow.js` | [06b-finish-epub-flow.js](../../runs/2026-09-13-1.12.6-beta4-manual-follow/scripts/06b-finish-epub-flow.js) | 2026-09-13-1.12.6-beta4-manual-follow |
-| `matrix-09-open-players-paused.js` | [07-open-pause-both.js](../../runs/2026-09-13-1.12.6-beta4-manual-follow/scripts/07-open-pause-both.js) | 2026-09-13-1.12.6-beta4-manual-follow |
-| `matrix-10-audio-clock.js` | [08-audio-clock-probe.js](../../runs/2026-09-13-1.12.6-beta4-manual-follow/scripts/08-audio-clock-probe.js) | 2026-09-13-1.12.6-beta4-manual-follow |
-| `matrix-11-trusted-start-clock.js` | [10-trusted-start-clock.js](../../runs/2026-09-13-1.12.6-beta4-manual-follow/scripts/10-trusted-start-clock.js) | 2026-09-13-1.12.6-beta4-manual-follow |
-| `matrix-12-setting-ui.js` | [11-ui-help.js](../../runs/2026-09-13-1.12.6-beta4-manual-follow/scripts/11-ui-help.js) | 2026-09-13-1.12.6-beta4-manual-follow |
-| `matrix-13-pdf-reentry-sentence.js` | [12-pdf-reentry-sentence.js](../../runs/2026-09-13-1.12.6-beta4-manual-follow/scripts/12-pdf-reentry-sentence.js) | 2026-09-13-1.12.6-beta4-manual-follow |
-| `matrix-14-pdf-reentry-outside.js` | [13-pdf-reentry-outside.js](../../runs/2026-09-13-1.12.6-beta4-manual-follow/scripts/13-pdf-reentry-outside.js) | 2026-09-13-1.12.6-beta4-manual-follow |
-| `matrix-15-epub-reentry-sentence.js` | [14-epub-reentry-scrolled-sentence.js](../../runs/2026-09-13-1.12.6-beta4-manual-follow/scripts/14-epub-reentry-scrolled-sentence.js) | 2026-09-13-1.12.6-beta4-manual-follow |
-| `matrix-16-epub-reentry-outside.js` | [15-epub-reentry-scrolled-outside.js](../../runs/2026-09-13-1.12.6-beta4-manual-follow/scripts/15-epub-reentry-scrolled-outside.js) | 2026-09-13-1.12.6-beta4-manual-follow |
-| `matrix-17-epub-multiline-setup.js` | [21-epub-scrolled-setup-rev2.js](../../runs/2026-09-13-1.12.6-beta2-manual-follow/scripts/21-epub-scrolled-setup-rev2.js) | 2026-09-13-1.12.6-beta2-manual-follow, rerun unchanged in beta3 |
-| `matrix-18-epub-multiline-sentence.js` | [22-epub-scrolled-visibility-sentence.js](../../runs/2026-09-13-1.12.6-beta2-manual-follow/scripts/22-epub-scrolled-visibility-sentence.js) | 2026-09-13-1.12.6-beta2-manual-follow, rerun unchanged in beta3 |
-| `matrix-19-epub-multiline-outside.js` | [14b-epub-scrolled-outside.js](../../runs/2026-09-13-1.12.6-beta3-manual-follow/scripts/14b-epub-scrolled-outside.js) | 2026-09-13-1.12.6-beta3-manual-follow |
-| `matrix-20-import-paginated-epub.js` | [16-import-paginated-epub.js](../../runs/2026-09-13-1.12.6-beta4-manual-follow/scripts/16-import-paginated-epub.js) | 2026-09-13-1.12.6-beta4-manual-follow |
-| `matrix-21-open-paginated-epub.js` | [17-open-paginated-before-player.js](../../runs/2026-09-13-1.12.6-beta4-manual-follow/scripts/17-open-paginated-before-player.js) | 2026-09-13-1.12.6-beta4-manual-follow |
-| `matrix-22-open-paginated-player.js` | [18-open-pause-paginated.js](../../runs/2026-09-13-1.12.6-beta4-manual-follow/scripts/18-open-pause-paginated.js) | 2026-09-13-1.12.6-beta4-manual-follow |
-| `matrix-23-paginated-reentry.js` | [19-epub-paginated-reentry-both-modes.js](../../runs/2026-09-13-1.12.6-beta4-manual-follow/scripts/19-epub-paginated-reentry-both-modes.js) | 2026-09-13-1.12.6-beta4-manual-follow |
-| `matrix-24-off-pdf.js` | [20-off-pdf.js](../../runs/2026-09-13-1.12.6-beta4-manual-follow/scripts/20-off-pdf.js) | 2026-09-13-1.12.6-beta4-manual-follow |
-| `matrix-25-off-setup.js` | [38-off-pdf-setup-lock-oneline.js](../../runs/2026-09-13-1.12.6-beta2-manual-follow/scripts/38-off-pdf-setup-lock-oneline.js) | 2026-09-13-1.12.6-beta2-manual-follow, rerun unchanged in beta3 |
-| `matrix-26-off-wheel.js` | [39-off-pdf-wheel-min.js](../../runs/2026-09-13-1.12.6-beta2-manual-follow/scripts/39-off-pdf-wheel-min.js) | 2026-09-13-1.12.6-beta2-manual-follow, rerun unchanged in beta3 |
-| `matrix-27-off-resume.js` | [41-off-pdf-resume-min.js](../../runs/2026-09-13-1.12.6-beta2-manual-follow/scripts/41-off-pdf-resume-min.js) | 2026-09-13-1.12.6-beta2-manual-follow, rerun unchanged in beta3 |
-| `matrix-28-off-later-sentence-and-mode.js` | [42-off-pdf-persistence-min.js](../../runs/2026-09-13-1.12.6-beta2-manual-follow/scripts/42-off-pdf-persistence-min.js) | 2026-09-13-1.12.6-beta2-manual-follow, rerun unchanged in beta3 |
-| `matrix-29-off-explicit-return.js` | [43-off-pdf-explicit-restore.js](../../runs/2026-09-13-1.12.6-beta2-manual-follow/scripts/43-off-pdf-explicit-restore.js) | 2026-09-13-1.12.6-beta2-manual-follow, rerun unchanged in beta3 |
-| `matrix-30-off-restore-prefs.js` | [44-restore-off-preferences.js](../../runs/2026-09-13-1.12.6-beta2-manual-follow/scripts/44-restore-off-preferences.js) | 2026-09-13-1.12.6-beta2-manual-follow, rerun unchanged in beta3 |
-| `matrix-31-speech-reentry.js` | [21-controlled-speech-reentry-pdf.js](../../runs/2026-09-13-1.12.6-beta4-manual-follow/scripts/21-controlled-speech-reentry-pdf.js) | 2026-09-13-1.12.6-beta4-manual-follow |
-| `matrix-32-uninterrupted-follow.js` | [22-controlled-normal-follow.js](../../runs/2026-09-13-1.12.6-beta4-manual-follow/scripts/22-controlled-normal-follow.js) | 2026-09-13-1.12.6-beta4-manual-follow |
-| `matrix-33-natural-playback.js` | [51-pdf-playback-advancement-min.js](../../runs/2026-09-13-1.12.6-beta2-manual-follow/scripts/51-pdf-playback-advancement-min.js) | 2026-09-13-1.12.6-beta2-manual-follow, rerun unchanged in beta3 |
-| `matrix-34-hidden-close-pdf.js` | [23-hidden-paused-close-pdf.js](../../runs/2026-09-13-1.12.6-beta4-manual-follow/scripts/23-hidden-paused-close-pdf.js) | 2026-09-13-1.12.6-beta4-manual-follow |
-| `matrix-35-close-fixtures.js` | [24-close-remaining-fixtures.js](../../runs/2026-09-13-1.12.6-beta4-manual-follow/scripts/24-close-remaining-fixtures.js) | 2026-09-13-1.12.6-beta4-manual-follow |
-| `matrix-36-erase-fixtures.js` | [25-erase-fixtures.js](../../runs/2026-09-13-1.12.6-beta4-manual-follow/scripts/25-erase-fixtures.js) | 2026-09-13-1.12.6-beta4-manual-follow |
-| `matrix-37-restore-state.js` | [26b-restore-state-corrected.js](../../runs/2026-09-13-1.12.6-beta4-manual-follow/scripts/26b-restore-state-corrected.js) | 2026-09-13-1.12.6-beta4-manual-follow |
-| `matrix-38-final-audit.js` | [28-final-audit-corrected.js](../../runs/2026-09-13-1.12.6-beta4-manual-follow/scripts/28-final-audit-corrected.js) | 2026-09-13-1.12.6-beta4-manual-follow |
-| `matrix-39-console-dead-objects.js` | [65-console-dead-object-inspection.js](../../runs/2026-09-13-1.12.6-beta2-manual-follow/scripts/65-console-dead-object-inspection.js) | 2026-09-13-1.12.6-beta2-manual-follow, rerun unchanged in beta3 |
+| `quick-01-baseline.js` | `00-baseline.js` | 2026-09-13-1.12.7-beta-manual-follow |
+| `quick-02-close-preferences.js` | `01-close-preferences.js` | 2026-09-13-1.12.7-beta-manual-follow |
+| `quick-03-startup.js` | `02-startup.js` | 2026-09-13-1.12.7-beta-manual-follow |
+| `quick-04-settings-ui.js` | `03-ui-settings.js` | 2026-09-13-1.12.7-beta-manual-follow |
+| `quick-05-mute-and-disable-sync.js` | `04-prepare-mute.js` | 2026-09-13-1.12.7-beta-manual-follow |
+| `quick-06-import-fixtures.js` | `05-import-fresh-fixtures.js` | 2026-09-13-1.12.7-beta-manual-follow |
+| `quick-07-open-readers.js` | `06-open-readers-flow-before-player.js` | 2026-09-13-1.12.7-beta-manual-follow |
+| `quick-08-open-players-paused.js` | `07-open-pause-both.js` | 2026-09-13-1.12.7-beta-manual-follow |
+| `quick-09-pdf-reentry.js` | `09-pdf-reentry-cycle.js` | 2026-09-13-1.12.7-beta-manual-follow |
+| `quick-10-epub-reentry.js` | `10-epub-reentry-cycle.js` | 2026-09-13-1.12.7-beta-manual-follow |
+| `quick-11-close-fixtures.js` | `11-close-fixtures.js` | 2026-09-13-1.12.7-beta-manual-follow |
+| `quick-12-erase-fixtures.js` | `12-erase-fixtures.js` | 2026-09-13-1.12.7-beta-manual-follow |
+| `quick-13-restore-state.js` | `13-restore-state.js` | 2026-09-13-1.12.7-beta-manual-follow |
+| `quick-14-final-audit.js` | `14-final-audit.js` | 2026-09-13-1.12.7-beta-manual-follow |
+| `matrix-01-baseline.js` | `01-baseline-snapshot.js` | 2026-09-13-1.12.6-beta4-manual-follow |
+| `matrix-02-close-preferences.js` | `00-close-preferences.js` | 2026-09-13-1.12.6-beta4-manual-follow |
+| `matrix-03-startup.js` | `02-startup.js` | 2026-09-13-1.12.6-beta4-manual-follow |
+| `matrix-04-mute-and-disable-sync.js` | `03-prepare-mute.js` | 2026-09-13-1.12.6-beta4-manual-follow |
+| `matrix-05-import-fixtures.js` | `04-import-fresh-fixtures.js` | 2026-09-13-1.12.6-beta4-manual-follow |
+| `matrix-06-open-pdf.js` | `05-open-pdf.js` | 2026-09-13-1.12.6-beta4-manual-follow |
+| `matrix-07-open-epub-scrolled.js` | `06-open-epub-flow-before-player.js` | 2026-09-13-1.12.6-beta4-manual-follow |
+| `matrix-08-reapply-epub-flow.js` | `06b-finish-epub-flow.js` | 2026-09-13-1.12.6-beta4-manual-follow |
+| `matrix-09-open-players-paused.js` | `07-open-pause-both.js` | 2026-09-13-1.12.6-beta4-manual-follow |
+| `matrix-10-audio-clock.js` | `08-audio-clock-probe.js` | 2026-09-13-1.12.6-beta4-manual-follow |
+| `matrix-11-trusted-start-clock.js` | `10-trusted-start-clock.js` | 2026-09-13-1.12.6-beta4-manual-follow |
+| `matrix-12-setting-ui.js` | `11-ui-help.js` | 2026-09-13-1.12.6-beta4-manual-follow |
+| `matrix-13-pdf-reentry-sentence.js` | `12-pdf-reentry-sentence.js` | 2026-09-13-1.12.6-beta4-manual-follow |
+| `matrix-14-pdf-reentry-outside.js` | `13-pdf-reentry-outside.js` | 2026-09-13-1.12.6-beta4-manual-follow |
+| `matrix-15-epub-reentry-sentence.js` | `14-epub-reentry-scrolled-sentence.js` | 2026-09-13-1.12.6-beta4-manual-follow |
+| `matrix-16-epub-reentry-outside.js` | `15-epub-reentry-scrolled-outside.js` | 2026-09-13-1.12.6-beta4-manual-follow |
+| `matrix-17-epub-multiline-setup.js` | `21-epub-scrolled-setup-rev2.js` | 2026-09-13-1.12.6-beta2-manual-follow, rerun unchanged in beta3 |
+| `matrix-18-epub-multiline-sentence.js` | `22-epub-scrolled-visibility-sentence.js` | 2026-09-13-1.12.6-beta2-manual-follow, rerun unchanged in beta3 |
+| `matrix-19-epub-multiline-outside.js` | `14b-epub-scrolled-outside.js` | 2026-09-13-1.12.6-beta3-manual-follow |
+| `matrix-20-import-paginated-epub.js` | `16-import-paginated-epub.js` | 2026-09-13-1.12.6-beta4-manual-follow |
+| `matrix-21-open-paginated-epub.js` | `17-open-paginated-before-player.js` | 2026-09-13-1.12.6-beta4-manual-follow |
+| `matrix-22-open-paginated-player.js` | `18-open-pause-paginated.js` | 2026-09-13-1.12.6-beta4-manual-follow |
+| `matrix-23-paginated-reentry.js` | `19-epub-paginated-reentry-both-modes.js` | 2026-09-13-1.12.6-beta4-manual-follow |
+| `matrix-24-off-pdf.js` | `20-off-pdf.js` | 2026-09-13-1.12.6-beta4-manual-follow |
+| `matrix-25-off-setup.js` | `38-off-pdf-setup-lock-oneline.js` | 2026-09-13-1.12.6-beta2-manual-follow, rerun unchanged in beta3 |
+| `matrix-26-off-wheel.js` | `39-off-pdf-wheel-min.js` | 2026-09-13-1.12.6-beta2-manual-follow, rerun unchanged in beta3 |
+| `matrix-27-off-resume.js` | `41-off-pdf-resume-min.js` | 2026-09-13-1.12.6-beta2-manual-follow, rerun unchanged in beta3 |
+| `matrix-28-off-later-sentence-and-mode.js` | `42-off-pdf-persistence-min.js` | 2026-09-13-1.12.6-beta2-manual-follow, rerun unchanged in beta3 |
+| `matrix-29-off-explicit-return.js` | `43-off-pdf-explicit-restore.js` | 2026-09-13-1.12.6-beta2-manual-follow, rerun unchanged in beta3 |
+| `matrix-30-off-restore-prefs.js` | `44-restore-off-preferences.js` | 2026-09-13-1.12.6-beta2-manual-follow, rerun unchanged in beta3 |
+| `matrix-31-speech-reentry.js` | `21-controlled-speech-reentry-pdf.js` | 2026-09-13-1.12.6-beta4-manual-follow |
+| `matrix-32-uninterrupted-follow.js` | `22-controlled-normal-follow.js` | 2026-09-13-1.12.6-beta4-manual-follow |
+| `matrix-33-natural-playback.js` | `51-pdf-playback-advancement-min.js` | 2026-09-13-1.12.6-beta2-manual-follow, rerun unchanged in beta3 |
+| `matrix-34-hidden-close-pdf.js` | `23-hidden-paused-close-pdf.js` | 2026-09-13-1.12.6-beta4-manual-follow |
+| `matrix-35-close-fixtures.js` | `24-close-remaining-fixtures.js` | 2026-09-13-1.12.6-beta4-manual-follow |
+| `matrix-36-erase-fixtures.js` | `25-erase-fixtures.js` | 2026-09-13-1.12.6-beta4-manual-follow |
+| `matrix-37-restore-state.js` | `26b-restore-state-corrected.js` | 2026-09-13-1.12.6-beta4-manual-follow |
+| `matrix-38-final-audit.js` | `28-final-audit-corrected.js` | 2026-09-13-1.12.6-beta4-manual-follow |
+| `matrix-39-console-dead-objects.js` | `65-console-dead-object-inspection.js` | 2026-09-13-1.12.6-beta2-manual-follow, rerun unchanged in beta3 |

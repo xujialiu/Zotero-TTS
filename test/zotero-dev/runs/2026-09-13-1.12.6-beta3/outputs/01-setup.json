@@ -1,9 +1,0 @@
-{
-  "syncPositions": { "value": false, "user": false },
-  "syncSettings": { "value": false, "user": false },
-  "autoUploadSettings": { "value": false, "user": false },
-  "volume": { "value": 0, "user": true },
-  "stripAngleBrackets": { "value": true, "user": false },
-  "bracketPairs": { "value": "<> []", "user": false },
-  "debugStoring": true
-}

@@ -193,10 +193,10 @@ results under Runs are not a fresh pass.
 - **Item 2's cue and examples.** No script here separates the
   [section 3h](../../cases/fish-language-hints.md) language cue from the
   bracket-prepared text; the
-  [1.12.6-beta2 language-hints run](../../runs/2026-09-13-1.12.6-beta2-language-hints/report.md)
+  1.12.6-beta2 language-hints run (2026-09-13, 1.12.6-beta2 language-hints)
   of that case did. The case's example strings `<Hello world>.` and the
   curly-quoted fox sentence were captured only by 1.12.4-beta2's
-  [archived request capture](../../runs/2026-09-13-1.12.4-beta2/scripts/08-real-provider-request-capture.js);
+  archived request capture (2026-09-13, 1.12.4-beta2);
   this kit checks the same removal and outside punctuation with
   `<Hello> [World]` and `“<A>”, <B>!`.
 - **Dialog text.** `pairs-09` and `pairs-10` return the notice's whole
@@ -208,60 +208,67 @@ results under Runs are not a fresh pass.
 
 ## Runs
 
+The run archive that held each run's report and scripts was removed on
+2026-09-14 (a run's table is on its issue since then); the last column names
+what it held, and the git history before that day still has the files.
+
 | Run | Items observed | Evidence |
 | --- | --- | --- |
-| 2026-09-13-1.12.4-beta2 | 1–7 PASS (#94); continuous playback past the empty pair NOT TESTABLE (AudioContext suspended); live Chinese locale not switched | [report](../../runs/2026-09-13-1.12.4-beta2/report.md) · [scripts](../../runs/2026-09-13-1.12.4-beta2/scripts/) |
-| 2026-09-13-1.12.5-beta4 | 8 PASS (#96) through the direct interface; continuous playback and moving highlight NOT TESTABLE (machine audio); live Chinese locale NOT TESTABLE (not switched) | [report](../../runs/2026-09-13-1.12.5-beta4/report.md) · [scripts](../../runs/2026-09-13-1.12.5-beta4/scripts/) |
-| 2026-09-13-1.12.6-beta3 | 9 PASS (#101); audio progression NOT TESTABLE (machine audio); listening and highlight motion NOT TESTABLE (human, device); live Chinese locale NOT TESTABLE (not switched) | [report](../../runs/2026-09-13-1.12.6-beta3/report.md) · [scripts](../../runs/2026-09-13-1.12.6-beta3/scripts/) |
-| 2026-09-13-1.12.7-beta-manual-follow | 9, the controls only: present, checked, `<> []`, input locked — PASS; its script belongs to the [manual-follow kit](../manual-follow/README.md) | [report](../../runs/2026-09-13-1.12.7-beta-manual-follow/report.md) · [scripts](../../runs/2026-09-13-1.12.7-beta-manual-follow/scripts/) |
+| 2026-09-13-1.12.4-beta2 | 1–7 PASS (#94); continuous playback past the empty pair NOT TESTABLE (AudioContext suspended); live Chinese locale not switched | report (2026-09-13, 1.12.4-beta2) · scripts (2026-09-13, 1.12.4-beta2) |
+| 2026-09-13-1.12.5-beta4 | 8 PASS (#96) through the direct interface; continuous playback and moving highlight NOT TESTABLE (machine audio); live Chinese locale NOT TESTABLE (not switched) | report (2026-09-13, 1.12.5-beta4) · scripts (2026-09-13, 1.12.5-beta4) |
+| 2026-09-13-1.12.6-beta3 | 9 PASS (#101); audio progression NOT TESTABLE (machine audio); listening and highlight motion NOT TESTABLE (human, device); live Chinese locale NOT TESTABLE (not switched) | report (2026-09-13, 1.12.6-beta3) · scripts (2026-09-13, 1.12.6-beta3) |
+| 2026-09-13-1.12.7-beta-manual-follow | 9, the controls only: present, checked, `<> []`, input locked — PASS; its script belongs to the [manual-follow kit](../manual-follow/README.md) | report (2026-09-13, 1.12.7-beta manual-follow) · scripts (2026-09-13, 1.12.7-beta manual-follow) |
 
 ## Where each script comes from
 
+The middle column is the file's name in that run's archive, removed on
+2026-09-14 and kept in the git history before that day.
+
 | Script | Executed as | Run |
 | --- | --- | --- |
-| `pairs-01-baseline.js` | [00-baseline-sanitized.js](../../runs/2026-09-13-1.12.6-beta3/scripts/00-baseline-sanitized.js) | 2026-09-13-1.12.6-beta3 |
-| `pairs-02-mute-sync-off.js` | [01-setup-mute-sync-off.js](../../runs/2026-09-13-1.12.6-beta3/scripts/01-setup-mute-sync-off.js) | 2026-09-13-1.12.6-beta3 |
-| `pairs-03-fixture-import.js` | [02-fixture-import.js](../../runs/2026-09-13-1.12.6-beta3/scripts/02-fixture-import.js) | 2026-09-13-1.12.6-beta3 |
-| `pairs-04-fixture-open.js` | [03-fixture-open.js](../../runs/2026-09-13-1.12.6-beta3/scripts/03-fixture-open.js) | 2026-09-13-1.12.6-beta3 |
-| `pairs-05-fixture-readiness.js` | [04-fixture-readiness.js](../../runs/2026-09-13-1.12.6-beta3/scripts/04-fixture-readiness.js) | 2026-09-13-1.12.6-beta3 |
-| `pairs-06-audio-motion-probe.js` | [05-audio-motion-probe.js](../../runs/2026-09-13-1.12.6-beta3/scripts/05-audio-motion-probe.js) | 2026-09-13-1.12.6-beta3 |
-| `pairs-07-audio-clock.js` | [06-audio-clock-two-samples.js](../../runs/2026-09-13-1.12.6-beta3/scripts/06-audio-clock-two-samples.js) | 2026-09-13-1.12.6-beta3 |
-| `pairs-08-ui-initial.js` | [07-ui-initial.js](../../runs/2026-09-13-1.12.6-beta3/scripts/07-ui-initial.js) | 2026-09-13-1.12.6-beta3 |
-| `pairs-09-ui-validation-dialogs.js` | [08-ui-validation-dialogs.js](../../runs/2026-09-13-1.12.6-beta3/scripts/08-ui-validation-dialogs.js) | 2026-09-13-1.12.6-beta3 |
-| `pairs-10-ui-entry-errors.js` | [09-ui-entry-errors.js](../../runs/2026-09-13-1.12.6-beta3/scripts/09-ui-entry-errors.js) | 2026-09-13-1.12.6-beta3 |
-| `pairs-11-external-refresh.js` | [10-external-refresh.js](../../runs/2026-09-13-1.12.6-beta3/scripts/10-external-refresh.js) | 2026-09-13-1.12.6-beta3 |
-| `pairs-12-text-settings-snapshot.js` | [11-text-settings-session-snapshot.js](../../runs/2026-09-13-1.12.6-beta3/scripts/11-text-settings-session-snapshot.js) | 2026-09-13-1.12.6-beta3 |
-| `pairs-13-active-opt-out-request.js` | [12-active-opt-out-request.js](../../runs/2026-09-13-1.12.6-beta3/scripts/12-active-opt-out-request.js) | 2026-09-13-1.12.6-beta3 |
-| `pairs-14-stop-reopen-effective.js` | [13-stop-reopen-effective.js](../../runs/2026-09-13-1.12.6-beta3/scripts/13-stop-reopen-effective.js) | 2026-09-13-1.12.6-beta3 |
-| `pairs-15-reactivate-defaults.js` | [14-reactivate-defaults.js](../../runs/2026-09-13-1.12.6-beta3/scripts/14-reactivate-defaults.js) | 2026-09-13-1.12.6-beta3 |
-| `pairs-16-default-provider-request.js` | [15-default-provider-request.js](../../runs/2026-09-13-1.12.6-beta3/scripts/15-default-provider-request.js) | 2026-09-13-1.12.6-beta3 |
-| `pairs-17-ui-set-custom-pairs.js` | [16-ui-set-custom-active.js](../../runs/2026-09-13-1.12.6-beta3/scripts/16-ui-set-custom-active.js) | 2026-09-13-1.12.6-beta3 |
-| `pairs-18-reactivate-custom.js` | [17-reactivate-custom.js](../../runs/2026-09-13-1.12.6-beta3/scripts/17-reactivate-custom.js) | 2026-09-13-1.12.6-beta3 |
-| `pairs-19-custom-provider-request.js` | [18-custom-provider-request.js](../../runs/2026-09-13-1.12.6-beta3/scripts/18-custom-provider-request.js) | 2026-09-13-1.12.6-beta3 |
-| `pairs-20-custom-cache-repeat.js` | [19-custom-cache-repeat.js](../../runs/2026-09-13-1.12.6-beta3/scripts/19-custom-cache-repeat.js) | 2026-09-13-1.12.6-beta3 |
-| `pairs-21-custom-prefetch.js` | [20-custom-prefetch.js](../../runs/2026-09-13-1.12.6-beta3/scripts/20-custom-prefetch.js) | 2026-09-13-1.12.6-beta3 |
-| `pairs-22-reactivate-defaults-for-mixed.js` | [21-reactivate-default-for-mixed.js](../../runs/2026-09-13-1.12.6-beta3/scripts/21-reactivate-default-for-mixed.js) | 2026-09-13-1.12.6-beta3 |
-| `pairs-23-mixed-malformed-requests.js` | [22-mixed-malformed-requests.js](../../runs/2026-09-13-1.12.6-beta3/scripts/22-mixed-malformed-requests.js) | 2026-09-13-1.12.6-beta3 |
-| `pairs-24-empty-pairs.js` | [23-empty-default.js](../../runs/2026-09-13-1.12.6-beta3/scripts/23-empty-default.js) | 2026-09-13-1.12.6-beta3 |
-| `pairs-25-native-stub.js` | [24-native-standard-premium-stub.js](../../runs/2026-09-13-1.12.6-beta3/scripts/24-native-standard-premium-stub.js) | 2026-09-13-1.12.6-beta3 |
-| `pairs-26-cleanup-restore.js` | [25-cleanup-restore.js](../../runs/2026-09-13-1.12.6-beta3/scripts/25-cleanup-restore.js) | 2026-09-13-1.12.6-beta3 |
-| `groups-01-baseline.js` | [01-baseline-sanitized.js](../../runs/2026-09-13-1.12.5-beta4/scripts/01-baseline-sanitized.js) | 2026-09-13-1.12.5-beta4 |
-| `groups-02-mute-sync-off-import.js` | [02-setup-import.js](../../runs/2026-09-13-1.12.5-beta4/scripts/02-setup-import.js) | 2026-09-13-1.12.5-beta4 |
-| `groups-03-fixture-open.js` | [04-fixture-open-and-manager-readiness.js](../../runs/2026-09-13-1.12.4-beta2/scripts/04-fixture-open-and-manager-readiness.js) | 2026-09-13-1.12.4-beta2 |
-| `groups-04-fixture-readiness.js` | [05-fixture-open-and-manager-readiness.js](../../runs/2026-09-13-1.12.4-beta2/scripts/05-fixture-open-and-manager-readiness.js) | 2026-09-13-1.12.4-beta2 |
-| `groups-05-source-positions.js` | [14-exact-source-position-equality-probe.js](../../runs/2026-09-13-1.12.4-beta2/scripts/14-exact-source-position-equality-probe.js) | 2026-09-13-1.12.4-beta2, run again in 1.12.5-beta4 |
-| `groups-06-provider-requests.js` | [06-provider-multiple-capture.js](../../runs/2026-09-13-1.12.5-beta4/scripts/06-provider-multiple-capture.js) | 2026-09-13-1.12.5-beta4 |
-| `groups-07-cache-repeat.js` | [07-cache-repeat.js](../../runs/2026-09-13-1.12.5-beta4/scripts/07-cache-repeat.js) | 2026-09-13-1.12.5-beta4 |
-| `groups-08-prefetch.js` | [08-prefetch-synthetic.js](../../runs/2026-09-13-1.12.5-beta4/scripts/08-prefetch-synthetic.js) | 2026-09-13-1.12.5-beta4 |
-| `groups-09-empty-pair.js` | [09-empty-single.js](../../runs/2026-09-13-1.12.5-beta4/scripts/09-empty-single.js) | 2026-09-13-1.12.5-beta4 |
-| `groups-10-opt-out-configured.js` | [10-opt-out-effective.js](../../runs/2026-09-13-1.12.5-beta4/scripts/10-opt-out-effective.js) | 2026-09-13-1.12.5-beta4 |
-| `groups-11-stop-player.js` | [11-session-setting-and-cache-probes.js](../../runs/2026-09-13-1.12.4-beta2/scripts/11-session-setting-and-cache-probes.js) | 2026-09-13-1.12.4-beta2 |
-| `groups-12-reopen-player.js` | [12-session-setting-and-cache-probes.js](../../runs/2026-09-13-1.12.4-beta2/scripts/12-session-setting-and-cache-probes.js) | 2026-09-13-1.12.4-beta2 |
-| `groups-13-opt-out-original-request.js` | [11-opt-out-original.js](../../runs/2026-09-13-1.12.5-beta4/scripts/11-opt-out-original.js) | 2026-09-13-1.12.5-beta4 |
-| `groups-14-opt-in-cache.js` | [12-opt-in-cache.js](../../runs/2026-09-13-1.12.5-beta4/scripts/12-opt-in-cache.js) | 2026-09-13-1.12.5-beta4 |
-| `groups-15-native-stub.js` | [03-native-multi-group-stub.js](../../runs/2026-09-13-1.12.5-beta4/scripts/03-native-multi-group-stub.js) | 2026-09-13-1.12.5-beta4 |
-| `groups-16-empty-groups.js` | [04-empty-multi-group.js](../../runs/2026-09-13-1.12.5-beta4/scripts/04-empty-multi-group.js) | 2026-09-13-1.12.5-beta4 |
-| `groups-17-cleanup-restore.js` | [05-cleanup-restore.js](../../runs/2026-09-13-1.12.5-beta4/scripts/05-cleanup-restore.js) | 2026-09-13-1.12.5-beta4 |
+| `pairs-01-baseline.js` | `00-baseline-sanitized.js` | 2026-09-13-1.12.6-beta3 |
+| `pairs-02-mute-sync-off.js` | `01-setup-mute-sync-off.js` | 2026-09-13-1.12.6-beta3 |
+| `pairs-03-fixture-import.js` | `02-fixture-import.js` | 2026-09-13-1.12.6-beta3 |
+| `pairs-04-fixture-open.js` | `03-fixture-open.js` | 2026-09-13-1.12.6-beta3 |
+| `pairs-05-fixture-readiness.js` | `04-fixture-readiness.js` | 2026-09-13-1.12.6-beta3 |
+| `pairs-06-audio-motion-probe.js` | `05-audio-motion-probe.js` | 2026-09-13-1.12.6-beta3 |
+| `pairs-07-audio-clock.js` | `06-audio-clock-two-samples.js` | 2026-09-13-1.12.6-beta3 |
+| `pairs-08-ui-initial.js` | `07-ui-initial.js` | 2026-09-13-1.12.6-beta3 |
+| `pairs-09-ui-validation-dialogs.js` | `08-ui-validation-dialogs.js` | 2026-09-13-1.12.6-beta3 |
+| `pairs-10-ui-entry-errors.js` | `09-ui-entry-errors.js` | 2026-09-13-1.12.6-beta3 |
+| `pairs-11-external-refresh.js` | `10-external-refresh.js` | 2026-09-13-1.12.6-beta3 |
+| `pairs-12-text-settings-snapshot.js` | `11-text-settings-session-snapshot.js` | 2026-09-13-1.12.6-beta3 |
+| `pairs-13-active-opt-out-request.js` | `12-active-opt-out-request.js` | 2026-09-13-1.12.6-beta3 |
+| `pairs-14-stop-reopen-effective.js` | `13-stop-reopen-effective.js` | 2026-09-13-1.12.6-beta3 |
+| `pairs-15-reactivate-defaults.js` | `14-reactivate-defaults.js` | 2026-09-13-1.12.6-beta3 |
+| `pairs-16-default-provider-request.js` | `15-default-provider-request.js` | 2026-09-13-1.12.6-beta3 |
+| `pairs-17-ui-set-custom-pairs.js` | `16-ui-set-custom-active.js` | 2026-09-13-1.12.6-beta3 |
+| `pairs-18-reactivate-custom.js` | `17-reactivate-custom.js` | 2026-09-13-1.12.6-beta3 |
+| `pairs-19-custom-provider-request.js` | `18-custom-provider-request.js` | 2026-09-13-1.12.6-beta3 |
+| `pairs-20-custom-cache-repeat.js` | `19-custom-cache-repeat.js` | 2026-09-13-1.12.6-beta3 |
+| `pairs-21-custom-prefetch.js` | `20-custom-prefetch.js` | 2026-09-13-1.12.6-beta3 |
+| `pairs-22-reactivate-defaults-for-mixed.js` | `21-reactivate-default-for-mixed.js` | 2026-09-13-1.12.6-beta3 |
+| `pairs-23-mixed-malformed-requests.js` | `22-mixed-malformed-requests.js` | 2026-09-13-1.12.6-beta3 |
+| `pairs-24-empty-pairs.js` | `23-empty-default.js` | 2026-09-13-1.12.6-beta3 |
+| `pairs-25-native-stub.js` | `24-native-standard-premium-stub.js` | 2026-09-13-1.12.6-beta3 |
+| `pairs-26-cleanup-restore.js` | `25-cleanup-restore.js` | 2026-09-13-1.12.6-beta3 |
+| `groups-01-baseline.js` | `01-baseline-sanitized.js` | 2026-09-13-1.12.5-beta4 |
+| `groups-02-mute-sync-off-import.js` | `02-setup-import.js` | 2026-09-13-1.12.5-beta4 |
+| `groups-03-fixture-open.js` | `04-fixture-open-and-manager-readiness.js` | 2026-09-13-1.12.4-beta2 |
+| `groups-04-fixture-readiness.js` | `05-fixture-open-and-manager-readiness.js` | 2026-09-13-1.12.4-beta2 |
+| `groups-05-source-positions.js` | `14-exact-source-position-equality-probe.js` | 2026-09-13-1.12.4-beta2, run again in 1.12.5-beta4 |
+| `groups-06-provider-requests.js` | `06-provider-multiple-capture.js` | 2026-09-13-1.12.5-beta4 |
+| `groups-07-cache-repeat.js` | `07-cache-repeat.js` | 2026-09-13-1.12.5-beta4 |
+| `groups-08-prefetch.js` | `08-prefetch-synthetic.js` | 2026-09-13-1.12.5-beta4 |
+| `groups-09-empty-pair.js` | `09-empty-single.js` | 2026-09-13-1.12.5-beta4 |
+| `groups-10-opt-out-configured.js` | `10-opt-out-effective.js` | 2026-09-13-1.12.5-beta4 |
+| `groups-11-stop-player.js` | `11-session-setting-and-cache-probes.js` | 2026-09-13-1.12.4-beta2 |
+| `groups-12-reopen-player.js` | `12-session-setting-and-cache-probes.js` | 2026-09-13-1.12.4-beta2 |
+| `groups-13-opt-out-original-request.js` | `11-opt-out-original.js` | 2026-09-13-1.12.5-beta4 |
+| `groups-14-opt-in-cache.js` | `12-opt-in-cache.js` | 2026-09-13-1.12.5-beta4 |
+| `groups-15-native-stub.js` | `03-native-multi-group-stub.js` | 2026-09-13-1.12.5-beta4 |
+| `groups-16-empty-groups.js` | `04-empty-multi-group.js` | 2026-09-13-1.12.5-beta4 |
+| `groups-17-cleanup-restore.js` | `05-cleanup-restore.js` | 2026-09-13-1.12.5-beta4 |
 
 The groups sequence follows 1.12.5-beta4, whose first pass (fixture 25444)
 ran `groups-06` to `groups-14` and whose second pass (fixture 25445) ran

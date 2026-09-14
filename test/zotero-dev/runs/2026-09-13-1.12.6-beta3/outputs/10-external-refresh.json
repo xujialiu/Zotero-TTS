@@ -1,9 +1,0 @@
-{
-  "trace": [
-    { "label": "before", "prefEnabled": true, "prefPairs": "<> []", "checked": true, "inputValue": "<> []", "inputDisabled": true },
-    { "label": "pairs-external-write", "prefEnabled": true, "prefPairs": "() 【】", "checked": true, "inputValue": "() 【】", "inputDisabled": true },
-    { "label": "enabled-external-off", "prefEnabled": false, "prefPairs": "() 【】", "checked": false, "inputValue": "() 【】", "inputDisabled": false },
-    { "label": "pairs-external-default", "prefEnabled": false, "prefPairs": "<> []", "checked": false, "inputValue": "<> []", "inputDisabled": false },
-    { "label": "enabled-external-on", "prefEnabled": true, "prefPairs": "<> []", "checked": true, "inputValue": "<> []", "inputDisabled": true }
-  ]
-}

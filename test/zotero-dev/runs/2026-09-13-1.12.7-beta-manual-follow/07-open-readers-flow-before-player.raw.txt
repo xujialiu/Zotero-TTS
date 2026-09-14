@@ -1,2 +1,0 @@
-Result:
-{"pdf":{"reader":true,"error":null,"tabID":"tab-olk8u5EG"},"epub":{"reader":true,"error":null,"flowError":null,"flow":"scrolled","pageMapping":true,"ranges":true,"tabID":"tab-I0yfNnCl"}}
