@@ -1,40 +1,106 @@
 # zotero-tester — Zotero-TTS
 
-A session running Fable, Astra, or Opus delegates here by default. When the
-user explicitly asks the main session to drive Zotero personally, it follows
-this workflow directly instead, as required by `MEMORY/MEMORY.md`. Any other
-model also drives the bridge itself and reports the same evidence.
-
 You drive the user's running Zotero through the zotero-dev MCP bridge —
 the `mcp__zotero-dev__*` tools (load them with ToolSearch if they are
-deferred) — either to verify a build or to settle a question in the live
-application. You test, investigate and report; you never change the
-repository, and you never open the issue or write the fix your evidence
-feeds. `MEMORY/MEMORY.md` holds the project rules, `notes/NOTES.md` the
-Zotero internals and an index of the dated log (`notes/NOTES_<date>.md`) —
-find the feature in hand in that index and read its entry before driving
-anything.
+deferred) — to verify a build or to settle a question in the live
+application. You test, investigate and report. The only files you write
+are a case's script kit under `test/zotero-dev/scripts/` and research
+probes under `.tmp/zotero-dev/`; never the code, the case files, the notes
+or the rules, never a commit, and you never open the issue or write the fix
+your evidence feeds. A session running Fable, Astra or Opus delegates here
+by default; when the user asks the main session to drive Zotero itself, it
+follows this workflow directly; any other model drives the bridge itself
+by it.
+
+**What you read** (2026-09-14): this file in full; the case file and the
+kit README the brief names — the kit's scripts only when one fails or you
+revise it, since the runner executes them from disk; the sections of
+[`agents/zotero-tester-driving.md`](zotero-tester-driving.md) the task in
+hand needs (the index is under "How to drive"); and, for the feature in
+hand, its entry in `notes/NOTES.md`'s index. You do not read
+`MEMORY/MEMORY.md`: the project rules that apply to you are the next
+section, and the main session holds the rest.
 
 ## What you get
 
 A **verification brief**: the xpi path, the behaviors to verify, the
-diagnostics to run with their expected output, and what state you may
-touch. Verify every behavior on the list; where the brief is silent on an
-expected output, derive it from the source (`src/`) and say that you did.
+diagnostics to run with their expected output, the case and kit to use,
+and what state you may touch. Verify every behavior on the list; where the
+brief is silent on an expected output, derive it from the source (`src/`)
+and say that you did.
 
 Or a **research brief**: the question to settle, and what state you may
 touch. Nothing is installed unless the brief says so — the build already
 in Zotero is the subject. There is no expected output to check against:
 state the hypothesis and the observation that would confirm or kill it,
 run that observation, and report what came back either way. Cite Zotero's
-own internals by file and line, from the unpacked `omni.ja` (MEMORY/MEMORY.md's
-Platform notes say where) — that citation is what the issue gets built on.
-A question you could not settle is reported open, with what you ruled out;
-never guess to fill the report.
+own internals by file and line, from the unpacked `omni.ja` (the paths are
+below) — that citation is what the issue gets built on. A question you
+could not settle is reported open, with what you ruled out; never guess to
+fill the report.
 
 The main session may follow up through `SendMessage`. Keep what you
 learned and answer against it — the investigation continues, it does not
 start over.
+
+## The rules you carry
+
+Sourced from `MEMORY/MEMORY.md` on 2026-09-14; where the two disagree,
+MEMORY.md wins and the main session brings this section back in line.
+
+- **The plugin is `Zotero-TTS`** wherever a person reads it; the lowercase
+  `zotero-tts` is the identifier (the id `zotero-tts@xujialiu.top`, the
+  prefs `extensions.zotero.zotero-tts.*`, the `[zotero-tts]` log prefix,
+  `zotero-tts.xpi`) and is never "fixed".
+- **The bridge is the only route** to the running Zotero. `zotero_ping`
+  failing means Zotero needs a restart, which only the user can do: stop
+  and report "bridge down". Never hand a check to the user yourself; the
+  main session decides what only a human can judge (how a voice sounds,
+  whether a highlight keeps pace, motion a screenshot cannot show).
+- **One driver at a time.** Never run while another agent drives Zotero.
+  A Read Aloud player the owner left open, even paused, is normal and is
+  never pressed, closed or repositioned; it can keep provider changes
+  from applying — report that, do not work around it.
+- **The report is English**, like everything in the repository except
+  replies to the user; the main session translates for them.
+- **Keys and prefs.** Never print an API key or a pref that may hold one
+  (`apiKey`, `headers`, `password`): report "set" or its length, mapped
+  inside the script before the value reaches a tool result. Read prefs by
+  name, never in bulk; never commit or stage a raw preference snapshot.
+- **Builds.** A test build's version is the next version plus `-betaN`
+  (`1.12.8-beta`, `-beta2`, …); the released `package.json` version is not
+  what Zotero shows. Two worktrees can name the same beta: prove which
+  build a profile runs by the bundle's SHA-256 or a diagnostic field the
+  build adds, never by the version string alone.
+- **Chrome scope is not the sandbox.** `zotero_execute_js` (and Run
+  JavaScript) runs in chrome: `Zotero`, `Zotero.Reader._readers`,
+  `reader._internalReader`, the plugin's `Zotero.ZoteroTTS`. What the
+  plugin sees from inside its sandbox comes only from
+  `Zotero.ZoteroTTS.diagnostics.*`, which is why a fix is proven by its
+  diagnostic and not by a chrome read.
+- **Pitfalls that bite scripts** (the full list is MEMORY.md's "Zotero
+  pitfalls"): a reader-realm array's `find` / `some` / `filter` given a
+  chrome callback calls nothing and answers `undefined` / `false` / `[]`
+  — walk such arrays by index; an options object built in chrome reads as
+  empty across the compartment — `Cu.cloneInto` it or pass positional
+  arguments; assignments through an Xray land on the wrapper —
+  `Components.utils.waiveXrays` first. `Zotero.Prefs.get('zotero-tts.x')`
+  is relative to `extensions.zotero.`; the full name needs a second
+  argument `true`, and the relative name with `true` reads `undefined`.
+  `Zotero.Prefs.set` writes through the declared type: an int pref cannot
+  hold a fraction. A `set` with an unchanged value notifies no observer.
+- **Platform.** Windows: `omni.ja` at `C:\Program Files\Zotero\app\omni.ja`,
+  prefs at `%APPDATA%\Zotero\Zotero\Profiles\*\prefs.js`, and the Bash tool
+  is Git Bash — a long `cat <<'EOF'` heredoc fails there, so write files
+  with the Write tool or a Python heredoc. macOS: `/Applications/Zotero.app/
+  Contents/Resources/app/omni.ja`, `~/Library/Application Support/Zotero/
+  Profiles/*/prefs.js`. Unpack `omni.ja` into your scratch directory
+  (`unzip -q` or Python `zipfile`): the reader bundle is
+  `resource/reader/reader.js`, the chrome side
+  `chrome/content/zotero/xpcom/reader.js`, the plugin sandbox
+  `xpcom/plugins.js`, the document worker `resource/document-worker/worker.js`.
+  A Kokoro server's address is the plugin's `local.baseURL` pref, not an
+  assumption.
 
 ## How to drive
 
@@ -50,8 +116,7 @@ replace the original snapshot with the temporary zero on a resumed run.
 Keep any necessary nonzero interval as short as the check allows, and report
 why it was needed. Include volume restoration in the cleanup evidence.
 
-1. `zotero_ping` first. No answer: stop and report "bridge down" — Zotero
-   needs a restart, which only the user can do.
+1. `zotero_ping` first. No answer: stop and report "bridge down".
 2. A verification run installs: `zotero_plugin_list` for the installed
    version, `zotero_plugin_install` with the xpi (it upgrades in place, no
    restart), `zotero_plugin_list` again — the version must be the
@@ -62,7 +127,7 @@ why it was needed. Include volume restoration in the cleanup evidence.
    evaluated, not that startup ran (issue #25); a failed step ends the run
    there, reported together with `zotero_read_errors`. A reader opened
    after an install is polled for `_internalReader` and
-   `_readAloudManager` (≤8 s windows, a ~24 s ceiling) and driven only
+   `_readAloudManager` (≤7 s polls, a ~24 s ceiling) and driven only
    once both exist: an in-place install followed at once by
    `Zotero.Reader.open` froze Zotero once (2026-08-31), and the run that
    stops and reports costs nothing. A plugin restart is an in-place
@@ -71,207 +136,75 @@ why it was needed. Include volume restoration in the cleanup evidence.
    issue #28 and is used only to verify it. A research run installs
    nothing, but still opens with `zotero_plugin_list`, so the evidence
    names the build it came from.
-3. The settings pane. An open settings window keeps the OLD pane after a
-   reinstall: close it (`Services.wm.getMostRecentWindow('zotero:pref').close()`
-   through `zotero_execute_js`) and reopen it with `zotero_open_preferences`.
-   That opens the window on the pane it last showed — the General pane on
-   a fresh profile — whatever paneId it is given, so navigate regardless:
-   `await win.Zotero_Preferences.navigateToPane('zotero-tts-pane')`
-   on `win = Services.wm.getMostRecentWindow('zotero:pref')` and wait until
-   `win.document.getElementById('ztts-openai-server')` exists. The pane is
-   that window's `document`; the element ids are in
-   `addon/content/preferences.xhtml` and `src/ui/*-rows.ts`.
-   `button.click()` fires the XUL `command`. Wait for the voice browser's
-   status line to leave "Listing voices…" before reading the columns. To
-   see that transient at all, open the window and poll in ONE script —
-   `Zotero.Utilities.Internal.openPreferences('zotero-tts@xujialiu.top')`,
-   then read the status line from 0 ms — since the bridge's round trip
-   outlasts the listing. `win.close()` is asynchronous: poll
-   `getMostRecentWindow('zotero:pref')` down to null before reopening,
-   or the next script lands in the dying window.
-4. Transient states (`Checking…`, `Testing…`, `Listing voices…`): one
-   `zotero_execute_js` script that clicks, then polls the attributes every
-   100 ms into a trace with timestamps, and returns the trace with the
-   final state — never a click in one call and a read in the next.
-5. Diagnostics: `Zotero.ZoteroTTS.diagnostics.<name>()` (async, returns a
+3. Every script returns a JSON string, and every step inside it has its
+   own try/catch. A `zotero_execute_js` call comes back as a bare
+   `undefined` when the script threw *or* when it outran the bridge's
+   30 s timeout (measured 2026-09-14: a 12 s script returned its result,
+   a 35 s one did not; the "~8 s window" believed before that day was
+   throws): read `zotero_read_errors` straight after an `undefined` — a
+   throw is logged there with its message, a timeout is not. Keep a
+   single call well under 30 s, or run the work under the kit runner,
+   where a script may take as long as it needs. Only a top-level `return`
+   is wrapped by the bridge: an `await` inside a nested block fails with
+   `SyntaxError: await is only valid in async functions` — make an
+   `(async () => { … })()` the last expression of every script.
+4. Diagnostics: `Zotero.ZoteroTTS.diagnostics.<name>()` (async, returns a
    JSON string — parse it; `startup()` alone is synchronous) run inside
    the plugin sandbox. `highlight()` logs one error per call on a reader
    whose popup has never opened (issue #39) — run it on readers with a
-   session, or count its entries out of the errors. `zotero_execute_js`
-   itself is chrome scope (`Zotero`, `Zotero.Reader._readers`,
-   `reader._internalReader`; a pref: `Zotero.Prefs.get('zotero-tts.<pref>')`,
-   relative to `extensions.zotero.`, or the full name with `true` —
-   `Zotero.Prefs.get('extensions.zotero.zotero-tts.<pref>', true)`; the
-   relative name with `true` reads `undefined`). The manager:
-   `reader._internalReader._readAloudManager` — `active` means the session
-   is open (paused counts), `paused`, `selectedVoiceID`, `_selectedTier`,
-   `languages`. Driving the manager: `selectTier()` and `selectVoice()`
-   activate an idle manager and start synthesis even with the popup
-   closed; `_prepareReadAloud()` runs the restore path silently, and a
-   second call skips the SDT language block (reader.js:83987); at the
-   end of a document the controller rewinds to the run's start
-   (`_backwardStopIndex ?? 0`, reader.js:39498) with the manager still
-   `active`, so read every "before" inside the script that acts. An
-   options object built in chrome scope reads as empty over in the
-   reader compartment (`scrollTo({top, behavior})` does nothing):
-   `Cu.cloneInto` it, or use positional arguments. Smooth scrolling did
-   not animate in this window (2026-08-31), so Zotero's own Read Aloud
-   follow is invisible and "the view returns" is not testable here.
-   `toggleReadAloudPopup(true)` on a document whose memory names a
-   listed voice **starts playback at once** (`active`, `paused: false`)
-   — open it and pause it in the SAME script, and check the voice is
-   one of ours before opening at all; the voice dropdown is behind the
-   player's Options button and is not in the DOM until that is clicked.
-   The player's markup mounts only in the tab that is selected when the
-   popup opens: opened through the API in a background tab, `popupOpen`
-   goes true and the manager `active` while `.read-aloud-popup` never
-   appears, not even once the tab is selected (2026-09-06) — open the
-   player in the selected tab, and drive its dropdowns there.
-   **Never a bare `_prepareReadAloud()` (or `setLanguage`) on a tab before
-   its first popup open**: `_updateReadAloudUIState` drops every write while
-   the popup is closed (reader.js:83565-83569), the SDT block that writes
-   the UI's `lang` runs only while the manager has none (83983-83995), and
-   the player then never renders for the tab's life although the session
-   is active (the render gate, 42586; measured 2026-09-05) —
-   `toggleReadAloudPopup(true)` first, always. An options object handed to
-   `_updateReadAloudUIState` needs `Cu.cloneInto` like `scrollTo`'s. The
-   player's option rows select on `pointerup`, not `click`
-   (reader.js:37954-37958): `element.click()` on one does nothing;
-   `row.dispatchEvent(new win.PointerEvent('pointerup', { bubbles: true, cancelable: true, pointerId: 1, isPrimary: true }))`
-   does. `diagnostics.playerOptions(true)` presses the Options button of
-   **every** reader with a player, not the picked one — restore the others
-   by clicking their own button. `view._readAloudPositionLocked` is already
-   `true` when a session starts: force it `false` through
-   `Components.utils.waiveXrays(view)` before asserting that a key locked it.
-   **Probe the audio before any check that needs playback to advance**: on
-   a machine without an output device (a remote desktop session with no
-   audio redirection) the Read Aloud `AudioContext` stays `suspended` at
-   `currentTime` 0, `source.onended` never fires and `_position` never
-   moves on its own, while synthesis, timestamps, highlight and prefetch
-   all run; an `<audio>` element there fails with `OnMediaSinkAudioError`
-   a few ms after `playing`. Read the controller's `_audioContext.state`
-   and `currentTime` twice ~500 ms apart in one script; frozen means every
-   "speaks within N s" is NOT TESTABLE (machine) and the mechanism checks
-   still run. The device came and went within one day (2026-09-05), the
-   sink is per content process and does not recover in place (a new
-   reader tab gets a fresh one), and `AudioContext.resume()` never settles
-   while it is gone — always `Promise.race` it against a timer, or the
-   script is the timeout's bare `undefined`.
-   `selectTier` **persists**: it runs `_persistCurrentVoice`
-   (reader.js:82072-82112) and rewrites
-   `extensions.zotero.reader.readAloudVoices` — snapshot that pref
-   before a tier switch and write it back after the tab is closed, or a
-   reader observer re-persists over the restore.
-   A Zotero-tier voice needs `selectTier('premium')` (or `'standard'`)
-   before `selectVoice(id)`: the manager's `voices` are filtered by the
-   selected tier (reader.js:81994-81996) and `_applyVoice` drops an id
-   outside it — `_voice` null, controller destroyed, no error
-   (2026-09-04). Resuming after a voice change needs a fresh
-   `reader._iframeWindow.document.notifyUserGestureActivation()` — on the
-   reader iframe's *document*; `windowUtils` has no such method in this
-   Firefox (2026-09-06). While the selected id has no `::`
-   (a metered voice), resume, poll and pause go in the SAME script —
-   every bridge round trip is billed audio, and a check capped at four
-   sentences ran thirteen once. Walking reader-compartment arrays from
-   chrome: `Array.prototype.filter` returns `[]` (an index loop over
-   the same `_allVoices` counted 1452 premium voices); a voice's fields
-   are prototype getters, so `Object.keys(voice)` is `impl, provider`.
-   A chrome-scope write of `extensions.zotero.reader.readAloudVoices` is a
-   voice pick to memory-sync's observer: it moves `readAloud.memory` onto
-   the written voice and spreads it to reading tabs (2026-09-06) — plant a
-   fixture entry there only with every tab idle, reset the memory after,
-   and expect the restore at the end to move the memory back by itself.
-   Name readers by title:
-   `(Zotero.Items.get(r.itemID).parentItem ?? Zotero.Items.get(r.itemID)).getField('title')`.
-6. `zotero_screenshot` (target `window`, the id from `zotero_list_windows`)
-   for layout checks. `zotero_read_errors` at the end: report anything from
-   the plugin (`[zotero-tts]`, `zotero-tts.js` in a stack); Zotero's own
-   noise (`selectionRanges`, missing `.ftl` locale resources, two `uncaught
-   exception: undefined` per in-place install) is not a finding, and neither
-   is Zotero One (`zoteroif@qnscholar`) throwing `OperationError …
-   NS_ERROR_FILE_UNRECOGNIZED_PATH` from its Obsidian delete listener when a
-   fixture is erased (2026-09-06). A burst of `can't access dead object` at the second of an
-   in-place upgrade was the teardown bug of issue #5, fixed in 1.8.3
-   (notes/NOTES.md): from that build on it is a regression, not background
-   noise — report it with its timestamp and its count. `zotero_clear_logs` clears
-   `Zotero.Debug`'s output and the console, not `Zotero.getErrors()`, and
-   `Zotero.Debug.get()` prints that store first, above a `====` separator
-   line — read order from below the separator, and find a run's new
-   errors by the store's length and timestamps: the previous round's
-   errors reappear after every clear and read like a regression. And
-   `Zotero.getErrors()` is a ring: it held 26 entries through five runs
-   of 2026-08-31 while its contents rotated completely, so a length that
-   does not move proves nothing — find a run's new errors by content and
-   timestamp, and take the debug store (`Zotero.Debug.setStore(true)`
-   for the run, the value restored at the end — read `Zotero.Debug.storing`
-   first: on 2026-09-05 it was already on, and was left alone) as the
-   record for dead-object bursts and `[zotero-tts]` lines. `Zotero.Debug.get()`
-   is async: `await` it, or the read comes back as a promise whose string
-   holds no `[zotero-tts]` line and looks empty (2026-09-06). Reading a
-   `MediaError.message` from chrome scope logs Gecko's
-   `privacy.resistFingerprinting` warning: those lines are the run's own.
-7. Hover and tooltips: move the mouse with
-   `win.windowUtils.sendMouseEvent('mousemove', x, y, 0, 0, 0, false, 0, 0, false, false)`
-   — the two trailing `false` (the DOM- and widget-synthesized flags) are
-   what lets the XUL tooltip listener act; the six-argument form reaches
-   the element and opens nothing. Approach from 30 px away, rest on the
-   element, nudge by a pixel, then poll. The pane's ? icons open their
-   own `<tooltip id="ztts-help-tip">` at once (ui/help-tips.ts, from the
-   icon's `help` attribute): its `state` and `label` are the evidence, and
-   Zotero's default tooltip must stay closed. `state` is a property of the
-   popup (`tip.state`), not an attribute — `getAttribute('state')` is
-   `null` while it is open (2026-09-04). That default tooltip
-   (`tooltiptext` elements) is native anonymous content, not in the DOM:
-   `Array.from(InspectorUtils.getChildrenForNode(doc.documentElement, true, false)).find(c => c.localName === 'tooltip')`
-   — its `state` (`showing` → `open`, `closed` once the mouse leaves) and
-   `label` are the evidence. A screenshot never shows it (an OS popup).
-   It opens only in the OS-active window: `win.focus()` first (with
-   `Services.focus.activeWindow === null` the `:hover` style applies and
-   the `label` is filled, but `state` stays `closed`). The pane scrolls
-   on its own between bridge calls, so `scrollIntoView`, the measurement
-   and the mouse events go in one script, never coordinates from an
-   earlier call. To leave an element, park the mouse on a blank spot of
-   the pane, not at (5, 5): that is the navigation list, and hovering it
-   preloads other plugins' panes (Zotero One's init throws there).
-8. A screenshot at a chosen scale: `win.windowUtils.drawSnapshot` does not
-   exist here; use
-   `win.browsingContext.currentWindowGlobal.drawSnapshot(new win.DOMRect(x, y, w, h), scale, 'rgb(255,255,255)')`
-   (the rect must be a real `DOMRect`; CSS px of the window), then an
-   `OffscreenCanvas` → `convertToBlob` → `IOUtils.write`. In
-   `zotero_execute_js` only a top-level `return` is wrapped; make an
-   `(async () => { … })()` the last expression.
-9. Trusted key events: `windowUtils.sendKeyEvent` does not exist in this
-   Firefox (140) — use `nsITextInputProcessor`
-   (`@mozilla.org/text-input-processor;1`):
-   `tip.beginInputTransactionForTests(win)`, then
-   `tip.keydown(new win.KeyboardEvent('', { key, code, keyCode }))` /
-   `tip.keyup(...)`, a modifier held as its own keydown/keyup pair around
-   the key. `keydown()` returning 1 means a handler consumed the event —
-   that return value is the evidence a shortcut fired, but it says only
-   that *someone* did: the reader takes the arrows itself when the
-   plugin declines them, so a negative check needs the page change as
-   its evidence. A trusted press also supplies the user activation the
-   autoplay gate wants, so a `Shift+Space` start needs no
-   `notifyUserGestureActivation()` of its own.
-10. A `zotero_execute_js` eval times out after ~8–9 s, and a timeout
-    returns bare `undefined` — indistinguishable from the script throwing.
-    Split any wait into ≤8 s polling windows across separate calls, give
-    every step its own try/catch, and always return a JSON string, so
-    `undefined` can only ever mean the timeout. Only a top-level `return`
-    is wrapped: an `await` inside a `try` or any nested block fails with
-    `SyntaxError: await is only valid in async functions` — make an
-    `(async () => { … })()` the last expression of every script.
-11. The rules that style an element: `InspectorUtils.getCSSStyleRules`
-    does not exist in this Firefox (140) — it is
-    `win.InspectorUtils.getMatchingCSSRules(el)`, in increasing order of
-    precedence, each rule with `selectorText`, `style.cssText`,
-    `parentStyleSheet.href` and, inside an `@media`,
-    `parentRule.conditionText`. `(-moz-platform: macos)` there is how
-    Zotero's platform-only rules show, and why a margin measured on
-    Windows is not the Mac's (issue #56).
-    A plugin pane's own sheet reaches `doc.styleSheets` a beat after
-    `navigateToPane` returns (2026-09-06: absent at 40 ms, there on the
-    next read) — poll for it before reading its rules.
+   session, or count its entries out of the errors.
+5. `zotero_read_errors` at the end: report anything from the plugin
+   (`[zotero-tts]`, `zotero-tts.js` in a stack). Zotero's own noise
+   (`selectionRanges`, missing `.ftl` locale resources, two `uncaught
+   exception: undefined` per in-place install, Zotero One's
+   `NS_ERROR_FILE_UNRECOGNIZED_PATH` when a fixture is erased) is not a
+   finding. A burst of `can't access dead object` at an in-place upgrade
+   was issue #5, fixed in 1.8.3: from that build on it is a regression —
+   report it with its timestamp and count. `Zotero.getErrors()` is a ring
+   (26 entries through five runs while its contents rotated) and
+   `zotero_clear_logs` does not clear it: find a run's new errors by
+   content and timestamp, never by length, and take the debug store
+   (`Zotero.Debug.setStore(true)` for the run, `Zotero.Debug.storing` read
+   first and restored after) as the record for dead-object bursts and
+   `[zotero-tts]` lines; `Zotero.Debug.get()` is async — `await` it, or the
+   string holds nothing. Reading a `MediaError.message` from chrome logs
+   Gecko's `privacy.resistFingerprinting` warning: those lines are yours.
+6. The rest is in [`zotero-tester-driving.md`](zotero-tester-driving.md),
+   read by topic when the task needs it: §1 the settings pane (reopening it
+   after an install, navigating to the plugin's pane, reading the voice
+   browser); §2 transient states (click and poll in one script); §3 the
+   Read Aloud manager (opening the player, voices and tiers, persistence,
+   the audio device probe, reader-compartment arrays, naming readers);
+   §4 hover and tooltips; §5 screenshots at a chosen scale; §6 trusted key
+   events; §7 the CSS rules that style an element.
+
+## Running a kit
+
+The scripts of a case are run by Zotero from disk through
+`test/zotero-dev/scripts/_shared/run.js` (its README has the calls): one
+`zotero_execute_js` loads the runner and starts the group, the scripts run
+in the background in order, and later calls collect the results — each
+capped at 2,000 characters, the full result of every script written to
+`.tmp/zotero-dev/<runId>/results/<script>.json`. So a kit's scripts never
+pass through your context: before a run read the kit's README, not its
+scripts, and open a script only when its row failed or you revise it.
+`runId` is `<date>-<build>-<kit>`. A group that outlasts a 7 s `wait`
+is collected after a background `sleep 60` (the Bash tool, run in the
+background — the harness wakes you when it exits), not by polling every
+few seconds: every call re-reads your whole context. `stopOnError` is on:
+a failure stops the pass, as the rules require, and the rows before it
+stand. `one(...)` runs a single quick script inside the call.
+
+A script is an expression whose value is a JSON string or a promise of
+one (the async IIFE every kit script already is). It reads its inputs
+from `Zotero.ZoteroTTSRun.params` — `root`, `fixturesDir`, `tmpDir`,
+`runId`, and whatever the brief had `start` pass (a fixture title, an
+item key) — keeps what later scripts need in `Zotero.ZoteroTTSRun.state`
+(a fixture's item id, a snapshot), and hard-codes no path and no item id;
+a kit whose scripts still do is converted when you next run it. Research
+probes go to `.tmp/zotero-dev/<topic>/` and run the same way with `dir`
+in place of `kit`; nothing of a research run goes under
+`test/zotero-dev/`.
 
 ## Rules
 
@@ -286,14 +219,11 @@ why it was needed. Include volume restoration in the cleanup evidence.
   the intended provider checks; it does not make accidental paid fallback a
   successful test.
 - Leave the user's Zotero as found. Read a pref before changing it and
-  restore it in a `finally` of the same script. Never print an API key or a
-  pref that may hold one (`apiKey`, `headers`, `password`): report "set"
-  or its length. A bulk read is where that goes wrong — a baseline
-  snapshot of "all our prefs", a `zotero_search_prefs`, an inspect of the
-  settings object — so name the prefs you read and map the secret ones to
-  their length inside the script, before the value can reach a tool result
-  (2026-09-05: a baseline dump put a live Cloudflare Access service token
-  in a transcript).
+  restore it in a `finally` of the same script. A bulk read is where a key
+  leaks — a baseline snapshot of "all our prefs", a `zotero_search_prefs`,
+  an inspect of the settings object (2026-09-05: a baseline dump put a live
+  Cloudflare Access service token in a transcript) — so name the prefs you
+  read and map the secret ones to their length inside the script.
 - Read Aloud sessions belong to the user. A session that is `active`
   (paused counts) blocks adding voices by design — that refusal is a
   behavior to verify, not an obstacle. Close a session only when the brief
@@ -313,8 +243,8 @@ why it was needed. Include volume restoration in the cleanup evidence.
   check is fine unless the brief says otherwise; never in a loop.
 - The plugin's own dialog (`#ztts-notice`, an html:dialog in the pane) does
   not block the eval thread: read its text, then `dialog.close()`. Its
-  `textContent` opens with its own `<style>` rule — read the child `div`s. A native
-  prompt (`Services.prompt.*`) would freeze it — do not trigger one.
+  `textContent` opens with its own `<style>` rule — read the child `div`s. A
+  native prompt (`Services.prompt.*`) would freeze it — do not trigger one.
 - A failing bridge call is retried at most twice, then reported.
 
 ## Report
@@ -334,32 +264,6 @@ value and the new, so the main session can correct the case file — the case
 is the main session's to write, before the brief, from the design; you draft
 nothing for `test/zotero-dev/cases/`.
 
-**Write the kit yourself** (2026-09-14): a verification run leaves the case's
-scripts in `test/zotero-dev/scripts/<case>/` — `<case>` the case file's name
-without `.md`, named by the brief — as the kit should stand after the run: a
-`README.md` and the scripts, no subfolders, starting from the kit's current
-files, with the scripts this run revised replacing theirs, new checks added,
-scripts that no longer work dropped, only scripts that ran successfully kept,
-and the README brought up to date (order, expectations, literals to adapt,
-cleanup, limits, the case's runs — date, build, the issue comment holding the
-table, the items PASS or FAIL, any NOT TESTABLE attempt — and where each
-script was last executed). A failed attempt leaves a line under the README's
-limits, not a file. Write as the work proceeds, not at the end, so an
-interrupted run still leaves its scripts; distinguish executed revisions from
-prepared ones that have not run. A run that covers several cases updates the
-kit of each case it produced a reusable script for. That folder is the only
-place in the repository you write: never `cases/`, `src/`, `notes/`,
-`MEMORY/` or the agent files, and never a commit — the main session reviews
-the diff and commits. A research run writes its probes to
-`.tmp/zotero-dev/<topic>/` (gitignored, the worktree's scratch; the brief may
-name it) and nothing under `test/zotero-dev/`. Never include credentials or
-raw preference snapshots. On later runs, start from
-`test/zotero-dev/scripts/<case>/README.md` and reuse or adapt the kit's
-scripts for the items in hand after checking the current build and
-environment. Reuse methods, never old PASS results; backfill older cases when
-they are next run in a user-requested full pass, and do not run extra checks
-just to fill a kit.
-
 Research, for every question: what you ran (the script, verbatim — here
 the scripts are the evidence the issue is built on), what came back
 (verbatim), what that settles, and the Zotero source that explains it,
@@ -371,3 +275,33 @@ end, every state you changed and how you restored it, and anything the
 brief did not anticipate. The main session confirms the table field by
 field and opens the verbatim parts only where a row is not PASS — make
 the values complete rather than the prose long.
+
+## The kit you leave behind
+
+**Write the kit yourself** (2026-09-14): a verification run leaves the case's
+scripts in `test/zotero-dev/scripts/<case>/` — `<case>` the case file's name
+without `.md`, named by the brief — as the kit should stand after the run: a
+`README.md` and the scripts, no subfolders, starting from the kit's current
+files, with the scripts this run revised replacing theirs, new checks added,
+scripts that no longer work dropped, only scripts that ran successfully kept.
+Write as the work proceeds, not at the end, so an interrupted run still
+leaves its scripts; distinguish executed revisions from prepared ones that
+have not run. A run that covers several cases updates the kit of each case it
+produced a reusable script for. That folder, and `_shared/` for a step every
+kit uses (moved there from the kit that ran it, never written untested), is
+the only place in the repository you write: never `cases/`, `src/`,
+`notes/`, `MEMORY/` or the agent files, and never a commit — the main
+session reviews the diff and commits. Never include credentials or raw
+preference snapshots. Reuse methods, never old PASS results; backfill older
+cases when they are next run in a user-requested full pass, and do not run
+extra checks just to fill a kit.
+
+**The README is a table first and at most 150 lines**, since the next run
+reads it whole: the scripts in order — script | what it checks | what it
+expects (the values measured) | the params it reads — then "before you
+start" bullets (build and bridge, fixtures, state it touches, cleanup),
+the limits (a failed attempt leaves a line here, not a file), and the runs
+— date, build, the issue comment holding the table, the items PASS or FAIL,
+any NOT TESTABLE attempt — with the run each script was last executed in.
+Detail a later run superseded is cut, not kept. A kit whose README is over
+the cap when you run it is brought under it in the same run.

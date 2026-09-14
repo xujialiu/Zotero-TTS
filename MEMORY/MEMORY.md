@@ -97,7 +97,14 @@ WebDAV), highlight colors.
   are thin platform entry points; do not copy the shared rules into them.
   `agents/<name>.md` holds each agent's shared workflow. Its entry points
   are `.codex/agents/<name>.toml` and `.claude/agents/<name>.md`; both must
-  require reading the shared project rules and workflow before acting.
+  require reading the shared workflow before acting, and the workflow says
+  whether `MEMORY/MEMORY.md` is read too: `docs-translator`'s entry points
+  require it, `zotero-tester`'s do not (settled 2026-09-14 — this file is
+  12k tokens on every one of the tester's calls and mostly not its
+  business). The rules the tester needs are carried in
+  `agents/zotero-tester.md` under "The rules you carry", sourced from
+  here; a change to one of those rules here is mirrored there in the same
+  change.
   Keep paired names, descriptions and workflow references consistent when
   adding, renaming or removing an agent. Edit a shared workflow only once.
   Preserve platform-specific configuration and tool restrictions: Codex
@@ -401,8 +408,9 @@ behavior before it is merged, and **researching** — reproducing a bug,
 reading a reader's live state, digging an issue's evidence out of Zotero
 before the issue is written.
 
-- **The driving rules are `agents/zotero-tester.md`** (the
-  bridge's tools, provider test authorization, reusable scripts, and reports).
+- **The driving rules are `agents/zotero-tester.md`** (the bridge's tools,
+  provider test authorization, the kit runner, and reports; the per-topic
+  driving notes are `agents/zotero-tester-driving.md`, read on demand).
   A session running
   Fable, Astra, or Opus delegates runs to the named
   `zotero-tester` agent by default, except when the user explicitly asks
@@ -478,7 +486,21 @@ before the issue is written.
   and restoration steps: **the tester writes them itself** (settled
   2026-09-14) into the case's kit, successful scripts included even though
   the short report omits them, and the main session reviews the diff and
-  commits. **No run archive** (settled 2026-09-14; `test/zotero-dev/runs/`
+  commits. **Zotero runs a kit from disk** (settled 2026-09-14):
+  `test/zotero-dev/scripts/_shared/run.js` loads a group of scripts by
+  path, runs them in the background and hands back capped results, the
+  full ones under `.tmp/zotero-dev/<runId>/results/`, so a script's text
+  never passes through the tester's context and a script may outlast the
+  bridge's 30 s timeout (a call that does comes back as a bare
+  `undefined`, and so does a throw — measured 2026-09-14: 12 s returned,
+  35 s did not; the ~8 s window believed until then was throws). Measured on the 2026-09-13 angle-brackets
+  verification: 44 kit files read into the context (50k tokens) before
+  the first bridge call, 254k characters of scripts retyped as tool
+  input, 58M context tokens processed in 73 minutes. Scripts read their
+  inputs from `Zotero.ZoteroTTSRun.params` / `.state` and hard-code no
+  path and no item id; the steps every kit repeats live in `_shared/`,
+  moved there from the kit that ran them.
+  **No run archive** (settled 2026-09-14; `test/zotero-dev/runs/`
   was deleted that day and is in the history before it): a run's report
   is its table — a verification's on the issue's closing comment, a
   research run's in the issue's evidence, a user-requested full pass's in
@@ -491,13 +513,18 @@ before the issue is written.
   **One scripts folder per case** (settled 2026-09-13): `cases/<name>.md`
   keeps its reusable scripts in `test/zotero-dev/scripts/<name>/`, which
   holds a `README.md` and the scripts and nothing else — no subfolder per
-  run, build or issue, and never a second folder beside it. The folder is
+  run, build or issue, and never a second folder beside it, except
+  `_shared/`, the one folder no case owns: the runner and the steps every
+  kit uses. The folder is
   the case's current kit: a run that revised a script replaces it there, a
   new check adds its script, a script that no longer works or is no longer
   needed leaves, and only scripts that ran successfully are in it. The
-  README, written by the tester with the scripts, gives the order, what
-  each script checks and expects, the literals to adapt, the state it
-  touches, the cleanup, the limits, and the case's runs — date, build,
+  README, written by the tester with the scripts, is a table first and at
+  most 150 lines (settled 2026-09-14: it is read whole on every run, and
+  one had grown to 12k tokens; a kit over the cap is trimmed by the run
+  that next uses it) and gives the order, what each script checks and
+  expects, the params it reads, the state it touches, the cleanup, the
+  limits, and the case's runs — date, build,
   the issue comment holding the table, the items each observed PASS or
   FAIL and any NOT TESTABLE attempts — with the run each script was last
   executed in; the next run of the case starts there, and the case file

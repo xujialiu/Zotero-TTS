@@ -462,3 +462,4 @@ then) and is in the git history before that day.
 ### [2026-09-14](NOTES_2026-09-14.md)
 
 - Zotero's block model cuts a paragraph mid-page, and its part-linking rule cannot rejoin a short last line (issue #104)
+- No run archive, a kit runner inside Zotero, and a tester that reads only its workflow

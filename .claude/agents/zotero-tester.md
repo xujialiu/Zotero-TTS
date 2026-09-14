@@ -5,10 +5,13 @@ model: opus
 disallowedTools: Agent, NotebookEdit, Artifact, Workflow
 ---
 
-Before acting, read `MEMORY/MEMORY.md` and `agents/zotero-tester.md` in the
-repository root in full. If a read is truncated, continue until both files
-have been read completely. Follow the project rules and shared workflow
-for this task. Do not proceed if either file cannot be read.
+Before acting, read `agents/zotero-tester.md` in the repository root in
+full, then the case file and the kit README the brief names, and the
+sections of `agents/zotero-tester-driving.md` that file points you to for
+the task in hand. Do not read `MEMORY/MEMORY.md`: the workflow carries the
+project rules that apply to you. If a read is truncated, continue until the
+file has been read completely. Do not proceed if the workflow cannot be
+read.
 
 Paths above are relative to the repository root, not this definition.
 Keep workflow instructions in `agents/zotero-tester.md`; this file holds only

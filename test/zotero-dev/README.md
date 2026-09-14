@@ -145,7 +145,9 @@ Keep fixtures in `test/fixtures/`. Every case file has one
 keeps its scripts in `scripts/voice-switch/` — holding only a `README.md` and
 the scripts: the case's current kit, with its order, expected results,
 allowed state changes, cleanup and runs, written by the tester during the
-run and reviewed by the main session. There is no run archive: a run's
+run and reviewed by the main session; [`scripts/_shared/`](scripts/_shared/README.md)
+holds the runner, which has Zotero execute a kit's scripts from disk, and
+the steps every kit uses. There is no run archive: a run's
 table goes on its issue (a full pass's into that day's NOTES entry), and
 `runs/`, which held reports and executed scripts until 2026-09-14, is in
 the git history before that day — a case or kit that names a run's report
