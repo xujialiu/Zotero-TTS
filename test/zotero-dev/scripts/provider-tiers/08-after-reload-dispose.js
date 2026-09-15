@@ -2,10 +2,20 @@
 // same xpi in place (done from the harness between 07-voice-browser.js and
 // this script -- a kit script cannot call the MCP bridge itself). Confirms
 // startup() and the fixture reader's identity survived, that
-// resolveShadow/createElementWrapped came back true, that live === total,
-// scans the debug log for new "can't access dead object" lines added since
-// params.logBeforeLength, then closes the fixture tab and confirms patches()
-// drops both of its entries with no new error.
+// resolveShadow/createElementWrapped/tierMemoryHook came back true, that
+// live === total right after the reload, scans the debug log for new "can't
+// access dead object" lines added since params.logBeforeLength, then closes
+// the fixture tab and reads patches() again.
+//
+// Corrected 2026-09-15 (this is now the case's own item 8 wording, not a
+// script-only note): closing the tab drops `live` by 2 AT ONCE
+// (Components.utils.isDeadWrapper, recomputed on every read), but `total`
+// does NOT drop until the next reader attach compacts the log
+// (proto-patches.ts's own comment: "a dead entry releases its captured
+// original at the next attach"). Run 2 measured this live: live 6->4 within
+// 1.3s of closing the fixture tab, total still 6 after a forced GC/CC. So
+// the check below is liveDroppedByTwo + totalUnchangedAtClose, not the run
+// 1/2 kit's old (wrong) totalDroppedByTwo.
 // params: logBeforeLength (the debug log's character length, captured just
 // before the reinstall, by a direct zotero_execute_js call outside the kit --
 // passing the whole log text through a param would be needlessly large).
@@ -60,13 +70,25 @@
     } else {
       throw new Error('no main window / Zotero_Tabs / tabID to close the fixture tab');
     }
-    await sleep(800);
-    const stillOpen = (Zotero.Reader._readers || []).some((x) => x.itemID === fixture.itemID);
+    // isDeadWrapper's recomputation is not instant: run 3 measured 800ms too
+    // short to observe it (patchesAfterClose.live read unchanged at 6, then a
+    // follow-up read ~15s later showed 4) against the kit's own prior
+    // measurement of 1.3s. Poll up to 5s rather than a fixed sleep.
+    let stillOpen = true;
+    let patchesAfterClose = null;
+    const tClose = Date.now();
+    while (Date.now() - tClose < 5000) {
+      await sleep(300);
+      stillOpen = (Zotero.Reader._readers || []).some((x) => x.itemID === fixture.itemID);
+      patchesAfterClose = JSON.parse(await Zotero.ZoteroTTS.diagnostics.patches()).providerTiers;
+      if (!stillOpen && patchesAfterReload && patchesAfterClose && patchesAfterReload.live - patchesAfterClose.live === 2) break;
+    }
+    out.closePollMs = Date.now() - tClose;
     out.fixtureTabStillOpen = stillOpen;
 
-    const patchesAfterClose = JSON.parse(await Zotero.ZoteroTTS.diagnostics.patches()).providerTiers;
     out.patchesAfterClose = patchesAfterClose;
-    out.totalDroppedByTwo = patchesAfterReload && patchesAfterClose ? patchesAfterReload.total - patchesAfterClose.total === 2 : null;
+    out.liveDroppedByTwo = patchesAfterReload && patchesAfterClose ? patchesAfterReload.live - patchesAfterClose.live === 2 : null;
+    out.totalUnchangedAtClose = patchesAfterReload && patchesAfterClose ? patchesAfterReload.total === patchesAfterClose.total : null;
 
     try {
       const logAfterClose = String(await Zotero.Debug.get());

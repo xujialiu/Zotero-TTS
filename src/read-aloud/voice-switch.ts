@@ -41,7 +41,10 @@ const HANDOFF_TIMEOUT = 120_000;
 /**
  * A paused native controller prepares the replacement while the current
  * controller continues. Zotero still owns fetching, decoding, time stretching,
- * highlights, sentence transitions and persistence (issue #95).
+ * highlights, sentence transitions and persistence (issue #95). A tier or
+ * language pick on a paused player is left to Zotero as it is: the lists
+ * must follow such a pick at once, and a prepared switch lands only on Play
+ * (issue #110).
  */
 export function createVoiceSwitcher(deps: VoiceSwitcherDeps): VoiceSwitcher {
   const pending = new Map<any, Pending>();
@@ -84,8 +87,13 @@ export function createVoiceSwitcher(deps: VoiceSwitcherDeps): VoiceSwitcher {
         const original = manager[name];
         if (typeof original !== 'function') continue;
         undo.push(shadow(manager, name, function (this: any, ...args: any[]) {
+          // A tier or language pick while paused goes the native way, so the
+          // player's lists follow it at once (issue #110); on Play the sentence
+          // restarts, as Zotero's own does. A voice pick keeps the paused
+          // handoff of issue #108.
           if (propagating || previewing.has(reader) || !manager.active
-            || (name === 'setLanguage' && !waive(args[1])?.persist)) {
+            || (name === 'setLanguage' && !waive(args[1])?.persist)
+            || (name !== 'selectVoice' && manager.paused)) {
             return Reflect.apply(original, manager, args);
           }
           const restore = snapshot(manager), suppress: (() => void)[] = [];

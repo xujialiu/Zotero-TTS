@@ -73,6 +73,9 @@ right now, beside Zotero's **Standard** and **Premium**, sorted by name.
 - **When the entry you are on stops offering voices**, the player moves
   to the provider of the remembered voice, else of the default voice,
   else to the first entry.
+- **Switching provider or language while paused** takes effect at once;
+  press play and the sentence starts over in the new voice. A voice
+  picked while paused waits for play and carries on from the paused word.
 - **Zotero's own first-run window and its *Manage voices* window** keep
   filing every plugin voice under Local.
 - **Enable**, at the end of every provider section, runs the connection

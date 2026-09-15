@@ -69,37 +69,35 @@ Expected values below are derived from `src/` (`buildTierOptions`,
 
 ### 3. A pick, and each provider's own memory
 
-4. A pick on a **paused** player is a prepared handoff (issue #108,
-   `read-aloud/voice-switch.ts`): `selectTier` and `selectVoice` run as a
-   preview, the manager keeps its current tier and voice, and the switch
-   lands when playback resumes. So every pick below is followed by
-   `manager.play()` (muted), a poll of up to 15 s for `selectedTier` /
-   `selectedVoiceID` to reach the pick, then `manager.pause()`; on an idle
-   manager (no session) the picks apply at once, since the handoff wraps
-   an active one only. Set `zotero-tts.readAloud.sameForAllDocuments`
-   **false** for this item (snapshot, restore): on, the pick's voice would
-   spread to every other open tab's session. `manager.selectTier('kokoro')`
-   (the dropdown's own onChange), resumed → `manager.selectedTier`
-   `kokoro`, `manager.voices` all `local::…` ids, `manager.languages`
-   Kokoro's, `voicesForLanguage` only Kokoro voices;
-   `reader.readAloudVoices.<lang>.tierVoices` ends with the key `kokoro`
-   naming the voice resolved. Pick a second Kokoro voice with
-   `selectVoice('local::…')`, resumed; then `selectTier('fish')`, resumed →
-   a Fish voice, `tierVoices` `{ …, kokoro: <the second Kokoro voice>,
-   fish: … }` with `fish` last; `selectTier('kokoro')`, resumed → **the
-   second Kokoro voice comes back** (`selectedVoiceID` equals it): the
-   per-provider memory. Labels: every `voicesForLanguage[i].label` carries
-   no `Kokoro-` / `Fish-cloud-` prefix (`af_bella`, `Dax — Casual US male
-   (EN)`). Measured 2026-09-15 on 1.12.10-beta3: a `selectTier` read back
-   600 ms later on a paused player still showed the old tier, as this
-   describes; the manual replay of `selectTier`'s body (no wrapper) held.
-   On beta3 the last step then landed on the tier's **first** voice: Zotero
-   reads `tierVoices` off `_persistedVoices`, which it refreshes only when
-   a popup opens (reader.js:82359, 84170-84176), so within one session its
-   own Standard and Premium forget the same way. Since beta4 the selectTier
-   hook refreshes the entry first; the second voice coming back is the
-   proof, and the debug log carries `provider tiers: each entry's own
-   memory follows the reader's state` once per attached tab.
+4. A **voice** pick on a paused player is a prepared handoff (issue #108,
+   `read-aloud/voice-switch.ts`): `selectVoice` runs as a preview and the
+   switch lands when playback resumes, so after every `selectVoice` below:
+   `manager.play()` (after `notifyUserGestureActivation()` on the reader
+   iframe's document), a poll of up to 15 s for `selectedVoiceID` to reach
+   the pick, then `manager.pause()`. A **tier** or language pick on a
+   paused player applies at once since 1.12.10-beta5 (voice-switch.ts lets
+   it through to Zotero): `selectTier` reads back the new tier
+   immediately, the lists follow, and Play restarts the sentence. Set
+   `zotero-tts.readAloud.sameForAllDocuments` **false** for this item
+   (snapshot, restore): on, a pick's voice would spread to every other open
+   tab's session. `manager.selectTier('kokoro')` (the dropdown's own
+   onChange) → at once `manager.selectedTier` `kokoro`, `manager.voices`
+   all `local::…` ids, `manager.languages` Kokoro's, `voicesForLanguage`
+   only Kokoro voices; `reader.readAloudVoices.<lang>.tierVoices` ends with
+   the key `kokoro` naming the voice resolved. Pick a second Kokoro voice
+   with `selectVoice('local::…')`, resumed → `selectedVoiceID` that voice;
+   `selectTier('fish')` → at once a Fish voice, `tierVoices` `{ …, kokoro:
+   <the second Kokoro voice>, fish: … }` with `fish` last;
+   `selectTier('kokoro')` → at once **the second Kokoro voice comes back**
+   (`selectedVoiceID` equals it): the per-provider memory. Zotero reads
+   `tierVoices` off `_persistedVoices`, an entry it refreshes only when a
+   popup opens (reader.js:82359, 84170-84176; on beta3 this step landed on
+   the tier's first voice, as Zotero's own Standard and Premium do within a
+   session), so since beta4 the selectTier hook refreshes it first, and the
+   debug log carries `provider tiers: each entry's own memory follows the
+   reader's state` once per attached tab. Labels: every
+   `voicesForLanguage[i].label` carries no `Kokoro-` / `Fish-cloud-` prefix
+   (`af_bella`, `Dax — Casual US male (EN)`).
 
 ### 4. A selection no voice carries
 
@@ -158,6 +156,13 @@ rewritten by every pick), `zotero-tts.readAloud.memory`,
 (item 6), `zotero-tts.local.enabled` (item 6), the two WebDAV sync
 switches if they are on. The fixture item, erased in a call of its own.
 Budget: a few short readings of the second provider and a few Fish cloud
-syntheses (item 4 resumes after every pick), muted. A human judges the dropdown's look — the entry names' widths, the
+syntheses (item 4 resumes after every `selectVoice`), muted. Limit,
+measured 2026-09-15 on beta5 (run 3): the paused voice pick of item 4 lands
+in under a second when the two voices share a word boundary at the paused
+word; without one (`wordDecision: paused-sentence-fallback`) the old voice
+has to finish the sentence first, and driven from chrome that playback did
+not advance within 30 s twice — the per-provider memory was then proven by
+continuing from a position where the pick had landed. Not a #110 check; the
+handoff itself is #108's case. A human judges the dropdown's look — the entry names' widths, the
 trigger's text, the Han sort as rendered — and that a pick in the
 dropdown sounds like the provider named.

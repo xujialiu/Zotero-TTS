@@ -492,3 +492,4 @@ then) and is in the git history before that day.
 - What can be separated from Read Aloud (issue #109)
 - Provider entries in the player's first dropdown: three hard-coded places and the way past each (issue #110)
 - Provider entries built: a second shadow on _resolveVoice, a createElement wrapper, and the keys the memory follows (issue #110)
+- Zotero refreshes a tier's remembered voice only at a popup open, and a paused pick previewed by #108 never reached the lists (issue #110)

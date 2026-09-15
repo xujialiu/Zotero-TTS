@@ -218,6 +218,20 @@ describe('prepared native voice handoff', () => {
     expect(f.plays).toEqual([{ id: 'c', index: 0, offset: 1 }]);
     expect(f.manager._persistCurrentVoice).toHaveBeenCalledOnce(); f.switcher.dispose();
   });
+  it.each(['locale', 'tier'])('applies a paused %s pick natively at once, so the lists follow it, and prepares nothing', async kind => {
+    const f = setup(); f.switcher.attach(f.reader); f.manager.paused = true; f.old._paused = true;
+    if (kind === 'locale') f.manager.setLanguage('fr', { persist: true });
+    else f.manager.selectTier('premium');
+    expect(f.manager._lang).toBe(kind === 'locale' ? 'fr' : 'en');
+    expect(f.manager._selectedTier).toBe(kind === 'tier' ? 'premium' : 'local');
+    expect(f.manager.selectedVoiceID).toBe(kind === 'locale' ? 'b' : 'c');
+    expect(f.manager._persistCurrentVoice).toHaveBeenCalledOnce();
+    expect(f.manager._stateChanged).toHaveBeenCalled();
+    expect(f.old._destroyed).toBe(true); expect(f.manager._controller.paused).toBe(true);
+    await vi.advanceTimersByTimeAsync(150);
+    expect(f.requests).toEqual([]); expect(f.plays).toEqual([]);
+    expect(f.notice).not.toHaveBeenCalled(); f.switcher.dispose();
+  });
   it.each(['locale', 'tier'])('prepares the native %s choice and commits its selection fields only at handoff', async kind => {
     const f = setup(); f.switcher.attach(f.reader);
     if (kind === 'locale') f.manager.setLanguage('fr', { persist: true });
@@ -281,8 +295,9 @@ describe('prepared native voice handoff', () => {
     await vi.advanceTimersByTimeAsync(200); f.manager.play(); await vi.advanceTimersByTimeAsync(0);
     expect(f.manager.selectedVoiceID).toBe('a'); expect(f.plays.map(p => p.id)).toEqual(['a']); f.switcher.dispose();
   });
-  it('leaves the original paused voice and locale intact on preparation failure', async () => {
-    const f = setup(); f.switcher.attach(f.reader); f.manager.pause(); f.manager.setLanguage('fr', { persist: true });
+  it('leaves the original paused voice intact on preparation failure', async () => {
+    // A paused voice pick still prepares (a paused locale or tier pick goes native since issue #110)
+    const f = setup(); f.switcher.attach(f.reader); f.manager.pause(); f.manager.selectVoice('b');
     await vi.advanceTimersByTimeAsync(150); f.fetched.reject(new Error('offline'));
     await vi.advanceTimersByTimeAsync(30);
     expect(f.manager.paused).toBe(true); expect(f.manager._lang).toBe('en');
