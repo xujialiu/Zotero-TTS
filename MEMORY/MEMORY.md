@@ -9,9 +9,10 @@ Zotero 10 plugin that adds voices to Zotero's built-in **Read Aloud**: OpenAI
 (or any OpenAI-compatible server), Azure Speech, Cloudflare Workers AI,
 Speechify, Fish Audio (its cloud and a Fish Speech server of the user's
 own), and a local Kokoro-FastAPI.
-Zotero's own Standard/Premium voices keep working; ours join the Local tier as
-`<Provider>-<voice>` (`Kokoro-af_bella`; issue #9 retired the old `TTS-`
-prefix). Also: shortcuts for the speed (Shift+Z/X/C), for skipping by
+Zotero's own Standard/Premium voices keep working; each of our providers is
+an entry of the player's first dropdown beside them, its voices under their
+own names (`af_bella` under Kokoro; issue #110 retired the Local tier and
+the `Kokoro-` prefix, as issue #9 had retired `TTS-`). Also: shortcuts for the speed (Shift+Z/X/C), for skipping by
 sentence / paragraph (arrows / Shift+arrows), for the word highlight on
 or off (Shift+W) and for stopping Read Aloud in every tab (Shift+S), one
 voice and speed across documents, settings backup/restore (file or
@@ -113,7 +114,10 @@ WebDAV), highlight colors.
   adding, renaming or removing an agent. Edit a shared workflow only once.
   Preserve platform-specific configuration and tool restrictions: Codex
   uses `gpt-5.6-luna` at maximum reasoning effort, while Claude keeps its
-  native `opus`/`sonnet` models. An explicit model or reasoning-effort
+  native `opus`/`sonnet` models — `zotero-tester`'s Claude definition is
+  `model: sonnet` with `effort: max` since 2026-09-15, by the user's
+  request after two Sonnet runs verified issue #110 (the frontmatter's
+  `effort` takes low / medium / high / xhigh / max). An explicit model or reasoning-effort
   override requires the user's request. Check both entry points and their
   shared targets before finishing; do not leave synchronization for later.
 - Reply in **Chinese**, always, whatever language the input (logs, source,
@@ -705,7 +709,8 @@ assets/             README media (the word-highlight GIF, popup and settings scr
   A reader-realm array's `find` / `some` / `filter` given a sandbox
   callback never calls it and answers `undefined` / `false` / `[]`
   without a throw (2026-09-08, issue #75: a guard inert live and green
-  in a same-realm unit test) — walk such arrays by index, and give the
+  in a same-realm unit test), and `map` / `every` answer wrong the same
+  way (2026-09-15, issue #110) — walk such arrays by index, and give the
   unit test a list whose `find` / `some` answer nothing.
 - **`Zotero.Prefs.set`** writes through the type the pref is declared with in
   `prefs.js`: an int pref goes through `setIntPref`, which cannot hold a

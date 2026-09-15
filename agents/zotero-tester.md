@@ -89,7 +89,8 @@ MEMORY.md wins and the main session brings this section back in line.
   diagnostic and not by a chrome read.
 - **Pitfalls that bite scripts** (the full list is MEMORY.md's "Zotero
   pitfalls"): a reader-realm array's `find` / `some` / `filter` given a
-  chrome callback calls nothing and answers `undefined` / `false` / `[]`
+  chrome callback calls nothing and answers `undefined` / `false` / `[]`,
+  and its `map` / `every` answer wrong the same way (2026-09-15)
   — walk such arrays by index; an options object built in chrome reads as
   empty across the compartment — `Cu.cloneInto` it or pass positional
   arguments; assignments through an Xray land on the wrapper —
