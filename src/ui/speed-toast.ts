@@ -65,7 +65,11 @@ export function showToast(doc: ToastDocument, text: string, timer: ToastTimer = 
   hideTimers.set(
     doc,
     timer.set(() => {
-      el.style.opacity = '0';
+      try { el.style.opacity = '0'; }
+      catch (error) {
+        // The reader may close while its voice-change notice is visible.
+        if (!String(error).includes("can't access dead object")) throw error;
+      }
     }, durationMs),
   );
 }

@@ -24,6 +24,47 @@ function deps(provider = fakeProvider()) {
 
 const voice = { id: encodeVoiceId('openai', 'alloy') };
 
+describe('voice preparation cancellation', () => {
+  it('does not abort ordinary playback of the same voice and text', async () => {
+    let preparation: AbortSignal | undefined;
+    const calls: { signal: AbortSignal; finish(result: any): void }[] = [];
+    const provider = fakeProvider({ synthesize: (_text, options) => new Promise(resolve => {
+      calls.push({ signal: options.signal, finish: resolve });
+    }) });
+    const iface = createRemoteInterface({ ...deps(provider), newAbortController: () => new AbortController(),
+      getPreparationSignal: () => preparation });
+    const ordinary = iface.getAudio({ text: 'An ordinary playback sentence.' }, voice);
+    await vi.waitFor(() => expect(calls).toHaveLength(1));
+    const request = new AbortController(); preparation = request.signal;
+    const pending = iface.getAudio({ text: 'An ordinary playback sentence.' }, voice);
+    await vi.waitFor(() => expect(calls).toHaveLength(2));
+    request.abort(); expect((await pending).audio).toBeNull();
+    expect(calls[0].signal.aborted).toBe(false); expect(calls[1].signal.aborted).toBe(true);
+    calls[0].finish({ audio: new Blob(['original']) }); expect((await ordinary).audio?.size).toBe(8);
+    calls[1].finish({ audio: new Blob(['discarded']) });
+  });
+  it('aborts abandoned synthesis without warming later sentences or caching its late result', async () => {
+    const request = new AbortController();
+    let synthesisSignal: AbortSignal | undefined;
+    let finish!: (result: any) => void;
+    const put = vi.fn(), synthesize = vi.fn((_text, options) => {
+      synthesisSignal = options.signal;
+      return new Promise<any>(resolve => { finish = resolve; });
+    });
+    const iface = createRemoteInterface({ ...deps(fakeProvider({ synthesize })),
+      newAbortController: () => new AbortController(), getPreparationSignal: () => request.signal,
+      cache: () => ({ match: async () => null, put }), getPrefetch: () => ({ enabled: true, count: 2 }),
+      getUpcomingTexts: () => ['Another sentence to prepare.'] });
+    const result = iface.getAudio({ text: 'The sentence being prepared.' }, voice);
+    await vi.waitFor(() => expect(synthesize).toHaveBeenCalledOnce());
+    request.abort();
+    expect(synthesisSignal?.aborted).toBe(true);
+    expect((await result).audio).toBeNull();
+    finish({ audio: new Blob(['late audio']) }); await new Promise(resolve => setTimeout(resolve, 0));
+    expect(put).not.toHaveBeenCalled(); expect(synthesize).toHaveBeenCalledOnce();
+  });
+});
+
 describe('getVoices', () => {
   it('returns a catalog with null credits, so no quota UI appears', async () => {
     const result = await createRemoteInterface(deps()).getVoices();

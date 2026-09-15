@@ -1,5 +1,6 @@
 return (async () => {
-  const file = 'C:\\Users\\xujia\\orca\\workspaces\\zotero_plugin_tts\\shortcut_swtich_voice\\test\\fixtures\\fixture-a.pdf';
+  const fixturesDir = Zotero.ZoteroTTSRun.params.fixturesDir;
+  const file = PathUtils.join(fixturesDir, 'fixture-a.pdf');
   const title = 'Zotero-TTS issue 95 Kokoro beta5 fixture A ' + Date.now();
   const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
   let imported;
@@ -33,6 +34,9 @@ return (async () => {
       openError: fixture.openError ?? null, reader: !!reader, manager: !!manager }, null, 1);
   }
   fixture.readerIndexBeforePopup = (Zotero.Reader._readers || []).indexOf(reader);
+  // Ensure this isolated fixture opens on a listed Kokoro voice even when an
+  // owner's paused reader remembers a different provider voice.
+  try { Services.prefs.setStringPref('extensions.zotero.zotero-tts.readAloud.memory', JSON.stringify({ speed: 1, voice: { id: 'local::af_bella', lang: 'en' } })); } catch (e) {}
   try { internal.toggleReadAloudPopup(true); } catch (e) { fixture.popupError = String(e); }
   for (let i = 0; i < 100; i++) {
     if (manager._allVoices?.length && manager._segments?.length) break;

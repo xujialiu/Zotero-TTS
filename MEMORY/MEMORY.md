@@ -300,6 +300,17 @@ WebDAV), highlight colors.
   not call `zotero-tester`, regardless of model. Read and follow
   `agents/zotero-tester.md` first; the same investigation, verification,
   evidence and restoration rules still apply.
+  **A blocked tester keeps ownership** (settled 2026-09-15, issue #108):
+  a usage limit, tool failure, interruption or delay leaves live testing
+  with `zotero-tester`. Report the blocker, continue independent work,
+  and resume the tester when possible. If it remains blocked, report
+  that to the user. "Continue", "finish the tests" and approval to merge
+  or push after testing preserve this assignment; they do not authorize
+  the main session to take over. Personal testing requires the user's
+  explicit request to change the driver. Keep the configured agent model
+  too unless the user explicitly requests a model change. The main session
+  incorrectly took over after the tester exhausted its quota in #108;
+  the user required the tester to complete verification itself.
   Git housekeeping and releases are always performed by the main session. The agent files stay the rule book either way: read
   the agent's shared workflow before doing its work by hand, and only then — a
   session that delegates never reads it, since the brief's shape is in

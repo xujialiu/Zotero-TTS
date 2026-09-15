@@ -1,6 +1,6 @@
 [Checklist index](../README.md) · [Scripts](../scripts/voice-switch/README.md)
 
-# 4a. Previous and next voice (issue #95)
+# 4a. Voice switching (issues #95, #108)
 
 Run the [baseline](../baseline.md) first and [cleanup](../cleanup.md) last.
 
@@ -47,18 +47,19 @@ starts; the dual-playing setup required a fixture-only status guard.
 Do not count that guarded scenario as an ordinary supported Zotero state.
 
 1. **Identity and bindings.** `diagnostics.voiceSwitch()` reports
-   `mechanism: prepared-native-voice-v1`, previous `Shift+,`, next `Shift+.`.
+   `mechanism: prepared-native-voice-v2`, previous `Shift+,`, next `Shift+.`.
+   Each attached reader reports `handoff.controlsAttached: true`.
    Startup includes `prepared voice switching` with no failed step.
 2. **List and keys.** Compare the actual player's voice menu with the
    neighbors selected by trusted Shift+, / Shift+. For a regional selection,
-   compare only voices in that exact normalized region: native menus also
-   include generic/wildcard fallbacks that keyboard cycling skips (#97).
+   compare only voices in that exact normalized region: native menus and
+   keyboard cycling use the same filtered list (#106).
    Include generic English and wildcard neighbors beside two US voices;
    both directions must wrap within US, and a singleton US voice is a no-op.
    Include regional voices,
    favorites-only filtering, first/last wrap, one voice, rebinding, clearing,
    repeat suppression and an editable field. A paused selection stays
-   paused and does not request a sample.
+   paused, prepares the new voice's sentence audio, and requests no sample.
    Reuse the regional fallback scripts (2026-09-13, 1.12.6-beta);
    the 1.12.6-beta report (2026-09-13, 1.12.6-beta)
    records this paused native-manager check, with no provider synthesis.
@@ -78,8 +79,9 @@ Do not count that guarded scenario as an ordinary supported Zotero state.
    Reading continues, the switch prepares farther ahead, and the adopted
    segment is never behind the current reading position.
 6. **Cancellation and failure.** Rapid keys retain only the latest target;
-   returning to the current voice cancels. Pause, skip, speed, manual voice
-   selection, stop, tab close and shutdown remove pending work. A stale
+   returning to the current voice cancels. Skip, speed, stop, tab close and
+   shutdown remove pending work. Pause keeps preparation silent and disarms
+   a scheduled stop; a manual pick replaces the pending target. A stale
    result never plays. A rejected request leaves old audio playing, reports
    `failed`, and shows a failure notice. Repeat after a word stop is armed
    to prove cancellation removes the scheduled early stop.
@@ -89,6 +91,40 @@ Do not count that guarded scenario as an ordinary supported Zotero state.
 8. **Cleanup.** No pending request, retained preparatory controller,
    injected method, fixture or changed preference remains. Preserve the
    exact verified XPI hash. Record errors and distinguish unrelated errors.
+   Close a fixture while its voice notice is visible, then wait beyond the
+   five-second hide timer. No dead-object console error may come from it.
+9. **Popup, locale and mode parity (#108).** In both PDF and EPUB fixtures,
+   drive native `selectVoice`, `setLanguage` with `persist: true`, and
+   `selectTier` through the plugin's attached methods. Include an actual
+   popup selection to prove the UI reaches those methods. Until handoff,
+   the original controller, voice and persisted preferences remain intact.
+   After handoff, the selected voice/locale/tier match native resolution,
+   including a remembered locale voice. No preview updates shared memory
+   or another tab. A re-pick of the original voice cancels without restart.
+10. **Paused preparation and resume (#108).** Pause inside a known word;
+    change voice through a popup control and a shortcut. Observe target
+    audio prepared with no source playing. If ready on Play, the first
+    target playback starts at the next word's new-voice offset, with the
+    same sentence/source position and no original-voice playback first.
+    If not ready, Play resumes the original voice and switches once ready.
+    With missing or grouped timing that cannot identify the exact paused
+    word, finish the current sentence in the original voice before switching.
+    Preparation remains usable after a pause longer than two minutes
+    (timer exhaustion is covered by unit tests). A suspended target output
+    stays suspended during preparation and is resumed on Play.
+11. **Mixed selections and failures (#108).** Replace pending requests
+    across popup voice, locale, mode and shortcut controls. Only the latest
+    target can commit. Failure retains the original voice, locale and
+    controller and shows the failure notice; a paused reader stays paused.
+    Pause during preparation keeps it pending silently. Pause/stop/seek
+    while a target output is resuming must not cause a later unwanted play.
+12. **Provider cancellation (#108).** Observe a real plugin-provider
+    synthesis signal during a bounded delayed fixture request, then replace
+    the target: the signal is aborted and no obsolete audio, cache write or
+    prefetch occurs. A normal playback request of the same text/voice is
+    unaffected (also covered by unit tests). Zotero's official remote API
+    exposes no abort operation: verify that its obsolete result is discarded
+    and never plays, and explicitly record that transport limitation.
 
 Unit tests cover artificial timer delays, timeout exhaustion, cross-realm
 array callback traps and malformed timestamp combinations. Real bridge
@@ -105,4 +141,5 @@ records eight within-source cases and seven cross-source pairs in both
 directions. Cross-source runs use cached real audio; they do not establish
 cold-request latency or exhaust all provider combinations. The linked official
 follow-up verifies Standard and Premium same-tier word handoffs; cross-tier
-manual changes rebuild the native controller and are outside #95's shortcut pool.
+manual changes were outside #95's shortcut pool; #108 now covers those
+controls through items 9-12 above.

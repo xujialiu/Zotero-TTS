@@ -91,3 +91,18 @@ export function wordHandoff(text: string, oldTimes: ArrayLike<Timestamp> | null 
 ): WordBoundary | null {
   return inspectWordHandoff(text, oldTimes, newTimes, progress, oldDuration, newDuration).boundary;
 }
+
+/** Resume only after the exact paused word; grouped speech has no safe next-word offset. */
+export function pausedWordHandoff(text: string, oldTimes: ArrayLike<Timestamp> | null | undefined,
+  newTimes: ArrayLike<Timestamp> | null | undefined, progress: number, oldDuration: number, newDuration: number,
+): WordBoundary | null {
+  if (!oldTimes?.length || !Number.isFinite(progress)) return null;
+  const tokens = tokenize(text);
+  const old = ordered(oldTimes, tokens, text.length);
+  if (!old) return null;
+  let current: Stamp | undefined;
+  for (const t of old) if (t.start <= progress) current = t;
+  if (!current?.span || !tokens.some(t => t.start === current!.span!.start && t.end === current!.span!.end)) return null;
+  const boundary = wordHandoff(text, oldTimes, newTimes, current.start - TIME_EPSILON, oldDuration, newDuration);
+  return boundary?.end === current.end ? boundary : null;
+}

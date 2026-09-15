@@ -954,6 +954,19 @@ describe('a pick the pref does not show', () => {
     tab2.manager.selectTier('local');
     expect(sync.memory().voice).toEqual({ id: AOEDE, lang: MULTILINGUAL });
   });
+  it('does not learn or spread the native choice while the switcher is previewing it', () => {
+    const z = fakeZotero(before, brian);
+    let preview = true;
+    const sync = createReadAloudMemorySync({ ...z.deps, isVoicePreview: () => preview });
+    const tab1 = fakeReader(MULTILINGUAL, z, reading(ADA));
+    const tab2 = fakeReader('en', z, reading(BRIAN));
+    z.readers.push(tab1.reader, tab2.reader); sync.attach(tab1.reader); sync.attach(tab2.reader);
+    tab1.manager.selectVoice(ADA);
+    expect(sync.memory()).toEqual(brian); expect(tab2.manager.selectedVoiceID).toBe(BRIAN);
+    preview = false; tab1.manager.selectVoice(ADA);
+    expect(sync.memory().voice).toEqual({ id: ADA, lang: MULTILINGUAL });
+    expect(tab2.manager.selectedVoiceID).toBe(ADA); sync.dispose();
+  });
 
   it('learns nothing from a setLanguage without persist — Zotero’s own, or this sync’s', () => {
     const z = fakeZotero(before, brian);

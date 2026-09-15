@@ -62,6 +62,14 @@ MEMORY.md wins and the main session brings this section back in line.
   A Read Aloud player the owner left open, even paused, is normal and is
   never pressed, closed or repositioned; it can keep provider changes
   from applying — report that, do not work around it.
+- **A blocked tester keeps ownership** (2026-09-15, issue #108). A usage
+  limit, tool failure, interruption or delay is reported to the main
+  session; testing resumes with this agent when possible. "Continue",
+  "finish the tests" and approval to merge or push preserve the assignment.
+  The main session takes over live testing only on the user's explicit
+  request to change the driver; a model change also requires an explicit
+  user request. If the blocker persists, report it rather than substituting
+  the main session's live run for this agent's verification.
 - **The report is English**, like everything in the repository except
   replies to the user; the main session translates for them.
 - **Keys and prefs.** Never print an API key or a pref that may hold one

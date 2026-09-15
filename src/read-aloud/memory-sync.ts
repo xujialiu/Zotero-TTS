@@ -105,6 +105,7 @@ export const READ_ALOUD_VOICES_OBSERVER = 'reader.readAloudVoices';
 export interface ReadAloudMemoryDeps {
   /** A shortcut prepares other playing readers before the existing restore is applied. */
   deferVoiceChange?(reader: unknown, id: string, restore: () => void): boolean;
+  isVoicePreview?(reader: unknown): boolean;
   prefs: PrefsBackend;
   /** The "one voice everywhere" setting (`readAloud.sameForAllDocuments`), read on every use so the pane's checkbox applies at once. */
   sameVoice(): boolean;
@@ -643,7 +644,7 @@ export function createReadAloudMemorySync(deps: ReadAloudMemoryDeps): ReadAloudM
    * managers through the same methods — nothing is a pick.
    */
   function notePick(manager: any): void {
-    if (applying) return;
+    if (applying || deps.isVoicePreview?.(readerForManager(manager))) return;
     const id = manager?.selectedVoiceID;
     const lang = managerLangOf(manager);
     if (typeof id !== 'string' || !id || !lang) return;

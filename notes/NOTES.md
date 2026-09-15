@@ -474,3 +474,9 @@ then) and is in the git history before that day.
 - Manual sentence placement is separate from playback resume (issue #107)
 
 - Interior resume targets verify centering, not just return (issue #107)
+
+### [2026-09-15](NOTES_2026-09-15.md)
+
+- Player voice changes share preparation and paused resume (issue #108)
+- Native resume and notification cleanup pass in beta2 (issue #108)
+- The tester independently completes beta2 verification (issue #108)

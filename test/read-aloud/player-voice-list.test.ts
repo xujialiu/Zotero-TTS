@@ -1,6 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createPlayerVoiceList } from '../../src/read-aloud/player-voice-list';
-import { createVoiceSwitcher } from '../../src/read-aloud/voice-switch';
 
 function fixture() {
   const voices = [
@@ -34,19 +33,17 @@ function fixture() {
 }
 
 describe('one player voice list', () => {
-  it('offers only US voices to the popup and cycles the same list both ways', () => {
+  it('offers only US voices to the popup and accepts both regional choices', () => {
     const f = fixture();
     expect(f.ids()).toEqual(['us-a', 'us-b']);
-    const switcher = createVoiceSwitcher({ notice: vi.fn(), error: f.error });
-    for (const direction of [1, -1] as const) {
-      switcher.step(f.reader, direction);
-      expect(f.manager.selectedVoiceID).toBe('us-b');
-      expect(f.manager.applied).toBe('us-b');
-      switcher.step(f.reader, direction);
-      expect(f.manager.selectedVoiceID).toBe('us-a');
+    for (const id of ['us-b', 'us-a']) {
+      f.manager.selectVoice(id);
+      expect(f.manager.selectedVoiceID).toBe(id);
+      expect(f.manager.applied).toBe(id);
+      expect(f.ids()).toEqual(['us-a', 'us-b']);
     }
     expect(f.voices).toHaveLength(5);
-    switcher.dispose(); f.list.dispose();
+    f.list.dispose();
   });
   it('uses the selected region and keeps a singleton regional menu', () => {
     const f = fixture();

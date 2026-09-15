@@ -184,14 +184,20 @@ word timing keeps highlighting the sentence either way, and the message
 says so.
 
 - **Previous / next voice** — `Shift+,` / `Shift+.` cycle through the
-  player's current voice list, wrapping at either end. While playing, the
-  old voice continues until the new one is ready and hands over at the
-  next word, or between sentences when necessary. While paused, the voice
-  changes without a sample. A short message names the voice.
-- **While a voice is preparing**, another press changes the target;
-  pausing, skipping, changing speed or choosing a voice by hand cancels
-  the pending switch. Preparation may use your provider's quota even if
-  you change your mind.
+  player's current voice list, wrapping at either end. Choosing a voice,
+  language or voice mode in the player uses the same switching behavior.
+- **While playing**, the old voice continues until the new one is ready,
+  then hands over at a word boundary, or between sentences when necessary.
+  A short message names the voice.
+- **While paused**, the new voice prepares silently. Press Play to continue
+  with it after the paused word if it is ready; otherwise the old voice
+  resumes until the new one is ready. Without reliable word alignment,
+  the old voice finishes the sentence before switching.
+- **While a voice is preparing**, another selection cancels the previous
+  request and only the latest choice takes effect. A failed preparation
+  keeps the original voice and shows a message. Skipping, changing speed
+  or closing the player cancels the pending switch. Preparation may use
+  your provider's quota even if you change your mind.
 
 ### Voice browser
 

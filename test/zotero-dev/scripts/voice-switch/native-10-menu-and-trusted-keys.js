@@ -16,6 +16,7 @@ return (async () => {
     user: Services.prefs.prefHasUserValue(names.next),
   };
   const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+  const nativeManager = Components.utils.waiveXrays(manager);
   const press = (key, code, keyCode, repeat = false) => {
     const tip = Components.classes['@mozilla.org/text-input-processor;1'].createInstance(Components.interfaces.nsITextInputProcessor);
     const K = rw.KeyboardEvent;
@@ -33,7 +34,10 @@ return (async () => {
     return ret;
   };
   const menuSnapshot = () => {
-    const menu = manager.voicesForLanguage || [];
+    // `voicesForLanguage` invokes Zotero's reader-realm `find` callback and
+    // throws when read from chrome scope.  The controlled transport has one
+    // language, so walk the native catalog directly by index.
+    const menu = nativeManager.allVoices || [];
     const rows = [];
     for (let i = 0; i < menu.length; i++) rows.push({ index: i, id: menu[i]?.id ?? null, label: menu[i]?.label ?? null });
     return rows;
@@ -44,7 +48,7 @@ return (async () => {
     paused: !!manager.paused,
     calls: state.calls.length,
   });
-  const out = { readerIndex, menu: menuSnapshot(), region: manager.region ?? null, language: manager.lang ?? null, transitions: [], pausedNoSample: null };
+  const out = { readerIndex, menu: menuSnapshot(), region: nativeManager.region ?? null, language: nativeManager.lang ?? null, transitions: [], pausedNoSample: null };
   let input = null;
   try {
     // The handoff test leaves the fixture paused on the replacement voice.
@@ -71,7 +75,7 @@ return (async () => {
     const oneKey = press('.', 'Period', 190);
     await sleep(150);
     const oneAfter = stateSnapshot();
-    const oneListLength = manager.voicesForLanguage?.length ?? null;
+    const oneListLength = nativeManager.allVoices?.length ?? null;
     mw._allVoices = allBefore;
     mw._voiceID = selectedBefore;
     mw._voice = voiceBefore;

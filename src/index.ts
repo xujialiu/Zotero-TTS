@@ -445,6 +445,7 @@ function buildReaderInterface(reader: any, targetWindow: any, native: () => unkn
           volumeControl?.attach(reader);
           unchangedVoice?.attach(reader);
           playerVoiceList?.attach(reader);
+          voiceSwitcher?.attach(reader);
           textSettings?.attach(reader);
         },
         // The list this reader is about to receive: the remembered voice is
@@ -488,6 +489,7 @@ function buildReaderInterface(reader: any, targetWindow: any, native: () => unkn
         // caches are obtained. Per call, never cached, so a closed window is
         // never retained.
         newAbortController: () => new reader._window.AbortController(),
+        getPreparationSignal: id => voiceSwitcher?.preparationSignal(reader, id),
       }),
     );
   (iface as Record<string, unknown>).__zoteroTTSInstance = interfaceInstanceToken;
@@ -676,6 +678,7 @@ function watchReader(reader: any): void {
   volumeControl?.attach(reader);
   unchangedVoice?.attach(reader);
   playerVoiceList?.attach(reader);
+  voiceSwitcher?.attach(reader);
   textSettings?.attach(reader);
   const iframe = reader._iframeWindow;
   if (iframe) {
@@ -806,6 +809,7 @@ function hookTabClose(reader: any): void {
     const wrapper = function zttsTabCloseCapture(this: unknown) {
       tabCloseHooks.delete(tab);
       try { playerExpanded?.detach(reader); } catch (error) { Zotero.logError(error); }
+      try { voiceSwitcher?.detach(reader); } catch (error) { Zotero.logError(error); }
       try { followResumeGuard?.detach(reader); } catch (error) { Zotero.logError(error); }
       trace(`tab.onClose fired ${String(tabID)}`);
       try {
@@ -878,6 +882,7 @@ function hookPositionCapture(reader: any): void {
     const wrapper = function zttsUninitCapture(this: unknown, ...args: unknown[]) {
       positionCaptureHooks.delete(reader);
       try { playerExpanded?.detach(reader); } catch (error) { Zotero.logError(error); }
+      try { voiceSwitcher?.detach(reader); } catch (error) { Zotero.logError(error); }
       try { followResumeGuard?.detach(reader); } catch (error) { Zotero.logError(error); }
       trace(`reader.uninit fired item ${String(reader?.itemID)}`);
       try {
@@ -1094,6 +1099,7 @@ function startReadAloudMemory(): void {
   stopReadAloudMemory();
   readAloudMemory = createReadAloudMemorySync({
     deferVoiceChange: (reader, id, restore) => voiceSwitcher?.defer(reader, id, restore) ?? false,
+    isVoicePreview: reader => voiceSwitcher?.isPreviewing(reader) ?? false,
     prefs,
     sameVoice: () => loadSettings(prefs).readAloud.sameForAllDocuments,
     globalSpeed: () => loadSettings(prefs).readAloud.globalSpeed,
@@ -1829,6 +1835,7 @@ function startVoiceSwitcher(): void {
   });
   for (const reader of Zotero.Reader._readers ?? []) playerVoiceList.attach(reader);
   voiceSwitcher = createVoiceSwitcher({
+    newAbortController: reader => new reader._window.AbortController(),
     exportFunction: (fn, target) => Components.utils.exportFunction(fn, target),
     waiveXrays: value => Components.utils.waiveXrays(value),
     isDead: value => Components.utils.isDeadWrapper(value),
@@ -1843,6 +1850,7 @@ function startVoiceSwitcher(): void {
       showToast(doc, message, undefined, ANNOUNCEMENT_TOAST_MS);
     },
   });
+  for (const reader of Zotero.Reader._readers ?? []) voiceSwitcher.attach(reader);
 }
 
 function startUnchangedVoice(): void {
@@ -2095,7 +2103,7 @@ const diagnostics = {
         : readers[readerIndex];
       if (reader) voiceSwitcher?.step(reader, direction);
     }
-    return JSON.stringify({ mechanism: 'prepared-native-voice-v1', bindings: {
+    return JSON.stringify({ mechanism: 'prepared-native-voice-v2', bindings: {
       previous: loadSettings(prefs).shortcuts.previousVoice, next: loadSettings(prefs).shortcuts.nextVoice,
     }, readers: readers.map((reader: any, index: number) => ({ index, selected: readAloudManager(reader)?.selectedVoiceID ?? null,
       handoff: voiceSwitcher?.inspect(reader) ?? null })) }, null, 2);

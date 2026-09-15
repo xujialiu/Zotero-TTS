@@ -6,7 +6,7 @@ return (async () => {
     'readAloud.sentenceDelayMs', 'readAloud.paragraphDelayEnabled', 'readAloud.paragraphDelayMs',
     'shortcuts.previousVoice', 'shortcuts.nextVoice', 'webdav.syncPositions',
     'webdav.autoUploadSettings', 'webdav.syncSettings', 'readAloud.memory',
-    'local.engine', 'local.baseURL', 'local.voice', 'local.headers',
+    'local.enabled', 'local.engine', 'local.baseURL', 'local.voice', 'local.headers',
   ];
   const read = suffix => { let value = null; try { value = Zotero.Prefs.get('zotero-tts.' + suffix); } catch (e) {}
     return { value, user: Services.prefs.prefHasUserValue(prefix + suffix) }; };

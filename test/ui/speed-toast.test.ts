@@ -97,6 +97,18 @@ describe('removeSpeedToast', () => {
 });
 
 describe('showToast', () => {
+  it('does not throw when the reader closes before a voice notice hides', () => {
+    const doc = fakeDoc(), timer = fakeTimer();
+    showToast(doc, 'Preparing voice: B', timer);
+    Object.defineProperty(doc.children[0], 'style', { get() { throw new TypeError("can't access dead object"); } });
+    expect(() => timer.pending[0]()).not.toThrow();
+  });
+  it('still reports unrelated errors in the hide callback', () => {
+    const doc = fakeDoc(), timer = fakeTimer();
+    showToast(doc, 'Preparing voice: B', timer);
+    Object.defineProperty(doc.children[0], 'style', { get() { throw new Error('unrelated style failure'); } });
+    expect(() => timer.pending[0]()).toThrow('unrelated style failure');
+  });
   it('shows arbitrary text in the same overlay', () => {
     const doc = fakeDoc();
     showToast(doc, 'No saved position');

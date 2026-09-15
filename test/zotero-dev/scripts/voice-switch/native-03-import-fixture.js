@@ -1,5 +1,6 @@
 return (async () => {
-  const file = 'C:\\Users\\xujia\\orca\\workspaces\\zotero_plugin_tts\\shortcut_swtich_voice\\test\\fixtures\\fixture-a.pdf';
+  const fixturesDir = Zotero.ZoteroTTSRun.params.fixturesDir;
+  const file = PathUtils.join(fixturesDir, 'fixture-a.pdf');
   const title = 'Zotero-TTS issue 95 voice-switch fixture ' + Date.now();
   try {
     const imported = await Zotero.Attachments.importFromFile({
