@@ -13,7 +13,7 @@ import {
 import { encodeVoiceId } from '../../src/read-aloud/voice-catalog';
 
 const ava = encodeVoiceId('azure', 'en-US-AvaMultilingualNeural');
-const alloy = encodeVoiceId('openai', 'alloy');
+const alloy = encodeVoiceId('openai-official', 'alloy');
 
 describe('FAVORITES_ONLY_OBSERVER', () => {
   it('names the switch the way Zotero.Prefs.registerObserver wants it: relative to extensions.zotero.', () => {
@@ -70,7 +70,7 @@ describe('filterCatalogToFavorites', () => {
         { id: 'zh-CN-XiaoxiaoNeural', label: '晓晓', locale: 'zh-CN' },
       ],
     },
-    { provider: 'openai' as const, name: 'OpenAI', voices: [{ id: 'alloy', label: 'alloy', locale: 'mul' }] },
+    { provider: 'openai-official' as const, name: 'OpenAI', voices: [{ id: 'alloy', label: 'alloy', locale: 'mul' }] },
   ];
 
   it('keeps only the favorite voices and drops providers left empty', () => {
@@ -82,7 +82,7 @@ describe('filterCatalogToFavorites', () => {
 
   it('keeps the provider display name on filtered entries', () => {
     const filtered = filterCatalogToFavorites(catalog, [alloy]);
-    expect(filtered).toEqual([{ provider: 'openai', name: 'OpenAI', voices: [{ id: 'alloy', label: 'alloy', locale: 'mul' }] }]);
+    expect(filtered).toEqual([{ provider: 'openai-official', name: 'OpenAI', voices: [{ id: 'alloy', label: 'alloy', locale: 'mul' }] }]);
   });
 
   it('offers everything while nothing is marked', () => {

@@ -105,7 +105,7 @@ describe('Fish hint transport, offsets and cache', () => {
     expect(s.bodies).toHaveLength(2);
   });
 
-  it.each(['fishspeech', 'openai', 'azure', 'local'] as const)('leaves %s request metadata unchanged', async id => {
+  it.each(['fishspeech', 'openai-official', 'azure', 'local'] as const)('leaves %s request metadata unchanged', async id => {
     const synthesize = vi.fn(async (): Promise<SynthesisResult> => ({ audio: new Blob(['audio']) }));
     const provider = { id, synthesize } as unknown as TTSProvider;
     const iface = createRemoteInterface({ listCatalog: async () => [], getProvider: () => provider, cacheVersion: () => 'test' });

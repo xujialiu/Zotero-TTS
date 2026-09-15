@@ -4,12 +4,12 @@ import { createTextSettings } from '../../src/read-aloud/text-settings';
 import type { SynthesisResult, TTSProvider } from '../../src/core/providers/types';
 import { prepareSpeechText, restoreSpeechOffsets } from '../../src/core/speech-text';
 
-const voice = { id: 'openai::alloy' };
+const voice = { id: 'openai-official::alloy' };
 function setup() {
   let enabled = true;
   const raw: SynthesisResult = { audio: new Blob(['audio']), timestamps: [{ start: 0.2, end: 0.8, charStart: 0, charEnd: 5 }] };
   const synthesize = vi.fn(async () => raw);
-  const provider = { id: 'openai', listVoices: async () => [], synthesize } as unknown as TTSProvider;
+  const provider = { id: 'openai-official', listVoices: async () => [], synthesize } as unknown as TTSProvider;
   const cache = new Map<string, SynthesisResult>();
   const nativeAudio = vi.fn(async (_segment: any, _voice: any) => raw);
   const deps = {

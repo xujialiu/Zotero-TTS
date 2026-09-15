@@ -128,7 +128,7 @@ describe('addon/content/preferences.xhtml', () => {
   });
 
   it('explains Extra headers, in the OpenAI and the local group alike', () => {
-    for (const marker of ['id="ztts-openai-headers"', 'preference="extensions.zotero.zotero-tts.local.headers"']) {
+    for (const marker of ['preference="extensions.zotero.zotero-tts.compatible.headers"', 'preference="extensions.zotero.zotero-tts.local.headers"']) {
       const text = helpTextOf(rowOf(marker));
       expect(text, marker).toMatch(/Cloudflare Access/);
       expect(text, marker).toMatch(/CF-Access-Client-Id/);

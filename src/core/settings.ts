@@ -2,7 +2,7 @@ import type { ProviderId } from './providers/types';
 import type { ShortcutAction } from './shortcut-actions';
 import { VOLUME_DEFAULT, VOLUME_MAX, VOLUME_MIN } from './read-aloud-volume';
 
-export const PROVIDER_IDS: readonly ProviderId[] = ['openai', 'azure', 'cloudflare', 'speechify', 'fish', 'fishspeech', 'local', 'system'];
+export const PROVIDER_IDS: readonly ProviderId[] = ['openai-official', 'mimo', 'compatible', 'azure', 'cloudflare', 'speechify', 'fish', 'fishspeech', 'local', 'system'];
 
 /** Zotero's own two cloud tiers, as its voices response keys them. */
 export type ZoteroTier = 'standard' | 'premium';
@@ -27,22 +27,28 @@ export type AutoScrollMode = 'outside' | 'sentence';
 export const autoScrollMode = (value: unknown): AutoScrollMode => value === 'outside' ? 'outside' : 'sentence';
 
 export interface Settings {
-  /** Each provider is switched on independently; every enabled one contributes voices. */
-  openai: {
-    enabled: boolean;
-    apiKey: string;
-    baseURL: string;
-    model: string;
-    voice: string;
-    /** Comma-separated voice ids to offer; empty means "ask the server, else the voices its preset documents, else OpenAI's own". */
-    voices: string;
-    /** Extra request headers, `Name: value` pairs separated by `;` or newlines (core/headers.ts). */
-    headers: string;
-    /** Which server the section talks to (core/server-presets.ts); empty means "guess from the address". */
-    server: string;
-    /** The Base URL, Model, API key, Voices and Extra headers last used with each server, a JSON object keyed by preset (core/server-presets.ts parsePresetValues): what the Server dropdown restores on a switch back, so nothing typed for one server is sent to another. */
-    presetValues: string;
-  };
+  /**
+   * Each provider is switched on independently; every enabled one
+   * contributes voices. OpenAI itself (core/providers/openai.ts, issue
+   * #113): the address is api.openai.com and fixed — a proxy or a mirror
+   * goes through `compatible` — and `voices` empty means OpenAI's
+   * documented voices, since the API lists none. The id is not `openai`:
+   * that prefix belonged to the one section that held four servers until
+   * 1.12.11, and a copy still on that version reads `openai.apiKey` as
+   * the key of whichever server its dropdown has in force — through the
+   * settings sync, a shared key would carry the wrong meaning both ways
+   * (core/openai-split.ts converts the old keys, once).
+   */
+  'openai-official': { enabled: boolean; apiKey: string; model: string; voices: string };
+  /** Xiaomi MiMo (core/providers/mimo.ts, issues #50, #113): its address is fixed too; `voices` empty offers MiMo's documented voices. */
+  mimo: { enabled: boolean; apiKey: string; model: string; voices: string };
+  /**
+   * Any server that speaks OpenAI's API (core/providers/compatible.ts,
+   * issue #113): Chatterbox-TTS-Server, a hosted service, a proxy of
+   * OpenAI. The key may stay empty; `headers` are extra request headers,
+   * `Name: value` pairs separated by `;` or newlines (core/headers.ts).
+   */
+  compatible: { enabled: boolean; baseURL: string; apiKey: string; model: string; voices: string; headers: string };
   azure: { enabled: boolean; apiKey: string; region: string; voice: string };
   /**
    * Cloudflare Workers AI (core/providers/cloudflare.ts, issue #72): the
@@ -64,9 +70,9 @@ export interface Settings {
    * the pasted ids and links in `voices`.
    */
   fish: { enabled: boolean; apiKey: string; freeOnly: boolean; voices: string; includeOfficial: boolean; includeOwn: boolean; includeManual: boolean };
-  /** A Fish Speech server of the user's own (core/providers/fishspeech.ts, issue #89); `headers` as openai.headers. */
+  /** A Fish Speech server of the user's own (core/providers/fishspeech.ts, issue #89); `headers` as compatible.headers. */
   fishspeech: { enabled: boolean; baseURL: string; headers: string };
-  /** `headers`: extra request headers for a gateway in front of the server, same format as openai.headers. */
+  /** `headers`: extra request headers for a gateway in front of the server, same format as compatible.headers. */
   local: { enabled: boolean; engine: string; baseURL: string; voice: string; headers: string };
   /**
    * The operating system's own voices, synthesized by the plugin through a
@@ -187,17 +193,9 @@ export const PREF_PREFIX = 'extensions.zotero.zotero-tts.';
 export const MAX_PAUSE_MS = 5000;
 
 export const DEFAULTS: Settings = {
-  openai: {
-    enabled: true,
-    apiKey: '',
-    baseURL: 'https://api.openai.com',
-    model: 'gpt-4o-mini-tts',
-    voice: 'alloy',
-    voices: '',
-    headers: '',
-    server: '',
-    presetValues: '',
-  },
+  'openai-official': { enabled: true, apiKey: '', model: 'gpt-4o-mini-tts', voices: '' },
+  mimo: { enabled: false, apiKey: '', model: 'mimo-v2.5-tts', voices: '' },
+  compatible: { enabled: false, baseURL: '', apiKey: '', model: '', voices: '', headers: '' },
   azure: { enabled: false, apiKey: '', region: 'eastasia', voice: 'zh-CN-XiaoxiaoNeural' },
   cloudflare: { enabled: false, accountId: '', apiToken: '' },
   speechify: { enabled: false, apiKey: '' },
@@ -291,16 +289,25 @@ function bool(prefs: PrefsBackend, key: string, fallback: boolean): boolean {
 
 export function loadSettings(prefs: PrefsBackend): Settings {
   return {
-    openai: {
-      enabled: bool(prefs, 'openai.enabled', DEFAULTS.openai.enabled),
-      apiKey: str(prefs, 'openai.apiKey', DEFAULTS.openai.apiKey),
-      baseURL: str(prefs, 'openai.baseURL', DEFAULTS.openai.baseURL),
-      model: str(prefs, 'openai.model', DEFAULTS.openai.model),
-      voice: str(prefs, 'openai.voice', DEFAULTS.openai.voice),
-      voices: str(prefs, 'openai.voices', DEFAULTS.openai.voices),
-      headers: str(prefs, 'openai.headers', DEFAULTS.openai.headers),
-      server: str(prefs, 'openai.server', DEFAULTS.openai.server),
-      presetValues: str(prefs, 'openai.presetValues', DEFAULTS.openai.presetValues),
+    'openai-official': {
+      enabled: bool(prefs, 'openai-official.enabled', DEFAULTS['openai-official'].enabled),
+      apiKey: str(prefs, 'openai-official.apiKey', DEFAULTS['openai-official'].apiKey),
+      model: str(prefs, 'openai-official.model', DEFAULTS['openai-official'].model),
+      voices: str(prefs, 'openai-official.voices', DEFAULTS['openai-official'].voices),
+    },
+    mimo: {
+      enabled: bool(prefs, 'mimo.enabled', DEFAULTS.mimo.enabled),
+      apiKey: str(prefs, 'mimo.apiKey', DEFAULTS.mimo.apiKey),
+      model: str(prefs, 'mimo.model', DEFAULTS.mimo.model),
+      voices: str(prefs, 'mimo.voices', DEFAULTS.mimo.voices),
+    },
+    compatible: {
+      enabled: bool(prefs, 'compatible.enabled', DEFAULTS.compatible.enabled),
+      baseURL: str(prefs, 'compatible.baseURL', DEFAULTS.compatible.baseURL),
+      apiKey: str(prefs, 'compatible.apiKey', DEFAULTS.compatible.apiKey),
+      model: str(prefs, 'compatible.model', DEFAULTS.compatible.model),
+      voices: str(prefs, 'compatible.voices', DEFAULTS.compatible.voices),
+      headers: str(prefs, 'compatible.headers', DEFAULTS.compatible.headers),
     },
     azure: {
       enabled: bool(prefs, 'azure.enabled', DEFAULTS.azure.enabled),
@@ -426,7 +433,9 @@ export function hiddenZoteroTiers(s: Settings): ZoteroTier[] {
 }
 
 export function saveSettings(prefs: PrefsBackend, s: Settings): void {
-  for (const [k, v] of Object.entries(s.openai)) prefs.set(PREF_PREFIX + 'openai.' + k, v);
+  for (const [k, v] of Object.entries(s['openai-official'])) prefs.set(PREF_PREFIX + 'openai-official.' + k, v);
+  for (const [k, v] of Object.entries(s.mimo)) prefs.set(PREF_PREFIX + 'mimo.' + k, v);
+  for (const [k, v] of Object.entries(s.compatible)) prefs.set(PREF_PREFIX + 'compatible.' + k, v);
   for (const [k, v] of Object.entries(s.azure)) prefs.set(PREF_PREFIX + 'azure.' + k, v);
   for (const [k, v] of Object.entries(s.cloudflare)) prefs.set(PREF_PREFIX + 'cloudflare.' + k, v);
   for (const [k, v] of Object.entries(s.speechify)) prefs.set(PREF_PREFIX + 'speechify.' + k, v);

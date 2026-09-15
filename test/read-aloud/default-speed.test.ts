@@ -31,9 +31,9 @@ function manager(state: Omit<SpeedManagerLike, 'setSpeed'>, log: string[] = []) 
 describe('setDefaultSpeed', () => {
   it('remembers the speed across documents, keeping the remembered voice', () => {
     const prefs = fakePrefs();
-    writeMemory(prefs, { speed: 1.2, voice: { id: 'openai::alloy', lang: 'mul' } });
+    writeMemory(prefs, { speed: 1.2, voice: { id: 'openai-official::alloy', lang: 'mul' } });
     setDefaultSpeed(prefs, 1.8);
-    expect(readMemory(prefs)).toEqual({ speed: 1.8, voice: { id: 'openai::alloy', lang: 'mul' } });
+    expect(readMemory(prefs)).toEqual({ speed: 1.8, voice: { id: 'openai-official::alloy', lang: 'mul' } });
   });
 
   it("writes Zotero's own speed for every language it has seen, touching nothing else there", () => {

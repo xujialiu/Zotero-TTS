@@ -93,13 +93,13 @@ const CATALOG: CatalogEntry[] = [
       { id: 'en-US-JennyNeural', label: 'Jenny', locale: 'en-US' },
     ],
   },
-  { provider: 'openai', voices: [{ id: 'alloy', label: 'alloy', locale: 'mul' }] },
+  { provider: 'openai-official', voices: [{ id: 'alloy', label: 'alloy', locale: 'mul' }] },
   { provider: 'local', name: 'Kokoro', voices: [{ id: 'af_bella', label: 'af_bella', locale: 'en-US' }] },
 ];
 
 /** The first column as the pane hands it over (read-aloud/catalog.ts providerTierColumns): every enabled provider and Zotero's two, unsorted. */
 const PANE_COLUMNS: TierColumn[] = [
-  { tier: 'openai', label: 'OpenAI' },
+  { tier: 'openai-official', label: 'OpenAI' },
   { tier: 'azure', label: 'Azure' },
   { tier: 'fish', label: 'Fish Audio' },
   { tier: 'kokoro', label: 'Kokoro' },
@@ -276,7 +276,7 @@ describe('the first column', () => {
   // The pane hands over every enabled provider: one that lists nothing
   // right now — server down, listing failed — keeps its column at (0)
   it('lists every enabled provider the pane names, (0) for one that lists nothing, and any provider that listed all the same', async () => {
-    const t = setup({ tierColumns: PANE_COLUMNS.filter((c) => c.tier !== 'openai') });
+    const t = setup({ tierColumns: PANE_COLUMNS.filter((c) => c.tier !== 'openai-official') });
     await t.rows.load();
     expect(t.tiers()).toEqual(['Azure (4)', 'Fish Audio (0)', 'Kokoro (1)', 'OpenAI (1)', 'System (0)', 'Zotero Premium (1)', 'Zotero Standard (3)']);
     expect(t.deps.tierColumns).toHaveBeenCalled();
@@ -316,7 +316,7 @@ describe('the first column', () => {
     await t.rows.load();
     await t.pickTier('OpenAI');
     expect(t.labels()).toEqual(['alloy']);
-    t.deps.listCatalog.mockResolvedValueOnce(CATALOG.filter((entry) => entry.provider !== 'openai'));
+    t.deps.listCatalog.mockResolvedValueOnce(CATALOG.filter((entry) => entry.provider !== 'openai-official'));
     await t.rows.load();
     expect(t.tiers()).toEqual(['Azure (4)', 'Kokoro (1)', 'Zotero Premium (1)', 'Zotero Standard (3)']);
     expect(t.selectedTier()).toBe('Azure (4)');
@@ -898,12 +898,12 @@ describe('the slider as the default speed', () => {
     const t = setup({
       prefs: {
         [READ_ALOUD_VOICES_PREF]: JSON.stringify({ en: { voice: 'x', speed: 1 }, zh: { speed: 1 } }),
-        [READ_ALOUD_MEMORY_PREF]: JSON.stringify({ speed: 1, voice: { id: 'openai::alloy', lang: 'mul' } }),
+        [READ_ALOUD_MEMORY_PREF]: JSON.stringify({ speed: 1, voice: { id: 'openai-official::alloy', lang: 'mul' } }),
       },
     });
     await t.releaseSpeed('1.8');
     expect(t.speedLabel()).toBe('1.8×');
-    expect(t.memory()).toEqual({ speed: 1.8, voice: { id: 'openai::alloy', lang: 'mul' } });
+    expect(t.memory()).toEqual({ speed: 1.8, voice: { id: 'openai-official::alloy', lang: 'mul' } });
     expect(t.zoteroVoices()).toEqual({ en: { voice: 'x', speed: 1.8 }, zh: { speed: 1.8 } });
   });
 
@@ -1037,7 +1037,7 @@ describe('the default voice', () => {
   });
 
   it('finds a voice chosen under Multiple languages, and only that one', async () => {
-    const t = setup({ prefs: remembered(encodeVoiceId('openai', 'alloy'), 'mul') });
+    const t = setup({ prefs: remembered(encodeVoiceId('openai-official', 'alloy'), 'mul') });
     await t.rows.load();
     expect(t.selectedTier()).toBe('OpenAI (1)');
     expect(t.selectedLocale()).toBe('Multiple languages (1)');
@@ -1214,7 +1214,7 @@ describe('the highlight follows the memory', () => {
     [READ_ALOUD_MEMORY_PREF]: JSON.stringify({ speed, voice: { id, lang } }),
   });
   const xiaoxiao = encodeVoiceId('azure', 'zh-CN-XiaoxiaoNeural');
-  const alloy = encodeVoiceId('openai', 'alloy');
+  const alloy = encodeVoiceId('openai-official', 'alloy');
   const picked = (t: ReturnType<typeof setup>, voice: { id: string; lang: string } | null, speed: number | null = null) =>
     t.prefs.set(READ_ALOUD_MEMORY_PREF, JSON.stringify({ speed, voice }));
 
@@ -1295,7 +1295,7 @@ describe('a row click sets the default', () => {
     [READ_ALOUD_MEMORY_PREF]: JSON.stringify({ speed, voice: { id, lang } }),
   });
   const xiaoxiao = encodeVoiceId('azure', 'zh-CN-XiaoxiaoNeural');
-  const alloy = encodeVoiceId('openai', 'alloy');
+  const alloy = encodeVoiceId('openai-official', 'alloy');
   const bella = encodeVoiceId('local', 'af_bella');
 
   // The memory, Zotero's entry for the voice's language as its own pick
@@ -1322,7 +1322,7 @@ describe('a row click sets the default', () => {
     expect(t.labels()).toEqual(['alloy']);
     await t.label(0).fire('click');
     expect(t.memory().voice).toEqual({ id: alloy, lang: 'mul' });
-    expect(t.zoteroVoices().mul).toEqual({ region: null, voice: alloy, tierVoices: { openai: alloy } });
+    expect(t.zoteroVoices().mul).toEqual({ region: null, voice: alloy, tierVoices: { 'openai-official': alloy } });
     expect(t.deps.spreadVoice).toHaveBeenCalledWith({ id: alloy, lang: 'mul' });
   });
 
@@ -1407,7 +1407,7 @@ describe('only a favorite can be the default while the switch is on', () => {
   const remembered = (id: string, lang: string) => ({ [READ_ALOUD_MEMORY_PREF]: JSON.stringify({ speed: null, voice: { id, lang } }) });
   const favorites = (...ids: string[]) => ({ [FAVORITES_PREF]: JSON.stringify(ids) });
   const xiaoxiao = encodeVoiceId('azure', 'zh-CN-XiaoxiaoNeural');
-  const alloy = encodeVoiceId('openai', 'alloy');
+  const alloy = encodeVoiceId('openai-official', 'alloy');
   const WARNING = ' — not a favorite, while only favorites are offered: Read Aloud cannot start with it';
 
   // The popup offers only the favorites then; another default would never be offered
@@ -1895,12 +1895,12 @@ describe('listBrowserVoices', () => {
   it('lists both catalogs into one flat list, each plugin voice under its provider’s tier', async () => {
     const { voices, problems, columns } = await listBrowserVoices({ listCatalog: async () => CATALOG, listZoteroVoices: async () => ZOTERO_VOICES });
     expect(voices).toHaveLength(CATALOG.reduce((n, e) => n + e.voices.length, 0) + ZOTERO_VOICES.length);
-    expect(voices.map((v) => v.tier)).toEqual(['azure', 'azure', 'azure', 'azure', 'openai', 'kokoro', 'premium', 'standard', 'standard', 'standard']);
+    expect(voices.map((v) => v.tier)).toEqual(['azure', 'azure', 'azure', 'azure', 'openai-official', 'kokoro', 'premium', 'standard', 'standard', 'standard']);
     expect(problems).toEqual([]);
     // Without the pane's columns: the providers that listed, named as their entries are, and Zotero's two
     expect(columns).toEqual([
       { tier: 'azure', label: 'Azure' },
-      { tier: 'openai', label: 'OpenAI' },
+      { tier: 'openai-official', label: 'OpenAI' },
       { tier: 'kokoro', label: 'Kokoro' },
       { tier: 'standard', label: 'Zotero Standard' },
       { tier: 'premium', label: 'Zotero Premium' },
@@ -1932,7 +1932,7 @@ describe('listBrowserVoices', () => {
       listCatalog: async () => CATALOG,
       tierColumns: () => PANE_COLUMNS.filter((c) => c.tier !== 'kokoro'),
     });
-    expect(columns.map((c) => c.tier)).toEqual(['openai', 'azure', 'fish', 'system', 'standard', 'premium', 'kokoro']);
+    expect(columns.map((c) => c.tier)).toEqual(['openai-official', 'azure', 'fish', 'system', 'standard', 'premium', 'kokoro']);
   });
 
   it('reports each catalog’s failure in the status line’s words, keeping the other', async () => {

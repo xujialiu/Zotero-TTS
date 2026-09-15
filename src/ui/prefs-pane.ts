@@ -2,8 +2,7 @@ import { initBracketRows } from './bracket-rows';
 import type { ProviderId, TTSProvider } from '../core/providers/types';
 import { LOCAL_ENGINES } from '../core/providers/local/registry';
 import { createProvider, type ProviderDeps } from '../core/providers/factory';
-import { type Settings, createZoteroPrefs, hiddenZoteroTiers, isZoteroSwitch, loadSettings, PREF_PREFIX, type PrefsBackend, type SwitchId, zoteroSwitchTier } from '../core/settings';
-import { addressHint, addressHintText } from '../core/server-presets';
+import { createZoteroPrefs, hiddenZoteroTiers, isZoteroSwitch, loadSettings, PREF_PREFIX, type PrefsBackend, type SwitchId, zoteroSwitchTier } from '../core/settings';
 import { machineId, renameMachineId } from '../core/machine-id';
 import { getChromeWebSocket, newRequestId } from '../core/providers/azure';
 import { SynthesisError } from '../core/providers/errors';
@@ -21,7 +20,6 @@ import { listSystemVoiceRecords } from '../core/providers/system';
 import { createZoteroVoiceService, type ZoteroVoiceService } from '../read-aloud/zotero-voices';
 import { initShortcutRows } from './shortcut-rows';
 import { initBackupRows, type BackupFileIO } from './backup-rows';
-import { initServerPresetRows } from './server-preset-rows';
 import { initHelpTips } from './help-tips';
 import { markPlatform } from './platform-class';
 import { initBoldLabels } from './bold-labels';
@@ -377,17 +375,8 @@ function confirmStop(win: any, message: string): boolean {
  * list, since a fixed name would be wrong); the local engine has neither. The server's
  * models, when it lists them, become the Model field's suggestions.
  */
-/**
- * What a hosted server's Base URL says about the check to come (issue #54):
- * a typo of the server's own address refuses it before any request — the
- * key must not go to whoever owns the mistyped domain — and any other
- * domain gets a note after the result, so a mirror stays usable and seen.
- */
-export function addressGate(openai: Pick<Settings['openai'], 'server' | 'baseURL'>): { refusal?: string; note?: string } {
-  const hint = addressHint(openai);
-  if (!hint) return {};
-  return hint.kind === 'typo' ? { refusal: t('ztts-not-tested', { reason: addressHintText(hint) }) } : { note: addressHintText(hint) };
-}
+/** The three sections that speak OpenAI's API (issue #113): a Model field with the server's list as suggestions, and a synthesis probe. */
+const isOpenAIApiSection = (id: SwitchId): id is 'openai-official' | 'mimo' | 'compatible' => id === 'openai-official' || id === 'mimo' || id === 'compatible';
 
 /**
  * The check without the pane: what the settings sync runs after it adopted
@@ -404,24 +393,21 @@ export async function runConnectionCheck(prefs: PrefsBackend, id: SwitchId, deps
   // session (core/providers/system/daemon.ts MAX_STARTS; the macOS backend
   // forgets its last error)
   if (id === 'system') deps.system?.backend?.reset();
-  const gate = id === 'openai' ? addressGate(settings.openai) : {};
-  if (gate.refusal) return { ok: false, message: gate.refusal };
   try {
     const provider = createProvider(id, settings, deps);
     outcome = await testConnection(provider, {
-      model: id === 'openai' ? settings.openai.model : undefined,
+      model: isOpenAIApiSection(id) ? settings[id].model : undefined,
       synthesisVoice: id === 'azure' ? settings.azure.voice : id === 'fish' ? 'mul/default' : undefined,
       // The System provider defines checkSynthesis only where it has no
       // word marks to probe (macOS): one real `say`, caught here not mid-sentence
       // Cloudflare's first listed voice is a MeloTTS one, the cheapest probe it has;
       // Speechify's two characters go through its queue, never beside a reading tab's request;
       // Fish Audio's run on whichever model the free switch says, so a paid model with no credit fails here (issue #89)
-      probeSynthesis: id === 'openai' || id === 'system' || id === 'cloudflare' || id === 'speechify' || id === 'fish',
+      probeSynthesis: isOpenAIApiSection(id) || id === 'system' || id === 'cloudflare' || id === 'speechify' || id === 'fish',
     });
   } catch (e) {
     outcome = { ok: false, message: t('ztts-connection-failed', { detail: String(e) }) };
   }
-  if (gate.note) outcome = { ...outcome, message: sentences(outcome.message, gate.note) };
   return outcome;
 }
 
@@ -519,7 +505,6 @@ export function onPaneLoad(doc: Document, hooks: PaneHooks = {}): void {
   const providerDeps = (): ProviderDeps =>
     hooks.providerDeps?.() ?? { fetch, getWebSocket: getChromeWebSocket, newRequestId, newAbortController: newPaneAbortController };
   const shortcutRows = initShortcutRows(doc, prefs, Zotero.isMac ? 'Cmd' : Zotero.isWin ? 'Win' : 'Super');
-  const presetRows = initServerPresetRows(doc, prefs);
   // The ? icons: their text opens at once, not after Zotero's tooltip delay (ui/help-tips.ts)
   initHelpTips(doc);
   // A checkbox's `bold` run: the label attribute is plain text (ui/bold-labels.ts)
@@ -701,10 +686,6 @@ export function onPaneLoad(doc: Document, hooks: PaneHooks = {}): void {
     onSwitched: (id, on) => {
       if (id === 'system' && on) void adoptSystemVoices(prefs, providerDeps(), hooks);
     },
-    // Unlocked, the OpenAI fields the chosen server ignores are grayed out again
-    onUnlocked: (id) => {
-      if (id === 'openai') presetRows.refresh();
-    },
   });
   // ProviderRows paints its fields once during construction; apply the
   // Manual voices source lock after that first paint too.
@@ -725,7 +706,6 @@ export function onPaneLoad(doc: Document, hooks: PaneHooks = {}): void {
     // Bound inputs redraw themselves (Zotero observes every bound pref); these rows do not
     onRestored: () => {
       shortcutRows.refresh();
-      presetRows.refresh();
       highlightRows.refresh();
       prefetchRows.refresh();
       voiceListSwitches.refresh();

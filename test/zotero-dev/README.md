@@ -49,7 +49,7 @@ opens a fixture ends with item 3.26's teardown ([playback](cases/playback.md)).
 
 ### Providers
 
-- [The OpenAI section's server presets and Xiaomi MiMo](cases/openai-presets.md) — 1.7
+- [The OpenAI section split into OpenAI, Xiaomi MiMo and OpenAI Compatible, and the old settings carried over (issue #113)](cases/openai-split.md)
 - [System voices](cases/system-voices.md) — 1.8
 - [Cloudflare Workers AI](cases/cloudflare.md) — 1.14, 2.9, 3.15
 - [Speechify](cases/speechify.md) — 1.15, 2.10, 3.22, 3.23, 3.28
@@ -130,7 +130,7 @@ Notes and older run reports name the case files these came from.
 
 | Old case file | Now |
 | --- | --- |
-| `settings-providers.md` (section 1) | plugin-lifecycle, settings-pane, provider-controls, openai-presets, system-voices, voice-browser (1.9), localization, plugin-icon, cloudflare, speechify, settings-sync-while-reading (1.16) |
+| `settings-providers.md` (section 1) | plugin-lifecycle, settings-pane, provider-controls, openai-split, system-voices, voice-browser (1.9), localization, plugin-icon, cloudflare, speechify, settings-sync-while-reading (1.16) |
 | `fish-audio.md` (1a) | fish-audio, fish-speech |
 | `fish-ui-regions.md` (1c) | fish-settings-refinement, fish-english-regions |
 | `voice-browser.md` (section 2) | voice-browser, favorites, voice-samples, cloudflare (2.9), speechify (2.10) |

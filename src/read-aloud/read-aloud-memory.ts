@@ -135,14 +135,14 @@ export interface SyncPlan {
  * `lang === 'mul'` marker — but pref entries written while the removed
  * multilingualEverywhere switch published them under every language hold
  * them under `en` or `zh`, and this is what still recognizes those. Every
- * OpenAI(-compatible) voice is multilingual by construction; Azure's say
- * so in their id ("en-US-AvaMultilingualNeural"); the local engines'
- * voices all have concrete locales.
+ * voice of the three sections that speak OpenAI's API is multilingual by
+ * construction; Azure's say so in their id ("en-US-AvaMultilingualNeural");
+ * the local engines' voices all have concrete locales.
  */
 export function isMultilingualVoiceId(id: string): boolean {
   const decoded = decodeVoiceId(id);
   if (!decoded) return false;
-  if (decoded.provider === 'openai') return true;
+  if (decoded.provider === 'openai-official' || decoded.provider === 'mimo' || decoded.provider === 'compatible') return true;
   if (decoded.provider === 'azure') return /multilingual/i.test(decoded.voiceId);
   return false;
 }

@@ -34,8 +34,8 @@
     await win.Zotero_Preferences.navigateToPane('zotero-tts-pane');
     const doc = win.document;
     const t1 = Date.now();
-    while (Date.now() - t1 < 20000 && !doc.getElementById('ztts-openai-server')) await sleep(200);
-    out.paneLoaded = !!doc.getElementById('ztts-openai-server');
+    while (Date.now() - t1 < 20000 && !doc.getElementById('ztts-provider-openai-official')) await sleep(200);
+    out.paneLoaded = !!doc.getElementById('ztts-provider-openai-official');
     if (!out.paneLoaded) throw new Error('the pane never loaded');
 
     const toggle = doc.getElementById('ztts-enable-system');

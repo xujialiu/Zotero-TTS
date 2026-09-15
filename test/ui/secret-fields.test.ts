@@ -20,7 +20,7 @@ describe('addon/content/preferences.xhtml', () => {
   const prefOf = (markup: string) => attr(markup, 'preference')?.replace(/^extensions\.zotero\.zotero-tts\./, '');
 
   /** Every field of the pane whose value is a secret: the keys, the gateway headers, the WebDAV password. */
-  const SECRETS = ['openai.apiKey', 'openai.headers', 'azure.apiKey', 'cloudflare.apiToken', 'speechify.apiKey', 'fish.apiKey', 'fishspeech.headers', 'local.headers', 'webdav.password'];
+  const SECRETS = ['openai-official.apiKey', 'mimo.apiKey', 'compatible.apiKey', 'compatible.headers', 'azure.apiKey', 'cloudflare.apiToken', 'speechify.apiKey', 'fish.apiKey', 'fishspeech.headers', 'local.headers', 'webdav.password'];
 
   it('masks every secret field', () => {
     for (const name of SECRETS) {
@@ -45,7 +45,7 @@ describe('addon/content/preferences.xhtml', () => {
   // password filled false), so masking costs the header fields nothing —
   // and their format hint is the only thing that says what belongs in them
   it('keeps the format hint on the two Extra headers fields', () => {
-    for (const name of ['openai.headers', 'local.headers']) {
+    for (const name of ['compatible.headers', 'local.headers']) {
       const markup = inputs.find((input) => prefOf(input) === name);
       expect(attr(markup!, 'placeholder'), name).toBe('Name: value; Name: value');
     }

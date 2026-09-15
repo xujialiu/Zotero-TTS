@@ -6,7 +6,7 @@ import { encodeVoiceId } from '../../src/read-aloud/voice-catalog';
 
 function fakeProvider(overrides: Partial<TTSProvider> = {}): TTSProvider {
   return {
-    id: 'openai',
+    id: 'openai-official',
     capabilities: { wordTimestamps: false },
     listVoices: async () => [{ id: 'alloy', label: 'Alloy', locale: 'en-US' }],
     synthesize: async () => ({ audio: new Blob(['audio']) }),
@@ -16,13 +16,13 @@ function fakeProvider(overrides: Partial<TTSProvider> = {}): TTSProvider {
 
 function deps(provider = fakeProvider()) {
   return {
-    listCatalog: async () => [{ provider: 'openai' as const, voices: await provider.listVoices() }],
+    listCatalog: async () => [{ provider: 'openai-official' as const, voices: await provider.listVoices() }],
     getProvider: () => provider,
     cacheVersion: () => 'v1',
   };
 }
 
-const voice = { id: encodeVoiceId('openai', 'alloy') };
+const voice = { id: encodeVoiceId('openai-official', 'alloy') };
 
 describe('voice preparation cancellation', () => {
   it('does not abort ordinary playback of the same voice and text', async () => {
@@ -93,7 +93,7 @@ describe('getVoices', () => {
         { id: 'echo', label: 'Echo', locale: 'en-US' },
       ],
     });
-    const favorite = encodeVoiceId('openai', 'echo');
+    const favorite = encodeVoiceId('openai-official', 'echo');
     const result = await createRemoteInterface({ ...deps(provider), getFavoriteVoices: () => [favorite] }).getVoices();
     const configs = result.voices!.local as { voices: Record<string, unknown> }[];
     expect(configs).toHaveLength(1);
@@ -124,8 +124,8 @@ describe('getVoices', () => {
         { id: 'echo', label: 'Echo', locale: 'en-US' },
       ],
     });
-    const alloy = encodeVoiceId('openai', 'alloy');
-    const echo = encodeVoiceId('openai', 'echo');
+    const alloy = encodeVoiceId('openai-official', 'alloy');
+    const echo = encodeVoiceId('openai-official', 'echo');
     const onVoicesListed = vi.fn();
     await createRemoteInterface({ ...deps(provider), getFavoriteVoices: () => [echo], onVoicesListed }).getVoices();
     expect(onVoicesListed).toHaveBeenCalledTimes(1);
@@ -311,7 +311,7 @@ describe('getAudio', () => {
       debug,
     });
     await iface.getAudio({ text: 'Hello' }, voice);
-    expect(debug).toHaveBeenCalledWith('openai: 1 word timestamp for 5 chars (simba-3.2)');
+    expect(debug).toHaveBeenCalledWith('openai-official: 1 word timestamp for 5 chars (simba-3.2)');
   });
 
   it('synthesises a fixed sample when asked for the sample segment', async () => {
@@ -358,7 +358,7 @@ describe('getAudio', () => {
   it('uses JSON.stringify for cache keys to prevent collisions', async () => {
     const put = vi.fn(async () => {});
     const cacheVersion = 'v1';
-    const provider = 'openai' as const;
+    const provider = 'openai-official' as const;
 
     // Request A: voiceId='alloy h', text='i'
     const iface1 = createRemoteInterface({

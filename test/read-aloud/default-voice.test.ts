@@ -20,7 +20,7 @@ function fakePrefs(initial: Record<string, unknown> = {}): PrefsBackend & { stor
 }
 
 const XIAOXIAO = 'azure::zh-CN-XiaoxiaoNeural';
-const ALLOY = 'openai::alloy';
+const ALLOY = 'openai-official::alloy';
 const xiaoxiao = { id: XIAOXIAO, lang: 'zh', region: 'CN', tier: 'local' };
 const stored = (prefs: { store: Record<string, unknown> }) => JSON.parse(prefs.store[READ_ALOUD_VOICES_PREF] as string) as VoicesMap;
 

@@ -22,7 +22,7 @@
 
 Zotero-TTS 在 Zotero 10 的朗读（Read Aloud）里工作：每个服务商都是播放器第一个下拉框里的一个条目，而 Zotero 自己的标准和高级是另外两个，各自都有自己的开关。它按作者自己的阅读习惯来做——[为什么这样做、往哪里去](docs/PHILOSOPHY.zh.md)。
 
-- 🗣️ **朗读播放器里更多语音**，每个服务商都是一个条目——Azure Speech、Cloudflare Workers AI、Speechify、Fish Audio、装在你机器上的 [Kokoro-FastAPI](https://github.com/remsky/Kokoro-FastAPI) 或 [Fish Speech](https://github.com/fishaudio/fish-speech) 服务器、OpenAI 或任何 OpenAI 兼容服务器——旁边是 Zotero 自己的标准和高级，各自都有一个开关。[→ 服务商](#服务商)
+- 🗣️ **朗读播放器里更多语音**，每个服务商都是一个条目——Azure Speech、Cloudflare Workers AI、Speechify、Fish Audio、装在你机器上的 [Kokoro-FastAPI](https://github.com/remsky/Kokoro-FastAPI) 或 [Fish Speech](https://github.com/fishaudio/fish-speech) 服务器、OpenAI、Xiaomi MiMo 或任何 OpenAI 兼容服务器——旁边是 Zotero 自己的标准和高级，各自都有一个开关。[→ 服务商](#服务商)
 - 🔖 **从上次停下的地方接着读**——关掉文档，过些天再打开，按 `Shift+Space`，朗读就从你上次停下的那一句开始。[→ 从上次停下的地方接着读](#从上次停下的地方接着读)
 - 📄 **整句都在屏幕内**——读 PDF 时，一句话如果超出窗口底部、延伸到下一页或下一栏，会被滚动到可见范围内，而不是被截断在外，`Shift+Enter` 也能用同样的方式把它带回来。[→ 朗读](#朗读)
 - 📃 **翻页不漏行**——一句话跨到下一页、那一页的第一行本该被 Zotero 漏掉时，这一行照常朗读、照常高亮。[→ 朗读](#朗读)
@@ -53,14 +53,15 @@ Zotero-TTS 在 Zotero 10 的朗读（Read Aloud）里工作：每个服务商都
 | **Fish Audio** | 一个 fish.audio 的 API 密钥 · 官方语音、你自己克隆的语音，以及 Model ID，每种来源都有独立开关 · [教程](tutorials/fish-audio.zh.md) | 免费模型不花钱、不限量、不保证速度；付费模型每百万字节文本 15 美元，一个汉字算三个字节 | 逐词 |
 | **Kokoro-FastAPI** | 一台跑在本机或局域网里的服务器 · [教程](tutorials/kokoro-fastapi.zh.md) | 免费；CPU 也能跑，有 GPU 更快 | 逐词 |
 | **Fish Speech** | 一台跑在 24 GB 显卡上的 [fish-speech](https://github.com/fishaudio/fish-speech) 服务器，语音由你自己的录音克隆而来 · [教程](tutorials/fish-speech-server.zh.md) | 免费 | 逐句 |
-| **OpenAI 兼容服务器** | API 地址和模型；服务器若要密钥再加一个 | OpenAI 按字符计费；自建的服务器，例如 [Chatterbox](tutorials/chatterbox-tts-server.zh.md)，不花钱 | 逐句 |
-| **Xiaomi MiMo** | 一个 platform.xiaomimimo.com 的 API 密钥，在 OpenAI 那一节的**服务器**下拉框里选 | 限时免费 | 逐句 |
+| **OpenAI** | 一个 platform.openai.com 的 API 密钥 | 按字符计费 | 逐句 |
+| **Xiaomi MiMo** | 一个 platform.xiaomimimo.com 的 API 密钥 | 限时免费 | 逐句 |
+| **OpenAI Compatible** | 任何说 OpenAI 接口的服务器地址，服务器若要密钥再加一个：自建的 [Chatterbox](tutorials/chatterbox-tts-server.zh.md)、托管服务、OpenAI 的代理 | 服务器自己的价钱；自建的服务器不花钱 | 逐句 |
 | **系统语音** | 什么都不用——Windows 和 macOS | 免费、离线 | Windows 逐词，macOS 逐句 |
 | **Zotero 标准/高级** | 登录 Zotero 账户（编辑 → 设置 → 同步）；**Zotero** 这一节里每档各有一个开关，一开始都是开着的 | Zotero 自己的额度，在播放器里显示和购买 | 逐词 |
 
 播放器第一个下拉框列出眼下有语音的每一个已启用服务商，以及开关开着时 Zotero 自己的 **Zotero 标准**和 **Zotero 高级**，按名称排序。
 
-- **这些条目**是 Azure、Cloudflare、Fish Audio、Fish Speech、Kokoro、OpenAI（或者服务器自己的名字：Xiaomi MiMo、Chatterbox-TTS-Server）、Speechify、系统、Zotero 高级和 Zotero 标准；条目下面的语音各自带着自己的名字。
+- **这些条目**是 Azure、Cloudflare、Fish Audio、Fish Speech、Kokoro、OpenAI、OpenAI Compatible、Speechify、系统、Xiaomi MiMo、Zotero 高级和 Zotero 标准；条目下面的语音各自带着自己的名字。
 - **每个条目按语言各记住自己最后一个语音**：Kokoro → Fish → Kokoro，用的还是原来那个 Kokoro 语音。
 - **没有语音可提供的服务商**——关着、服务器没起来，或者只提供收藏的语音时自己一个都没收藏——在它又有语音之前都不会列出来。
 - **你正用着的条目不再提供语音时**，播放器会切到记住的那个语音所在的服务商；没有的话，切到默认语音所在的服务商；再没有，就切到第一个条目。
@@ -73,23 +74,20 @@ Zotero-TTS 在 Zotero 10 的朗读（Read Aloud）里工作：每个服务商都
 - API 密钥、网关请求头和 WebDAV 密码都是掩码显示的。它们和其他插件设置一样，以明文存在 Zotero 的首选项里，也会进入设置备份文件。
 
 <details>
-<summary><b>OpenAI 兼容服务器：各项怎么填</b></summary>
+<summary><b>OpenAI、Xiaomi MiMo 和 OpenAI Compatible：各项怎么填</b></summary>
 
-- **服务器**写明是哪一种服务器——*OpenAI*、*Chatterbox-TTS-Server*、*Xiaomi MiMo* 或*其他 OpenAI 兼容服务器*——并自动填上你上次配这种服务器时用的地址、模型、密钥、语音和请求头（第一次则用它的默认值，不会带上别的服务器的），这种服务器用不上的字段会置灰。
-- **API 地址**填服务器地址，带不带 `/v1` 都行。
-- **模型**填它认的名字；**测试连接**会取回服务器的模型列表，告诉你你填的那个在不在里面。
-- **语音**留空就用服务器提供的那些，也可以自己用逗号分隔列出语音 id。
-- **API 密钥**：有些服务器没有，那就留空；只有 api.openai.com 一定要。
+- **OpenAI** 和 **Xiaomi MiMo** 各有自己的一节：API 密钥、**模型**，以及**语音**——自己用逗号分隔列出语音 id，留空就用该服务自己的语音。它们的地址是固定的。
+- **OpenAI Compatible** 是给任何说 OpenAI 接口的其他服务器用的：你自己的 [Chatterbox](tutorials/chatterbox-tts-server.zh.md)、一个托管服务、OpenAI 的代理或镜像。**地址**填服务器地址，带不带 `/v1` 都行；**API 密钥**在服务器没有的时候可以留空；**模型**填服务器认的名字，**测试连接**会列出它有的模型；**语音**留空就用服务器自己的列表。一次只接一个服务器。
+- 三节都按句高亮——都不带词级时间戳。
 - Kokoro 请改用 **Kokoro-FastAPI** 那一节：逐词高亮是那条路才有的。
-- *Xiaomi MiMo* 用 platform.xiaomimimo.com 的密钥，**语音**留空时提供 MiMo 内置的中英文语音；它的语音不带逐词时间，所以按句高亮。
-- 选 *OpenAI* 或 *Xiaomi MiMo* 时，地址和官方域名只差一两个字母的会在发出任何请求之前当作拼写错误拒绝，其他地址照常测试，但会注明它不是官方地址——镜像或代理。
+- 以前三个服务器共用一节、用**服务器**下拉框选择时存的设置，会在插件第一次启动时分别挪进各自的新一节：当时选中的那个保留原来开着的开关，另外两个从关着开始；那时候做的设置备份，恢复时也按这个规则分。
 
 </details>
 
 <details>
 <summary><b>Cloudflare Tunnel 等网关</b></summary>
 
-把网关要的请求头填进**额外请求头**——OpenAI 那一节的，或者 Kokoro 就用 **Kokoro-FastAPI** 那一节的——写成 `名称: 值`，多个之间用 `;` 分隔，例如 `CF-Access-Client-Id: …; CF-Access-Client-Secret: …`。每个请求都会带上它们。[教程](tutorials/remote-access-cloudflare.zh.md)。
+把网关要的请求头填进**额外请求头**——OpenAI Compatible 那一节的，或者 Kokoro 就用 **Kokoro-FastAPI** 那一节的——写成 `名称: 值`，多个之间用 `;` 分隔，例如 `CF-Access-Client-Id: …; CF-Access-Client-Secret: …`。每个请求都会带上它们。[教程](tutorials/remote-access-cloudflare.zh.md)。
 
 </details>
 

@@ -1,13 +1,18 @@
 /* eslint-disable no-undef */
-pref('extensions.zotero.zotero-tts.openai.enabled', true);
-pref('extensions.zotero.zotero-tts.openai.apiKey', '');
-pref('extensions.zotero.zotero-tts.openai.baseURL', 'https://api.openai.com');
-pref('extensions.zotero.zotero-tts.openai.model', 'gpt-4o-mini-tts');
-pref('extensions.zotero.zotero-tts.openai.voice', 'alloy');
-pref('extensions.zotero.zotero-tts.openai.voices', '');
-pref('extensions.zotero.zotero-tts.openai.headers', '');
-pref('extensions.zotero.zotero-tts.openai.server', '');
-pref('extensions.zotero.zotero-tts.openai.presetValues', '');
+pref('extensions.zotero.zotero-tts.openai-official.enabled', true);
+pref('extensions.zotero.zotero-tts.openai-official.apiKey', '');
+pref('extensions.zotero.zotero-tts.openai-official.model', 'gpt-4o-mini-tts');
+pref('extensions.zotero.zotero-tts.openai-official.voices', '');
+pref('extensions.zotero.zotero-tts.mimo.enabled', false);
+pref('extensions.zotero.zotero-tts.mimo.apiKey', '');
+pref('extensions.zotero.zotero-tts.mimo.model', 'mimo-v2.5-tts');
+pref('extensions.zotero.zotero-tts.mimo.voices', '');
+pref('extensions.zotero.zotero-tts.compatible.enabled', false);
+pref('extensions.zotero.zotero-tts.compatible.baseURL', '');
+pref('extensions.zotero.zotero-tts.compatible.apiKey', '');
+pref('extensions.zotero.zotero-tts.compatible.model', '');
+pref('extensions.zotero.zotero-tts.compatible.voices', '');
+pref('extensions.zotero.zotero-tts.compatible.headers', '');
 pref('extensions.zotero.zotero-tts.azure.enabled', false);
 pref('extensions.zotero.zotero-tts.azure.apiKey', '');
 pref('extensions.zotero.zotero-tts.azure.region', 'eastasia');

@@ -11,25 +11,32 @@
 
 ## Provider sections (the OpenAI, Azure and Local engine headings are product names)
 
-ztts-field-server =
-    .value = Server
-ztts-server-other =
-    .label = Other OpenAI-compatible server
 ztts-field-api-key =
     .value = API key
-ztts-field-base-url =
-    .value = Base URL
 ztts-field-model =
     .value = Model
 ztts-field-voices =
     .value = Voices
-ztts-openai-voices-input =
-    .placeholder = auto-detect
+# The Voices field's placeholder: what an empty field offers (issue #113)
+ztts-voices-input-builtin =
+    .placeholder = built-in voices
+ztts-voices-input-server =
+    .placeholder = the server's own
 ztts-field-extra-headers =
     .value = Extra headers
 ztts-help-extra-headers =
     .value = ?
     .help = Only for a server reached remotely through Cloudflare Access: its service token as two headers, CF-Access-Client-Id: …; CF-Access-Client-Secret: … (see the Cloudflare tutorial in the README). Otherwise leave empty.
+# The three sections that speak OpenAI's API (issue #113)
+ztts-help-openai =
+    .value = ?
+    .help = The key and the model name come from platform.openai.com; OpenAI bills per character. Leave Voices empty for OpenAI's own voices, or list newer ones. Sentences are highlighted, not words. A proxy or mirror of OpenAI goes in the OpenAI Compatible section.
+ztts-help-mimo =
+    .value = ?
+    .help = The key comes from platform.xiaomimimo.com; free for now. Leave Voices empty for MiMo's built-in voices, Chinese and English, or list your own. Sentences are highlighted, not words.
+ztts-help-compatible =
+    .value = ?
+    .help = Any server that speaks OpenAI's API: Chatterbox-TTS-Server, a hosted service, a proxy of OpenAI. The address with or without /v1; a key only if the server wants one; the model as the server names it, and Test connection lists the ones it has. Leave Voices empty for the server's own voices. Sentences are highlighted, not words. One server at a time.
 ztts-test-connection =
     .label = Test connection
 ztts-field-region =
@@ -386,10 +393,6 @@ ztts-no-key = No API key set for this provider.
 ztts-key-rejected = The server rejected the API key. ({ $detail })
 ztts-cannot-connect = Cannot connect: { $detail }
 ztts-connection-failed = Connection failed: { $detail }
-ztts-not-tested = Not tested: { $reason }
-# The Base URL of a hosted preset on another host (core/server-presets.ts addressHintText)
-ztts-address-typo = { $host } looks like a typo of { $known }.
-ztts-address-different = { $host } is not { $known }: a mirror or a proxy?
 # After a settings restore: the providers it turned on, checked (issue #21)
 ztts-providers-checked =
     Checked { $count ->
@@ -402,13 +405,6 @@ ztts-providers-turned-off =
        *[other] each
     }.
 ztts-system-unsupported = System voices are available on Windows and macOS only; this build has no speech helper for Linux.
-
-## The ? beside the Server dropdown, one note per preset (core/server-presets.ts)
-
-ztts-preset-note-openai = Key and model from platform.openai.com; Voices may stay empty (OpenAI's own) or list newer ones. Extra headers are not needed for api.openai.com.
-ztts-preset-note-chatterbox = Chatterbox has no key, ignores the model and publishes its own voices: only the address matters, plus Extra headers behind a gateway.
-ztts-preset-note-mimo = Key from platform.xiaomimimo.com; free for now. Voices may stay empty for MiMo's built-in voices (Chinese and English) or list your own. Sentences are highlighted, not words: MiMo reports no word timings. Extra headers are not needed for api.xiaomimimo.com.
-ztts-preset-note-other = Fill in what the server wants; Test connection says which of these it uses.
 
 ## The voice browser (ui/voice-browser-rows.ts)
 

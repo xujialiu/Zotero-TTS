@@ -50,12 +50,12 @@ describe('configurable bracket pairs', () => {
     const synthesize = vi.fn(async () => ({ audio: new Blob(['audio']) }));
     const upcoming = vi.fn(() => ['【Following sentence】']);
     const remote = createRemoteInterface({
-      listCatalog: async () => [], getProvider: () => ({ id: 'openai', synthesize } as any),
+      listCatalog: async () => [], getProvider: () => ({ id: 'openai-official', synthesize } as any),
       getBracketPairs: () => pairs, cacheVersion: () => 'v1',
       cache: () => ({ match: async key => cache.get(key), put: async (key, value) => { cache.set(key, value); } }),
       getPrefetch: () => ({ enabled: true, count: 1 }), getUpcomingTexts: upcoming,
     });
-    await remote.getAudio({ text: '【Hello】' }, { id: 'openai::alloy' });
+    await remote.getAudio({ text: '【Hello】' }, { id: 'openai-official::alloy' });
     pairs = '<>';
     await vi.waitFor(() => expect(synthesize).toHaveBeenCalledTimes(2));
     expect(upcoming).toHaveBeenCalledWith('【Hello】', 1);
@@ -75,13 +75,13 @@ describe('configurable bracket pairs', () => {
     expect(settings.pairs(reader)).toBe('()');
     settings.dispose();
   });
-  it.each(['openai::alloy', 'native'])('passes cleaned text and restores cached ranges for %s', async id => {
+  it.each(['openai-official::alloy', 'native'])('passes cleaned text and restores cached ranges for %s', async id => {
     const raw = { audio: new Blob(['audio']), timestamps: [{ start: 0, end: 1, charStart: 0, charEnd: 5 }] };
     const synthesize = vi.fn(async () => raw);
     const nativeAudio = vi.fn(async () => raw);
     const cache = new Map();
     const remote = createRemoteInterface({
-      listCatalog: async () => [], getProvider: () => ({ id: 'openai', synthesize } as any),
+      listCatalog: async () => [], getProvider: () => ({ id: 'openai-official', synthesize } as any),
       getBracketPairs: () => '【】', cacheVersion: () => 'v1',
       cache: () => ({ match: async key => cache.get(key), put: async (key, value) => { cache.set(key, value); } }),
       native: () => ({ getAudio: nativeAudio } as any),

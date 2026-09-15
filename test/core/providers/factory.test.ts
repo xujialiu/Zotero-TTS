@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createProvider, getFishVoiceCacheStats } from '../../../src/core/providers/factory';
 import { SynthesisError } from '../../../src/core/providers/errors';
-import { PRESETS } from '../../../src/core/server-presets';
+import { MIMO_VOICES } from '../../../src/core/providers/mimo';
 import { DEFAULTS } from '../../../src/core/settings';
 
 const deps = {
@@ -12,9 +12,14 @@ const deps = {
 
 describe('createProvider', () => {
   it('builds the OpenAI provider', () => {
-    const p = createProvider('openai', DEFAULTS, deps);
-    expect(p.id).toBe('openai');
+    const p = createProvider('openai-official', DEFAULTS, deps);
+    expect(p.id).toBe('openai-official');
     expect(p.capabilities.wordTimestamps).toBe(false);
+  });
+
+  it('builds the Xiaomi MiMo and OpenAI Compatible providers (issue #113)', () => {
+    expect(createProvider('mimo', DEFAULTS, deps).id).toBe('mimo');
+    expect(createProvider('compatible', DEFAULTS, deps).id).toBe('compatible');
   });
 
   it('builds the Azure provider', () => {
@@ -76,36 +81,52 @@ describe('createProvider', () => {
   });
 });
 
-describe('OpenAI extra headers', () => {
-  it('hands the provider the headers typed into the settings', async () => {
+// The three sections that speak OpenAI's API (issue #113): each provider is
+// built from its own section, so nothing typed for one reaches another
+describe('the OpenAI, Xiaomi MiMo and OpenAI Compatible sections', () => {
+  it('sends the OpenAI section to api.openai.com with its key', async () => {
     const fetchImpl = vi.fn(async () => new Response(new Blob(['a']), { status: 200 }));
-    const settings = {
-      ...DEFAULTS,
-      openai: { ...DEFAULTS.openai, apiKey: '', baseURL: 'http://localhost:8004', headers: 'X-Token: abc; CF-Access-Client-Id: id' },
-    };
-    const p = createProvider('openai', settings, { ...deps, fetch: fetchImpl as unknown as typeof fetch });
-    await p.synthesize('Hello', { voice: 'Emily.wav', signal: new AbortController().signal });
-    expect((fetchImpl as any).mock.calls[0][1].headers).toMatchObject({ 'X-Token': 'abc', 'CF-Access-Client-Id': 'id' });
-    expect((fetchImpl as any).mock.calls[0][1].headers).not.toHaveProperty('Authorization');
+    const settings = { ...DEFAULTS, 'openai-official': { ...DEFAULTS['openai-official'], apiKey: 'sk-1' }, compatible: { ...DEFAULTS.compatible, baseURL: 'http://localhost:8004', headers: 'X-Token: abc' } };
+    await createProvider('openai-official', settings, { ...deps, fetch: fetchImpl as unknown as typeof fetch }).synthesize('Hello', { voice: 'alloy', signal: new AbortController().signal });
+    const [url, init] = (fetchImpl as any).mock.calls[0];
+    expect(url).toBe('https://api.openai.com/v1/audio/speech');
+    expect(init.headers).toMatchObject({ Authorization: 'Bearer sk-1' });
+    expect(init.headers).not.toHaveProperty('X-Token');
   });
-});
 
-describe('OpenAI server preset', () => {
-  it('does not send a key or a typed voice list to a server the preset says ignores them', async () => {
+  it('sends the Xiaomi MiMo section to api.xiaomimimo.com through chat completions, with its documented voices', async () => {
     const fetchImpl = vi.fn(async (url: string) =>
-      url.endsWith('/v1/audio/voices')
-        ? new Response(JSON.stringify({ voices: ['Emily.wav'] }), { status: 200 })
-        : new Response(new Blob(['a']), { status: 200 }),
+      url.endsWith('/v1/chat/completions')
+        ? new Response(JSON.stringify({ choices: [{ message: { audio: { data: btoa('mp3') } } }] }), { status: 200 })
+        : new Response('', { status: 404 }),
+    );
+    const settings = { ...DEFAULTS, mimo: { ...DEFAULTS.mimo, apiKey: 'k' }, compatible: { ...DEFAULTS.compatible, headers: 'CF-Access-Client-Id: other-server' } };
+    const p = createProvider('mimo', settings, { ...deps, fetch: fetchImpl as unknown as typeof fetch });
+    const result = await p.synthesize('Hello', { voice: '冰糖', signal: new AbortController().signal });
+    const [url, init] = (fetchImpl as any).mock.calls[0];
+    expect(url).toBe('https://api.xiaomimimo.com/v1/chat/completions');
+    expect(init.headers).toMatchObject({ Authorization: 'Bearer k' });
+    expect(init.headers).not.toHaveProperty('CF-Access-Client-Id');
+    expect(await result.audio.text()).toBe('mp3');
+    expect((await p.listVoices()).map((v) => v.id)).toEqual([...MIMO_VOICES]);
+  });
+
+  it('hands the OpenAI Compatible section its address and the headers typed, and goes without a key', async () => {
+    const fetchImpl = vi.fn(async (url: string) =>
+      url.endsWith('/v1/audio/voices') ? new Response(JSON.stringify({ voices: ['Emily.wav'] }), { status: 200 }) : new Response(new Blob(['a']), { status: 200 }),
     );
     const settings = {
       ...DEFAULTS,
-      openai: { ...DEFAULTS.openai, server: 'chatterbox', baseURL: 'http://localhost:8004', apiKey: 'stale-key', voices: 'alloy,echo' },
+      'openai-official': { ...DEFAULTS['openai-official'], apiKey: 'sk-openai' },
+      compatible: { ...DEFAULTS.compatible, baseURL: 'http://localhost:8004', headers: 'X-Token: abc; CF-Access-Client-Id: id' },
     };
-    const p = createProvider('openai', settings, { ...deps, fetch: fetchImpl as unknown as typeof fetch });
+    const p = createProvider('compatible', settings, { ...deps, fetch: fetchImpl as unknown as typeof fetch });
     await p.synthesize('Hello', { voice: 'Emily.wav', signal: new AbortController().signal });
-    expect((fetchImpl as any).mock.calls[0][1].headers).not.toHaveProperty('Authorization');
-    const voices = await p.listVoices();
-    expect(voices.map((v) => v.id)).toEqual(['Emily.wav']);
+    const [url, init] = (fetchImpl as any).mock.calls[0];
+    expect(url).toBe('http://localhost:8004/v1/audio/speech');
+    expect(init.headers).toMatchObject({ 'X-Token': 'abc', 'CF-Access-Client-Id': 'id' });
+    expect(init.headers).not.toHaveProperty('Authorization');
+    expect((await p.listVoices()).map((v) => v.id)).toEqual(['Emily.wav']);
   });
 });
 
@@ -115,29 +136,5 @@ describe('Local engine extra headers', () => {
     const settings = { ...DEFAULTS, local: { ...DEFAULTS.local, headers: 'CF-Access-Client-Id: id' } };
     await createProvider('local', settings, { ...deps, fetch: fetchImpl as unknown as typeof fetch }).listVoices();
     expect((fetchImpl as any).mock.calls[0][1].headers).toMatchObject({ 'CF-Access-Client-Id': 'id' });
-  });
-});
-
-// Xiaomi MiMo (issue #50): the preset's route and its documented voices reach the provider
-describe('the Xiaomi MiMo preset', () => {
-  it('hands the provider the chat completions route and the documented voices', async () => {
-    const fetchImpl = vi.fn(async (url: string) =>
-      url.endsWith('/v1/chat/completions')
-        ? new Response(JSON.stringify({ choices: [{ message: { audio: { data: btoa('mp3') } } }] }), { status: 200 })
-        : new Response('', { status: 404 }),
-    );
-    const settings = {
-      ...DEFAULTS,
-      openai: { ...DEFAULTS.openai, ...PRESETS.mimo.defaults, server: 'mimo', apiKey: 'k', headers: 'CF-Access-Client-Id: left-over' },
-    };
-    const p = createProvider('openai', settings, { ...deps, fetch: fetchImpl as unknown as typeof fetch });
-    const result = await p.synthesize('Hello', { voice: '冰糖', signal: new AbortController().signal });
-    const [url, init] = (fetchImpl as any).mock.calls[0];
-    expect(url).toBe('https://api.xiaomimimo.com/v1/chat/completions');
-    // The key goes; a gateway token left over from another server does not (issue #52)
-    expect(init.headers).toMatchObject({ Authorization: 'Bearer k' });
-    expect(init.headers).not.toHaveProperty('CF-Access-Client-Id');
-    expect(await result.audio.text()).toBe('mp3');
-    expect((await p.listVoices()).map((v) => v.id)).toEqual([...PRESETS.mimo.voices!]);
   });
 });

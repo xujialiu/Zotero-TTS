@@ -25,7 +25,7 @@ function harness(over: Partial<SettingsAutoUploadDeps> = {}) {
 
   const deps: SettingsAutoUploadDeps = {
     enabled: () => enabled,
-    keys: ['zotero-tts.openai.apiKey', 'zotero-tts.prefetch'],
+    keys: ['zotero-tts.openai-official.apiKey', 'zotero-tts.prefetch'],
     registerObserver: (name, handler) => {
       observers.set(name, handler);
       return name;
@@ -81,7 +81,7 @@ describe('createSettingsAutoUpload', () => {
     const h = harness();
     h.auto.start();
     expect(h.observers.size).toBe(2);
-    h.observers.get('zotero-tts.openai.apiKey')!();
+    h.observers.get('zotero-tts.openai-official.apiKey')!();
     expect(h.upload).not.toHaveBeenCalled();
     await h.advance(AUTO_UPLOAD_DEBOUNCE_MS);
     expect(h.upload).toHaveBeenCalledOnce();
@@ -167,7 +167,7 @@ describe('createSettingsAutoUpload', () => {
     h.auto.start();
     h.auto.changed();
     h.auto.stop();
-    expect(h.unregistered).toEqual(['zotero-tts.openai.apiKey', 'zotero-tts.prefetch']);
+    expect(h.unregistered).toEqual(['zotero-tts.openai-official.apiKey', 'zotero-tts.prefetch']);
     await h.advance(AUTO_UPLOAD_DEBOUNCE_MS * 2);
     expect(h.upload).not.toHaveBeenCalled();
     expect(h.auto.stats().watching).toBe(0);

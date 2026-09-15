@@ -10,7 +10,7 @@ can clone a voice from a short recording. What you give up: word timings (so
 Read Aloud highlights sentence by sentence), speed (a long sentence takes a
 few seconds), and it wants a real GPU.
 
-The plugin uses it through the **OpenAI** section of its settings.
+The plugin uses it through the **OpenAI Compatible** section of its settings.
 
 ## GPU only
 
@@ -111,20 +111,21 @@ writes a playable `test.mp3`.
 
 ## 5. Point the plugin at it
 
-Zotero → Settings → Zotero-TTS → **OpenAI** section:
+Zotero → Settings → Zotero-TTS → **OpenAI Compatible** section:
 
 | Field | Value |
 |---|---|
-| Enable OpenAI voices | on |
-| Server | **Chatterbox-TTS-Server** — this fills in the address and grays out key, model and voices, which Chatterbox ignores |
-| Base URL | `http://localhost:8004` (filled in by the preset; change it for another machine) |
+| Address | `http://localhost:8004` (another machine's address for a server elsewhere) |
+| API key | empty — Chatterbox has none |
+| Model | anything, `tts-1` say — Chatterbox ignores it |
+| Voices | empty — the server's own voices are listed |
 | Extra headers | empty (only needed behind a gateway, see the Cloudflare tutorial) |
 
 **Test connection** answers `Connected. 28 voices available. Synthesis
-works.` In Read Aloud's *Local* tier the voices appear as
-`OpenAI-Emily.wav`, `OpenAI-Henry.wav`, and so on. Highlighting is
-per sentence whatever the *Highlight current* setting says, since the server
-reports no word timings.
+works.`, then **Enable**. In the player's first dropdown the voices sit
+under **OpenAI Compatible** as `Emily.wav`, `Henry.wav`, and so on.
+Highlighting is per sentence whatever the *Highlight current* setting
+says, since the server reports no word timings.
 
 ## Languages
 
@@ -185,7 +186,7 @@ docker compose up -d --build
   plugin this points at something else, such as a sentence that hit the
   plugin's 60-second synthesis limit.
 - **The Test connection says the server rejected the API key**: it answered
-  401 or 403. Locally that means the Base URL points at something else on
+  401 or 403. Locally that means the Address points at something else on
   that port; behind Cloudflare Access it means the headers are missing.
 - **Using it from another machine**: [Reaching your TTS server from anywhere
   with Cloudflare](remote-access-cloudflare.md).

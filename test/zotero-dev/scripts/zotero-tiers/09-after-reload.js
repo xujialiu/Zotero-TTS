@@ -52,7 +52,7 @@
     const t2 = Date.now();
     while (Date.now() - t2 < 15000) {
       win = Services.wm.getMostRecentWindow('zotero:pref');
-      if (win && win.document.getElementById('ztts-openai-server')) break;
+      if (win && win.document.getElementById('ztts-provider-openai-official')) break;
       await sleep(200);
     }
     if (!win) throw new Error('settings window never reappeared after the reinstall');

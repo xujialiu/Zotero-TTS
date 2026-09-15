@@ -1,4 +1,4 @@
-export type ProviderId = 'openai' | 'azure' | 'cloudflare' | 'speechify' | 'fish' | 'fishspeech' | 'local' | 'system';
+export type ProviderId = 'openai-official' | 'mimo' | 'compatible' | 'azure' | 'cloudflare' | 'speechify' | 'fish' | 'fishspeech' | 'local' | 'system';
 
 /**
  * Shape copied verbatim from native Zotero (spec §2.2), so hijack mode

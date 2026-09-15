@@ -14,7 +14,7 @@ opens the window on the pane it last showed — the General pane on a fresh
 profile — whatever paneId it is given, so navigate regardless:
 `await win.Zotero_Preferences.navigateToPane('zotero-tts-pane')` on
 `win = Services.wm.getMostRecentWindow('zotero:pref')` and wait until
-`win.document.getElementById('ztts-openai-server')` exists. The pane is
+`win.document.getElementById('ztts-provider-openai-official')` exists. The pane is
 that window's `document`; the element ids are in
 `addon/content/preferences.xhtml` and `src/ui/*-rows.ts`. `button.click()`
 fires the XUL `command`. Wait for the voice browser's status line to leave

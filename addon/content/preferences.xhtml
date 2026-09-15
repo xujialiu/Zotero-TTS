@@ -122,7 +122,7 @@
       <html:input type="text" preference="extensions.zotero.zotero-tts.fishspeech.baseURL"/>
       <label class="ztts-help" value="?" data-l10n-id="ztts-help-fish-speech" data-l10n-attrs="help"/>
     </hbox>
-    <!-- Same format as the OpenAI section's, and masked for the same
+    <!-- Same format as the OpenAI Compatible section's, and masked for the same
          reason: a gateway's token, or the server's own api key as a bearer. -->
     <hbox align="center">
       <label data-l10n-id="ztts-field-extra-headers" class="ztts-field-label"/>
@@ -145,7 +145,7 @@
       <label data-l10n-id="ztts-field-address" class="ztts-field-label"/>
       <html:input type="text" preference="extensions.zotero.zotero-tts.local.baseURL"/>
     </hbox>
-    <!-- Same format as the OpenAI section's, and masked for the same
+    <!-- Same format as the OpenAI Compatible section's, and masked for the same
          reason: for a gateway in front of the server, e.g. a Cloudflare
          Access service token. -->
     <hbox align="center">
@@ -160,42 +160,53 @@
     </hbox>
   </groupbox>
 
-  <groupbox id="ztts-provider-openai">
-    <label><html:h2>OpenAI</html:h2></label>
-    <!-- Not bound with preference=: server-preset-rows.ts writes the choice
-         and the preset's defaults, grays out the fields the server ignores,
-         and puts the preset's note into the ? beside the dropdown (its
-         `help` attribute). The ? icons are styled by preferences.css. -->
+  <!-- The three sections that speak OpenAI's API (issue #113), each its own
+       provider: OpenAI itself and Xiaomi MiMo at their fixed addresses, and
+       OpenAI Compatible for any other server that speaks it. -->
+  <groupbox id="ztts-provider-openai-official">
+    <label><html:h2>OpenAI (<label is="zotero-text-link" href="https://platform.openai.com">platform.openai.com</label>)</html:h2></label>
     <hbox align="center">
-      <label data-l10n-id="ztts-field-server" class="ztts-field-label"/>
-      <menulist id="ztts-openai-server">
-        <menupopup>
-          <menuitem value="openai" label="OpenAI"/>
-          <menuitem value="chatterbox" label="Chatterbox-TTS-Server"/>
-          <menuitem value="mimo" label="Xiaomi MiMo"/>
-          <menuitem value="other" data-l10n-id="ztts-server-other"/>
-        </menupopup>
-      </menulist>
-      <label id="ztts-openai-server-help" class="ztts-help" value="?"/>
+      <label data-l10n-id="ztts-field-api-key" class="ztts-field-label"/>
+      <html:input type="password" preference="extensions.zotero.zotero-tts.openai-official.apiKey"/>
+      <label class="ztts-help" value="?" data-l10n-id="ztts-help-openai" data-l10n-attrs="help"/>
+    </hbox>
+    <!-- Free text: Test connection fills the datalist with the account's model list. -->
+    <hbox align="center">
+      <label data-l10n-id="ztts-field-model" class="ztts-field-label"/>
+      <html:input type="text" list="ztts-openai-official-models" preference="extensions.zotero.zotero-tts.openai-official.model"/>
+      <html:datalist id="ztts-openai-official-models"/>
+    </hbox>
+    <hbox align="center">
+      <label data-l10n-id="ztts-field-voices" class="ztts-field-label"/>
+      <html:input type="text" data-l10n-id="ztts-voices-input-builtin" preference="extensions.zotero.zotero-tts.openai-official.voices"/>
+    </hbox>
+    <hbox align="center">
+      <button id="ztts-enable-openai-official"/>
+      <button id="ztts-test-openai-official" data-l10n-id="ztts-test-connection"/>
+      <description id="ztts-test-result-openai-official"/>
+    </hbox>
+  </groupbox>
+  <groupbox id="ztts-provider-compatible">
+    <label><html:h2>OpenAI Compatible</html:h2></label>
+    <hbox align="center">
+      <label data-l10n-id="ztts-field-address" class="ztts-field-label"/>
+      <html:input type="text" placeholder="http://localhost:8004" preference="extensions.zotero.zotero-tts.compatible.baseURL"/>
+      <label class="ztts-help" value="?" data-l10n-id="ztts-help-compatible" data-l10n-attrs="help"/>
     </hbox>
     <hbox align="center">
       <label data-l10n-id="ztts-field-api-key" class="ztts-field-label"/>
-      <html:input id="ztts-openai-apiKey" type="password" preference="extensions.zotero.zotero-tts.openai.apiKey"/>
-    </hbox>
-    <hbox align="center">
-      <label data-l10n-id="ztts-field-base-url" class="ztts-field-label"/>
-      <html:input id="ztts-openai-baseURL" type="text" preference="extensions.zotero.zotero-tts.openai.baseURL"/>
+      <html:input type="password" preference="extensions.zotero.zotero-tts.compatible.apiKey"/>
     </hbox>
     <!-- Free text: any OpenAI-compatible server names its models as it
          likes. Test connection fills the datalist with the server's list. -->
     <hbox align="center">
       <label data-l10n-id="ztts-field-model" class="ztts-field-label"/>
-      <html:input id="ztts-openai-model" type="text" list="ztts-openai-models" preference="extensions.zotero.zotero-tts.openai.model"/>
-      <html:datalist id="ztts-openai-models"/>
+      <html:input type="text" list="ztts-compatible-models" preference="extensions.zotero.zotero-tts.compatible.model"/>
+      <html:datalist id="ztts-compatible-models"/>
     </hbox>
     <hbox align="center">
       <label data-l10n-id="ztts-field-voices" class="ztts-field-label"/>
-      <html:input id="ztts-openai-voices" type="text" data-l10n-id="ztts-openai-voices-input" preference="extensions.zotero.zotero-tts.openai.voices"/>
+      <html:input type="text" data-l10n-id="ztts-voices-input-server" preference="extensions.zotero.zotero-tts.compatible.voices"/>
     </hbox>
     <!-- For a gateway in front of a keyless server, e.g. a Cloudflare Access
          service token: "CF-Access-Client-Id: ...; CF-Access-Client-Secret: ..."
@@ -206,13 +217,13 @@
          placeholder is the format, the same in every language. -->
     <hbox align="center">
       <label data-l10n-id="ztts-field-extra-headers" class="ztts-field-label"/>
-      <html:input id="ztts-openai-headers" type="password" placeholder="Name: value; Name: value" preference="extensions.zotero.zotero-tts.openai.headers"/>
+      <html:input type="password" placeholder="Name: value; Name: value" preference="extensions.zotero.zotero-tts.compatible.headers"/>
       <label class="ztts-help" value="?" data-l10n-id="ztts-help-extra-headers" data-l10n-attrs="help"/>
     </hbox>
     <hbox align="center">
-      <button id="ztts-enable-openai"/>
-      <button id="ztts-test-openai" data-l10n-id="ztts-test-connection"/>
-      <description id="ztts-test-result-openai"/>
+      <button id="ztts-enable-compatible"/>
+      <button id="ztts-test-compatible" data-l10n-id="ztts-test-connection"/>
+      <description id="ztts-test-result-compatible"/>
     </hbox>
   </groupbox>
 
@@ -261,6 +272,28 @@
        wires like a provider's section (ids ztts-provider-zotero-standard
        and -premium, with no fields to lock). Off, the tier is hidden from
        the player, the voice browser and the language dropdown. -->
+  <groupbox id="ztts-provider-mimo">
+    <label><html:h2>Xiaomi MiMo (<label is="zotero-text-link" href="https://platform.xiaomimimo.com">platform.xiaomimimo.com</label>)</html:h2></label>
+    <hbox align="center">
+      <label data-l10n-id="ztts-field-api-key" class="ztts-field-label"/>
+      <html:input type="password" preference="extensions.zotero.zotero-tts.mimo.apiKey"/>
+      <label class="ztts-help" value="?" data-l10n-id="ztts-help-mimo" data-l10n-attrs="help"/>
+    </hbox>
+    <hbox align="center">
+      <label data-l10n-id="ztts-field-model" class="ztts-field-label"/>
+      <html:input type="text" list="ztts-mimo-models" preference="extensions.zotero.zotero-tts.mimo.model"/>
+      <html:datalist id="ztts-mimo-models"/>
+    </hbox>
+    <hbox align="center">
+      <label data-l10n-id="ztts-field-voices" class="ztts-field-label"/>
+      <html:input type="text" data-l10n-id="ztts-voices-input-builtin" preference="extensions.zotero.zotero-tts.mimo.voices"/>
+    </hbox>
+    <hbox align="center">
+      <button id="ztts-enable-mimo"/>
+      <button id="ztts-test-mimo" data-l10n-id="ztts-test-connection"/>
+      <description id="ztts-test-result-mimo"/>
+    </hbox>
+  </groupbox>
   <groupbox id="ztts-zotero-section">
     <label><html:h2>Zotero</html:h2></label>
     <hbox align="center">

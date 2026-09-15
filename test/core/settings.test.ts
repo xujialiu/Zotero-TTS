@@ -64,7 +64,7 @@ describe('loadSettings', () => {
   // Providers are switched on independently; there is no single "provider"
   it('has no provider field either — each provider carries its own enabled flag', () => {
     expect('provider' in DEFAULTS).toBe(false);
-    expect(DEFAULTS.openai.enabled).toBe(true);
+    expect(DEFAULTS['openai-official'].enabled).toBe(true);
     expect(DEFAULTS.azure.enabled).toBe(false);
     expect(DEFAULTS.local.enabled).toBe(false);
   });
@@ -149,9 +149,11 @@ describe('hiddenZoteroTiers', () => {
 
 describe('enabledProviders', () => {
   it('lists the switched-on providers in catalog order', () => {
-    expect(enabledProviders(DEFAULTS)).toEqual(['openai']);
+    expect(enabledProviders(DEFAULTS)).toEqual(['openai-official']);
     const all = {
       ...DEFAULTS,
+      mimo: { ...DEFAULTS.mimo, enabled: true },
+      compatible: { ...DEFAULTS.compatible, enabled: true },
       azure: { ...DEFAULTS.azure, enabled: true },
       cloudflare: { ...DEFAULTS.cloudflare, enabled: true },
       speechify: { ...DEFAULTS.speechify, enabled: true },
@@ -161,7 +163,7 @@ describe('enabledProviders', () => {
       system: { ...DEFAULTS.system, enabled: true },
     };
     expect(enabledProviders(all)).toEqual(PROVIDER_IDS);
-    expect(enabledProviders({ ...all, openai: { ...DEFAULTS.openai, enabled: false } })).toEqual(['azure', 'cloudflare', 'speechify', 'fish', 'fishspeech', 'local', 'system']);
+    expect(enabledProviders({ ...all, 'openai-official': { ...DEFAULTS['openai-official'], enabled: false } })).toEqual(['mimo', 'compatible', 'azure', 'cloudflare', 'speechify', 'fish', 'fishspeech', 'local', 'system']);
   });
 });
 
@@ -182,7 +184,7 @@ describe('migrateLegacyProviderPref', () => {
     const prefs = fakePrefs({ [key('provider')]: 'azure' });
     expect(migrateLegacyProviderPref(prefs)).toBe(true);
     expect(loadSettings(prefs).azure.enabled).toBe(true);
-    expect(loadSettings(prefs).openai.enabled).toBe(false);
+    expect(loadSettings(prefs)['openai-official'].enabled).toBe(false);
     expect(loadSettings(prefs).local.enabled).toBe(false);
     expect(prefs.clear).toHaveBeenCalledWith(key('provider'));
     expect(key('provider') in prefs.store).toBe(false);
@@ -203,7 +205,7 @@ describe('migrateLegacyProviderPref', () => {
   });
 
   it('blanks the old pref when the backend cannot clear it', () => {
-    const store: Record<string, unknown> = { [key('provider')]: 'openai' };
+    const store: Record<string, unknown> = { [key('provider')]: 'openai-official' };
     const prefs: PrefsBackend = { get: (k) => store[k], set: (k, v) => void (store[k] = v) };
     expect(migrateLegacyProviderPref(prefs)).toBe(true);
     expect(store[key('provider')]).toBe('');
@@ -325,10 +327,18 @@ describe('readAloud favorites', () => {
 // and read by nothing: readAloud.multilingualEverywhere (1.6.0) and
 // readAloud.hideZoteroLocalVoices (issue #17, hiding is unconditional)
 
-describe('openai.server', () => {
-  it('is empty by default (guess from the address) and reads the stored choice', () => {
-    expect(loadSettings(fakePrefs()).openai.server).toBe('');
-    expect(loadSettings(fakePrefs({ [PREF_PREFIX + 'openai.server']: 'chatterbox' })).openai.server).toBe('chatterbox');
+// Issue #113: the one OpenAI section of 1.12.11 became three, none of them
+// under the old `openai` prefix (core/openai-split.ts reads that, once)
+describe('the three sections that speak OpenAI’s API', () => {
+  it('are openai-official, mimo and compatible, and no section is called openai', () => {
+    expect(Object.keys(DEFAULTS)).not.toContain('openai');
+    expect(PROVIDER_IDS.slice(0, 3)).toEqual(['openai-official', 'mimo', 'compatible']);
+    expect(DEFAULTS['openai-official']).toEqual({ enabled: true, apiKey: '', model: 'gpt-4o-mini-tts', voices: '' });
+    expect(DEFAULTS.mimo).toEqual({ enabled: false, apiKey: '', model: 'mimo-v2.5-tts', voices: '' });
+    expect(DEFAULTS.compatible).toEqual({ enabled: false, baseURL: '', apiKey: '', model: '', voices: '', headers: '' });
+    const stored = loadSettings(fakePrefs({ [PREF_PREFIX + 'compatible.baseURL']: 'http://localhost:8004', [PREF_PREFIX + 'openai.server']: 'chatterbox' }));
+    expect(stored.compatible.baseURL).toBe('http://localhost:8004');
+    expect('openai' in stored).toBe(false);
   });
 });
 

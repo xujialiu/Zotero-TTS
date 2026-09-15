@@ -1,3 +1,4 @@
+import { convertLegacySettings } from './openai-split';
 import { DEFAULTS, loadSettings, PREF_PREFIX, type PrefsBackend, type Settings } from './settings';
 
 /**
@@ -108,7 +109,9 @@ export function parseBackup(text: string): ParsedBackup {
   }
   const settings: FlatSettings = {};
   const ignored: string[] = [];
-  for (const [key, raw] of Object.entries(backup.settings)) {
+  // TEMPORARY (issue #113, deleted in 2.0.0 with core/openai-split.ts): a
+  // file from before the split holds one OpenAI section; read as three
+  for (const [key, raw] of Object.entries(convertLegacySettings(backup.settings))) {
     const like = KNOWN[key];
     const value = like === undefined ? undefined : coerceSetting(raw, like);
     if (value === undefined) ignored.push(key);

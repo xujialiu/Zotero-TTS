@@ -7,9 +7,10 @@ import { createFishSpeechProvider } from './fishspeech';
 import { SynthesisError } from './errors';
 import { getLocalEngine } from './local/registry';
 import { createOpenAIProvider } from './openai';
+import { createMiMoProvider } from './mimo';
+import { createCompatibleProvider } from './compatible';
 import { createSystemProvider, type SystemProviderDeps } from './system';
 import { parseHeaderList } from '../headers';
-import { applyPreset, presetSpec } from '../server-presets';
 import type { ProviderId, TTSProvider } from './types';
 
 export type ProviderDeps = {
@@ -50,17 +51,16 @@ export function getFishVoiceCacheStats(fetchImpl: typeof fetch): FishVoiceCacheS
 /** Build one provider from its section of the settings; enabled or not, the settings only say how to reach it. */
 export function createProvider(id: ProviderId, settings: Settings, deps: ProviderDeps): TTSProvider {
   switch (id) {
-    case 'openai': {
-      // The preset blanks what the chosen server does not read, so a key or
-      // voice list left over from another server is never sent; it also
-      // says how the server synthesizes and which voices it documents.
-      const openai = applyPreset(settings.openai);
-      const preset = presetSpec(settings.openai);
-      return createOpenAIProvider(
-        { ...openai, headers: parseHeaderList(openai.headers), synthesis: preset.synthesis, defaultVoices: preset.voices },
-        { fetch: deps.fetch },
-      );
-    }
+    // The three sections that speak OpenAI's API (issue #113), each with
+    // its own settings: nothing typed for one is ever sent to another
+    case 'openai-official':
+      return createOpenAIProvider(settings['openai-official'], { fetch: deps.fetch });
+
+    case 'mimo':
+      return createMiMoProvider(settings.mimo, { fetch: deps.fetch });
+
+    case 'compatible':
+      return createCompatibleProvider({ ...settings.compatible, headers: parseHeaderList(settings.compatible.headers) }, { fetch: deps.fetch });
 
     case 'azure':
       return createAzureProvider(settings.azure, deps);

@@ -4,25 +4,32 @@
 
 ## Provider sections
 
-ztts-field-server =
-    .value = 服务器
-ztts-server-other =
-    .label = 其他 OpenAI 兼容服务器
 ztts-field-api-key =
     .value = API 密钥
-ztts-field-base-url =
-    .value = API 地址
 ztts-field-model =
     .value = 模型
 ztts-field-voices =
     .value = 语音
-ztts-openai-voices-input =
-    .placeholder = 自动检测
+# 语音框的占位提示：留空时提供什么（issue #113）
+ztts-voices-input-builtin =
+    .placeholder = 内置语音
+ztts-voices-input-server =
+    .placeholder = 服务器自带的语音
 ztts-field-extra-headers =
     .value = 额外请求头
 ztts-help-extra-headers =
     .value = ?
     .help = 只在服务器通过 Cloudflare Access 远程访问时需要：把它的服务令牌写成两个请求头，CF-Access-Client-Id: …; CF-Access-Client-Secret: …（见 README 里的 Cloudflare 教程）。其他情况留空。
+# 说 OpenAI 接口的三节（issue #113）
+ztts-help-openai =
+    .value = ?
+    .help = 密钥和模型名来自 platform.openai.com；OpenAI 按字符计费。语音留空则用 OpenAI 自己的语音，也可填写更新的语音。按句高亮，不逐词。OpenAI 的代理或镜像请填在 OpenAI Compatible 一节。
+ztts-help-mimo =
+    .value = ?
+    .help = 密钥来自 platform.xiaomimimo.com；目前免费。语音留空则用 MiMo 内置的中英文语音，也可填写你自己的。按句高亮，不逐词。
+ztts-help-compatible =
+    .value = ?
+    .help = 任何说 OpenAI 接口的服务器：Chatterbox-TTS-Server、托管服务、OpenAI 的代理。地址带不带 /v1 都行；密钥只在服务器需要时填；模型按服务器的叫法填，测试连接会列出它有的模型。语音留空则用服务器自带的语音。按句高亮，不逐词。一次一个服务器。
 ztts-test-connection =
     .label = 测试连接
 ztts-field-region =
@@ -366,19 +373,9 @@ ztts-no-key = 此服务商没有设置 API 密钥。
 ztts-key-rejected = 服务器拒绝了 API 密钥。({ $detail })
 ztts-cannot-connect = 无法连接：{ $detail }
 ztts-connection-failed = 连接失败：{ $detail }
-ztts-not-tested = 未测试：{ $reason }
-ztts-address-typo = { $host } 像是 { $known } 的笔误。
-ztts-address-different = { $host } 不是 { $known }：镜像还是代理？
 ztts-providers-checked = 已检查 { $count } 个服务商：全部正常。
 ztts-providers-turned-off = 已停用 { $named }（共 { $count } 个）：恢复的设置在这台电脑上不可用，见各自旁边的提示。
 ztts-system-unsupported = 系统语音只在 Windows 和 macOS 上可用；此构建没有 Linux 的语音助手程序。
-
-## The ? beside the Server dropdown
-
-ztts-preset-note-openai = 密钥和模型来自 platform.openai.com；语音可留空（用 OpenAI 自己的）或填写更新的语音。api.openai.com 不需要额外请求头。
-ztts-preset-note-chatterbox = Chatterbox 没有密钥，忽略模型，并发布自己的语音：只有地址重要，经网关访问时再加额外请求头。
-ztts-preset-note-mimo = 密钥来自 platform.xiaomimimo.com；目前免费。语音可留空（用 MiMo 内置的中英文语音）或填写你自己的。按句高亮而非逐词：MiMo 不报告单词时间。api.xiaomimimo.com 不需要额外请求头。
-ztts-preset-note-other = 填写服务器需要的项；测试连接会告诉你它用到哪些。
 
 ## The voice browser
 

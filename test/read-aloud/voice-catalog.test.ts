@@ -39,7 +39,7 @@ describe('voice id encoding', () => {
 // provider's, since `local` is Zotero's own tier: its engine's name, lower-cased.
 describe('tierForProvider', () => {
   it('keys every provider by its id, and the local engine by its name', () => {
-    expect(tierForProvider('openai')).toBe('openai');
+    expect(tierForProvider('openai-official')).toBe('openai-official');
     expect(tierForProvider('azure')).toBe('azure');
     expect(tierForProvider('cloudflare')).toBe('cloudflare');
     expect(tierForProvider('speechify')).toBe('speechify');
@@ -60,7 +60,7 @@ describe('tierForProvider', () => {
   // OpenAI section's server preset changes the label, never the key, so
   // the memory kept under `openai` survives a switch of server
   it('ignores a name for every provider but local', () => {
-    expect(tierForProvider('openai', 'Xiaomi MiMo')).toBe('openai');
+    expect(tierForProvider('openai-official', 'Xiaomi MiMo')).toBe('openai-official');
     expect(tierForProvider('azure', 'Kokoro')).toBe('azure');
   });
 });
@@ -91,10 +91,13 @@ describe('providerTierLabel', () => {
     expect(providerTierLabel('local')).toBe('Local');
   });
 
-  it('names the OpenAI section after its server when the preset has a name of its own', () => {
-    expect(providerTierLabel('openai')).toBe('OpenAI');
-    expect(providerTierLabel('openai', { openaiServer: 'Xiaomi MiMo' })).toBe('Xiaomi MiMo');
-    expect(providerTierLabel('openai', { openaiServer: '' })).toBe('OpenAI');
+  // Issue #113: three sections speak OpenAI's API, each an entry with a fixed
+  // name; OpenAI Compatible keeps its English name in every language
+  it('names the three OpenAI-API sections by fixed names', () => {
+    expect(providerTierLabel('openai-official')).toBe('OpenAI');
+    expect(providerTierLabel('mimo')).toBe('Xiaomi MiMo');
+    expect(providerTierLabel('compatible')).toBe('OpenAI Compatible');
+    expect(providerTierLabel('openai-official', { localEngine: 'Kokoro' })).toBe('OpenAI');
   });
 
   // Translated like the pane's heading (系统 in zh-CN), through the plugin's strings
@@ -123,7 +126,7 @@ describe('compareVoiceLabels', () => {
 describe('buildVoicesResponse', () => {
   const entries = [
     {
-      provider: 'openai' as const,
+      provider: 'openai-official' as const,
       voices: [{ id: 'nova', label: 'nova', locale: MULTILINGUAL }, { id: 'alloy', label: 'alloy', locale: MULTILINGUAL }],
     },
     {
@@ -177,7 +180,7 @@ describe('buildVoicesResponse', () => {
     const xiaoxiao = configs().find((c) => labelOf(c) === '晓晓 多语言');
     expect(xiaoxiao.locales).toEqual({ mul: [encodeVoiceId('azure', 'zh-CN-XiaoxiaoMultilingualNeural')] });
     const alloy = configs().find((c) => labelOf(c) === 'alloy');
-    expect(alloy.locales).toEqual({ mul: [encodeVoiceId('openai', 'alloy')] });
+    expect(alloy.locales).toEqual({ mul: [encodeVoiceId('openai-official', 'alloy')] });
   });
 
   // The provider's name is the dropdown entry the voice sits under (issue
@@ -200,7 +203,7 @@ describe('buildVoicesResponse', () => {
   });
 
   it('produces no tier at all when there are no voices', () => {
-    expect(buildVoicesResponse([{ provider: 'openai', voices: [] }], 'v1')).toEqual({});
+    expect(buildVoicesResponse([{ provider: 'openai-official', voices: [] }], 'v1')).toEqual({});
     expect(buildVoicesResponse([], 'v1')).toEqual({});
   });
 });
@@ -208,7 +211,7 @@ describe('buildVoicesResponse', () => {
 describe('multilingual locales', () => {
   const entries = [
     {
-      provider: 'openai' as const,
+      provider: 'openai-official' as const,
       voices: [{ id: 'Emily.wav', label: 'Emily.wav', locale: MULTILINGUAL }],
     },
     {

@@ -65,7 +65,7 @@ describe('migrateChoices', () => {
   });
 
   it('touches only the entries that named a system voice', () => {
-    const voices = { en: { voice: DAVID }, mul: { voice: 'openai::alloy', speed: 2 } };
+    const voices = { en: { voice: DAVID }, mul: { voice: 'openai-official::alloy', speed: 2 } };
     const result = migrateChoices(voices, EMPTY_MEMORY, INSTALLED);
     expect(result.voices!.mul).toBe(voices.mul);
     expect(result.voices!.en).not.toBe(voices.en);

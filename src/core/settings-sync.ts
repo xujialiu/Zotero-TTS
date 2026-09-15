@@ -1,4 +1,4 @@
-import { PRESET_FIELDS, parsePresetValues, SERVER_PRESETS, type PresetValues } from './server-presets';
+import { convertLegacyItems } from './openai-split';
 import { DEFAULTS, PREF_PREFIX, SWITCH_IDS, type PrefsBackend, type SwitchId } from './settings';
 import { coerceSetting, flattenSettings, type FlatSettings, type SettingValue } from './settings-backup';
 
@@ -26,6 +26,12 @@ import { coerceSetting, flattenSettings, type FlatSettings, type SettingValue } 
  * file nor applied from it, so a Kokoro on this computer's Docker and a
  * Chatterbox on that one's stay where they are (the owner's rule,
  * 2026-09-10: a LAN address is a local one, no exceptions).
+ *
+ * A file written by a copy from before the OpenAI section was split
+ * (issue #113) carries that section's `openai.*` items; they are read
+ * through core/openai-split.ts, which derives the three sections' items
+ * from them, each with the time of the item it came from, and are left in
+ * the file for the copies still on that version.
  *
  * The stamps live in an undeclared pref, `webdav.syncState`, deliberately
  * outside DEFAULTS like `webdav.machineId`: the backup set is exactly
@@ -76,9 +82,7 @@ export function neverSynced(key: string): boolean {
 export const SYNCABLE_KEYS: readonly string[] = Object.keys(KNOWN_DEFAULTS).filter((key) => !neverSynced(key));
 
 /** The provider sections whose address decides whether they travel, and the key that holds it. */
-export const ADDRESSED_SECTIONS: Readonly<Record<string, string>> = { openai: 'openai.baseURL', local: 'local.baseURL' };
-
-const PRESET_VALUES_KEY = 'openai.presetValues';
+export const ADDRESSED_SECTIONS: Readonly<Record<string, string>> = { compatible: 'compatible.baseURL', local: 'local.baseURL' };
 
 /** `openai` for `openai.apiKey`; the key itself when it has no dot (`prefetch`). */
 export function sectionOf(key: string): string {
@@ -158,12 +162,18 @@ export function isLocalAddress(raw: string): boolean {
   return /\.(local|lan|home|internal|localdomain)$/.test(host);
 }
 
-/** The provider sections a set of values puts at a local address; a set without the address key (the file's) holds none for it. */
+/**
+ * The provider sections a set of values puts at a local address; a set
+ * without the address key (the file's) holds none for it, and neither does
+ * an empty address — a section not configured yet has no server to be
+ * local, and holding it would keep a fresh machine from ever receiving one
+ * (issue #113: OpenAI Compatible starts with no address).
+ */
 export function heldSections(values: Partial<FlatSettings>): Set<string> {
   const held = new Set<string>();
   for (const [section, addressKey] of Object.entries(ADDRESSED_SECTIONS)) {
     const address = values[addressKey];
-    if (typeof address === 'string' && isLocalAddress(address)) held.add(section);
+    if (typeof address === 'string' && address.trim() !== '' && isLocalAddress(address)) held.add(section);
   }
   return held;
 }
@@ -214,7 +224,9 @@ export function parseSharedSettings(text: string): SharedItem[] {
       `The shared settings file on the server is version ${parsed.version}; this build reads up to ${SHARED_SETTINGS_VERSION}. Update Zotero-TTS on this computer.`,
     );
   }
-  return parsed.items.map(asItem).filter((item): item is SharedItem => item !== null);
+  // TEMPORARY (issue #113, deleted in 2.0.0 with core/openai-split.ts): the
+  // items of a copy from before the split, read as the three sections'
+  return convertLegacyItems(parsed.items.map(asItem).filter((item): item is SharedItem => item !== null));
 }
 
 // ---- This machine's record ----------------------------------------------------
@@ -285,41 +297,6 @@ export function seedStamps(values: FlatSettings, stamps: Record<string, number>,
   return out;
 }
 
-// ---- The server presets, a value that merges inside -------------------------
-
-/** The presets in one order, each field in one order, so equal content is equal text. */
-function stablePresetValues(presets: PresetValues): string {
-  const out: Record<string, Record<string, string>> = {};
-  for (const id of SERVER_PRESETS) {
-    const fields = presets[id];
-    if (!fields) continue;
-    const ordered: Record<string, string> = {};
-    for (const field of PRESET_FIELDS) {
-      const value = fields[field];
-      if (typeof value === 'string') ordered[field] = value;
-    }
-    if (Object.keys(ordered).length) out[id] = ordered;
-  }
-  return JSON.stringify(out);
-}
-
-/** The file's presets replace this machine's preset by preset; presets only this machine has stay. */
-export function mergePresetValues(mine: string, theirs: string): string {
-  return stablePresetValues({ ...parsePresetValues(mine), ...parsePresetValues(theirs) });
-}
-
-/** What leaves this machine for the file: the server presets without those at a local address. */
-export function outgoingValue(key: string, value: SettingValue): SettingValue {
-  if (key !== PRESET_VALUES_KEY || typeof value !== 'string') return value;
-  const presets = parsePresetValues(value);
-  const kept: PresetValues = {};
-  for (const id of SERVER_PRESETS) {
-    const fields = presets[id];
-    if (fields && !(typeof fields.baseURL === 'string' && isLocalAddress(fields.baseURL))) kept[id] = fields;
-  }
-  return stablePresetValues(kept);
-}
-
 // ---- The merge --------------------------------------------------------------
 
 export interface MergeInput {
@@ -377,15 +354,13 @@ export function mergeSharedSettings(local: MergeInput, remote: readonly SharedIt
       if (value === undefined || heldThere.has(section)) {
         skipped.push(key);
       } else if (theirs.ts > myTs) {
-        const incoming = key === PRESET_VALUES_KEY ? mergePresetValues(String(mine), String(value)) : value;
-        const current = key === PRESET_VALUES_KEY ? mergePresetValues(String(mine), '{}') : mine;
-        if (incoming !== current) adopt.push({ ...theirs, value: incoming });
+        if (value !== mine) adopt.push({ ...theirs, value });
         else restamp[key] = theirs.ts;
         continue;
       }
     }
     if (myTs > 0 && (!theirs || myTs > theirs.ts)) {
-      next.set(key, { key, value: outgoingValue(key, mine), ts: myTs, by: local.machine });
+      next.set(key, { key, value: mine, ts: myTs, by: local.machine });
       pushed.push(key);
     }
   }

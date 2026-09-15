@@ -241,7 +241,7 @@ export function listedColumns(catalog: readonly Pick<CatalogEntry, 'provider' | 
   return [
     ...catalog.map((entry) => ({
       tier: tierForProvider(entry.provider, engineOf(entry)),
-      label: providerTierLabel(entry.provider, { localEngine: engineOf(entry), openaiServer: entry.provider === 'openai' ? entry.name : undefined }),
+      label: providerTierLabel(entry.provider, { localEngine: engineOf(entry) }),
     })),
     ...ZOTERO_TIERS.map((tier) => ({ tier, label: zoteroTierLabel(tier) })),
   ];

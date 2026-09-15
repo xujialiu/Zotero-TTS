@@ -33,10 +33,10 @@
     const t1 = Date.now();
     while (Date.now() - t1 < 15000) {
       win = Services.wm.getMostRecentWindow('zotero:pref');
-      if (win && win.document.getElementById('ztts-openai-server')) break;
+      if (win && win.document.getElementById('ztts-provider-openai-official')) break;
       await sleep(200);
     }
-    if (!win || !win.document.getElementById('ztts-openai-server')) throw new Error('settings window/pane never appeared');
+    if (!win || !win.document.getElementById('ztts-provider-openai-official')) throw new Error('settings window/pane never appeared');
     out.openedMs = Date.now() - t1;
 
     // navigateToPane regardless of which pane just opened (driving notes).

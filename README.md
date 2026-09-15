@@ -25,7 +25,7 @@ two more, each behind a switch of its own. It
 is built for the way its author reads —
 [why, and where it is going](docs/PHILOSOPHY.md).
 
-- 🗣️ **More voices in the Read Aloud player**, one entry per provider — Azure Speech, Cloudflare Workers AI, Speechify, Fish Audio, a [Kokoro-FastAPI](https://github.com/remsky/Kokoro-FastAPI) or a [Fish Speech](https://github.com/fishaudio/fish-speech) server on your machine, OpenAI or any OpenAI-compatible server — with Zotero's own Standard and Premium beside them, each behind a switch. [→ Providers](#providers)
+- 🗣️ **More voices in the Read Aloud player**, one entry per provider — Azure Speech, Cloudflare Workers AI, Speechify, Fish Audio, a [Kokoro-FastAPI](https://github.com/remsky/Kokoro-FastAPI) or a [Fish Speech](https://github.com/fishaudio/fish-speech) server on your machine, OpenAI, Xiaomi MiMo or any OpenAI-compatible server — with Zotero's own Standard and Premium beside them, each behind a switch. [→ Providers](#providers)
 - 🔖 **Resume where you stopped** — close a document, open it again later, press `Shift+Space`, and Read Aloud starts at the sentence you left off on. [→ Resume where you stopped](#resume-where-you-stopped)
 - 📄 **The whole sentence on screen** — while a PDF is read, a sentence that runs past the bottom of the window, onto the next page or into the next column is scrolled into view instead of left cut, and `Shift+Enter` brings it back the same way. [→ Reading](#reading)
 - 📃 **No line lost at a page turn** — when a sentence runs onto the next page and Zotero would skip that page's first line, the line is read and highlighted like any other. [→ Reading](#reading)
@@ -56,8 +56,9 @@ is built for the way its author reads —
 | **Fish Audio** | An API key from fish.audio · official voices, your own clones, and Model IDs, with a switch for each source · [tutorial](tutorials/fish-audio.md) | Free with its free model: no cap, no guarantee; the paid one $15 per million bytes of text, three per Chinese character | word |
 | **Kokoro-FastAPI** | A server on your machine or LAN · [tutorial](tutorials/kokoro-fastapi.md) | Free; CPU works, a GPU is faster | word |
 | **Fish Speech** | A [fish-speech](https://github.com/fishaudio/fish-speech) server on a 24 GB GPU, with voices cloned from your own recordings · [tutorial](tutorials/fish-speech-server.md) | Free | sentence |
-| **OpenAI-compatible** | Base URL and model; an API key if the server wants one | OpenAI bills per character; self-hosted servers such as [Chatterbox](tutorials/chatterbox-tts-server.md) are free | sentence |
-| **Xiaomi MiMo** | An API key from platform.xiaomimimo.com, picked in the OpenAI section's **Server** dropdown | Free for a limited time | sentence |
+| **OpenAI** | An API key from platform.openai.com | Billed per character | sentence |
+| **Xiaomi MiMo** | An API key from platform.xiaomimimo.com | Free for a limited time | sentence |
+| **OpenAI Compatible** | The address of any server that speaks OpenAI's API, and a key if it wants one: a self-hosted [Chatterbox](tutorials/chatterbox-tts-server.md), a hosted service, a proxy of OpenAI | The server's own price; self-hosted servers are free | sentence |
 | **System voices** | Nothing — Windows and macOS | Free, offline | word on Windows, sentence on macOS |
 | **Zotero Standard / Premium** | A Zotero account signed in under Edit → Settings → Sync; a switch each in the **Zotero** section, both on to begin with | Zotero's own credits, shown and bought in the player | word |
 
@@ -66,9 +67,9 @@ right now, and Zotero's own **Zotero Standard** and **Zotero Premium**
 while their switches are on, sorted by name.
 
 - **The entries** are Azure, Cloudflare, Fish Audio, Fish Speech, Kokoro,
-  OpenAI (or the server's own name: Xiaomi MiMo, Chatterbox-TTS-Server),
-  Speechify, System, Zotero Premium and Zotero Standard; the voices under
-  them carry their own names.
+  OpenAI, OpenAI Compatible, Speechify, System, Xiaomi MiMo, Zotero
+  Premium and Zotero Standard; the voices under them carry their own
+  names.
 - **Each entry remembers its own last voice** per language: Kokoro → Fish
   → Kokoro brings the Kokoro voice back.
 - **A provider with nothing to offer** — switched off, its server down,
@@ -98,37 +99,34 @@ while their switches are on, sorted by name.
   they go into the settings backup file.
 
 <details>
-<summary><b>OpenAI-compatible servers: how to fill the settings in</b></summary>
+<summary><b>OpenAI, Xiaomi MiMo and OpenAI Compatible: how to fill the settings in</b></summary>
 
-- **Server** names the server — *OpenAI*, *Chatterbox-TTS-Server*, *Xiaomi
-  MiMo*, or *Other OpenAI-compatible server* — and fills in the address,
-  model, key, voices and headers you last used with it (its defaults the
-  first time, and nothing of another server's), graying out the fields that
-  server ignores.
-- **Base URL** is the server, with or without `/v1`.
-- **Model** is the name it expects; **Test connection** fetches the
-  server's model list and says whether yours is on it.
-- **Voices** — leave it empty to take the voices the server offers, or list
-  voice ids yourself, comma-separated.
-- The **API key** may stay empty for servers that have none; only
-  api.openai.com insists on one.
+- **OpenAI** and **Xiaomi MiMo** each have a section of their own: the
+  API key, the **Model**, and **Voices** to list voice ids yourself,
+  comma-separated — left empty, the service's own voices are offered.
+  Their addresses are fixed.
+- **OpenAI Compatible** is for any other server that speaks OpenAI's API:
+  a [Chatterbox](tutorials/chatterbox-tts-server.md) of your own, a hosted
+  service, a proxy or mirror of OpenAI. **Address** is the server, with or
+  without `/v1`; the **API key** may stay empty for a server that has
+  none; **Model** is the name the server expects, and **Test connection**
+  lists the models it has; **Voices** left empty takes the server's own
+  list. One server at a time.
+- All three highlight by sentence: none of them reports word timings.
 - For Kokoro use the **Kokoro-FastAPI** section instead: that is what gets
   you word-level highlighting.
-- *Xiaomi MiMo* takes the key from platform.xiaomimimo.com and, while
-  **Voices** is empty, offers MiMo's built-in Chinese and English voices;
-  its speech carries no word timings, so sentences are highlighted.
-- With *OpenAI* or *Xiaomi MiMo* chosen, an address one or two letters off
-  the server's own is refused as a typo before anything is sent, and any
-  other address is tested with a note that it is not the server's own — a
-  mirror or a proxy.
+- Settings saved when the three were one section with a **Server**
+  dropdown move into their sections on the first start: the server that
+  was chosen keeps its switch, the other two start off, and a settings
+  backup from that time restores the same way.
 
 </details>
 
 <details>
 <summary><b>Cloudflare Tunnel and other gateways</b></summary>
 
-Put the gateway's headers in **Extra headers** — of the OpenAI section, or
-of the **Kokoro-FastAPI** one — as `Name: value` pairs separated by `;`,
+Put the gateway's headers in **Extra headers** — of the OpenAI Compatible
+section, or of the **Kokoro-FastAPI** one — as `Name: value` pairs separated by `;`,
 for example `CF-Access-Client-Id: …; CF-Access-Client-Secret: …`.
 They go out with every request. [Tutorial](tutorials/remote-access-cloudflare.md).
 

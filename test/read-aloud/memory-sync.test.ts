@@ -7,13 +7,13 @@ import { createReadAloudMemorySync, READ_ALOUD_VOICES_OBSERVER, type ReadAloudMe
 import { READ_ALOUD_MEMORY_PREF, writeMemory, type ReadAloudMemory } from '../../src/read-aloud/read-aloud-memory';
 import { decodeVoiceId, pluginVoiceTier } from '../../src/read-aloud/voice-catalog';
 
-const ISABELLA = 'openai::bf_v0isabella';
+const ISABELLA = 'openai-official::bf_v0isabella';
 const AOEDE = 'local::af_aoede';
 const PREF_BRANCH = 'extensions.zotero.';
 
 const voices: VoicesMap = {
   en: { region: 'US', voice: AOEDE, speed: 1.4, tierVoices: { kokoro: AOEDE } },
-  [MULTILINGUAL]: { region: null, voice: ISABELLA, speed: 1.4, tierVoices: { openai: ISABELLA } },
+  [MULTILINGUAL]: { region: null, voice: ISABELLA, speed: 1.4, tierVoices: { 'openai-official': ISABELLA } },
 };
 
 /** Zotero.Prefs in miniature: observers fire synchronously from set(), as Gecko's do, and not for an unchanged value. */
@@ -91,7 +91,7 @@ function describeVoice(voice: string | (Partial<FakeVoice> & { id: string })): F
     v.language ??
     (!decoded
       ? (/-([a-z]{2}-[A-Z]{2})$/.exec(v.id)?.[1] ?? 'en-US')
-      : decoded.provider === 'openai' || /multilingual/i.test(decoded.voiceId)
+      : decoded.provider === 'openai-official' || /multilingual/i.test(decoded.voiceId)
         ? MULTILINGUAL
         : decoded.provider === 'azure'
           ? decoded.voiceId.split('-').slice(0, 2).join('-')
@@ -538,7 +538,7 @@ describe('createReadAloudMemorySync', () => {
   });
 
   it('does not mistake its own writes for a choice', () => {
-    const drifted = { ...voices, [MULTILINGUAL]: { ...voices[MULTILINGUAL], voice: 'openai::alloy', speed: 1 } };
+    const drifted = { ...voices, [MULTILINGUAL]: { ...voices[MULTILINGUAL], voice: 'openai-official::alloy', speed: 1 } };
     const z = fakeZotero(drifted, multilingual);
     const sync = createReadAloudMemorySync(z.deps);
     const r = fakeReader('en', z);
@@ -823,7 +823,7 @@ describe('the voice is global while the setting is on', () => {
   // pick: nothing to learn from our own doing, and the next real pick is
   // still read against the right snapshot
   it('is not confused by its own resyncs, and still learns the voice picked next', () => {
-    const z = fakeZotero({ ...voices, [MULTILINGUAL]: { ...voices[MULTILINGUAL], voice: 'openai::alloy' } }, multilingual);
+    const z = fakeZotero({ ...voices, [MULTILINGUAL]: { ...voices[MULTILINGUAL], voice: 'openai-official::alloy' } }, multilingual);
     const sync = createReadAloudMemorySync(z.deps);
     const tab2 = fakeReader('en', z, { active: true, selectedVoiceID: AOEDE, voices: listed });
     attached(z, sync, tab2);

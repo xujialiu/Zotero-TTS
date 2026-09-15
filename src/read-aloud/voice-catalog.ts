@@ -3,7 +3,7 @@ import type { ProviderId, VoiceInfo } from '../core/providers/types';
 import { ZOTERO_TIERS } from './zotero-voices';
 
 const SEPARATOR = '::';
-const PROVIDERS: readonly ProviderId[] = ['openai', 'azure', 'cloudflare', 'speechify', 'fish', 'fishspeech', 'local', 'system'];
+const PROVIDERS: readonly ProviderId[] = ['openai-official', 'mimo', 'compatible', 'azure', 'cloudflare', 'speechify', 'fish', 'fishspeech', 'local', 'system'];
 
 /**
  * The key the plugin's voices travel under in the voices response. Zotero's
@@ -26,9 +26,7 @@ export const UNKNOWN_ENGINE_TIER = 'local-engine';
  * Zotero's own tier name — its engine's name instead, lower-cased
  * (`kokoro`). Zotero's per-tier memory (`tierVoices`) and its Voice Mode
  * dropdown are keyed by this, so each provider remembers its own last voice
- * per language. Only the local engine's name counts: the OpenAI section's
- * server preset changes the entry's label, never its key, so the memory
- * kept under `openai` survives a switch of server.
+ * per language. Only the local engine's name counts.
  */
 export function tierForProvider(provider: ProviderId, localEngine?: string): string {
   if (provider !== 'local') return provider;
@@ -42,16 +40,18 @@ export function pluginVoiceTier(id: string, localEngine?: string): string | null
   return decoded ? tierForProvider(decoded.provider, localEngine) : null;
 }
 
-/** What the entry names depend on beyond the provider id: the local engine's name and the OpenAI section's server. */
+/** What the entry names depend on beyond the provider id: the local engine's name. */
 export interface TierNaming {
   /** The local engine's display name ("Kokoro"); "Local" without one. */
   localEngine?: string;
-  /** The OpenAI section's server, when its preset has a name of its own ("Xiaomi MiMo"); "OpenAI" without one. */
-  openaiServer?: string;
 }
 
 const PROVIDER_NAMES: Record<Exclude<ProviderId, 'system'>, string> = {
-  openai: 'OpenAI',
+  // The three sections that speak OpenAI's API (issue #113), each an entry
+  // of its own; OpenAI Compatible keeps its English name in every language
+  'openai-official': 'OpenAI',
+  mimo: 'Xiaomi MiMo',
+  compatible: 'OpenAI Compatible',
   azure: 'Azure',
   cloudflare: 'Cloudflare',
   speechify: 'Speechify',
@@ -64,17 +64,15 @@ const PROVIDER_NAMES: Record<Exclude<ProviderId, 'system'>, string> = {
  * The name of a provider's entry in the player's first dropdown and the
  * voice browser's first column (issue #110) — the names the voice labels
  * carried as prefixes until then: "Azure", "Kokoro" (the engine), "Xiaomi
- * MiMo" (the server preset), and "System" in the app's language, like the
- * pane's heading. Fish Audio's cloud and a Fish Speech server are named as
- * their settings sections are (issue #112; "Fish-cloud" / "Fish-local"
- * while the two shared one section).
+ * MiMo" (a section of its own since issue #113), and "System" in the app's
+ * language, like the pane's heading. Fish Audio's cloud and a Fish Speech
+ * server are named as their settings sections are (issue #112; "Fish-cloud"
+ * / "Fish-local" while the two shared one section).
  */
 export function providerTierLabel(provider: ProviderId, naming: TierNaming = {}): string {
   switch (provider) {
     case 'local':
       return naming.localEngine?.trim() || PROVIDER_NAMES.local;
-    case 'openai':
-      return naming.openaiServer?.trim() || PROVIDER_NAMES.openai;
     case 'system':
       return t('ztts-provider-system');
     default:

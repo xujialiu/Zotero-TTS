@@ -1,4 +1,4 @@
-<!-- translated-from: remote-access-cloudflare.md sha256:7623f06a26b5 -->
+<!-- translated-from: remote-access-cloudflare.md sha256:5873fe4aa83b -->
 # 用 Cloudflare 在任何地方访问你的 TTS 服务器
 
 [English](remote-access-cloudflare.md) · **简体中文**
@@ -16,7 +16,7 @@
 - 一个 DNS 托管在 Cloudflare 上的域名（下文写作 `example.com`；示例用的是 `tts-windows.example.com`）。
 - 一个 Cloudflare Zero Trust 账号（免费层）——https://one.dash.cloudflare.com
 - 家里那台机器上跑着 TTS 服务器。教程假定是 8004 端口上的 Chatterbox-TTS-Server；Kokoro-FastAPI 在 8880（把它暴露出去之前先看文末的说明）。
-- 用来朗读的那台机器上，插件是 1.1.2 或更新的版本——它需要**额外请求头**字段（OpenAI 那一节从 1.1.0 起有，Kokoro-FastAPI 那一节从 1.1.2 起有）。
+- 用来朗读的那台机器上装着插件——它需要 OpenAI Compatible 那一节的**额外请求头**字段（Kokoro-FastAPI 那一节也有一个）。
 
 > **国内网络**——cloudflared 是从你家里的机器往外拨的，一般连得上；不确定的是笔记本这一端到 Cloudflare 边缘节点的线路，时好时坏，赶上差的时候长句可能撞上 Cloudflare 100 秒的请求上限（见疑难解答）。域名不必在国内注册，但 NS 必须改到 Cloudflare。如果两台机器都是你自己的，文末「其他做法」里的 Tailscale / WARP 私有网络往往更稳，也省掉令牌这一套。
 
@@ -94,16 +94,16 @@ curl -s \
 
 ## 5. 把插件指过去
 
-Zotero → 设置 → Zotero-TTS → **OpenAI** 那一节：
+Zotero → 设置 → Zotero-TTS → **OpenAI Compatible** 那一节：
 
 | 字段 | 填什么 |
 |---|---|
-| 启用 OpenAI 语音 | 开 |
-| 服务器 | **Chatterbox-TTS-Server**（密钥、模型和语音会置灰——Chatterbox 不看它们）；别的服务器就选*其他 OpenAI 兼容服务器* |
-| API 地址 | `https://tts-windows.example.com` |
+| 地址 | `https://tts-windows.example.com` |
+| API 密钥 | 留空——Chatterbox 没有 |
+| 模型 | 随便填，比如 `tts-1`——Chatterbox 不看这项 |
 | 额外请求头 | `CF-Access-Client-Id: <CLIENT_ID>; CF-Access-Client-Secret: <CLIENT_SECRET>` |
 
-**测试连接**应当回答 `已连接。28 个语音可用。合成正常。`。之后这些语音就出现在朗读的*本地*语音模式里，形如 `OpenAI-Emily.wav`。
+**测试连接**应当回答 `已连接。28 个语音可用。合成正常。`，然后**启用**。之后这些语音就出现在播放器里 **OpenAI Compatible** 下面，形如 `Emily.wav`。
 
 这两个请求头的值和 API 密钥一样敏感：它们以明文存在 Zotero 的首选项里，谁拿到就能用你的服务器。要收回访问权，去 Cloudflare 删掉这个服务令牌（或者新建一个并改策略），旧的值立刻失效。
 

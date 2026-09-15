@@ -22,9 +22,9 @@ Everything here is on Cloudflare's free plan. Time: about twenty minutes.
 - The TTS server running on the home machine. The tutorial assumes
   Chatterbox-TTS-Server on port 8004; Kokoro-FastAPI is on 8880 (see the
   note at the end before exposing it).
-- The plugin, 1.1.2 or newer, on the machine that will read aloud — it needs
-  the **Extra headers** field (OpenAI section since 1.1.0, Kokoro-FastAPI
-  section since 1.1.2).
+- The plugin on the machine that will read aloud — it needs the **Extra
+  headers** field of the OpenAI Compatible section (the Kokoro-FastAPI
+  section has one too).
 
 ## 1. Create the tunnel
 
@@ -116,18 +116,18 @@ prints Chatterbox's voice list, `{"status":"ok","voices":["Abigail.wav",...]}`.
 
 ## 5. Point the plugin at it
 
-Zotero → Settings → Zotero-TTS → **OpenAI** section:
+Zotero → Settings → Zotero-TTS → **OpenAI Compatible** section:
 
 | Field | Value |
 |---|---|
-| Enable OpenAI voices | on |
-| Server | **Chatterbox-TTS-Server** (key, model and voices gray out — Chatterbox ignores them); for another server, *Other OpenAI-compatible server* |
-| Base URL | `https://tts-windows.example.com` |
+| Address | `https://tts-windows.example.com` |
+| API key | empty — Chatterbox has none |
+| Model | anything, `tts-1` say — Chatterbox ignores it |
 | Extra headers | `CF-Access-Client-Id: <CLIENT_ID>; CF-Access-Client-Secret: <CLIENT_SECRET>` |
 
 **Test connection** should answer `Connected. 28 voices available. Synthesis
-works.` The voices then appear in Read Aloud's *Local* tier as
-`OpenAI-Emily.wav` and so on.
+works.`, then **Enable**. The voices then appear in the player under
+**OpenAI Compatible** as `Emily.wav` and so on.
 
 The two header values are as sensitive as an API key: they are stored in
 Zotero's preferences in plain text, and anyone holding them can use your

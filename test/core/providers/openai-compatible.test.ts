@@ -1,0 +1,467 @@
+import { describe, expect, it, vi } from 'vitest';
+import { SynthesisError } from '../../../src/core/providers/errors';
+import {
+  createOpenAICompatibleProvider,
+  type OpenAICompatibleConfig,
+  parseModelList,
+  parseVoiceIds,
+  parseVoiceList,
+} from '../../../src/core/providers/openai-compatible';
+import { OPENAI_DEFAULT_VOICES } from '../../../src/core/providers/openai';
+import { MULTILINGUAL } from '../../../src/core/providers/types';
+
+// The client the three sections share (issue #113): what the caller says
+// decides what the hostname used to — whether a key is required, the route
+// the server synthesizes on, the voices it documents.
+const cfg: OpenAICompatibleConfig = {
+  id: 'openai-official',
+  label: 'OpenAI',
+  apiKey: 'sk-test',
+  baseURL: 'https://api.openai.com',
+  model: 'gpt-4o-mini-tts',
+  keyRequired: true,
+  route: 'speech',
+  defaultVoices: OPENAI_DEFAULT_VOICES,
+};
+
+function provider(fetchImpl: unknown, over: Partial<OpenAICompatibleConfig> = {}) {
+  return createOpenAICompatibleProvider({ ...cfg, ...over }, { fetch: fetchImpl as typeof fetch });
+}
+
+const signalController = new AbortController();
+const opts = { voice: 'alloy', signal: signalController.signal };
+
+const notFound = () => new Response('', { status: 404 });
+
+describe('createOpenAICompatibleProvider', () => {
+  it('carries the id it is given and declares that it cannot produce word timestamps', () => {
+    expect(provider(vi.fn()).id).toBe('openai-official');
+    expect(provider(vi.fn(), { id: 'compatible' }).id).toBe('compatible');
+    expect(provider(vi.fn()).capabilities.wordTimestamps).toBe(false);
+  });
+
+  it('posts the text to the speech endpoint and returns the audio', async () => {
+    const fetchImpl = vi.fn(async () => new Response(new Blob(['audio-bytes']), { status: 200 }));
+    const result = await provider(fetchImpl).synthesize('Hello there', opts);
+
+    expect(fetchImpl).toHaveBeenCalledOnce();
+    const [url, init] = (fetchImpl as any).mock.calls[0];
+    expect(url).toBe('https://api.openai.com/v1/audio/speech');
+    expect(init.method).toBe('POST');
+    expect(init.headers.Authorization).toBe('Bearer sk-test');
+    expect(init.signal).toBe(signalController.signal);
+    // No speed: the audio is made at the voice's natural pace, Read Aloud's slider stretches it
+    expect(JSON.parse(init.body)).toEqual({
+      model: 'gpt-4o-mini-tts',
+      voice: 'alloy',
+      input: 'Hello there',
+      response_format: 'mp3',
+    });
+    expect(await result.audio.text()).toBe('audio-bytes');
+    expect('timestamps' in result).toBe(false);
+  });
+
+  it('refuses to synthesize without a key where one is required', async () => {
+    const fetchImpl = vi.fn();
+    await expect(provider(fetchImpl, { apiKey: '' }).synthesize('Hi', opts)).rejects.toMatchObject({ kind: 'no-key', message: 'OpenAI API key is not set' });
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it('maps failures to typed errors', async () => {
+    const cases: [() => Promise<Response>, string][] = [
+      [async () => new Response('', { status: 429 }), 'rate-limit'],
+      [async () => new Response('', { status: 401 }), 'auth'],
+      [async () => new Response('', { status: 500 }), 'unknown'],
+      [
+        async () => {
+          throw new TypeError('NetworkError');
+        },
+        'network',
+      ],
+    ];
+    for (const [fetchImpl, kind] of cases) {
+      await expect(provider(vi.fn(fetchImpl)).synthesize('Hi', opts)).rejects.toMatchObject({ kind });
+    }
+  });
+
+  // The OpenAI SDK documents base_url="http://localhost:8880/v1"; written
+  // that way the plugin must not request /v1/v1/audio/speech
+  it("accepts a base URL written with the SDK's /v1 suffix", async () => {
+    const fetchImpl = vi.fn(async () => new Response(new Blob(['x']), { status: 200 }));
+    await provider(fetchImpl, { baseURL: 'http://localhost:8880/v1/' }).synthesize('Hi', opts);
+    expect((fetchImpl as any).mock.calls[0][0]).toBe('http://localhost:8880/v1/audio/speech');
+  });
+});
+
+// Many servers speak OpenAI's API with their own voices; the documented
+// names must only be a last resort, never assumed
+describe('listVoices', () => {
+  it('uses the voices the user typed, without asking the server', async () => {
+    const fetchImpl = vi.fn();
+    const voices = await provider(fetchImpl, { voices: 'af_bella, zf_xiaobei;am_adam\naf_bella' }).listVoices();
+    expect(voices).toEqual([
+      { id: 'af_bella', label: 'af_bella', locale: MULTILINGUAL },
+      { id: 'zf_xiaobei', label: 'zf_xiaobei', locale: MULTILINGUAL },
+      { id: 'am_adam', label: 'am_adam', locale: MULTILINGUAL },
+    ]);
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it('otherwise asks the server for its voice list, with the key', async () => {
+    const fetchImpl = vi.fn(async () => Response.json({ voices: [{ id: 'af_bella', name: 'Bella' }, { id: 'am_adam' }] }));
+    const voices = await provider(fetchImpl, { baseURL: 'http://localhost:8880' }).listVoices();
+    const [url, init] = (fetchImpl as any).mock.calls[0];
+    expect(url).toBe('http://localhost:8880/v1/audio/voices');
+    expect(init.headers.Authorization).toBe('Bearer sk-test');
+    expect(voices).toEqual([
+      { id: 'af_bella', label: 'Bella', locale: MULTILINGUAL },
+      { id: 'am_adam', label: 'am_adam', locale: MULTILINGUAL },
+    ]);
+  });
+
+  it('falls back to the documented voices when the server has no voice list', async () => {
+    const voices = await provider(vi.fn(notFound)).listVoices();
+    expect(voices.map((v) => v.id)).toEqual([...OPENAI_DEFAULT_VOICES]);
+    for (const voice of voices) expect(voice.locale).toBe(MULTILINGUAL);
+  });
+
+  it('falls back as well when the route answers something unusable', async () => {
+    for (const fetchImpl of [
+      vi.fn(async () => new Response('<html>', { status: 200 })),
+      vi.fn(async () => Response.json({ voices: [] })),
+      vi.fn(async () => Response.json({ unrelated: true })),
+    ]) {
+      const voices = await provider(fetchImpl).listVoices();
+      expect(voices).toHaveLength(OPENAI_DEFAULT_VOICES.length);
+    }
+  });
+
+  it('lists nothing at all when there are no documented voices either', async () => {
+    expect(await provider(vi.fn(notFound), { defaultVoices: undefined }).listVoices()).toEqual([]);
+  });
+
+  it('reports a rejected key rather than listing default voices for it', async () => {
+    await expect(provider(vi.fn(async () => new Response('', { status: 401 }))).listVoices()).rejects.toMatchObject({ kind: 'auth' });
+  });
+
+  it('reports an unreachable server rather than listing default voices for it', async () => {
+    const fetchImpl = vi.fn(async () => {
+      throw new TypeError('NetworkError');
+    });
+    await expect(provider(fetchImpl).listVoices()).rejects.toMatchObject({ kind: 'network' });
+  });
+
+  // Issue #55: the catalog bounds each provider's listing and aborts one
+  // that runs past the bound, so the request must carry the caller's signal
+  it("passes the caller's signal to the voice list request", async () => {
+    const fetchImpl = vi.fn(async () => Response.json({ voices: ['af_bella'] }));
+    const { signal } = new AbortController();
+    await provider(fetchImpl, { baseURL: 'http://localhost:8880' }).listVoices({ signal });
+    expect((fetchImpl as any).mock.calls[0][1].signal).toBe(signal);
+  });
+});
+
+describe('listModels / checkConnection', () => {
+  it('asks the server for its model list, with the key', async () => {
+    const fetchImpl = vi.fn(async () => Response.json({ data: [{ id: 'tts-1' }, { id: 'gpt-4o-mini-tts' }] }));
+    const models = await provider(fetchImpl).listModels!();
+    const [url, init] = (fetchImpl as any).mock.calls[0];
+    expect(url).toBe('https://api.openai.com/v1/models');
+    expect(init.headers.Authorization).toBe('Bearer sk-test');
+    expect(models).toEqual(['tts-1', 'gpt-4o-mini-tts']);
+  });
+
+  it('reports a rejected key', async () => {
+    for (const status of [401, 403]) {
+      const fetchImpl = vi.fn(async () => new Response('', { status }));
+      await expect(provider(fetchImpl).listModels!()).rejects.toMatchObject({ kind: 'auth' });
+      await expect(provider(fetchImpl).checkConnection!()).rejects.toMatchObject({ kind: 'auth' });
+    }
+  });
+
+  it('reports an unreachable server', async () => {
+    const fetchImpl = vi.fn(async () => {
+      throw new TypeError('NetworkError when attempting to fetch resource.');
+    });
+    await expect(provider(fetchImpl).checkConnection!()).rejects.toMatchObject({ kind: 'network' });
+  });
+
+  it('reports any other failure with its status', async () => {
+    await expect(provider(vi.fn(async () => new Response('', { status: 500 }))).listModels!()).rejects.toThrow(/500/);
+  });
+
+  it('reports a missing key without calling the server', async () => {
+    const fetchImpl = vi.fn();
+    await expect(provider(fetchImpl, { apiKey: '' }).listModels!()).rejects.toMatchObject({ kind: 'no-key' });
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it('tolerates a model list that is not JSON', async () => {
+    expect(await provider(vi.fn(async () => new Response('ok', { status: 200 }))).listModels!()).toEqual([]);
+  });
+});
+
+describe('parsers', () => {
+  it('parseVoiceIds splits on commas, semicolons and whitespace and drops duplicates', () => {
+    expect(parseVoiceIds(' a, b;c\nd  a ')).toEqual(['a', 'b', 'c', 'd']);
+    expect(parseVoiceIds('')).toEqual([]);
+  });
+
+  it('parseVoiceList reads the shapes OpenAI-compatible servers use', () => {
+    expect(parseVoiceList({ voices: [{ id: 'x', name: 'X' }] })).toEqual([{ id: 'x', label: 'X' }]);
+    expect(parseVoiceList({ voices: ['x', 'y'] })).toEqual([{ id: 'x', label: 'x' }, { id: 'y', label: 'y' }]);
+    expect(parseVoiceList({ data: [{ voice_id: 'v' }] })).toEqual([{ id: 'v', label: 'v' }]);
+    expect(parseVoiceList(['a'])).toEqual([{ id: 'a', label: 'a' }]);
+    expect(parseVoiceList({ voices: [{ name: 'only-name' }, {}, 7, ''] })).toEqual([{ id: 'only-name', label: 'only-name' }]);
+    expect(parseVoiceList(null)).toEqual([]);
+  });
+
+  it('parseModelList reads OpenAI-style and bare lists', () => {
+    expect(parseModelList({ data: [{ id: 'a' }, { id: 'a' }, { id: 'b' }] })).toEqual(['a', 'b']);
+    expect(parseModelList({ models: ['m'] })).toEqual(['m']);
+    expect(parseModelList(['x', { id: 'y' }, 3])).toEqual(['x', 'y']);
+    expect(parseModelList('nope')).toEqual([]);
+  });
+});
+
+describe('SynthesisError', () => {
+  it('carries the auth kind', () => {
+    expect(new SynthesisError('auth').kind).toBe('auth');
+  });
+});
+
+describe('checkSynthesis', () => {
+  it('posts a tiny request to the speech endpoint with the configured model', async () => {
+    const fetchImpl = vi.fn(async () => new Response(new Blob(['mp3']), { status: 200 }));
+    await provider(fetchImpl).checkSynthesis!('alloy');
+    const [url, init] = (fetchImpl as any).mock.calls[0];
+    expect(url).toBe('https://api.openai.com/v1/audio/speech');
+    expect(JSON.parse(init.body)).toMatchObject({ model: 'gpt-4o-mini-tts', voice: 'alloy', input: 'Hi' });
+  });
+
+  // OpenAI reports an exhausted balance as 429 insufficient_quota — the
+  // same status as rate limiting, told apart only by the body
+  it('tells quota exhaustion apart from rate limiting on 429', async () => {
+    const quota = vi.fn(async () => new Response(JSON.stringify({ error: { code: 'insufficient_quota' } }), { status: 429 }));
+    await expect(provider(quota).checkSynthesis!('alloy')).rejects.toMatchObject({ kind: 'quota' });
+
+    const rate = vi.fn(async () => new Response('slow down', { status: 429 }));
+    await expect(provider(rate).checkSynthesis!('alloy')).rejects.toMatchObject({ kind: 'rate-limit' });
+  });
+
+  it('maps 401 to auth and an empty key to no-key without fetching', async () => {
+    const rejected = vi.fn(async () => new Response('', { status: 401 }));
+    await expect(provider(rejected).checkSynthesis!('alloy')).rejects.toMatchObject({ kind: 'auth' });
+
+    const fetchImpl = vi.fn();
+    await expect(provider(fetchImpl, { apiKey: '' }).checkSynthesis!('alloy')).rejects.toMatchObject({ kind: 'no-key' });
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+});
+
+describe('listModels on servers without a model list', () => {
+  // Chatterbox-TTS-Server and friends answer 404 on /v1/models; that is
+  // "no models published", not a broken connection
+  it('treats 404/405 as an empty model list instead of a failure', async () => {
+    for (const status of [404, 405]) {
+      const fetchImpl = vi.fn(async () => new Response('', { status }));
+      await expect(provider(fetchImpl).listModels!()).resolves.toEqual([]);
+    }
+  });
+
+  it('still reports a rejected key', async () => {
+    const fetchImpl = vi.fn(async () => new Response('', { status: 401 }));
+    await expect(provider(fetchImpl).listModels!()).rejects.toMatchObject({ kind: 'auth' });
+  });
+});
+
+describe('extra headers and keyless servers', () => {
+  it('sends the configured headers with every request, alongside Authorization', async () => {
+    const fetchImpl = vi.fn(async (url: string) =>
+      url.endsWith('/v1/audio/voices')
+        ? new Response(JSON.stringify({ voices: ['Emily.wav'] }), { status: 200 })
+        : new Response(new Blob(['audio']), { status: 200 }),
+    );
+    const headers = { 'CF-Access-Client-Id': 'id', 'CF-Access-Client-Secret': 'secret' };
+    const p = provider(fetchImpl, { headers });
+    await p.listVoices();
+    await p.synthesize('Hello', opts);
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+    for (const [, init] of (fetchImpl as any).mock.calls) {
+      expect(init.headers).toMatchObject({ ...headers, Authorization: 'Bearer sk-test' });
+    }
+  });
+
+  it('lets a server go without a key when none is required, sending no Authorization at all', async () => {
+    const fetchImpl = vi.fn(async () => new Response(new Blob(['audio']), { status: 200 }));
+    const p = provider(fetchImpl, { apiKey: '', baseURL: 'http://localhost:8004', keyRequired: false });
+    await p.synthesize('Hello', opts);
+    expect((fetchImpl as any).mock.calls[0][1].headers).not.toHaveProperty('Authorization');
+    await p.checkSynthesis!('Emily.wav');
+    await p.listModels!();
+    expect(fetchImpl).toHaveBeenCalledTimes(3);
+  });
+
+  it('still insists on a key where the caller requires one, whatever the address', async () => {
+    const fetchImpl = vi.fn();
+    await expect(provider(fetchImpl, { apiKey: '', baseURL: 'http://localhost:8004', keyRequired: true }).synthesize('Hi', opts)).rejects.toMatchObject({
+      kind: 'no-key',
+    });
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+});
+
+// Xiaomi MiMo (issue #50) has no /v1/audio/speech: its speech is a chat
+// completion with an `audio` object, the mp3 coming back as base64 inside
+// the JSON reply.
+describe('the chat completions route', () => {
+  const chat: Partial<OpenAICompatibleConfig> = { route: 'chat', model: 'mimo-v2.5-tts', baseURL: 'https://api.xiaomimimo.com/v1', label: 'Xiaomi MiMo' };
+  const audioReply = (bytes: string) =>
+    new Response(
+      JSON.stringify({ choices: [{ message: { role: 'assistant', content: '', audio: { id: 'a1', data: btoa(bytes), transcript: null } } }] }),
+      { status: 200, headers: { 'Content-Type': 'application/json' } },
+    );
+  const textReply = () => new Response(JSON.stringify({ choices: [{ message: { role: 'assistant', content: 'Hello!' } }] }), { status: 200 });
+
+  it('posts the text as an assistant message with the audio object, and decodes the base64 mp3', async () => {
+    const fetchImpl = vi.fn(async () => audioReply('mp3-bytes'));
+    const result = await provider(fetchImpl, chat).synthesize('Hello there', { ...opts, voice: '冰糖' });
+
+    expect(fetchImpl).toHaveBeenCalledOnce();
+    const [url, init] = (fetchImpl as any).mock.calls[0];
+    expect(url).toBe('https://api.xiaomimimo.com/v1/chat/completions');
+    expect(init.method).toBe('POST');
+    expect(init.headers.Authorization).toBe('Bearer sk-test');
+    expect(init.headers['Content-Type']).toBe('application/json');
+    expect(init.signal).toBe(opts.signal);
+    expect(JSON.parse(init.body)).toEqual({
+      model: 'mimo-v2.5-tts',
+      messages: [{ role: 'assistant', content: 'Hello there' }],
+      audio: { format: 'mp3', voice: '冰糖' },
+    });
+    expect(result.audio.type).toBe('audio/mpeg');
+    expect(await result.audio.text()).toBe('mp3-bytes');
+    expect(result.timestamps).toBeUndefined();
+    expect(result.note).toMatch(/chat\/completions/);
+  });
+
+  it('decodes binary audio faithfully', async () => {
+    const bytes = Uint8Array.from([0xff, 0xfb, 0x90, 0x00, 0x00, 0x7f, 0x80, 0xfe]);
+    const fetchImpl = vi.fn(async () => audioReply(String.fromCharCode(...bytes)));
+    const result = await provider(fetchImpl, chat).synthesize('Hi', opts);
+    expect(new Uint8Array(await result.audio.arrayBuffer())).toEqual(bytes);
+  });
+
+  it('reports a reply without audio instead of handing Zotero an empty blob', async () => {
+    await expect(provider(vi.fn(async () => textReply()), chat).synthesize('Hello', opts)).rejects.toMatchObject({
+      kind: 'unknown',
+      message: expect.stringMatching(/no audio/i),
+    });
+  });
+
+  it('reports a reply that is not JSON', async () => {
+    const fetchImpl = vi.fn(async () => new Response('<html>not json</html>', { status: 200 }));
+    await expect(provider(fetchImpl, chat).synthesize('Hello', opts)).rejects.toMatchObject({ kind: 'unknown' });
+  });
+
+  it('maps failures to typed errors, naming the route', async () => {
+    const status = (code: number) => vi.fn(async () => new Response('', { status: code }));
+    await expect(provider(status(401), chat).synthesize('x', opts)).rejects.toMatchObject({ kind: 'auth' });
+    await expect(provider(status(429), chat).synthesize('x', opts)).rejects.toMatchObject({ kind: 'rate-limit' });
+    await expect(provider(status(404), chat).synthesize('x', opts)).rejects.toMatchObject({
+      kind: 'unknown',
+      message: expect.stringMatching(/chat\/completions.*404/),
+    });
+    const offline = vi.fn(async () => {
+      throw new TypeError('offline');
+    });
+    await expect(provider(offline, chat).synthesize('x', opts)).rejects.toMatchObject({ kind: 'network' });
+  });
+
+  it('goes keyless where no key is required, and insists on one where it is', async () => {
+    const fetchImpl = vi.fn(async () => audioReply('x'));
+    await provider(fetchImpl, { ...chat, apiKey: '', keyRequired: false }).synthesize('Hi', opts);
+    expect((fetchImpl as any).mock.calls[0][1].headers).not.toHaveProperty('Authorization');
+    await expect(provider(vi.fn(), { ...chat, apiKey: '', keyRequired: true }).synthesize('Hi', opts)).rejects.toMatchObject({ kind: 'no-key' });
+  });
+
+  describe('checkSynthesis', () => {
+    it('probes the chat route with two characters and insists on audio back', async () => {
+      const fetchImpl = vi.fn(async () => audioReply('x'));
+      await provider(fetchImpl, chat).checkSynthesis!('mimo_default');
+      const [url, init] = (fetchImpl as any).mock.calls[0];
+      expect(url).toBe('https://api.xiaomimimo.com/v1/chat/completions');
+      expect(JSON.parse(init.body)).toEqual({
+        model: 'mimo-v2.5-tts',
+        messages: [{ role: 'assistant', content: 'Hi' }],
+        audio: { format: 'mp3', voice: 'mimo_default' },
+      });
+    });
+
+    it('fails on a text-only reply, so Test connection says so before Read Aloud does', async () => {
+      await expect(provider(vi.fn(async () => textReply()), chat).checkSynthesis!('mimo_default')).rejects.toMatchObject({
+        kind: 'unknown',
+        message: expect.stringMatching(/no audio/i),
+      });
+    });
+
+    it('tells quota exhaustion apart from rate limiting on this route too', async () => {
+      const quota = vi.fn(async () => new Response(JSON.stringify({ error: { code: 'insufficient_quota' } }), { status: 429 }));
+      await expect(provider(quota, chat).checkSynthesis!('mimo_default')).rejects.toMatchObject({ kind: 'quota' });
+    });
+  });
+});
+
+describe("listVoices with a server's documented voices", () => {
+  it('falls back to them when the server publishes no list', async () => {
+    const voices = await provider(notFound, { defaultVoices: ['mimo_default', '冰糖'] }).listVoices();
+    expect(voices).toEqual([
+      { id: 'mimo_default', label: 'mimo_default', locale: MULTILINGUAL },
+      { id: '冰糖', label: '冰糖', locale: MULTILINGUAL },
+    ]);
+  });
+
+  it('still prefers what the user typed, then what the server publishes', async () => {
+    expect((await provider(notFound, { defaultVoices: ['mimo_default'], voices: 'Mia' }).listVoices()).map((v) => v.id)).toEqual(['Mia']);
+    const published = vi.fn(async () => new Response(JSON.stringify({ voices: ['Chloe'] }), { status: 200 }));
+    expect((await provider(published, { defaultVoices: ['mimo_default'] }).listVoices()).map((v) => v.id)).toEqual(['Chloe']);
+  });
+});
+
+// A refused request carries the server's own reason when it gives one in the
+// OpenAI error shape — MiMo answers a wrong voice id with a 400 whose `param`
+// lists the voices it has; OpenAI puts the detail in `message`.
+describe("the server's reason for a refusal", () => {
+  const chat: Partial<OpenAICompatibleConfig> = { route: 'chat', model: 'mimo-v2.5-tts', baseURL: 'https://api.xiaomimimo.com/v1' };
+  const refused = (status: number, body: unknown) => vi.fn(async () => new Response(JSON.stringify(body), { status }));
+
+  it('quotes the longer of param and message after the status', async () => {
+    const mimo = refused(400, { error: { code: '400', message: 'Param Incorrect', param: 'Unknown voice: alloy. Available voices: [mimo_default, 冰糖]', type: '' } });
+    await expect(provider(mimo, chat).checkSynthesis!('alloy')).rejects.toMatchObject({
+      kind: 'unknown',
+      message: 'chat/completions audio: HTTP 400 — Unknown voice: alloy. Available voices: [mimo_default, 冰糖]',
+    });
+    const openai = refused(400, { error: { message: "Invalid value: 'nova2'. Supported values are: 'alloy', 'nova'.", type: 'invalid_request_error', param: 'voice', code: null } });
+    await expect(provider(openai).synthesize('x', opts)).rejects.toMatchObject({
+      message: "OpenAI speech: HTTP 400 — Invalid value: 'nova2'. Supported values are: 'alloy', 'nova'.",
+    });
+  });
+
+  it('names the server the caller named', async () => {
+    await expect(provider(vi.fn(async () => new Response('', { status: 502 })), { label: 'OpenAI Compatible' }).synthesize('x', opts)).rejects.toMatchObject({
+      message: 'OpenAI Compatible speech: HTTP 502',
+    });
+  });
+
+  it('leaves the message as the status alone when the body says nothing usable', async () => {
+    await expect(provider(refused(400, { error: {} }), chat).synthesize('x', opts)).rejects.toMatchObject({ message: 'chat/completions audio: HTTP 400' });
+    await expect(provider(vi.fn(async () => new Response('<html>Bad Gateway</html>', { status: 502 }))).synthesize('x', opts)).rejects.toMatchObject({
+      message: 'OpenAI speech: HTTP 502',
+    });
+  });
+
+  it('keeps auth and rate-limit refusals as they are', async () => {
+    await expect(provider(refused(401, { error: { message: 'Invalid API Key' } }), chat).synthesize('x', opts)).rejects.toMatchObject({ kind: 'auth' });
+    await expect(provider(refused(429, { error: { message: 'slow down' } }), chat).synthesize('x', opts)).rejects.toMatchObject({ kind: 'rate-limit' });
+  });
+});

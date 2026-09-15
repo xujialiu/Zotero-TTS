@@ -28,7 +28,7 @@
     const t0 = Date.now();
     while (Date.now() - t0 < 20000) {
       win = open();
-      if (win && win.document.getElementById('ztts-openai-server')) break;
+      if (win && win.document.getElementById('ztts-provider-openai-official')) break;
       await sleep(200);
     }
     if (!win) throw new Error('settings window never opened');

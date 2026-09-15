@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { parseSharedSettings as parseShared, serializeSharedSettings as serializeShared } from '../../src/core/settings-sync';
 import { DEFAULTS, PREF_PREFIX, type PrefsBackend } from '../../src/core/settings';
 import { flattenSettings, SETTINGS_FILE_PATTERN } from '../../src/core/settings-backup';
 import {
@@ -81,7 +82,8 @@ describe('the sync set', () => {
   it('is every setting but the WebDAV connection, its switches and the System voices switch', () => {
     const expected = Object.keys(defaults).filter((k) => !k.startsWith('webdav.') && k !== 'system.enabled');
     expect([...SYNCABLE_KEYS].sort()).toEqual(expected.sort());
-    expect(SYNCABLE_KEYS).toContain('openai.apiKey');
+    expect(SYNCABLE_KEYS).toContain('openai-official.apiKey');
+    expect(SYNCABLE_KEYS).toContain('compatible.headers');
     expect(SYNCABLE_KEYS).toContain('local.baseURL');
     expect(SYNCABLE_KEYS).toContain('readAloud.volume');
     expect(SYNCABLE_KEYS).toContain('shortcuts.speedUp');
@@ -93,13 +95,17 @@ describe('the sync set', () => {
   it('holds a provider section whose address is local, by that address alone', () => {
     expect(heldSections(values())).toEqual(new Set(['local']));
     expect(heldSections(values({ 'local.baseURL': 'https://h200-kokoro.example.org' }))).toEqual(new Set());
-    expect(heldSections(values({ 'openai.baseURL': 'http://localhost:8004', 'local.baseURL': 'https://k.example.org' }))).toEqual(new Set(['openai']));
+    expect(heldSections(values({ 'compatible.baseURL': 'http://localhost:8004', 'local.baseURL': 'https://k.example.org' }))).toEqual(new Set(['compatible']));
     // A partial set (the file's) without the address: not held from that side
-    expect(heldSections({ 'openai.apiKey': 'sk' })).toEqual(new Set());
+    expect(heldSections({ 'compatible.apiKey': 'sk' })).toEqual(new Set());
+    // The hosted sections have no address to be local, and an empty address
+    // is not a local one: a fresh machine must be able to receive a server (issue #113)
+    expect(heldSections(values({ 'openai-official.apiKey': 'sk', 'mimo.apiKey': 'k', 'local.baseURL': 'https://k.example.org' }))).toEqual(new Set());
+    expect(heldSections(values({ 'compatible.baseURL': '  ', 'local.baseURL': 'https://k.example.org' }))).toEqual(new Set());
   });
 
   it('knows which settings edit the player’s list', () => {
-    for (const key of ['openai.enabled', 'local.voice', 'azure.apiKey', 'zotero-standard.enabled', 'zotero-premium.enabled', 'readAloud.favoritesOnly', 'readAloud.favoriteVoices']) {
+    for (const key of ['openai-official.enabled', 'mimo.apiKey', 'compatible.baseURL', 'local.voice', 'azure.apiKey', 'zotero-standard.enabled', 'zotero-premium.enabled', 'readAloud.favoritesOnly', 'readAloud.favoriteVoices']) {
       expect(editsPlayerList(key), key).toBe(true);
     }
     for (const key of ['shortcuts.speedUp', 'readAloud.volume', 'highlight.wordColor', 'prefetch', 'readAloud.sentenceDelayMs']) {
@@ -266,16 +272,16 @@ describe('mergeSharedSettings', () => {
   });
 
   it('never applies a section the file itself puts at a local address, and heals it when this machine’s is newer', () => {
-    const remote = [item({ key: 'openai.baseURL', value: 'http://localhost:8004', ts: 500 }), item({ key: 'openai.model', value: 'tts-1', ts: 500 })];
-    const publicMine = values({ 'openai.baseURL': 'https://api.openai.com', 'openai.model': 'gpt-4o-mini-tts' });
+    const remote = [item({ key: 'compatible.baseURL', value: 'http://localhost:8004', ts: 500 }), item({ key: 'compatible.model', value: 'tts-1', ts: 500 })];
+    const publicMine = values({ 'compatible.baseURL': 'https://api.groq.com/openai', 'compatible.model': 'playai-tts' });
     const older = mergeSharedSettings({ values: publicMine, stamps: {}, machine }, remote);
     expect(older.adopt).toEqual([]);
-    expect(older.skipped.sort()).toEqual(['openai.baseURL', 'openai.model']);
+    expect(older.skipped.sort()).toEqual(['compatible.baseURL', 'compatible.model']);
     expect(older.changed).toBe(false);
-    const newer = mergeSharedSettings({ values: publicMine, stamps: { 'openai.baseURL': 600, 'openai.model': 600 }, machine }, remote);
+    const newer = mergeSharedSettings({ values: publicMine, stamps: { 'compatible.baseURL': 600, 'compatible.model': 600 }, machine }, remote);
     expect(newer.items).toEqual([
-      { key: 'openai.baseURL', value: 'https://api.openai.com', ts: 600, by: machine },
-      { key: 'openai.model', value: 'gpt-4o-mini-tts', ts: 600, by: machine },
+      { key: 'compatible.baseURL', value: 'https://api.groq.com/openai', ts: 600, by: machine },
+      { key: 'compatible.model', value: 'playai-tts', ts: 600, by: machine },
     ]);
   });
 
@@ -299,24 +305,25 @@ describe('mergeSharedSettings', () => {
     expect(plan.adopt).toEqual([item({ key: 'cacheAudio', value: false, ts: 999 }), item({ key: 'readAloud.volume', value: 150, ts: 999 })]);
   });
 
-  it('merges the server presets preset by preset, and keeps local-address presets on this machine', () => {
-    const mine = JSON.stringify({ chatterbox: { baseURL: 'http://localhost:8004', headers: 'X: 1' }, openai: { apiKey: 'sk-mine' } });
-    const theirs = JSON.stringify({ mimo: { baseURL: 'https://api.xiaomimimo.com', apiKey: 'mimo-key' }, openai: { apiKey: 'sk-theirs' } });
-    const remote = [item({ key: 'openai.presetValues', value: theirs, ts: 500 })];
-    const down = mergeSharedSettings({ values: values({ 'openai.presetValues': mine }), stamps: {}, machine }, remote);
-    expect(down.adopt).toHaveLength(1);
-    expect(JSON.parse(String(down.adopt[0].value))).toEqual({
-      openai: { apiKey: 'sk-theirs' },
-      chatterbox: { baseURL: 'http://localhost:8004', headers: 'X: 1' },
-      mimo: { baseURL: 'https://api.xiaomimimo.com', apiKey: 'mimo-key' },
-    });
-    // The same file again with the merged value in place: nothing more to adopt
-    const merged = String(down.adopt[0].value);
-    const again = mergeSharedSettings({ values: values({ 'openai.presetValues': merged }), stamps: { 'openai.presetValues': 500 }, machine }, remote);
-    expect(again.adopt).toEqual([]);
-    // Going up, the chatterbox preset at localhost stays here
-    const up = mergeSharedSettings({ values: values({ 'openai.presetValues': mine }), stamps: { 'openai.presetValues': 700 }, machine }, []);
-    expect(up.items).toHaveLength(1);
-    expect(JSON.parse(String(up.items[0].value))).toEqual({ openai: { apiKey: 'sk-mine' } });
+  // TEMPORARY (issue #113, deleted in 2.0.0 with core/openai-split.ts): a
+  // file written by a copy from before the split is read as the three sections
+  it('reads the old OpenAI section’s items of a file as the three sections’ items, and keeps the old ones in it', () => {
+    const remote = [
+      item({ key: 'openai.enabled', value: true, ts: 100 }),
+      item({ key: 'openai.apiKey', value: 'mimo-key', ts: 300 }),
+      item({ key: 'openai.server', value: 'mimo', ts: 200 }),
+      item({ key: 'openai.presetValues', value: JSON.stringify({ openai: { apiKey: 'sk-theirs' } }), ts: 250 }),
+    ];
+    const parsed = parseShared(serializeShared(remote));
+    const byKey = Object.fromEntries(parsed.map((i) => [i.key, i]));
+    expect(byKey['mimo.apiKey']).toEqual(item({ key: 'mimo.apiKey', value: 'mimo-key', ts: 300 }));
+    expect(byKey['mimo.enabled']).toEqual(item({ key: 'mimo.enabled', value: true, ts: 100 }));
+    expect(byKey['openai-official.apiKey']).toEqual(item({ key: 'openai-official.apiKey', value: 'sk-theirs', ts: 250 }));
+    expect(byKey['openai-official.enabled']).toEqual(item({ key: 'openai-official.enabled', value: false, ts: 100 }));
+    expect(byKey['openai.apiKey']).toEqual(remote[1]);
+    // The merge then adopts the derived items and passes the old ones through, unapplied
+    const plan = mergeSharedSettings({ values: values(), stamps: {}, machine }, parsed);
+    expect(plan.adopt.map((i) => i.key).sort()).toEqual(['mimo.apiKey', 'mimo.enabled', 'openai-official.apiKey', 'openai-official.enabled']);
+    expect(plan.items.map((i) => i.key)).toContain('openai.presetValues');
   });
 });

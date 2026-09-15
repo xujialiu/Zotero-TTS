@@ -32,7 +32,7 @@ function fakePrefs(initial: Record<string, unknown> = {}): PrefsBackend & { stor
   return { store, get: (k) => store[k], set: (k, v) => void (store[k] = v) };
 }
 
-const ISABELLA = 'openai::bf_v0isabella';
+const ISABELLA = 'openai-official::bf_v0isabella';
 const AOEDE = 'local::af_aoede';
 /** The local provider's tier: its engine's name (voice-catalog.ts tierForProvider, issue #110); the caller passes it with the voice. */
 const KOKORO = 'kokoro';
@@ -41,7 +41,7 @@ const KOKORO = 'kokoro';
 const voices: VoicesMap = {
   en: { region: 'US', voice: AOEDE, speed: 1.4, tierVoices: { standard: 'bdd0dcc3-en-US', [KOKORO]: AOEDE } },
   zh: { region: null, voice: 'azure::fr-FR-LucienMultilingualNeural', speed: 1.2, tierVoices: {} },
-  [MULTILINGUAL]: { region: null, voice: ISABELLA, speed: 1.4, tierVoices: { openai: ISABELLA } },
+  [MULTILINGUAL]: { region: null, voice: ISABELLA, speed: 1.4, tierVoices: { 'openai-official': ISABELLA } },
 };
 
 describe('readMemory / writeMemory', () => {
@@ -86,7 +86,7 @@ describe('memoryFromVoices', () => {
 
 describe('isMultilingualVoiceId', () => {
   it('every OpenAI-compatible voice is multilingual; Azure by name; local and foreign ids are not', () => {
-    expect(isMultilingualVoiceId('openai::Emily.wav')).toBe(true);
+    expect(isMultilingualVoiceId('openai-official::Emily.wav')).toBe(true);
     expect(isMultilingualVoiceId('azure::en-US-AvaMultilingualNeural')).toBe(true);
     expect(isMultilingualVoiceId('azure::zh-CN-XiaoxiaoNeural')).toBe(false);
     expect(isMultilingualVoiceId('local::af_bella')).toBe(false);
@@ -216,18 +216,18 @@ describe('planSync', () => {
   });
 
   it('puts the remembered multilingual voice back if the Multiple languages entry drifted', () => {
-    const drifted = { ...voices, [MULTILINGUAL]: { ...voices[MULTILINGUAL], voice: 'openai::alloy', speed: 1.0 } };
+    const drifted = { ...voices, [MULTILINGUAL]: { ...voices[MULTILINGUAL], voice: 'openai-official::alloy', speed: 1.0 } };
     expect(planSync('en', drifted, multilingual)).toEqual({
       lang: MULTILINGUAL,
       voices: {
         ...drifted,
-        [MULTILINGUAL]: { ...drifted[MULTILINGUAL], voice: ISABELLA, speed: 1.4, tierVoices: { openai: ISABELLA } },
+        [MULTILINGUAL]: { ...drifted[MULTILINGUAL], voice: ISABELLA, speed: 1.4, tierVoices: { 'openai-official': ISABELLA } },
       },
     });
     const missing = { en: voices.en };
     expect(planSync('en', missing, multilingual).voices).toEqual({
       ...missing,
-      [MULTILINGUAL]: { speed: 1.4, voice: ISABELLA, tierVoices: { openai: ISABELLA } },
+      [MULTILINGUAL]: { speed: 1.4, voice: ISABELLA, tierVoices: { 'openai-official': ISABELLA } },
     });
   });
 

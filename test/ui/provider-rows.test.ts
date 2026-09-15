@@ -112,13 +112,13 @@ function setup(
 describe('initProviderRows', () => {
   it('paints every switch from its pref on load: off is "Enable" with the fields open, on is "Disable" with them locked', () => {
     const t = setup({ prefs: { [enabledPref('azure')]: true } });
-    expect(t.of('openai').label()).toBe('Enable');
-    expect(t.of('openai').locked()).toEqual([false, false]);
+    expect(t.of('openai-official').label()).toBe('Enable');
+    expect(t.of('openai-official').locked()).toEqual([false, false]);
     expect(t.of('azure').label()).toBe('Disable');
     expect(t.of('azure').locked()).toEqual([true, true]);
     expect(t.of('local').label()).toBe('Enable');
     // Painting open fields hands them back to the preset rows, which gray out theirs
-    expect(t.onUnlocked.mock.calls.map(([id]) => id)).toEqual(['openai', 'cloudflare', 'speechify', 'fish', 'fishspeech', 'local', 'system', 'zotero-standard', 'zotero-premium']);
+    expect(t.onUnlocked.mock.calls.map(([id]) => id)).toEqual(['openai-official', 'mimo', 'compatible', 'cloudflare', 'speechify', 'fish', 'fishspeech', 'local', 'system', 'zotero-standard', 'zotero-premium']);
     expect(t.check).not.toHaveBeenCalled();
     expect(t.onVoicesChanged).not.toHaveBeenCalled();
   });
@@ -169,16 +169,16 @@ describe('initProviderRows', () => {
 
   it('refuses to enable while a tab is reading, before any check: the user is told where', async () => {
     const t = setup({ reading: ['Deep learning'] });
-    await t.of('openai').toggle.fire('command');
+    await t.of('openai-official').toggle.fire('command');
     expect(t.warn).toHaveBeenCalledWith(expect.stringContaining('Deep learning'));
     expect(t.check).not.toHaveBeenCalled();
-    expect(t.of('openai').enabled()).toBeUndefined();
-    expect(t.of('openai').label()).toBe('Enable');
+    expect(t.of('openai-official').enabled()).toBeUndefined();
+    expect(t.of('openai-official').label()).toBe('Enable');
   });
 
   it('disabling switches off at once, unlocks the fields, clears the line, and lists the voices again', async () => {
-    const t = setup({ prefs: { [enabledPref('openai')]: true } });
-    const openai = t.of('openai');
+    const t = setup({ prefs: { [enabledPref('openai-official')]: true } });
+    const openai = t.of('openai-official');
     expect(openai.locked()).toEqual([true, true]);
     await openai.test.fire('command');
     expect(openai.result()).toBe('Connected. 3 voices available.');
@@ -190,7 +190,7 @@ describe('initProviderRows', () => {
     expect(openai.locked()).toEqual([false, false]);
     // The last check's outcome no longer holds
     expect(openai.result()).toBe('');
-    expect(t.onUnlocked).toHaveBeenCalledWith('openai');
+    expect(t.onUnlocked).toHaveBeenCalledWith('openai-official');
     expect(t.onVoicesChanged).toHaveBeenCalledTimes(1);
     expect(t.check).toHaveBeenCalledTimes(1);
     expect(t.warn).not.toHaveBeenCalled();
@@ -199,8 +199,8 @@ describe('initProviderRows', () => {
   // Its voices stop being published: an open player keeps listing them and
   // the next one to open does not, which is the divergence issue #11 is about
   it('refuses to disable while a tab is reading: the provider stays on and the fields stay locked', async () => {
-    const t = setup({ prefs: { [enabledPref('openai')]: true }, reading: ['Deep learning'] });
-    const openai = t.of('openai');
+    const t = setup({ prefs: { [enabledPref('openai-official')]: true }, reading: ['Deep learning'] });
+    const openai = t.of('openai-official');
     await openai.toggle.fire('command');
     expect(t.warn).toHaveBeenCalledWith(expect.stringContaining('Deep learning'));
     expect(openai.enabled()).toBe(true);
@@ -239,14 +239,14 @@ describe('initProviderRows', () => {
     const stopReading = vi.fn(() => reading.splice(0));
     const askToStop = vi.fn(async (_message: string) => true);
     const t = setup({ reading, askToStop, stopReading });
-    await t.of('openai').toggle.fire('command');
+    await t.of('openai-official').toggle.fire('command');
     expect(askToStop).toHaveBeenCalledTimes(1);
     expect(askToStop).toHaveBeenCalledWith(expect.stringContaining('Deep learning'));
     expect(stopReading).toHaveBeenCalledTimes(1);
-    expect(t.check).toHaveBeenCalledWith('openai');
-    expect(t.of('openai').enabled()).toBe(true);
-    expect(t.of('openai').label()).toBe('Disable');
-    expect(t.of('openai').result()).toBe('Connected. 3 voices available.');
+    expect(t.check).toHaveBeenCalledWith('openai-official');
+    expect(t.of('openai-official').enabled()).toBe(true);
+    expect(t.of('openai-official').label()).toBe('Disable');
+    expect(t.of('openai-official').result()).toBe('Connected. 3 voices available.');
     expect(t.onVoicesChanged).toHaveBeenCalledTimes(1);
     expect(t.warn).not.toHaveBeenCalled();
   });
@@ -275,27 +275,27 @@ describe('initProviderRows', () => {
   it('disables once the user stops the reading, and stays on after Cancel', async () => {
     const reading = ['Deep learning'];
     const stopReading = vi.fn(() => reading.splice(0));
-    const cancel = setup({ prefs: { [enabledPref('openai')]: true }, reading, askToStop: async () => false, stopReading });
-    await cancel.of('openai').toggle.fire('command');
+    const cancel = setup({ prefs: { [enabledPref('openai-official')]: true }, reading, askToStop: async () => false, stopReading });
+    await cancel.of('openai-official').toggle.fire('command');
     expect(stopReading).not.toHaveBeenCalled();
-    expect(cancel.of('openai').enabled()).toBe(true);
-    expect(cancel.of('openai').label()).toBe('Disable');
+    expect(cancel.of('openai-official').enabled()).toBe(true);
+    expect(cancel.of('openai-official').label()).toBe('Disable');
     expect(cancel.onVoicesChanged).not.toHaveBeenCalled();
-    const stop = setup({ prefs: { [enabledPref('openai')]: true }, reading, askToStop: async () => true, stopReading });
-    await stop.of('openai').toggle.fire('command');
+    const stop = setup({ prefs: { [enabledPref('openai-official')]: true }, reading, askToStop: async () => true, stopReading });
+    await stop.of('openai-official').toggle.fire('command');
     expect(stopReading).toHaveBeenCalledTimes(1);
-    expect(stop.of('openai').enabled()).toBe(false);
-    expect(stop.of('openai').label()).toBe('Enable');
+    expect(stop.of('openai-official').enabled()).toBe(false);
+    expect(stop.of('openai-official').label()).toBe('Enable');
     expect(stop.onVoicesChanged).toHaveBeenCalledTimes(1);
   });
 
   it('Test connection probes without switching anything, and lists the voices again only for a provider that is on', async () => {
     const t = setup({ prefs: { [enabledPref('azure')]: true } });
     // Off: the outcome is shown, the pref and the fields stay as they are
-    await t.of('openai').test.fire('command');
-    expect(t.of('openai').result()).toBe('Connected. 3 voices available.');
-    expect(t.of('openai').enabled()).toBeUndefined();
-    expect(t.of('openai').label()).toBe('Enable');
+    await t.of('openai-official').test.fire('command');
+    expect(t.of('openai-official').result()).toBe('Connected. 3 voices available.');
+    expect(t.of('openai-official').enabled()).toBeUndefined();
+    expect(t.of('openai-official').label()).toBe('Enable');
     expect(t.onVoicesChanged).not.toHaveBeenCalled();
     // On: the server may have come back, so the browser lists again
     await t.of('azure').test.fire('command');
@@ -335,7 +335,7 @@ describe('initProviderRows', () => {
     t.rows.refresh();
     expect(t.of('local').label()).toBe('Disable');
     expect(t.of('local').locked()).toEqual([true, true]);
-    expect(t.of('openai').label()).toBe('Enable');
+    expect(t.of('openai-official').label()).toBe('Enable');
     expect(t.onVoicesChanged).not.toHaveBeenCalled();
   });
 
@@ -378,9 +378,9 @@ describe('initProviderRows', () => {
   // (issue #21). verifyEnabled is the commit point Enable would have been.
   describe('verifyEnabled, after a settings restore', () => {
     it('checks every provider the restored prefs turn on, and no others', async () => {
-      const t = setup({ prefs: { [enabledPref('openai')]: true, [enabledPref('azure')]: true } });
+      const t = setup({ prefs: { [enabledPref('openai-official')]: true, [enabledPref('azure')]: true } });
       await t.rows.verifyEnabled();
-      expect(t.check.mock.calls.map(([id]) => id).sort()).toEqual(['azure', 'openai']);
+      expect(t.check.mock.calls.map(([id]) => id).sort()).toEqual(['azure', 'openai-official']);
     });
 
     it('switches off a provider whose check fails, with the failure beside it', async () => {

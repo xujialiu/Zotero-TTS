@@ -1,11 +1,11 @@
-<!-- translated-from: chatterbox-tts-server.md sha256:7e66b5928a90 -->
+<!-- translated-from: chatterbox-tts-server.md sha256:4c1212378f00 -->
 # 用 Docker 跑 Chatterbox-TTS-Server（NVIDIA 显卡）
 
 [English](chatterbox-tts-server.md) · **简体中文**
 
 [Chatterbox-TTS-Server](https://github.com/devnen/Chatterbox-TTS-Server) 把 Resemble AI 的 Chatterbox 模型包进了一个网页界面和一套 OpenAI 兼容 API。和 Kokoro 比，它的语音自然、有感情得多——Turbo 模型甚至认识 `[laugh]`、`[sigh]` 这样的标签——而且你可以拿一小段录音克隆一个语音。代价是：没有词级时间戳（所以朗读只能逐句高亮）、慢（一个长句要好几秒），而且它要一块真显卡。
 
-插件是通过设置里的 **OpenAI** 那一节来用它的。
+插件是通过设置里的 **OpenAI Compatible** 那一节来用它的。
 
 ## 只讲显卡
 
@@ -85,16 +85,17 @@ curl -s -o test.mp3 -H "Content-Type: application/json" \
 
 ## 5. 把插件指过去
 
-Zotero → 设置 → Zotero-TTS → **OpenAI** 那一节：
+Zotero → 设置 → Zotero-TTS → **OpenAI Compatible** 那一节：
 
 | 字段 | 填什么 |
 |---|---|
-| 启用 OpenAI 语音 | 开 |
-| 服务器 | **Chatterbox-TTS-Server**——选了它会自动填好地址，并把密钥、模型、语音置灰，因为 Chatterbox 不看这几项 |
-| API 地址 | `http://localhost:8004`（预设已填好；用别的机器就改这里） |
+| 地址 | `http://localhost:8004`（服务器在别的机器上就填那台机器的地址） |
+| API 密钥 | 留空——Chatterbox 没有 |
+| 模型 | 随便填，比如 `tts-1`——Chatterbox 不看这项 |
+| 语音 | 留空——用服务器自带的语音 |
 | 额外请求头 | 留空（只有服务器在网关后面才需要，见 Cloudflare 教程） |
 
-**测试连接**会回答 `已连接。28 个语音可用。合成正常。`。在朗读的*本地*语音模式里，这些语音显示为 `OpenAI-Emily.wav`、`OpenAI-Henry.wav` 等等。不管*高亮当前*怎么设，高亮都是逐句的，因为这个服务器不报词级时间戳。
+**测试连接**会回答 `已连接。28 个语音可用。合成正常。`，然后**启用**。在播放器第一个下拉框里，这些语音排在 **OpenAI Compatible** 下面，是 `Emily.wav`、`Henry.wav` 这些名字。不管*高亮当前*怎么设，高亮都是逐句的，因为这个服务器不报词级时间戳。
 
 ## 语言
 

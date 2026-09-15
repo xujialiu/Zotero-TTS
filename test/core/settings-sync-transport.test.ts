@@ -297,17 +297,17 @@ describe('createSettingsSyncTransport', () => {
   });
 
   it('a switch the file has no item for is flipped without an opinion, so it is never pushed', async () => {
-    const h = harness({ values: { 'openai.apiKey': 'old' }, state: { stamps: { 'openai.apiKey': 100 }, held: {}, seeded: true }, remote: file(item({ key: 'openai.apiKey', value: 'bad', ts: 700 })) });
-    h.checkOutcomes.openai = new Error('boom');
+    const h = harness({ values: { 'mimo.apiKey': 'old', 'mimo.enabled': true }, state: { stamps: { 'mimo.apiKey': 100 }, held: {}, seeded: true }, remote: file(item({ key: 'mimo.apiKey', value: 'bad', ts: 700 })) });
+    h.checkOutcomes.mimo = new Error('boom');
     h.transport.poke('startup');
     await settle();
-    expect(h.store['openai.enabled']).toBe(false);
-    expect(h.state().stamps).toEqual({ 'openai.apiKey': 700 });
-    expect(h.state().held.openai).toMatchObject({ reason: 'boom' });
+    expect(h.store['mimo.enabled']).toBe(false);
+    expect(h.state().stamps).toEqual({ 'mimo.apiKey': 700 });
+    expect(h.state().held.mimo).toMatchObject({ reason: 'boom' });
     h.transport.poke('reader-open');
     await settle();
     expect(h.uploads).toEqual([]);
-    expect(h.remoteItems().find((i) => i.key === 'openai.enabled')).toBeUndefined();
+    expect(h.remoteItems().find((i) => i.key === 'mimo.enabled')).toBeUndefined();
   });
 
   it('a value the pref refuses is left out and unstamped; the rest of the batch still applies', async () => {

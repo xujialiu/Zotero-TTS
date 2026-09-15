@@ -29,18 +29,18 @@ describe('collectCatalog', () => {
   });
 
   it('lists the voices of every requested provider, in order', async () => {
-    const providers = { openai: provider('openai', [alloy]), azure: provider('azure', [xiaoxiao]) } as Record<ProviderId, TTSProvider>;
-    const catalog = await collectCatalog(['azure', 'openai'], (id) => providers[id]);
+    const providers = { 'openai-official': provider('openai-official', [alloy]), azure: provider('azure', [xiaoxiao]) } as Record<ProviderId, TTSProvider>;
+    const catalog = await collectCatalog(['azure', 'openai-official'], (id) => providers[id]);
     expect(catalog).toEqual([
       { provider: 'azure', voices: [xiaoxiao] },
-      { provider: 'openai', voices: [alloy] },
+      { provider: 'openai-official', voices: [alloy] },
     ]);
   });
 
   it('skips a provider that cannot list, names it in the log, and keeps the others', async () => {
     const log = vi.fn();
-    const providers = { openai: provider('openai', new Error('no key')), azure: provider('azure', [xiaoxiao]) } as Record<ProviderId, TTSProvider>;
-    const catalog = await collectCatalog(['openai', 'azure'], (id) => providers[id], log);
+    const providers = { 'openai-official': provider('openai-official', new Error('no key')), azure: provider('azure', [xiaoxiao]) } as Record<ProviderId, TTSProvider>;
+    const catalog = await collectCatalog(['openai-official', 'azure'], (id) => providers[id], log);
     expect(catalog).toEqual([{ provider: 'azure', voices: [xiaoxiao] }]);
     expect(log).toHaveBeenCalledTimes(1);
     const logged = log.mock.calls[0][0] as Error;
@@ -51,14 +51,14 @@ describe('collectCatalog', () => {
   it('treats a provider that cannot even be built the same way', async () => {
     const log = vi.fn();
     const catalog = await collectCatalog(
-      ['local', 'openai'],
+      ['local', 'openai-official'],
       (id) => {
         if (id === 'local') throw new Error('Unknown local engine: piper');
-        return provider('openai', [alloy]);
+        return provider('openai-official', [alloy]);
       },
       log,
     );
-    expect(catalog).toEqual([{ provider: 'openai', voices: [alloy] }]);
+    expect(catalog).toEqual([{ provider: 'openai-official', voices: [alloy] }]);
     expect((log.mock.calls[0][0] as Error).message).toMatch(/local.*piper/);
   });
 
@@ -114,7 +114,7 @@ describe('collectCatalog with a provider that never answers', () => {
 
   it('is bounded through listNamedCatalog the same way', async () => {
     const settings = { ...DEFAULTS, azure: { ...DEFAULTS.azure, enabled: true } };
-    const providers = { openai: hanging('openai'), azure: provider('azure', [xiaoxiao]) } as Record<ProviderId, TTSProvider>;
+    const providers = { 'openai-official': hanging('openai-official'), azure: provider('azure', [xiaoxiao]) } as Record<ProviderId, TTSProvider>;
     const catalog = await listNamedCatalog(settings, (id) => providers[id], undefined, { timeoutMs: 20 });
     expect(catalog).toEqual([{ provider: 'azure', voices: [xiaoxiao] }]);
   });
@@ -135,29 +135,32 @@ describe('listNamedCatalog', () => {
 
   it('lists the enabled providers and names local voices after their engine', async () => {
     const settings = { ...DEFAULTS, local: { ...DEFAULTS.local, enabled: true } };
-    const providers = { openai: provider('openai', [alloy]), local: provider('local', [bella]) } as Record<ProviderId, TTSProvider>;
+    const providers = { 'openai-official': provider('openai-official', [alloy]), local: provider('local', [bella]) } as Record<ProviderId, TTSProvider>;
     const catalog = await listNamedCatalog(settings, (id) => providers[id]);
     expect(catalog).toEqual([
-      { provider: 'openai', voices: [alloy] },
+      { provider: 'openai-official', voices: [alloy] },
       { provider: 'local', name: 'Kokoro', voices: [bella] },
     ]);
   });
 
-  // Xiaomi MiMo (issue #50): the OpenAI section's entry is named after its
-  // preset when the preset has a name of its own, "OpenAI" otherwise (issue #110)
-  it("names the OpenAI section's voices after its server preset, when the preset has a name", async () => {
+  // Issue #113: the three sections that speak OpenAI's API are entries of
+  // their own, named by their ids (voice-catalog.ts providerTierLabel), so
+  // the catalog gives them no name of its own
+  it('leaves the OpenAI, Xiaomi MiMo and OpenAI Compatible entries to their fixed names', async () => {
     const bingtang = { id: '冰糖', label: '冰糖', locale: 'mul' };
-    const mimo = { ...DEFAULTS, openai: { ...DEFAULTS.openai, server: 'mimo' } };
-    expect(await listNamedCatalog(mimo, () => provider('openai', [bingtang]))).toEqual([{ provider: 'openai', name: 'Xiaomi MiMo', voices: [bingtang] }]);
-    const chatterbox = { ...DEFAULTS, openai: { ...DEFAULTS.openai, server: 'chatterbox' } };
-    expect(await listNamedCatalog(chatterbox, () => provider('openai', [alloy]))).toEqual([{ provider: 'openai', name: 'Chatterbox-TTS-Server', voices: [alloy] }]);
-    expect(await listNamedCatalog(DEFAULTS, () => provider('openai', [alloy]))).toEqual([{ provider: 'openai', voices: [alloy] }]);
+    const settings = { ...DEFAULTS, mimo: { ...DEFAULTS.mimo, enabled: true }, compatible: { ...DEFAULTS.compatible, enabled: true } };
+    const providers = { 'openai-official': provider('openai-official', [alloy]), mimo: provider('mimo', [bingtang]), compatible: provider('compatible', [alloy]) } as Record<ProviderId, TTSProvider>;
+    expect(await listNamedCatalog(settings, (id) => providers[id])).toEqual([
+      { provider: 'openai-official', voices: [alloy] },
+      { provider: 'mimo', voices: [bingtang] },
+      { provider: 'compatible', voices: [alloy] },
+    ]);
   });
 
   it('leaves an unknown engine nameless instead of failing', async () => {
     const settings = {
       ...DEFAULTS,
-      openai: { ...DEFAULTS.openai, enabled: false },
+      'openai-official': { ...DEFAULTS['openai-official'], enabled: false },
       local: { ...DEFAULTS.local, enabled: true, engine: 'piper' },
     };
     const catalog = await listNamedCatalog(settings, () => provider('local', [bella]));
@@ -169,16 +172,16 @@ describe('listNamedCatalog', () => {
 // (issue #110), from the settings: every provider keyed by its id, the local
 // engine by its name; the labels the prefixes carried until then
 describe('provider tiers from the settings', () => {
-  it('names the entries after the engine and the server preset', () => {
-    expect(providerNaming(DEFAULTS)).toEqual({ localEngine: 'Kokoro', openaiServer: undefined });
-    const mimo = { ...DEFAULTS, openai: { ...DEFAULTS.openai, server: 'mimo' } };
-    expect(providerNaming(mimo).openaiServer).toBe('Xiaomi MiMo');
+  it('names the local entry after the engine', () => {
+    expect(providerNaming(DEFAULTS)).toEqual({ localEngine: 'Kokoro' });
     expect(providerNaming({ ...DEFAULTS, local: { ...DEFAULTS.local, engine: 'piper' } }).localEngine).toBeUndefined();
   });
 
   it('keys every provider by its id and the local provider by its engine', () => {
     expect(providerTierKeys(DEFAULTS)).toEqual({
-      openai: 'openai',
+      'openai-official': 'openai-official',
+      mimo: 'mimo',
+      compatible: 'compatible',
       azure: 'azure',
       cloudflare: 'cloudflare',
       speechify: 'speechify',
@@ -190,11 +193,13 @@ describe('provider tiers from the settings', () => {
   });
 
   it('labels every tier key, Zotero’s two included', () => {
-    const labels = providerTierLabels({ ...DEFAULTS, openai: { ...DEFAULTS.openai, server: 'mimo' } });
+    const labels = providerTierLabels(DEFAULTS);
     expect(labels).toEqual({
       standard: 'Zotero Standard',
       premium: 'Zotero Premium',
-      openai: 'Xiaomi MiMo',
+      'openai-official': 'OpenAI',
+      mimo: 'Xiaomi MiMo',
+      compatible: 'OpenAI Compatible',
       azure: 'Azure',
       cloudflare: 'Cloudflare',
       speechify: 'Speechify',
@@ -208,13 +213,13 @@ describe('provider tiers from the settings', () => {
   it('lists the enabled providers as columns, and Zotero’s two while their switches are on', () => {
     const settings = { ...DEFAULTS, azure: { ...DEFAULTS.azure, enabled: true }, local: { ...DEFAULTS.local, enabled: true } };
     expect(providerTierColumns(settings)).toEqual([
-      { tier: 'openai', label: 'OpenAI' },
+      { tier: 'openai-official', label: 'OpenAI' },
       { tier: 'azure', label: 'Azure' },
       { tier: 'kokoro', label: 'Kokoro' },
       { tier: 'standard', label: 'Zotero Standard' },
       { tier: 'premium', label: 'Zotero Premium' },
     ]);
-    const none = { ...settings, openai: { ...settings.openai, enabled: false }, azure: { ...settings.azure, enabled: false }, local: { ...settings.local, enabled: false } };
+    const none = { ...settings, 'openai-official': { ...settings['openai-official'], enabled: false }, azure: { ...settings.azure, enabled: false }, local: { ...settings.local, enabled: false } };
     expect(providerTierColumns(none).map((c) => c.tier)).toEqual(['standard', 'premium']);
     // A tier switched off has no column (issue #111)
     expect(providerTierColumns({ ...none, 'zotero-standard': { enabled: false } }).map((c) => c.tier)).toEqual(['premium']);
