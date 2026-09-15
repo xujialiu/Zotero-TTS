@@ -2,7 +2,7 @@ import { initBracketRows } from './bracket-rows';
 import type { ProviderId, TTSProvider } from '../core/providers/types';
 import { LOCAL_ENGINES } from '../core/providers/local/registry';
 import { createProvider, type ProviderDeps } from '../core/providers/factory';
-import { type Settings, createZoteroPrefs, loadSettings, PREF_PREFIX, type PrefsBackend } from '../core/settings';
+import { type Settings, createZoteroPrefs, hiddenZoteroTiers, isZoteroSwitch, loadSettings, PREF_PREFIX, type PrefsBackend, type SwitchId, zoteroSwitchTier } from '../core/settings';
 import { addressHint, addressHintText } from '../core/server-presets';
 import { machineId, renameMachineId } from '../core/machine-id';
 import { getChromeWebSocket, newRequestId } from '../core/providers/azure';
@@ -34,6 +34,8 @@ import { SYNC_POSITIONS_OBSERVER, type PositionTransportStats } from '../read-al
 import { initHighlightRows } from './highlight-rows';
 import { initPrefetchRows, PREFETCH_ENABLED_OBSERVER } from './prefetch-rows';
 import { initProviderRows } from './provider-rows';
+import { renderSectionHeading, type HeadingDoc } from './section-heading';
+import { checkZoteroTier } from './zotero-tier-check';
 import { createSamplePlayer, initVoiceBrowserRows } from './voice-browser-rows';
 import { initFishVoiceSources } from './fish-voice-sources';
 import { initVoiceListSwitches } from './voice-list-switches';
@@ -294,6 +296,7 @@ export function zoteroVoiceService(): ZoteroVoiceService {
       return {
         getReadAloudVoices: async () => waive(await client.getReadAloudVoices()),
         getReadAloudAudio: async (segment: 'sample', voiceId: string) => waive(await client.getReadAloudAudio(segment, voiceId)),
+        getReadAloudCreditsRemaining: async () => waive(await client.getReadAloudCreditsRemaining()),
       };
     },
     // Zotero builds the Blob in the chrome window (syncAPIClient.js); the
@@ -391,7 +394,9 @@ export function addressGate(openai: Pick<Settings['openai'], 'server' | 'baseURL
  * a provider's settings (core/settings-sync-transport.ts, issue #68) — the
  * same probes, bounded the same way, no document to write into.
  */
-export async function runConnectionCheck(prefs: PrefsBackend, id: ProviderId, deps: ProviderDeps): Promise<ConnectionResult> {
+export async function runConnectionCheck(prefs: PrefsBackend, id: SwitchId, deps: ProviderDeps): Promise<ConnectionResult> {
+  // One of Zotero's own tiers (issue #111): signed in, voices listed, credits — no provider to build
+  if (isZoteroSwitch(id)) return checkZoteroTier(zoteroSwitchTier(id), { signedIn: () => !!Zotero.Sync?.Runner?.enabled, service: zoteroVoiceService() });
   const settings = loadSettings(prefs);
   let outcome: ConnectionResult;
   // Test connection is the retry after an environment was fixed, so it
@@ -420,7 +425,7 @@ export async function runConnectionCheck(prefs: PrefsBackend, id: ProviderId, de
   return outcome;
 }
 
-async function checkProvider(doc: Document, prefs: PrefsBackend, id: ProviderId, deps: ProviderDeps): Promise<ConnectionResult> {
+async function checkProvider(doc: Document, prefs: PrefsBackend, id: SwitchId, deps: ProviderDeps): Promise<ConnectionResult> {
   const outcome = await runConnectionCheck(prefs, id, deps);
   const suggestions = doc.getElementById(`ztts-${id}-models`);
   if (suggestions && outcome.models) {
@@ -607,8 +612,12 @@ export function onPaneLoad(doc: Document, hooks: PaneHooks = {}): void {
     // anything right now, and Zotero's two (issue #110)
     tierColumns: () => providerTierColumns(loadSettings(prefs)),
     // Zotero's own Standard and Premium voices, listed and sampled beside
-    // the plugin's; failing on its own leaves the plugin's voices listed
-    listZoteroVoices: () => zoteroVoiceService().listVoices(),
+    // the plugin's; failing on its own leaves the plugin's voices listed.
+    // A tier switched off is not listed (issue #111)
+    listZoteroVoices: async () => {
+      const hidden: readonly string[] = hiddenZoteroTiers(loadSettings(prefs));
+      return (await zoteroVoiceService().listVoices()).filter((voice) => !hidden.includes(voice.tier));
+    },
     sampleZoteroVoice: (voiceId) => zoteroVoiceService().sample(voiceId),
     // A detached element plays fine; the pane window closing stops it. The
     // samples play at the Read Aloud volume, read per sample (issue #62)
@@ -691,8 +700,12 @@ export function onPaneLoad(doc: Document, hooks: PaneHooks = {}): void {
   // ProviderRows paints its fields once during construction; apply the
   // Manual voices source lock after that first paint too.
   fishVoiceSources.refresh();
+  // The local engine's heading, named and linked from the registry (issue #112)
   const localHeading = doc.getElementById('ztts-local-heading');
-  if (localHeading) localHeading.textContent = engineLabel(loadSettings(prefs).local.engine);
+  if (localHeading) {
+    const engineId = loadSettings(prefs).local.engine;
+    renderSectionHeading(doc as unknown as HeadingDoc, localHeading, engineLabel(engineId), LOCAL_ENGINES.find((e) => e.id === engineId)?.site ?? null);
+  }
 
   const restoreDeps = {
     prefs,

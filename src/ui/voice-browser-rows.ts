@@ -9,7 +9,7 @@ import { regionOfLocale, setDefaultVoice } from '../read-aloud/default-voice';
 import { parseFavoriteVoices, serializeFavoriteVoices, toggleFavoriteVoice } from '../read-aloud/favorites';
 import { dropdownLabels, dropdownLanguage, languageDisplayName } from '../read-aloud/language-dropdown';
 import { isMultilingualVoiceId, memoryLangForLocale, readMemory, sameChoice, type VoiceChoice } from '../read-aloud/read-aloud-memory';
-import { compareVoiceLabels, encodeVoiceId, providerTierLabel, tierForProvider, zoteroTierLabel, type TierEntry } from '../read-aloud/voice-catalog';
+import { compareVoiceLabels, encodeVoiceId, isZoteroTier, providerTierLabel, tierForProvider, zoteroTierLabel, type TierEntry } from '../read-aloud/voice-catalog';
 import { ZOTERO_TIERS, type ZoteroVoice } from '../read-aloud/zotero-voices';
 import { refuseWhileReading } from './reading-guard';
 
@@ -420,12 +420,19 @@ export async function listBrowserVoices(
     const notices = (entry as CatalogEntry & { notices?: VoiceListNotice[] }).notices ?? [];
     for (const notice of notices) problems.push(describeListNotice(notice));
   }
-  // The pane's columns are the enabled providers; a provider that listed
-  // while the settings do not name it (a switch flipped mid-listing) keeps
-  // its column all the same, so nothing listed is lost
-  const columns = deps.tierColumns?.() ?? [];
-  const known = new Set(columns.map((column) => column.tier));
-  for (const column of listedColumns(catalog)) if (!known.has(column.tier)) columns.push(column);
+  // The pane's columns are the enabled providers and Zotero's tiers whose
+  // switch is on; a provider that listed while the settings do not name it
+  // (a switch flipped mid-listing) keeps its column all the same, so
+  // nothing listed is lost — but a Zotero tier the pane left out is one
+  // switched off (issue #111), hidden with its voices, and stays out.
+  // Without the pane's columns (the diagnostic, the tests): the providers
+  // that listed and Zotero's two.
+  const paneColumns = deps.tierColumns?.();
+  const columns = paneColumns ? [...paneColumns] : listedColumns(catalog);
+  if (paneColumns) {
+    const known = new Set(columns.map((column) => column.tier));
+    for (const column of listedColumns(catalog)) if (!known.has(column.tier) && !isZoteroTier(column.tier)) columns.push(column);
+  }
   return { voices: browserVoices(catalog, zoteroVoices), problems, columns };
 }
 
@@ -457,7 +464,8 @@ export interface StatusInput {
  * and `diagnostics.defaultVoice()` reports it (issue #32).
  */
 export function statusLine({ voices, problems, choice, home, tiers, speed, sameVoice, favoritesOnly, favorites }: StatusInput): string {
-  if (!voices.length) return problems.length ? t('ztts-listing-failed', { problems: problems.join('; ') }) : t('ztts-no-voices');
+  // No column at all: every provider and both of Zotero's tiers are off (issue #111)
+  if (!voices.length) return problems.length ? t('ztts-listing-failed', { problems: problems.join('; ') }) : tiers.length ? t('ztts-no-voices') : t('ztts-no-providers-on');
   let line = defaultVoiceLine(choice, home, tiers, speed, sameVoice);
   if (sameVoice && choice && favoritesOnly && !favorites.includes(choice.id)) line = t('ztts-status-not-a-favorite', { line });
   if (problems.length) line = t('ztts-status-trouble', { line, problems: problems.join('; ') });

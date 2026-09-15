@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { ProviderId } from '../../src/core/providers/types';
-import { DEFAULTS } from '../../src/core/settings';
+import { DEFAULTS, type SwitchId } from '../../src/core/settings';
 import { flattenSettings, type SettingValue } from '../../src/core/settings-backup';
 import {
   parseSharedSettings,
@@ -45,8 +44,8 @@ function harness(opts: { values?: Record<string, SettingValue>; state?: SyncStat
   const writes: { key: string; value: SettingValue }[] = [];
   let state: SyncState = opts.state ?? { stamps: {}, held: {}, seeded: false };
   let readingTabs: string[] = [];
-  const checks: ProviderId[] = [];
-  const checkOutcomes: Partial<Record<ProviderId, { ok: boolean; message: string } | Error>> = {};
+  const checks: SwitchId[] = [];
+  const checkOutcomes: Partial<Record<SwitchId, { ok: boolean; message: string } | Error>> = {};
   const applied: SettingsSyncApplied[] = [];
   const synced: (SettingsSyncApplied | null)[] = [];
   /** Keys the fake pref refuses to write. */

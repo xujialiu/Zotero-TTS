@@ -20,11 +20,12 @@
 ## What it adds
 
 Zotero-TTS works inside Zotero 10's Read Aloud: each provider is an entry
-of the player's first dropdown, beside Zotero's Standard and Premium. It
+of the player's first dropdown, and Zotero's own Standard and Premium are
+two more, each behind a switch of its own. It
 is built for the way its author reads —
 [why, and where it is going](docs/PHILOSOPHY.md).
 
-- 🗣️ **More voices in the Read Aloud player**, one entry per provider beside Zotero's Standard and Premium — Azure Speech, Cloudflare Workers AI, Speechify, Fish Audio, a [Kokoro-FastAPI](https://github.com/remsky/Kokoro-FastAPI) or a [Fish Speech](https://github.com/fishaudio/fish-speech) server on your machine, OpenAI or any OpenAI-compatible server. [→ Providers](#providers)
+- 🗣️ **More voices in the Read Aloud player**, one entry per provider — Azure Speech, Cloudflare Workers AI, Speechify, Fish Audio, a [Kokoro-FastAPI](https://github.com/remsky/Kokoro-FastAPI) or a [Fish Speech](https://github.com/fishaudio/fish-speech) server on your machine, OpenAI or any OpenAI-compatible server — with Zotero's own Standard and Premium beside them, each behind a switch. [→ Providers](#providers)
 - 🔖 **Resume where you stopped** — close a document, open it again later, press `Shift+Space`, and Read Aloud starts at the sentence you left off on. [→ Resume where you stopped](#resume-where-you-stopped)
 - 📄 **The whole sentence on screen** — while a PDF is read, a sentence that runs past the bottom of the window, onto the next page or into the next column is scrolled into view instead of left cut, and `Shift+Enter` brings it back the same way. [→ Reading](#reading)
 - 📃 **No line lost at a page turn** — when a sentence runs onto the next page and Zotero would skip that page's first line, the line is read and highlighted like any other. [→ Reading](#reading)
@@ -54,17 +55,20 @@ is built for the way its author reads —
 | **Speechify** | An API key from platform.speechify.ai · 36 languages, no Mandarin | Free: 50,000 characters a month, about fifteen pages; then $10 a month for a million | word |
 | **Fish Audio** | An API key from fish.audio · official voices, your own clones, and Model IDs, with a switch for each source · [tutorial](tutorials/fish-audio.md) | Free with its free model: no cap, no guarantee; the paid one $15 per million bytes of text, three per Chinese character | word |
 | **Kokoro-FastAPI** | A server on your machine or LAN · [tutorial](tutorials/kokoro-fastapi.md) | Free; CPU works, a GPU is faster | word |
-| **Fish Speech server** | A [fish-speech](https://github.com/fishaudio/fish-speech) server on a 24 GB GPU, with voices cloned from your own recordings · [tutorial](tutorials/fish-speech-server.md) | Free | sentence |
+| **Fish Speech** | A [fish-speech](https://github.com/fishaudio/fish-speech) server on a 24 GB GPU, with voices cloned from your own recordings · [tutorial](tutorials/fish-speech-server.md) | Free | sentence |
 | **OpenAI-compatible** | Base URL and model; an API key if the server wants one | OpenAI bills per character; self-hosted servers such as [Chatterbox](tutorials/chatterbox-tts-server.md) are free | sentence |
 | **Xiaomi MiMo** | An API key from platform.xiaomimimo.com, picked in the OpenAI section's **Server** dropdown | Free for a limited time | sentence |
 | **System voices** | Nothing — Windows and macOS | Free, offline | word on Windows, sentence on macOS |
+| **Zotero Standard / Premium** | A Zotero account signed in under Edit → Settings → Sync; a switch each in the **Zotero** section, both on to begin with | Zotero's own credits, shown and bought in the player | word |
 
 The player's first dropdown lists every enabled provider that has voices
-right now, beside Zotero's **Standard** and **Premium**, sorted by name.
+right now, and Zotero's own **Zotero Standard** and **Zotero Premium**
+while their switches are on, sorted by name.
 
-- **The entries** are Azure, Cloudflare, Fish-cloud, Fish-local, Kokoro,
+- **The entries** are Azure, Cloudflare, Fish Audio, Fish Speech, Kokoro,
   OpenAI (or the server's own name: Xiaomi MiMo, Chatterbox-TTS-Server),
-  Speechify and System; the voices under them carry their own names.
+  Speechify, System, Zotero Premium and Zotero Standard; the voices under
+  them carry their own names.
 - **Each entry remembers its own last voice** per language: Kokoro → Fish
   → Kokoro brings the Kokoro voice back.
 - **A provider with nothing to offer** — switched off, its server down,
@@ -80,6 +84,13 @@ right now, beside Zotero's **Standard** and **Premium**, sorted by name.
   filing every plugin voice under Local.
 - **Enable**, at the end of every provider section, runs the connection
   check first: a provider that does not answer never switches on.
+- **Zotero's own Standard and Premium** have a switch each in the
+  **Zotero** section, both on to begin with. Switch one off and that tier
+  leaves the player's first dropdown, the voice browser and the language
+  list; nothing Zotero remembers is lost, and switching it back on brings
+  its last voice back. Enable checks that a Zotero account is signed in
+  and that Zotero lists voices in that tier; Test connection reports the
+  voices and the credits left.
 - **Test connection** probes without switching anything on.
 - While a provider is on its fields are locked — **Disable** to edit them.
 - API keys, gateway headers and the WebDAV password are masked. Like every
@@ -236,14 +247,15 @@ provider (or Zotero's Standard / Premium), language, voice.
 <summary><b>Favorites, samples, the default voice</b></summary>
 
 - **Every enabled provider has a column** — `(0)` while it lists nothing —
-  and **Standard** and **Premium** are Zotero's own; multilingual voices
-  sit under "Multiple languages", first in the language column.
+  and **Zotero Standard** and **Zotero Premium** are Zotero's own, each
+  while its switch is on; multilingual voices sit under "Multiple
+  languages", first in the language column.
 - **▶** — a sample in the voice's own language: your voices cost one short
   request, Zotero's own cost nothing.
 - *Offer only favorite voices* trims the Read Aloud player to the marked
   ones **for every provider** — a provider you marked nothing in leaves
-  the player's first dropdown, and Zotero grays out its own Standard or
-  Premium when nothing there is marked. With nothing marked at all, or when none of the
+  the player's first dropdown, Zotero's own two included. With nothing
+  marked at all, or when none of the
   marked voices is listed any more, everything is offered again. While the
   switch is on, only a favorite can be the default, and the switch stays
   off while the default is not one. Favorites travel with the settings

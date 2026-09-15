@@ -13,14 +13,14 @@ On each format, select English (United States) with regional, generic
 English and wildcard voices available. `diagnostics.playerVoiceList()`
 must report `patched: true`, `offered` smaller than `compatible`, and the
 selected regional voice. Read the actual popup's options: every offered
-voice has normalized language `en-US`; Fish-cloud-Adrian (`en`) is absent.
+voice has normalized language `en-US`; Fish Audio's Adrian (`en`) is absent.
 The menu's IDs and ordering must match previous/next shortcut cycling,
 including both wrap directions. Manual selection of another offered voice
 keeps English (United States) displayed. Repeat with English (United Kingdom).
 
 ## 2. Generic English remains available
 
-Select English, then Fish-cloud-Adrian from the actual menu. It remains
+Select English, then Fish Audio's Adrian from the actual menu. It remains
 selected and the language displays English. A stale requested US region
 must not turn generic selection into an empty list. Confirm no provider
 voice IDs, favorites or saved choices are rewritten by catalog filtering.

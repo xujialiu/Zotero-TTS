@@ -99,7 +99,7 @@ describe('the sync set', () => {
   });
 
   it('knows which settings edit the player’s list', () => {
-    for (const key of ['openai.enabled', 'local.voice', 'azure.apiKey', 'readAloud.favoritesOnly', 'readAloud.favoriteVoices']) {
+    for (const key of ['openai.enabled', 'local.voice', 'azure.apiKey', 'zotero-standard.enabled', 'zotero-premium.enabled', 'readAloud.favoritesOnly', 'readAloud.favoriteVoices']) {
       expect(editsPlayerList(key), key).toBe(true);
     }
     for (const key of ['shortcuts.speedUp', 'readAloud.volume', 'highlight.wordColor', 'prefetch', 'readAloud.sentenceDelayMs']) {

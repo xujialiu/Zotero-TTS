@@ -1,6 +1,5 @@
-import type { ProviderId } from './providers/types';
 import { PRESET_FIELDS, parsePresetValues, SERVER_PRESETS, type PresetValues } from './server-presets';
-import { DEFAULTS, PREF_PREFIX, PROVIDER_IDS, type PrefsBackend } from './settings';
+import { DEFAULTS, PREF_PREFIX, SWITCH_IDS, type PrefsBackend, type SwitchId } from './settings';
 import { coerceSetting, flattenSettings, type FlatSettings, type SettingValue } from './settings-backup';
 
 /**
@@ -87,15 +86,16 @@ export function sectionOf(key: string): string {
   return dot < 0 ? key : key.slice(0, dot);
 }
 
-const isProviderId = (section: string): section is ProviderId => (PROVIDER_IDS as readonly string[]).includes(section);
+const isSwitchId = (section: string): section is SwitchId => (SWITCH_IDS as readonly string[]).includes(section);
 
 /**
  * Whether a setting edits what the Read Aloud player lists (ui/reading-guard.ts):
- * a provider's switch, address, key or voices, and the favorites pair. These
- * wait while a tab reads; everything else applies at once.
+ * a provider's switch, address, key or voices, Zotero's two tier switches
+ * (issue #111), and the favorites pair. These wait while a tab reads;
+ * everything else applies at once.
  */
 export function editsPlayerList(key: string): boolean {
-  return isProviderId(sectionOf(key)) || key === 'readAloud.favoritesOnly' || key === 'readAloud.favoriteVoices';
+  return isSwitchId(sectionOf(key)) || key === 'readAloud.favoritesOnly' || key === 'readAloud.favoriteVoices';
 }
 
 // ---- The local-address rule ------------------------------------------------
@@ -229,8 +229,8 @@ export interface HeldProvider {
 export interface SyncState {
   /** Per setting, when this machine last changed it; absent means never since the stamps began, and the file's value is taken. */
   stamps: Record<string, number>;
-  /** Providers the sync switched off on this machine because their check failed here (#21); retried on the next adoption in their section. */
-  held: Partial<Record<ProviderId, HeldProvider>>;
+  /** Providers, and Zotero's tier switches (#111), the sync switched off on this machine because their check failed here (#21); retried on the next adoption in their section. */
+  held: Partial<Record<SwitchId, HeldProvider>>;
   /** Whether the stamps were seeded at the first sync with the switch on. */
   seeded: boolean;
 }
@@ -256,7 +256,7 @@ export function readSyncState(prefs: PrefsBackend): SyncState {
   }
   if (held && typeof held === 'object') {
     for (const [id, entry] of Object.entries(held as Record<string, unknown>)) {
-      if (!isProviderId(id) || !entry || typeof entry !== 'object') continue;
+      if (!isSwitchId(id) || !entry || typeof entry !== 'object') continue;
       const { ts, reason } = entry as Record<string, unknown>;
       if (typeof ts === 'number' && Number.isFinite(ts) && typeof reason === 'string') state.held[id] = { ts, reason };
     }

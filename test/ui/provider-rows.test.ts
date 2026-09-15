@@ -1,6 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { ProviderId } from '../../src/core/providers/types';
-import { PREF_PREFIX, PROVIDER_IDS, type PrefsBackend } from '../../src/core/settings';
+import { PREF_PREFIX, SWITCH_IDS, type PrefsBackend, type SwitchId } from '../../src/core/settings';
 import { initProviderRows, providerRowIds, type CheckOutcome } from '../../src/ui/provider-rows';
 
 function fakePrefs(initial: Record<string, unknown> = {}): PrefsBackend & { store: Record<string, unknown> } {
@@ -51,7 +50,7 @@ function deferred<T>() {
 /** The reading guard answers on a microtask even with nothing reading (issue #71): lets a handler get past it. */
 const settled = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
 
-const enabledPref = (id: ProviderId) => `${PREF_PREFIX}${id}.enabled`;
+const enabledPref = (id: SwitchId) => `${PREF_PREFIX}${id}.enabled`;
 const CONNECTED: CheckOutcome = { ok: true, message: 'Connected. 3 voices available.' };
 const REFUSED: CheckOutcome = { ok: false, message: 'The server rejected the API key.' };
 
@@ -59,7 +58,7 @@ function setup(
   options: {
     prefs?: Record<string, unknown>;
     reading?: string[];
-    check?: (id: ProviderId) => Promise<CheckOutcome>;
+    check?: (id: SwitchId) => Promise<CheckOutcome>;
     /** The reading guard's question and its Stop (issue #71); absent, the guard only refuses. */
     askToStop?: (message: string) => Promise<boolean>;
     stopReading?: () => string[];
@@ -67,7 +66,7 @@ function setup(
 ) {
   const els = new Map<string, FakeElement>();
   const sections = new Map<string, FakeSection>();
-  for (const id of PROVIDER_IDS) {
+  for (const id of SWITCH_IDS) {
     const ids = providerRowIds(id);
     els.set(ids.toggle, new FakeElement());
     els.set(ids.test, new FakeElement());
@@ -79,9 +78,9 @@ function setup(
   }
   const doc = { getElementById: (id: string) => els.get(id) ?? sections.get(id) ?? null };
   const prefs = fakePrefs(options.prefs);
-  const check = vi.fn(options.check ?? (async (_id: ProviderId) => CONNECTED));
+  const check = vi.fn(options.check ?? (async (_id: SwitchId) => CONNECTED));
   const onVoicesChanged = vi.fn();
-  const onUnlocked = vi.fn((_id: ProviderId) => {});
+  const onUnlocked = vi.fn((_id: SwitchId) => {});
   const warn = vi.fn((_message: string) => {});
   const rows = initProviderRows(doc, {
     prefs,
@@ -93,7 +92,7 @@ function setup(
     ...(options.askToStop ? { askToStop: options.askToStop } : {}),
     ...(options.stopReading ? { stopReading: options.stopReading } : {}),
   });
-  const of = (id: ProviderId) => {
+  const of = (id: SwitchId) => {
     const ids = providerRowIds(id);
     return {
       toggle: els.get(ids.toggle)!,
@@ -119,7 +118,7 @@ describe('initProviderRows', () => {
     expect(t.of('azure').locked()).toEqual([true, true]);
     expect(t.of('local').label()).toBe('Enable');
     // Painting open fields hands them back to the preset rows, which gray out theirs
-    expect(t.onUnlocked.mock.calls.map(([id]) => id)).toEqual(['openai', 'cloudflare', 'speechify', 'fish', 'fishspeech', 'local', 'system']);
+    expect(t.onUnlocked.mock.calls.map(([id]) => id)).toEqual(['openai', 'cloudflare', 'speechify', 'fish', 'fishspeech', 'local', 'system', 'zotero-standard', 'zotero-premium']);
     expect(t.check).not.toHaveBeenCalled();
     expect(t.onVoicesChanged).not.toHaveBeenCalled();
   });

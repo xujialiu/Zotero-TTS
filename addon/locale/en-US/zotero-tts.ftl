@@ -44,7 +44,6 @@ ztts-help-cloudflare =
 ztts-help-speechify =
     .value = ?
     .help = The key is on the API keys page of your Speechify workspace (platform.speechify.ai). Every voice the key lists is offered under its language — no Mandarin, only Cantonese — and words are highlighted. Free: 50,000 characters a month, about fifteen pages, and a jump ahead can take a second or two to start; then $10 a month for a million.
-ztts-heading-fish-cloud = Cloud (api.fish.audio)
 ztts-help-fish =
     .value = ?
     .help = The key is on the Developers page of your fish.audio account. The source switches choose whether official voices, your own voices or the Model IDs below are listed; the model's Default voice is always available. All have word highlighting. The free model costs nothing but keeps your requests, promises no speed, and may end; the paid one bills by the byte of text, three per Chinese character.
@@ -76,7 +75,6 @@ ztts-fish-model-ids-input =
 ztts-help-fish-model-ids =
     .value = ?
     .help = Fish Audio calls a voice's ID its Model ID. Find a voice at https://fish.audio/app/discovery/, open its page and copy its Model ID. Paste several IDs separated by commas or spaces; existing voice links also work.
-ztts-heading-fish-speech = Local (github.com/fishaudio/fish-speech)
 ztts-help-fish-speech =
     .value = ?
     .help = A fish-speech API server on your machine or LAN (see the tutorial in the README): every reference voice on it is offered, and sentences are highlighted, not words. Needs a 24 GB GPU. A server started with --api-key takes it in Extra headers as "Authorization: Bearer …".
@@ -92,6 +90,19 @@ ztts-help-system-voices =
     .help = The plugin takes over the voices your system itself installs, so they come with the voice browser, samples, favorites and the cache, like every other provider's. Windows adds word highlighting; on macOS the sentence is highlighted. Linux is not supported.
 
 ## The provider switch, written by ui/provider-rows.ts
+
+## Zotero's own voices (issue #111): a switch per tier, no fields
+
+ztts-zotero-note = Zotero's own voices, with a Zotero account signed in. A tier switched off leaves the player; Standard and Premium keep separate credits, bought in the player.
+ztts-help-zotero =
+    .value = ?
+    .help = Standard and Premium are the voices Zotero itself offers once you are signed in under Edit → Settings → Sync; each has its own credits, shown and bought in the player. Switch a tier off to take it out of the player's first dropdown, the voice browser and the language list; nothing Zotero remembers is lost, and switching it back on brings the tier's last voice back. Enable checks that you are signed in and that Zotero lists voices in that tier.
+ztts-zotero-standard = Standard
+ztts-zotero-premium = Premium
+ztts-zotero-not-signed-in = Not signed in to a Zotero account: sign in under Edit → Settings → Sync.
+ztts-zotero-tier-empty = Zotero lists no { $tier } voices.
+ztts-zotero-tier-ok = Signed in: { $count } { $tier } voices, { $credits } credits remaining.
+ztts-zotero-tier-ok-no-credits = Signed in: { $count } { $tier } voices.
 
 ztts-switch-enable = Enable
 ztts-switch-disable = Disable
@@ -401,13 +412,14 @@ ztts-preset-note-other = Fill in what the server wants; Test connection says whi
 
 ## The voice browser (ui/voice-browser-rows.ts)
 
-# Zotero's own words for its two cloud tiers (reader.ftl reader-read-aloud-voice-tier-*)
-ztts-tier-standard = Standard
-ztts-tier-premium = Premium
+# Zotero's two cloud tiers as entries of the player's first dropdown and the browser's first column (issue #111): Zotero's own words for them (reader.ftl reader-read-aloud-voice-tier-*) behind its name
+ztts-tier-standard = Zotero Standard
+ztts-tier-premium = Zotero Premium
 # The System voices' entry in the player's first dropdown and the browser's first column (issue #110), like the pane's heading
 ztts-provider-system = System
 ztts-listing-voices = Listing voices…
 ztts-no-voices = No voices. Enable a provider above.
+ztts-no-providers-on = No provider is on: enable one above.
 ztts-listing-failed = Listing voices failed: { $problems }
 ztts-plugin-voices-problem = the plugin’s voices: { $detail }
 ztts-fish-list-limited = Fish Audio limits its platform list to 1,000 voices; use Model IDs from Fish Audio discovery to add others.

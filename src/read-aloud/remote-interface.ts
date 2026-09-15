@@ -6,7 +6,7 @@ import type { ProviderId, SynthesisResult, Timestamp, TTSProvider, VoiceInfo } f
 import { withTimeout } from '../core/timeout';
 import { countVoicesResponse, filterCatalogToFavorites, filterVoicesResponseToFavorites } from './favorites';
 import { isInvisibleSegment } from './invisible-text';
-import { buildVoicesResponse, decodeVoiceId, listVoicesResponse, type ListedVoice } from './voice-catalog';
+import { buildVoicesResponse, decodeVoiceId, listVoicesResponse, withoutTiers, type ListedVoice } from './voice-catalog';
 
 export const SAMPLE_TEXT = 'The quick brown fox jumps over the lazy dog.';
 
@@ -66,6 +66,14 @@ export type RemoteInterfaceDeps = {
    * so the popup can never come up empty.
    */
   getFavoriteVoices?(): readonly string[] | null;
+  /**
+   * Zotero's own tiers switched off in the pane (issue #111), read per
+   * call: their voices are dropped from Zotero's answer before anything
+   * reads it — neither offered nor published, like a switched-off
+   * provider's — so the manager, the language dropdown, Zotero's own
+   * fallback and the plugin's memory all see a list without them.
+   */
+  getHiddenTiers?(): readonly string[];
   getProvider(provider: ProviderId): TTSProvider;
   cacheVersion(): string;
   /** Fixed for the active reading session; refreshed at the next activation. */
@@ -421,7 +429,8 @@ export function createRemoteInterface(deps: RemoteInterfaceDeps): RemoteInterfac
       // out), and when nothing marked is listed anywhere, everything is
       // offered again rather than reading as "the plugin broke".
       const fullCatalog: PluginCatalog = 'catalog' in mine ? mine.catalog : [];
-      const allTheirs: Record<string, unknown[]> | null = theirs?.voices ?? null;
+      const hidden = deps.getHiddenTiers?.() ?? [];
+      const allTheirs: Record<string, unknown[]> | null = theirs?.voices ? withoutTiers(theirs.voices as Record<string, unknown[]>, hidden) : null;
       let catalog = fullCatalog;
       let theirVoices = allTheirs;
       const favorites = deps.getFavoriteVoices?.() ?? null;

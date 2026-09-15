@@ -1,4 +1,4 @@
-import type { ProviderId } from './providers/types';
+import type { SwitchId } from './settings';
 import type { FlatSettings, SettingValue } from './settings-backup';
 import {
   editsPlayerList,
@@ -77,8 +77,8 @@ export interface SettingsSyncDeps {
   write(key: string, value: SettingValue): void;
   /** The titles of the tabs a player is open in; non-empty defers the settings that edit the player's list. */
   readingTabs(): string[];
-  /** The connection check of one provider, headless and bounded (ui/prefs-pane.ts); rejects are read as failures. */
-  checkProvider(id: ProviderId): Promise<{ ok: boolean; message: string }>;
+  /** The connection check of one provider, or of one of Zotero's tier switches (issue #111), headless and bounded (ui/prefs-pane.ts); rejects are read as failures. */
+  checkProvider(id: SwitchId): Promise<{ ok: boolean; message: string }>;
   /** After every completed sync (skipped ones excepted): what changed on this machine, or null when nothing did — the pane's status line and redraw. */
   onSynced?(report: SettingsSyncApplied | null): void;
   /** The synced keys with their observer names (relative to `extensions.zotero.`). */
@@ -140,7 +140,7 @@ export interface SettingsSyncTransport {
   stats(): SettingsSyncStats;
 }
 
-const isProviderId = (section: string, ids: readonly string[]): section is ProviderId => ids.includes(section);
+const isSwitchId = (section: string, ids: readonly string[]): section is SwitchId => ids.includes(section);
 
 export function createSettingsSyncTransport(deps: SettingsSyncDeps): SettingsSyncTransport {
   const tokens: unknown[] = [];
@@ -237,7 +237,7 @@ export function createSettingsSyncTransport(deps: SettingsSyncDeps): SettingsSyn
     arm(SETTINGS_SYNC_DEBOUNCE_MS, 'change');
   }
 
-  async function safeCheck(id: ProviderId): Promise<{ ok: boolean; message: string }> {
+  async function safeCheck(id: SwitchId): Promise<{ ok: boolean; message: string }> {
     try {
       return await deps.checkProvider(id);
     } catch (e) {
@@ -333,9 +333,9 @@ export function createSettingsSyncTransport(deps: SettingsSyncDeps): SettingsSyn
       const flipped: string[] = [];
       if (!pushOnly && applied.length) {
         const after = deps.values();
-        const toCheck: ProviderId[] = [];
+        const toCheck: SwitchId[] = [];
         for (const section of new Set(applied.map(sectionOf))) {
-          if (!isProviderId(section, providerIds)) continue;
+          if (!isSwitchId(section, providerIds)) continue;
           const enabledKey = `${section}.enabled`;
           let on = after[enabledKey] === true;
           if (!on && state.held[section] && remoteByKey.get(enabledKey)?.value === true) {

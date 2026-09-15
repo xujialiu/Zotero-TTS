@@ -114,6 +114,17 @@ describe('createZoteroVoiceService', () => {
     await expect(service.listVoices()).rejects.toThrow(/did not answer/i);
   });
 
+  it('reads the account’s credits per tier, null where Zotero gives no figure (issue #111)', async () => {
+    const client = { ...fakeClient(), getReadAloudCreditsRemaining: vi.fn(async () => ({ standardCreditsRemaining: 1234, premiumCreditsRemaining: null })) };
+    const service = createZoteroVoiceService({ client: async () => client });
+    expect(await service.credits()).toEqual({ standard: 1234, premium: null });
+    expect(await createZoteroVoiceService({ client: async () => null }).credits()).toEqual({ standard: null, premium: null });
+    // A client from before the call, or one answering nonsense
+    expect(await createZoteroVoiceService({ client: async () => fakeClient() }).credits()).toEqual({ standard: null, premium: null });
+    const odd = { ...fakeClient(), getReadAloudCreditsRemaining: vi.fn(async () => ({ standardCreditsRemaining: 'many' })) };
+    expect(await createZoteroVoiceService({ client: async () => odd }).credits()).toEqual({ standard: null, premium: null });
+  });
+
   it('samples a voice through Zotero’s own sample endpoint', async () => {
     const client = fakeClient();
     const service = createZoteroVoiceService({ client: async () => client });

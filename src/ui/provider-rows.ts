@@ -1,10 +1,11 @@
 import { t } from '../core/l10n';
-import type { ProviderId } from '../core/providers/types';
-import { PREF_PREFIX, PROVIDER_IDS, type PrefsBackend } from '../core/settings';
+import { PREF_PREFIX, SWITCH_IDS, type PrefsBackend, type SwitchId } from '../core/settings';
 import { refuseWhileReading, type ReadingGuardDeps } from './reading-guard';
 
 /**
- * The switch of each provider section: one button, "Enable" or "Disable".
+ * The switch of each provider section, and of Zotero's two tiers (issue
+ * #111, rows of the Zotero section wired the same way, with no fields to
+ * lock): one button, "Enable" or "Disable".
  * Enable is a commit point — the provider's connection check (the very one
  * Test connection runs, prefs-pane.ts checkProvider) has to pass before
  * the pref goes on, and while it is on the section's fields are locked. So
@@ -36,7 +37,7 @@ export interface CheckOutcome {
 export interface ProviderRowsDeps extends ReadingGuardDeps {
   prefs: PrefsBackend;
   /** The provider's connection check as Test connection runs it, on the prefs as they are; bounded, never hanging. */
-  check(id: ProviderId): Promise<CheckOutcome>;
+  check(id: SwitchId): Promise<CheckOutcome>;
   /** A provider went on or off, or one that is on was checked again: the voice browser lists again. */
   onVoicesChanged(): void;
   /**
@@ -45,13 +46,13 @@ export interface ProviderRowsDeps extends ReadingGuardDeps {
    * begun publishing, and to keep a choice that named one of them
    * (ui/prefs-pane.ts).
    */
-  onSwitched?(id: ProviderId, on: boolean): void;
+  onSwitched?(id: SwitchId, on: boolean): void;
   /** The section's fields were just unlocked: the preset rows gray out theirs again (ui/server-preset-rows.ts). Omitted where there are none. */
-  onUnlocked?(id: ProviderId): void;
+  onUnlocked?(id: SwitchId): void;
 }
 
 /** The section's elements: the groupbox holding the fields, the switch, Test connection, and the line both write to. */
-export function providerRowIds(id: ProviderId): { section: string; toggle: string; test: string; result: string } {
+export function providerRowIds(id: SwitchId): { section: string; toggle: string; test: string; result: string } {
   return { section: `ztts-provider-${id}`, toggle: `ztts-enable-${id}`, test: `ztts-test-${id}`, result: `ztts-test-result-${id}` };
 }
 
@@ -62,12 +63,12 @@ export function initProviderRows(
   doc: { getElementById(id: string): any },
   deps: ProviderRowsDeps,
 ): { refresh(): void; verifyEnabled(): Promise<string> } {
-  const pref = (id: ProviderId) => `${PREF_PREFIX}${id}.enabled`;
-  const enabled = (id: ProviderId) => deps.prefs.get(pref(id)) === true;
+  const pref = (id: SwitchId) => `${PREF_PREFIX}${id}.enabled`;
+  const enabled = (id: SwitchId) => deps.prefs.get(pref(id)) === true;
   /** The providers whose check is running: their buttons are held, and a click meanwhile does nothing. */
-  const busy = new Set<ProviderId>();
+  const busy = new Set<SwitchId>();
 
-  const elements = (id: ProviderId) => {
+  const elements = (id: SwitchId) => {
     const ids = providerRowIds(id);
     return {
       section: doc.getElementById(ids.section),
@@ -77,14 +78,14 @@ export function initProviderRows(
     };
   };
   /** The line beside the buttons, written as text: a description's `value` never wraps (issue #31). */
-  const say = (id: ProviderId, text: string) => {
+  const say = (id: SwitchId, text: string) => {
     const line = elements(id).result;
     if (line) line.textContent = text;
   };
-  const fields = (id: ProviderId): any[] => Array.from(elements(id).section?.querySelectorAll?.(FIELDS_SELECTOR) ?? []);
+  const fields = (id: SwitchId): any[] => Array.from(elements(id).section?.querySelectorAll?.(FIELDS_SELECTOR) ?? []);
 
   /** The switch and the fields as the pref says: on is "Disable" with the fields locked, off is "Enable" with them open for editing. */
-  function paint(id: ProviderId): void {
+  function paint(id: SwitchId): void {
     const { toggle, test } = elements(id);
     const on = enabled(id);
     toggle?.setAttribute('label', on ? t('ztts-switch-disable') : t('ztts-switch-enable'));
@@ -102,7 +103,7 @@ export function initProviderRows(
   }
 
   /** Both buttons held while a check runs. */
-  function hold(id: ProviderId): void {
+  function hold(id: SwitchId): void {
     const { toggle, test } = elements(id);
     busy.add(id);
     if (toggle) toggle.disabled = true;
@@ -110,7 +111,7 @@ export function initProviderRows(
   }
 
   /** The check as Test connection runs it; one that throws is a failed one, never an unhandled rejection. */
-  async function run(id: ProviderId): Promise<CheckOutcome> {
+  async function run(id: SwitchId): Promise<CheckOutcome> {
     try {
       return await deps.check(id);
     } catch (e) {
@@ -118,7 +119,7 @@ export function initProviderRows(
     }
   }
 
-  async function onToggle(id: ProviderId): Promise<void> {
+  async function onToggle(id: SwitchId): Promise<void> {
     if (busy.has(id)) return;
     if (enabled(id)) {
       if (await refuseWhileReading(deps)) return;
@@ -151,7 +152,7 @@ export function initProviderRows(
     if (outcome.ok && !refused) deps.onVoicesChanged();
   }
 
-  async function onTest(id: ProviderId): Promise<void> {
+  async function onTest(id: SwitchId): Promise<void> {
     if (busy.has(id)) return;
     hold(id);
     say(id, t('ztts-switch-testing'));
@@ -162,7 +163,7 @@ export function initProviderRows(
     if (outcome.ok && enabled(id)) deps.onVoicesChanged();
   }
 
-  for (const id of PROVIDER_IDS) {
+  for (const id of SWITCH_IDS) {
     const { toggle, test } = elements(id);
     toggle?.addEventListener('command', () => onToggle(id));
     test?.addEventListener('command', () => onTest(id));
@@ -171,7 +172,7 @@ export function initProviderRows(
 
   /** After a settings restore: every switch and lock as the prefs say now; a section mid-check is left to its check. */
   function refresh(): void {
-    for (const id of PROVIDER_IDS) if (!busy.has(id)) paint(id);
+    for (const id of SWITCH_IDS) if (!busy.has(id)) paint(id);
   }
 
   /**
@@ -188,14 +189,14 @@ export function initProviderRows(
    * frozen. Returns one sentence for the restore's message line.
    */
   async function verifyEnabled(): Promise<string> {
-    const wanted = PROVIDER_IDS.filter((id) => enabled(id) && !busy.has(id));
+    const wanted = SWITCH_IDS.filter((id) => enabled(id) && !busy.has(id));
     if (!wanted.length) return '';
     for (const id of wanted) {
       hold(id);
       elements(id).toggle?.setAttribute('label', t('ztts-switch-checking'));
       say(id, t('ztts-switch-checking'));
     }
-    const turnedOff: ProviderId[] = [];
+    const turnedOff: SwitchId[] = [];
     await Promise.all(
       wanted.map(async (id) => {
         const outcome = await run(id);
@@ -212,7 +213,7 @@ export function initProviderRows(
     if (!turnedOff.length) return t('ztts-providers-checked', { count: wanted.length });
     // The switches moved, so the voice browser lists again — once, after all of them
     deps.onVoicesChanged();
-    const named = PROVIDER_IDS.filter((id) => turnedOff.includes(id)).join(', ');
+    const named = SWITCH_IDS.filter((id) => turnedOff.includes(id)).join(', ');
     return t('ztts-providers-turned-off', { named, count: turnedOff.length });
   }
 

@@ -101,11 +101,11 @@ const CATALOG: CatalogEntry[] = [
 const PANE_COLUMNS: TierColumn[] = [
   { tier: 'openai', label: 'OpenAI' },
   { tier: 'azure', label: 'Azure' },
-  { tier: 'fish', label: 'Fish-cloud' },
+  { tier: 'fish', label: 'Fish Audio' },
   { tier: 'kokoro', label: 'Kokoro' },
   { tier: 'system', label: 'System' },
-  { tier: 'standard', label: 'Standard' },
-  { tier: 'premium', label: 'Premium' },
+  { tier: 'standard', label: 'Zotero Standard' },
+  { tier: 'premium', label: 'Zotero Premium' },
 ];
 
 // Zotero's own cloud voices, as its tts/voices catalog publishes them
@@ -270,7 +270,7 @@ describe('the first column', () => {
   it('lists every provider that listed and Zotero’s two, sorted by name, with their voice counts', async () => {
     const t = setup();
     await t.rows.load();
-    expect(t.tiers()).toEqual(['Azure (4)', 'Kokoro (1)', 'OpenAI (1)', 'Premium (1)', 'Standard (3)']);
+    expect(t.tiers()).toEqual(['Azure (4)', 'Kokoro (1)', 'OpenAI (1)', 'Zotero Premium (1)', 'Zotero Standard (3)']);
   });
 
   // The pane hands over every enabled provider: one that lists nothing
@@ -278,9 +278,9 @@ describe('the first column', () => {
   it('lists every enabled provider the pane names, (0) for one that lists nothing, and any provider that listed all the same', async () => {
     const t = setup({ tierColumns: PANE_COLUMNS.filter((c) => c.tier !== 'openai') });
     await t.rows.load();
-    expect(t.tiers()).toEqual(['Azure (4)', 'Fish-cloud (0)', 'Kokoro (1)', 'OpenAI (1)', 'Premium (1)', 'Standard (3)', 'System (0)']);
+    expect(t.tiers()).toEqual(['Azure (4)', 'Fish Audio (0)', 'Kokoro (1)', 'OpenAI (1)', 'System (0)', 'Zotero Premium (1)', 'Zotero Standard (3)']);
     expect(t.deps.tierColumns).toHaveBeenCalled();
-    await t.pickTier('Fish-cloud');
+    await t.pickTier('Fish Audio');
     expect(t.locales()).toEqual([]);
     expect(t.labels()).toEqual([]);
   });
@@ -289,7 +289,7 @@ describe('the first column', () => {
   it('sorts the entries as the voice list sorts labels, Han first', async () => {
     const t = setup({ tierColumns: PANE_COLUMNS.map((c) => (c.tier === 'system' ? { ...c, label: '系统' } : c)) });
     await t.rows.load();
-    expect(t.tiers()).toEqual(['系统 (0)', 'Azure (4)', 'Fish-cloud (0)', 'Kokoro (1)', 'OpenAI (1)', 'Premium (1)', 'Standard (3)']);
+    expect(t.tiers()).toEqual(['系统 (0)', 'Azure (4)', 'Fish Audio (0)', 'Kokoro (1)', 'OpenAI (1)', 'Zotero Premium (1)', 'Zotero Standard (3)']);
   });
 
   it('starts on the first entry that has voices', async () => {
@@ -303,7 +303,7 @@ describe('the first column', () => {
   it('starts on the first entry that has voices when the plugin publishes none', async () => {
     const t = setup({ catalog: [] });
     await t.rows.load();
-    expect(t.tiers()).toEqual(['Premium (1)', 'Standard (3)']);
+    expect(t.tiers()).toEqual(['Zotero Premium (1)', 'Zotero Standard (3)']);
     expect(t.locales()).toEqual(['English (1)']);
     expect(t.labels()).toEqual(['Aria']);
   });
@@ -318,14 +318,14 @@ describe('the first column', () => {
     expect(t.labels()).toEqual(['alloy']);
     t.deps.listCatalog.mockResolvedValueOnce(CATALOG.filter((entry) => entry.provider !== 'openai'));
     await t.rows.load();
-    expect(t.tiers()).toEqual(['Azure (4)', 'Kokoro (1)', 'Premium (1)', 'Standard (3)']);
+    expect(t.tiers()).toEqual(['Azure (4)', 'Kokoro (1)', 'Zotero Premium (1)', 'Zotero Standard (3)']);
     expect(t.selectedTier()).toBe('Azure (4)');
   });
 
   it('switches languages and voices when a tier is clicked', async () => {
     const t = setup();
     await t.rows.load();
-    await t.pickTier('Premium');
+    await t.pickTier('Zotero Premium');
     expect(t.locales()).toEqual(['English (1)']);
     expect(t.labels()).toEqual(['Aria']);
   });
@@ -337,9 +337,9 @@ describe('the first column', () => {
     const t = setup();
     await t.rows.load();
     await t.pickLocale('English');
-    await t.pickTier('Standard');
+    await t.pickTier('Zotero Standard');
     expect(t.labels()).toEqual(['Andrew', 'Ava']);
-    await t.pickTier('Premium');
+    await t.pickTier('Zotero Premium');
     expect(t.labels()).toEqual(['Aria']);
   });
 
@@ -347,7 +347,7 @@ describe('the first column', () => {
     const t = setup();
     await t.rows.load();
     expect(t.labels()).toEqual(['Ava Multilingual', 'Brian Multilingual']);
-    await t.pickTier('Standard');
+    await t.pickTier('Zotero Standard');
     expect(t.locales()[0]).toBe('English (2)');
     expect(t.labels()).toEqual(['Andrew', 'Ava']);
   });
@@ -355,8 +355,8 @@ describe('the first column', () => {
   it('shows an empty tier as empty, without breaking', async () => {
     const t = setup({ zotero: [] });
     await t.rows.load();
-    expect(t.tiers()).toEqual(['Azure (4)', 'Kokoro (1)', 'OpenAI (1)', 'Premium (0)', 'Standard (0)']);
-    await t.pickTier('Premium');
+    expect(t.tiers()).toEqual(['Azure (4)', 'Kokoro (1)', 'OpenAI (1)', 'Zotero Premium (0)', 'Zotero Standard (0)']);
+    await t.pickTier('Zotero Premium');
     expect(t.locales()).toEqual([]);
     expect(t.labels()).toEqual([]);
   });
@@ -382,7 +382,7 @@ describe('loading the catalog', () => {
     await t.rows.load();
     expect(t.locales()).toEqual(['Multiple languages (2)', 'Chinese (1)', 'English (United Kingdom) (1)', 'English (United States) (1)']);
     expect(t.status()).toBe('Default voice: Azure | English (United States) | Jenny | 1.0×');
-    await t.pickTier('Standard');
+    await t.pickTier('Zotero Standard');
     expect(t.locales()).toEqual(['English (2)', 'German (1)']);
   });
 
@@ -428,19 +428,19 @@ describe('loading the catalog', () => {
   it('keeps the plugin’s voices and says so when Zotero’s cannot be listed', async () => {
     const t = setup({ zotero: new Error('not signed in') });
     await t.rows.load();
-    expect(t.tiers()).toEqual(['Azure (4)', 'Kokoro (1)', 'OpenAI (1)', 'Premium (0)', 'Standard (0)']);
+    expect(t.tiers()).toEqual(['Azure (4)', 'Kokoro (1)', 'OpenAI (1)', 'Zotero Premium (0)', 'Zotero Standard (0)']);
     expect(t.status()).toBe('Default voice: Zotero’s own choice per language | 1.0× — not signed in');
   });
 
   it('keeps Zotero’s voices and says so when the plugin catalog fails', async () => {
     const t = setup({ catalog: new Error('server down') });
     await t.rows.load();
-    expect(t.tiers()).toEqual(['Premium (1)', 'Standard (3)']);
+    expect(t.tiers()).toEqual(['Zotero Premium (1)', 'Zotero Standard (3)']);
     expect(t.labels()).toEqual(['Aria']);
     // The pane's columns keep every enabled provider on screen, empty
     const named = setup({ catalog: new Error('server down'), tierColumns: PANE_COLUMNS });
     await named.rows.load();
-    expect(named.tiers()).toEqual(['Azure (0)', 'Fish-cloud (0)', 'Kokoro (0)', 'OpenAI (0)', 'Premium (1)', 'Standard (3)', 'System (0)']);
+    expect(named.tiers()).toEqual(['Azure (0)', 'Fish Audio (0)', 'Kokoro (0)', 'OpenAI (0)', 'System (0)', 'Zotero Premium (1)', 'Zotero Standard (3)']);
   });
 
   it('points at the provider sections when there are no voices at all', async () => {
@@ -461,7 +461,7 @@ describe('loading the catalog', () => {
     release([]);
     await running;
     expect(t.deps.listCatalog).toHaveBeenCalledTimes(2);
-    expect(t.tiers()).toEqual(['Azure (4)', 'Kokoro (1)', 'OpenAI (1)', 'Premium (1)', 'Standard (3)']);
+    expect(t.tiers()).toEqual(['Azure (4)', 'Kokoro (1)', 'OpenAI (1)', 'Zotero Premium (1)', 'Zotero Standard (3)']);
   });
 
   it('works without the Zotero deps at all', async () => {
@@ -472,7 +472,7 @@ describe('loading the catalog', () => {
     );
     await rows.load();
     expect(t.status()).toMatch(/^Default voice: /);
-    expect(t.tiers()).toEqual(['Azure (4)', 'Kokoro (1)', 'OpenAI (1)', 'Premium (0)', 'Standard (0)']);
+    expect(t.tiers()).toEqual(['Azure (4)', 'Kokoro (1)', 'OpenAI (1)', 'Zotero Premium (0)', 'Zotero Standard (0)']);
     await t.releaseSpeed('1.8');
     expect(t.memory().speed).toBe(1.8);
   });
@@ -512,7 +512,7 @@ describe('favorites', () => {
   it('marks one of Zotero’s own voices by its Zotero id', async () => {
     const t = setup();
     await t.rows.load();
-    await t.pickTier('Premium');
+    await t.pickTier('Zotero Premium');
     await t.heart(0).fire('click');
     expect(parseFavoriteVoices(t.prefs.store[FAVORITES_PREF])).toEqual(['zotero-premium-aria']);
     expect(t.heart(0).textContent).toBe(GLYPHS.favorite);
@@ -553,7 +553,7 @@ describe('playing a sample', () => {
   it('plays one of Zotero’s own voices through Zotero’s sample', async () => {
     const t = setup();
     await t.rows.load();
-    await t.pickTier('Premium');
+    await t.pickTier('Zotero Premium');
     await t.play(0).fire('click');
     expect(t.deps.sampleZoteroVoice).toHaveBeenCalledWith('zotero-premium-aria');
     expect(t.deps.synthesizeSample).not.toHaveBeenCalled();
@@ -564,7 +564,7 @@ describe('playing a sample', () => {
   it('replays a Zotero sample from the session cache', async () => {
     const t = setup();
     await t.rows.load();
-    await t.pickTier('Premium');
+    await t.pickTier('Zotero Premium');
     await t.play(0).fire('click');
     t.player.play.mock.calls[0][2](null);
     await t.play(0).fire('click');
@@ -660,7 +660,7 @@ describe('playing a sample', () => {
     await t.rows.load();
     await t.play(0).fire('click');
     const stopped = t.player.stop.mock.calls.length;
-    await t.pickTier('Premium');
+    await t.pickTier('Zotero Premium');
     expect(t.player.stop.mock.calls.length).toBe(stopped);
     // Back on the entry the sample belongs to — the language is kept across
     // the switch, so its own one has to be picked again
@@ -1030,10 +1030,10 @@ describe('the default voice', () => {
   it('finds one of Zotero’s own voices by its Zotero id', async () => {
     const t = setup({ prefs: remembered('zotero-premium-aria', 'en') });
     await t.rows.load();
-    expect(t.selectedTier()).toBe('Premium (1)');
+    expect(t.selectedTier()).toBe('Zotero Premium (1)');
     expect(t.selectedLocale()).toBe('English (1)');
     expect(t.highlighted()).toEqual(['Aria']);
-    expect(t.status()).toBe('Default voice: Premium | English | Aria | 1.0×');
+    expect(t.status()).toBe('Default voice: Zotero Premium | English | Aria | 1.0×');
   });
 
   it('finds a voice chosen under Multiple languages, and only that one', async () => {
@@ -1088,7 +1088,7 @@ describe('the default voice', () => {
   it('keeps the highlight and the status line while browsing elsewhere and back', async () => {
     const t = setup({ prefs: remembered(xiaoxiao, 'zh') });
     await t.rows.load();
-    await t.pickTier('Standard');
+    await t.pickTier('Zotero Standard');
     expect(t.highlighted()).toEqual([]);
     expect(t.status()).toBe('Default voice: Azure | Chinese | 晓晓 | 1.0×');
     await t.pickTier('Azure');
@@ -1099,10 +1099,10 @@ describe('the default voice', () => {
   it('keeps the tier and language being browsed across a new listing', async () => {
     const t = setup({ prefs: remembered(xiaoxiao, 'zh') });
     await t.rows.load();
-    await t.pickTier('Standard');
+    await t.pickTier('Zotero Standard');
     await t.pickLocale('German');
     await t.rows.load();
-    expect(t.selectedTier()).toBe('Standard (3)');
+    expect(t.selectedTier()).toBe('Zotero Standard (3)');
     expect(t.selectedLocale()).toBe('German (1)');
   });
 
@@ -1235,7 +1235,7 @@ describe('the highlight follows the memory', () => {
     const t = setup({ prefs: remembered(xiaoxiao, 'zh') });
     await t.rows.load();
     picked(t, { id: 'zotero-standard-ben', lang: 'de' });
-    expect(t.selectedTier()).toBe('Standard (3)');
+    expect(t.selectedTier()).toBe('Zotero Standard (3)');
     expect(t.selectedLocale()).toBe('German (1)');
     expect(t.highlighted()).toEqual(['Ben']);
   });
@@ -1261,9 +1261,9 @@ describe('the highlight follows the memory', () => {
   it('leaves the columns where they are when only the speed moved', async () => {
     const t = setup({ prefs: remembered(xiaoxiao, 'zh', 1.8) });
     await t.rows.load();
-    await t.pickTier('Standard');
+    await t.pickTier('Zotero Standard');
     picked(t, { id: xiaoxiao, lang: 'zh' }, 2.1);
-    expect(t.selectedTier()).toBe('Standard (3)');
+    expect(t.selectedTier()).toBe('Zotero Standard (3)');
     expect(t.speedLabel()).toBe('2.1×');
     expect(t.status()).toBe('Default voice: Azure | Chinese | 晓晓 | 2.1×');
   });
@@ -1329,7 +1329,7 @@ describe('a row click sets the default', () => {
   it('files one of Zotero’s own voices under its tier', async () => {
     const t = setup();
     await t.rows.load();
-    await t.pickTier('Premium');
+    await t.pickTier('Zotero Premium');
     await t.label(0).fire('click');
     expect(t.memory().voice).toEqual({ id: 'zotero-premium-aria', lang: 'en' });
     expect(t.zoteroVoices().en).toEqual({ region: 'US', voice: 'zotero-premium-aria', tierVoices: { premium: 'zotero-premium-aria' } });
@@ -1377,10 +1377,10 @@ describe('a row click sets the default', () => {
   it('keeps the columns on the clicked row, and moves the highlight from the old default', async () => {
     const t = setup({ prefs: remembered(xiaoxiao, 'zh') });
     await t.rows.load();
-    await t.pickTier('Standard');
+    await t.pickTier('Zotero Standard');
     expect(t.labels()).toEqual(['Andrew', 'Ava']);
     await t.label(0).fire('click');
-    expect(t.selectedTier()).toBe('Standard (3)');
+    expect(t.selectedTier()).toBe('Zotero Standard (3)');
     expect(t.selectedLocale()).toBe('English (2)');
     expect(t.highlighted()).toEqual(['Andrew']);
     await t.pickTier('Azure');
@@ -1884,6 +1884,8 @@ describe('statusLine', () => {
   it('says why when nothing is listed', () => {
     expect(line({ voices: [], home: null, problems: ['a', 'b'] })).toBe('Listing voices failed: a; b');
     expect(line({ voices: [], home: null })).toBe('No voices. Enable a provider above.');
+    // No column at all: every provider and both of Zotero's tiers are off (issue #111)
+    expect(line({ voices: [], home: null, tiers: [] })).toBe('No provider is on: enable one above.');
   });
 });
 
@@ -1900,9 +1902,29 @@ describe('listBrowserVoices', () => {
       { tier: 'azure', label: 'Azure' },
       { tier: 'openai', label: 'OpenAI' },
       { tier: 'kokoro', label: 'Kokoro' },
-      { tier: 'standard', label: 'Standard' },
-      { tier: 'premium', label: 'Premium' },
+      { tier: 'standard', label: 'Zotero Standard' },
+      { tier: 'premium', label: 'Zotero Premium' },
     ]);
+  });
+
+  it('leaves out a Zotero tier the pane’s columns leave out: a switched-off tier is hidden, not re-added (issue #111)', async () => {
+    const hidden = new Set(['standard']);
+    const { columns, voices } = await listBrowserVoices({
+      listCatalog: async () => CATALOG,
+      listZoteroVoices: async () => ZOTERO_VOICES.filter((voice) => !hidden.has(voice.tier)),
+      tierColumns: () => PANE_COLUMNS.filter((column) => !hidden.has(column.tier)),
+    });
+    expect(columns.map((column) => column.tier)).not.toContain('standard');
+    expect(columns.map((column) => column.tier)).toContain('premium');
+    expect(voices.map((voice) => voice.tier)).not.toContain('standard');
+    // Both off: no Zotero column at all, so the status line can say no provider is on
+    const none = await listBrowserVoices({
+      listCatalog: async () => [],
+      listZoteroVoices: async () => [],
+      tierColumns: () => [],
+    });
+    expect(none.columns).toEqual([]);
+    expect(none.voices).toEqual([]);
   });
 
   it('takes the pane’s columns, and adds a provider that listed although the pane does not name it', async () => {

@@ -3,6 +3,7 @@ import {
   audioCacheOn,
   DEFAULTS,
   enabledProviders,
+  hiddenZoteroTiers,
   loadSettings,
   MAX_PAUSE_MS,
   migrateLegacyProviderPref,
@@ -135,6 +136,14 @@ describe('loadSettings', () => {
 
   it('exposes the pref prefix so the pane can write individual keys', () => {
     expect(PREF_PREFIX).toBe('extensions.zotero.zotero-tts.');
+  });
+});
+
+describe('hiddenZoteroTiers', () => {
+  it('names the tiers whose switch is off, both on by default (issue #111)', () => {
+    expect(hiddenZoteroTiers(DEFAULTS)).toEqual([]);
+    expect(hiddenZoteroTiers({ ...DEFAULTS, 'zotero-standard': { enabled: false } })).toEqual(['standard']);
+    expect(hiddenZoteroTiers({ ...DEFAULTS, 'zotero-standard': { enabled: false }, 'zotero-premium': { enabled: false } })).toEqual(['standard', 'premium']);
   });
 });
 

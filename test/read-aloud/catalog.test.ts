@@ -192,29 +192,32 @@ describe('provider tiers from the settings', () => {
   it('labels every tier key, Zotero’s two included', () => {
     const labels = providerTierLabels({ ...DEFAULTS, openai: { ...DEFAULTS.openai, server: 'mimo' } });
     expect(labels).toEqual({
-      standard: 'Standard',
-      premium: 'Premium',
+      standard: 'Zotero Standard',
+      premium: 'Zotero Premium',
       openai: 'Xiaomi MiMo',
       azure: 'Azure',
       cloudflare: 'Cloudflare',
       speechify: 'Speechify',
-      fish: 'Fish-cloud',
-      fishspeech: 'Fish-local',
+      fish: 'Fish Audio',
+      fishspeech: 'Fish Speech',
       kokoro: 'Kokoro',
       system: 'System',
     });
   });
 
-  it('lists the enabled providers as columns, and Zotero’s two always', () => {
+  it('lists the enabled providers as columns, and Zotero’s two while their switches are on', () => {
     const settings = { ...DEFAULTS, azure: { ...DEFAULTS.azure, enabled: true }, local: { ...DEFAULTS.local, enabled: true } };
     expect(providerTierColumns(settings)).toEqual([
       { tier: 'openai', label: 'OpenAI' },
       { tier: 'azure', label: 'Azure' },
       { tier: 'kokoro', label: 'Kokoro' },
-      { tier: 'standard', label: 'Standard' },
-      { tier: 'premium', label: 'Premium' },
+      { tier: 'standard', label: 'Zotero Standard' },
+      { tier: 'premium', label: 'Zotero Premium' },
     ]);
     const none = { ...settings, openai: { ...settings.openai, enabled: false }, azure: { ...settings.azure, enabled: false }, local: { ...settings.local, enabled: false } };
     expect(providerTierColumns(none).map((c) => c.tier)).toEqual(['standard', 'premium']);
+    // A tier switched off has no column (issue #111)
+    expect(providerTierColumns({ ...none, 'zotero-standard': { enabled: false } }).map((c) => c.tier)).toEqual(['premium']);
+    expect(providerTierColumns({ ...none, 'zotero-standard': { enabled: false }, 'zotero-premium': { enabled: false } })).toEqual([]);
   });
 });

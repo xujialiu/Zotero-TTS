@@ -16,9 +16,11 @@ Items 1a.1–1a.8 and 1a.14 of the checklist, under their original numbers.
 
 ### 1a.1
 
-1. **The section.** Between Speechify and Kokoro-FastAPI, one groupbox
-   `ztts-provider-fish-audio`: `h2` `Fish Audio` over two
-   `h3.ztts-subheading`, `Cloud (api.fish.audio)` and `Local`. The cloud block `ztts-provider-fish`: a password input on
+1. **The section.** Between Cloudflare Workers AI and Fish Speech (issue
+   #112; one `Fish Audio` groupbox over two `h3` sub-blocks, `Cloud` and
+   `Local`, before it), the groupbox `ztts-provider-fish`: its `h2` reads
+   `Fish Audio (fish.audio)`, the host a `label[is="zotero-text-link"]`
+   with `href` `https://fish.audio`; a password input on
    `fish.apiKey`, a checkbox `Use only the free model` on `fish.freeOnly`
    checked by default, a text input on `fish.voices` whose placeholder is
    `ids or links from fish.audio`, three `?` (`ztts-help-fish`,
@@ -53,10 +55,11 @@ Items 1a.1–1a.8 and 1a.14 of the checklist, under their original numbers.
    with a successful synthesis probe (#91; the earlier #89 pass reported
    three). On a reader tab, `manager._allVoices` walked **by index** (a
    reader-realm `filter` from chrome answers `[]`) carries, all tier
-   `local`: `Fish-cloud-jjk narrator` / `fish::en/179b…` / language `en`,
-   `Fish-cloud-ffffffffffffffffffffffffffffffff (not found)` /
-   `fish::mul/ffff…` / `mul`, and `Fish-cloud-Default` / `fish::mul/default` /
-   `mul` (the prefixes since 1.11.8-beta3; `Fish-` before).
+   `local` (re-tagged `fish` by #110): `jjk narrator` / `fish::en/179b…` /
+   language `en`, `ffffffffffffffffffffffffffffffff (not found)` /
+   `fish::mul/ffff…` / `mul`, and `Default` / `fish::mul/default` / `mul`
+   — no prefix since #110 (`Fish-cloud-` from 1.11.8-beta3, `Fish-`
+   before); the entry they sit under is `Fish Audio` (#112).
 
 ### 1a.4
 
@@ -99,7 +102,7 @@ Items 1a.1–1a.8 and 1a.14 of the checklist, under their original numbers.
 7. **Chinese: one timestamp per character.**
    `test/fixtures/zh/zh.epub` (three sentences of 16, 24 and 11
    characters under a 6-character heading; `build.py` beside it) read
-   with `Fish-cloud-Default`: `fish: 6 word timestamps for 6 chars`, `15 for
+   with Fish Audio's `Default`: `fish: 6 word timestamps for 6 chars`, `15 for
    16`, `22 for 24`, `10 for 11` — one segment per character, punctuation
    dropped, so N is the character count minus its punctuation. The
    remembered `mul` voice carries into the Chinese document by itself

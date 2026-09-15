@@ -33,6 +33,8 @@ pref('extensions.zotero.zotero-tts.local.baseURL', 'http://localhost:8880');
 pref('extensions.zotero.zotero-tts.local.voice', 'af_bella');
 pref('extensions.zotero.zotero-tts.local.headers', '');
 pref('extensions.zotero.zotero-tts.system.enabled', false);
+pref('extensions.zotero.zotero-tts.zotero-standard.enabled', true);
+pref('extensions.zotero.zotero-tts.zotero-premium.enabled', true);
 pref('extensions.zotero.zotero-tts.webdav.url', '');
 pref('extensions.zotero.zotero-tts.webdav.username', '');
 pref('extensions.zotero.zotero-tts.webdav.password', '');

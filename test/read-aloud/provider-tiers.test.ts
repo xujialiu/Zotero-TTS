@@ -57,10 +57,10 @@ class OSVoice {
 const remote = (id: string, tier = 'local', language = 'en-US') => new RemoteVoice({ id, tier, label: id, language });
 
 const LABELS: Record<string, string> = {
-  standard: 'Standard',
-  premium: 'Premium',
+  standard: 'Zotero Standard',
+  premium: 'Zotero Premium',
   azure: 'Azure',
-  fish: 'Fish-cloud',
+  fish: 'Fish Audio',
   kokoro: 'Kokoro',
   openai: 'OpenAI',
   system: 'System',
@@ -123,42 +123,55 @@ describe('isTierOptionList', () => {
 });
 
 describe('buildTierOptions', () => {
-  it('keeps Zotero’s Standard and Premium as given, adds one entry per provider tier with voices, and drops local', () => {
+  it('names Zotero’s Standard and Premium behind its name, adds one entry per provider tier with voices, and drops local', () => {
     const out = buildTierOptions(zoteroThree(), new Set(['standard', 'premium', 'fish', 'kokoro']), LABELS);
     expect(out).toEqual([
-      { value: 'fish', label: 'Fish-cloud', disabled: false },
+      { value: 'fish', label: 'Fish Audio', disabled: false },
       { value: 'kokoro', label: 'Kokoro', disabled: false },
-      { value: 'premium', label: 'Premium', disabled: false },
-      { value: 'standard', label: 'Standard', disabled: false },
+      { value: 'premium', label: 'Zotero Premium', disabled: false },
+      { value: 'standard', label: 'Zotero Standard', disabled: false },
     ]);
   });
 
   // A provider with nothing to offer at the moment — server down, switched
   // off, no favorite of its own while only favorites are offered — is not
-  // in the manager's tiers and does not appear; Zotero's own two stay as
-  // Zotero built them, greyed when empty
-  it('shows only the tiers that have voices, Zotero’s two greyed rather than gone', () => {
+  // in the manager's tiers and does not appear; Zotero's own two leave the
+  // same way (issue #111: a tier switched off, or with no favorite marked),
+  // instead of staying greyed as Zotero draws them
+  it('shows only the tiers that have voices, Zotero’s two gone rather than greyed', () => {
     const zotero = zoteroThree().map((o) => (o.value === 'premium' ? { ...o, disabled: true } : o));
     const out = buildTierOptions(zotero, new Set(['standard', 'azure']), LABELS);
-    expect(out.map((o) => o.value)).toEqual(['azure', 'premium', 'standard']);
-    expect(out.find((o) => o.value === 'premium')?.disabled).toBe(true);
+    expect(out).toEqual([
+      { value: 'azure', label: 'Azure', disabled: false },
+      { value: 'standard', label: 'Zotero Standard', disabled: false },
+    ]);
+  });
+
+  // The one case the dropdown must never get: an empty option list
+  it('hands Zotero’s list back, named and greyed as given, when nothing has voices', () => {
+    const zotero = zoteroThree().map((o) => ({ ...o, disabled: true }));
+    expect(buildTierOptions(zotero, new Set(), LABELS)).toEqual([
+      { value: 'standard', label: 'Zotero Standard', disabled: true },
+      { value: 'premium', label: 'Zotero Premium', disabled: true },
+      { value: 'local', label: 'Local', disabled: true },
+    ]);
   });
 
   it('sorts the whole list by displayed label, Han by pinyin before Latin', () => {
-    const zh = { ...LABELS, system: '系统' };
+    const zh = { ...LABELS, system: '系统', standard: 'Zotero 标准', premium: 'Zotero 高级' };
     const zotero: TierOption[] = [
       { value: 'standard', label: '标准', disabled: false },
       { value: 'premium', label: '高级', disabled: false },
       { value: 'local', label: '本地', disabled: true },
     ];
     const out = buildTierOptions(zotero, new Set(['standard', 'premium', 'system', 'azure', 'kokoro']), zh);
-    expect(out.map((o) => o.label)).toEqual(['标准', '高级', '系统', 'Azure', 'Kokoro']);
+    expect(out.map((o) => o.label)).toEqual(['系统', 'Azure', 'Kokoro', 'Zotero 标准', 'Zotero 高级']);
   });
 
   it('names an entry whose label is unknown by its key, and keeps Zotero’s local entry only while OS voices are listed', () => {
-    expect(buildTierOptions(zoteroThree(), new Set(['piper']), LABELS).map((o) => o.label)).toEqual(['piper', 'Premium', 'Standard']);
+    expect(buildTierOptions(zoteroThree(), new Set(['piper', 'standard']), LABELS).map((o) => o.label)).toEqual(['piper', 'Zotero Standard']);
     const withLocal = buildTierOptions(zoteroThree(), new Set(['local', 'fish']), LABELS);
-    expect(withLocal.map((o) => o.value)).toEqual(['fish', 'local', 'premium', 'standard']);
+    expect(withLocal.map((o) => o.value)).toEqual(['fish', 'local']);
   });
 
   // Not logged in, Zotero hands over its local entry alone (TierSelect adds
@@ -262,7 +275,7 @@ describe('createProviderTiers: the re-tag in front of _resolveVoice', () => {
     const nothing = make();
     nothing.tiers.attach(second.reader);
     second.manager._resolveVoice();
-    // Fish-cloud sorts before Kokoro: the first entry of the list as displayed
+    // Fish Audio sorts before Kokoro: the first entry of the list as displayed
     expect(second.manager._selectedTier).toBe('fish');
     expect(nothing.tiers.inspect(second.reader)).toMatchObject({ lastMove: { from: 'azure', to: 'fish', by: 'first' } });
   });
@@ -347,11 +360,11 @@ describe('createProviderTiers: the first dropdown', () => {
     expect(create.mock.contexts[0]).toBe(React);
     expect(element.type).toBe(Select);
     expect(element.children).toEqual(['child']);
+    // Premium has no voice on this manager, so it leaves like a provider would (issue #111)
     expect(props.options).toEqual([
-      { value: 'fish', label: 'Fish-cloud', disabled: false },
+      { value: 'fish', label: 'Fish Audio', disabled: false },
       { value: 'kokoro', label: 'Kokoro', disabled: false },
-      { value: 'premium', label: 'Premium', disabled: false },
-      { value: 'standard', label: 'Standard', disabled: false },
+      { value: 'standard', label: 'Zotero Standard', disabled: false },
     ]);
     expect(cloneInto).toHaveBeenCalledWith(reader, props.options);
     expect(props.value).toBe('fish');
@@ -387,12 +400,12 @@ describe('createProviderTiers: the first dropdown', () => {
     manager._resolveVoice();
     const first = tierProps(zoteroThree());
     React.createElement(Select, first);
-    expect(first.options.map((o) => o.value)).toEqual(['fish', 'kokoro', 'premium', 'standard']);
+    expect(first.options.map((o) => o.value)).toEqual(['fish', 'kokoro']);
     manager._allVoices = realmArray([bella]);
     manager._resolveVoice();
     const second = tierProps(zoteroThree());
     React.createElement(Select, second);
-    expect(second.options.map((o) => o.value)).toEqual(['kokoro', 'premium', 'standard']);
+    expect(second.options.map((o) => o.value)).toEqual(['kokoro']);
   });
 
   it('exports the wrapper into the reader’s compartment through the React object, and the shadow through the prototype', () => {

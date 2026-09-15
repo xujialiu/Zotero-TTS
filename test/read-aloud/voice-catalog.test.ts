@@ -82,8 +82,8 @@ describe('providerTierLabel', () => {
     expect(providerTierLabel('azure')).toBe('Azure');
     expect(providerTierLabel('cloudflare')).toBe('Cloudflare');
     expect(providerTierLabel('speechify')).toBe('Speechify');
-    expect(providerTierLabel('fish')).toBe('Fish-cloud');
-    expect(providerTierLabel('fishspeech')).toBe('Fish-local');
+    expect(providerTierLabel('fish')).toBe('Fish Audio');
+    expect(providerTierLabel('fishspeech')).toBe('Fish Speech');
   });
 
   it('names the local provider after its engine, falling back to Local without one', () => {
@@ -104,9 +104,9 @@ describe('providerTierLabel', () => {
 });
 
 describe('zoteroTierLabel', () => {
-  it("uses Zotero's own words for Standard and Premium, and hands any other key back", () => {
-    expect(zoteroTierLabel('standard')).toBe('Standard');
-    expect(zoteroTierLabel('premium')).toBe('Premium');
+  it("names Zotero's two tiers behind its name, in Zotero's own words for them, and hands any other key back", () => {
+    expect(zoteroTierLabel('standard')).toBe('Zotero Standard');
+    expect(zoteroTierLabel('premium')).toBe('Zotero Premium');
     expect(zoteroTierLabel('fish')).toBe('fish');
   });
 });

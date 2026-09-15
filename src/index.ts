@@ -10,7 +10,7 @@ import { zoteroVoiceId } from './core/providers/system/voices';
 import { FTL_FILE, hasMessageSource, sentences, setMessageSource, t } from './core/l10n';
 import { installOwnSource, OWN_SOURCE_NAME, unregisterOwnSource } from './core/l10n-source';
 import { createMemoryCache } from './core/memory-cache';
-import { audioCacheOn, autoScrollMode, createZoteroPrefs, DEFAULTS, loadSettings, migrateLegacyProviderPref, PREF_PREFIX } from './core/settings';
+import { audioCacheOn, autoScrollMode, createZoteroPrefs, DEFAULTS, hiddenZoteroTiers, loadSettings, migrateLegacyProviderPref, PREF_PREFIX, ZOTERO_SWITCH_IDS } from './core/settings';
 import { createBackup, flattenSettings, machineSettingsFilename, serializeBackup, SETTINGS_FILE_PATTERN } from './core/settings-backup';
 import { createSettingsAutoUpload, type SettingsAutoUpload } from './core/settings-autoupload';
 import { machineId } from './core/machine-id';
@@ -464,6 +464,8 @@ function buildReaderInterface(reader: any, targetWindow: any, native: () => unkn
           const s = loadSettings(prefs);
           return s.readAloud.favoritesOnly ? parseFavoriteVoices(s.readAloud.favoriteVoices) : null;
         },
+        // Zotero's own tiers switched off in the pane leave the list here (issue #111)
+        getHiddenTiers: () => hiddenZoteroTiers(loadSettings(prefs)),
         getPrefetch: () => {
           const s = loadSettings(prefs);
           return { enabled: s.prefetchEnabled, count: s.prefetch };
@@ -2303,6 +2305,7 @@ const diagnostics = {
       {
         feature: 'provider-tiers',
         labels: safe(() => providerTierLabels(loadSettings(prefs))),
+        hidden: safe(() => hiddenZoteroTiers(loadSettings(prefs))),
         readers: (Zotero.Reader._readers ?? []).map((r: any) => ({
           title: safe(() => {
             const item = r?.itemID ? Zotero.Items.get(r.itemID) : null;
@@ -2314,6 +2317,30 @@ const diagnostics = {
       null,
       1,
     ),
+  /**
+   * Zotero's own tiers behind their switches (issue #111): each switch as
+   * the prefs say, the tiers hidden from every list, whether a Zotero sync
+   * account is signed in, and the check Enable runs on each tier, headless
+   * — not signed in, no voices, or the voice count and the credits.
+   */
+  zoteroTiers: async () => {
+    const settings = loadSettings(prefs);
+    const checks: Record<string, unknown> = {};
+    for (const id of ZOTERO_SWITCH_IDS) {
+      checks[id] = await runConnectionCheck(prefs, id, providerDeps()).catch((e: unknown) => ({ ok: false, message: String(e) }));
+    }
+    return JSON.stringify(
+      {
+        feature: 'zotero-tiers',
+        switches: Object.fromEntries(ZOTERO_SWITCH_IDS.map((id) => [id, settings[id].enabled])),
+        hidden: hiddenZoteroTiers(settings),
+        signedIn: !!Zotero.Sync?.Runner?.enabled,
+        checks,
+      },
+      null,
+      1,
+    );
+  },
   /**
    * The key of Zotero's reader.readAloudVoices pref a language resolves to,
    * through the shipped resolver (Zotero's resolveLanguage ported, issue

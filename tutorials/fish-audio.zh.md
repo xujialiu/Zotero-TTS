@@ -1,4 +1,4 @@
-<!-- translated-from: fish-audio.md sha256:800e54b286d6 -->
+<!-- translated-from: fish-audio.md sha256:9584571b76d8 -->
 # Fish Audio：克隆语音、一个免费模型、逐词高亮
 
 [English](fish-audio.md) · **简体中文**
@@ -11,7 +11,7 @@
 
 1. 到 [fish.audio](https://fish.audio) 注册，打开控制台的 **API** 那一节。
 2. **API Keys** → 建一个，起个名字，抄下来。
-3. 在 Zotero 里，**编辑 → 设置 → Zotero-TTS → Fish Audio**，**云端（api.fish.audio）**这一块：把它粘进 **API 密钥**，点**测试连接**，再点**启用**。
+3. 在 Zotero 里，**编辑 → 设置 → Zotero-TTS → Fish Audio**：把它粘进 **API 密钥**，点**测试连接**，再点**启用**。
 
 ## 免费或付费
 
@@ -22,7 +22,7 @@
 
 ## 语音
 
-语音在播放器里属于**本地**语音模式，写成 `Fish-cloud-<name>`。三个来源开关默认开启，彼此独立。
+语音会出现在播放器第一个下拉框的**Fish Audio**条目下面，用它们各自的名字列出。三个来源开关默认开启，彼此独立。
 
 - **官方语音。** 自动列出 **Fish Official** 发布的语音。社区语音只有在你自己输入其 Model ID 后才会加入。
 - **我的语音。** 自动列出你的 Fish Audio 账户创建的语音，无需粘贴 ID。

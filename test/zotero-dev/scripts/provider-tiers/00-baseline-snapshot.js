@@ -9,6 +9,12 @@
 (async () => {
   const out = { step: 'baseline-snapshot' };
   const S = Zotero.ZoteroTTSRun.state;
+  // All 8 providers, not just System -- found the hard way this run: a
+  // Fish Speech substitution (issue #112's split needs a #2 provider
+  // beside Fish Audio to show two distinct labels) left fishspeech.enabled
+  // untracked by this snapshot and 09's restore, so the run had to fix it
+  // by hand. Track every provider so any future substitute is covered.
+  const PROVIDER_IDS = ['openai', 'azure', 'cloudflare', 'speechify', 'fish', 'fishspeech', 'local', 'system'];
   function readPref(fullName) {
     const type = Services.prefs.getPrefType(fullName);
     const hasUserValue = Services.prefs.prefHasUserValue(fullName);
@@ -62,11 +68,13 @@
       webdavAutoUploadSettings: readPref('extensions.zotero.zotero-tts.webdav.autoUploadSettings'),
       webdavSyncSettings: readPref('extensions.zotero.zotero-tts.webdav.syncSettings'),
       sameForAllDocuments: readPref('extensions.zotero.zotero-tts.readAloud.sameForAllDocuments'),
-      systemEnabled: readPref('extensions.zotero.zotero-tts.system.enabled'),
+      providers: {},
       readAloudMemory: readPref('extensions.zotero.zotero-tts.readAloud.memory'),
       readerReadAloudVoices: readPref('extensions.zotero.reader.readAloudVoices'),
     };
+    for (const id of PROVIDER_IDS) baseline.providers[id] = readPref('extensions.zotero.zotero-tts.' + id + '.enabled');
     out.baseline = baseline;
+    out.enabledProvidersBefore = PROVIDER_IDS.filter((id) => baseline.providers[id].value === true);
     try {
       const parsed = JSON.parse(baseline.readerReadAloudVoices.value || '{}');
       out.readAloudVoicesEnEntry = parsed.en

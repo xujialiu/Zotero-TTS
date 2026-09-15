@@ -4,10 +4,9 @@
 
 [fish-speech](https://github.com/fishaudio/fish-speech) is the open side
 of Fish Audio: its S2 Pro model, running on your own machine, speaking in
-any voice you give it a short recording of. The plugin's **Fish Audio**
-section has a block for it, headed **Local**, and lists every voice on it
-in the player under a **Fish-local** entry of the first dropdown, by its
-name. Sentences are highlighted, not words: the server reports no word
+any voice you give it a short recording of. The plugin's **Fish Speech**
+section is for it, and lists every voice on it in the player under a
+**Fish Speech** entry of the first dropdown, by its name. Sentences are highlighted, not words: the server reports no word
 timings.
 
 ## What it needs
@@ -66,15 +65,15 @@ spaces, `-` and `_` only.
 
 ## In Zotero
 
-1. **Edit → Settings → Zotero-TTS → Fish Audio → Local**: **Address** is
+1. **Edit → Settings → Zotero-TTS → Fish Speech**: **Address** is
    `http://localhost:8080` for a server on this
    machine; on another machine of your LAN, its name or IP address in
    place of `localhost`.
 2. A server started with `--api-key`: put `Authorization: Bearer <the
    key>` into **Extra headers**.
 3. **Test connection** → *Connected. N voices available.* → **Enable**.
-4. In the player, the voices are `Fish-local-<folder name>` under
-   **Local**, filed under *Multiple languages*: the server does not say
+4. In the player, the voices are the folder names under **Fish Speech**,
+   filed under *Multiple languages*: the server does not say
    which language a voice speaks, and the model speaks 80 languages.
 
 ## Good to know

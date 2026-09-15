@@ -6,6 +6,8 @@ export type LocalEngineAdapter = {
   label: string;
   /** Short engine name for voice labels: "Kokoro-af_bella". */
   voiceName: string;
+  /** Where the engine lives, for the section's heading (issue #112): the host as shown, the address the link opens. */
+  site?: { host: string; url: string };
   defaultBaseURL: string;
   capabilities: { wordTimestamps: boolean };
   create(baseURL: string, deps: LocalEngineDeps): TTSProvider;

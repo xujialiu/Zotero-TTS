@@ -4,6 +4,25 @@ import { VOLUME_DEFAULT, VOLUME_MAX, VOLUME_MIN } from './read-aloud-volume';
 
 export const PROVIDER_IDS: readonly ProviderId[] = ['openai', 'azure', 'cloudflare', 'speechify', 'fish', 'fishspeech', 'local', 'system'];
 
+/** Zotero's own two cloud tiers, as its voices response keys them. */
+export type ZoteroTier = 'standard' | 'premium';
+
+/**
+ * Zotero's Standard and Premium, each behind a switch of its own (issue
+ * #111): a section with one `enabled` field, so the pane's switch rows, the
+ * restore check and the settings sync treat it as they treat a provider's.
+ * Off, the tier is hidden from the player, the voice browser and the
+ * language dropdown; Zotero's own memory of it is left alone.
+ */
+export const ZOTERO_SWITCH_IDS = ['zotero-standard', 'zotero-premium'] as const;
+export type ZoteroSwitchId = (typeof ZOTERO_SWITCH_IDS)[number];
+/** Every section with an `enabled` switch: the providers and Zotero's two tiers. */
+export type SwitchId = ProviderId | ZoteroSwitchId;
+export const SWITCH_IDS: readonly SwitchId[] = [...PROVIDER_IDS, ...ZOTERO_SWITCH_IDS];
+export const isZoteroSwitch = (id: string): id is ZoteroSwitchId => (ZOTERO_SWITCH_IDS as readonly string[]).includes(id);
+/** The tier a Zotero switch stands for. */
+export const zoteroSwitchTier = (id: ZoteroSwitchId): ZoteroTier => (id === 'zotero-standard' ? 'standard' : 'premium');
+
 export type AutoScrollMode = 'outside' | 'sentence';
 export const autoScrollMode = (value: unknown): AutoScrollMode => value === 'outside' ? 'outside' : 'sentence';
 
@@ -57,6 +76,9 @@ export interface Settings {
    * Windows only for now; elsewhere enabling it fails with a message.
    */
   system: { enabled: boolean };
+  /** Zotero's own Standard and Premium voices (issue #111), each behind its own switch; see ZOTERO_SWITCH_IDS. */
+  'zotero-standard': { enabled: boolean };
+  'zotero-premium': { enabled: boolean };
   /**
    * The WebDAV folder the plugin syncs through (core/webdav.ts,
    * ui/webdav-rows.ts); the password is a plain pref like the API keys.
@@ -176,6 +198,8 @@ export const DEFAULTS: Settings = {
   fishspeech: { enabled: false, baseURL: 'http://localhost:8080', headers: '' },
   local: { enabled: false, engine: 'kokoro', baseURL: 'http://localhost:8880', voice: 'af_bella', headers: '' },
   system: { enabled: false },
+  'zotero-standard': { enabled: true },
+  'zotero-premium': { enabled: true },
   webdav: { url: '', username: '', password: '', syncPositions: false, autoUploadSettings: false, syncSettings: false },
   prefetch: 3,
   prefetchEnabled: true,
@@ -310,6 +334,8 @@ export function loadSettings(prefs: PrefsBackend): Settings {
     system: {
       enabled: bool(prefs, 'system.enabled', DEFAULTS.system.enabled),
     },
+    'zotero-standard': { enabled: bool(prefs, 'zotero-standard.enabled', DEFAULTS['zotero-standard'].enabled) },
+    'zotero-premium': { enabled: bool(prefs, 'zotero-premium.enabled', DEFAULTS['zotero-premium'].enabled) },
     webdav: {
       url: str(prefs, 'webdav.url', DEFAULTS.webdav.url),
       username: str(prefs, 'webdav.username', DEFAULTS.webdav.username),
@@ -386,6 +412,11 @@ export function enabledProviders(s: Settings): ProviderId[] {
   return PROVIDER_IDS.filter((id) => s[id].enabled);
 }
 
+/** Zotero's own tiers whose switch is off (issue #111): hidden wherever the voices are listed. */
+export function hiddenZoteroTiers(s: Settings): ZoteroTier[] {
+  return ZOTERO_SWITCH_IDS.filter((id) => !s[id].enabled).map(zoteroSwitchTier);
+}
+
 export function saveSettings(prefs: PrefsBackend, s: Settings): void {
   for (const [k, v] of Object.entries(s.openai)) prefs.set(PREF_PREFIX + 'openai.' + k, v);
   for (const [k, v] of Object.entries(s.azure)) prefs.set(PREF_PREFIX + 'azure.' + k, v);
@@ -395,6 +426,7 @@ export function saveSettings(prefs: PrefsBackend, s: Settings): void {
   for (const [k, v] of Object.entries(s.fishspeech)) prefs.set(PREF_PREFIX + 'fishspeech.' + k, v);
   for (const [k, v] of Object.entries(s.local)) prefs.set(PREF_PREFIX + 'local.' + k, v);
   for (const [k, v] of Object.entries(s.system)) prefs.set(PREF_PREFIX + 'system.' + k, v);
+  for (const id of ZOTERO_SWITCH_IDS) prefs.set(PREF_PREFIX + id + '.enabled', s[id].enabled);
   for (const [k, v] of Object.entries(s.webdav)) prefs.set(PREF_PREFIX + 'webdav.' + k, v);
   prefs.set(PREF_PREFIX + 'prefetch', s.prefetch);
   prefs.set(PREF_PREFIX + 'prefetchEnabled', s.prefetchEnabled);

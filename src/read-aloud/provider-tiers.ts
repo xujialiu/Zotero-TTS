@@ -115,24 +115,31 @@ export function isTierOptionList(options: unknown): boolean {
 }
 
 /**
- * The replacement list: Zotero's Standard and Premium option objects as
- * given (label and greyed state are Zotero's), `local` only while the
- * manager still lists voices under it (the OS voices, which
- * system-voices.ts hides), and one entry per other tier that has voices,
- * named by `labels` (the key itself when unnamed); the whole sorted by
- * displayed label, Han by pinyin before Latin.
+ * The replacement list: Zotero's own options only while the manager lists
+ * voices under them — Standard and Premium like `local` (the OS voices,
+ * which system-voices.ts hides): a tier switched off in the pane (issue
+ * #111), or one with no favorite while only favorites are offered, leaves
+ * the list like a provider with nothing to offer, instead of staying
+ * greyed as Zotero draws it — named by `labels` where it names them
+ * ("Zotero Standard"), else as Zotero labeled them; and one entry per
+ * other tier that has voices, named by `labels` (the key itself when
+ * unnamed); the whole sorted by displayed label, Han by pinyin before
+ * Latin. With nothing to list at all, Zotero's list as given, greyed: the
+ * dropdown is never handed an empty option list.
  */
 export function buildTierOptions(zoteroOptions: readonly TierOption[], tiers: Iterable<string>, labels: Record<string, string>): TierOption[] {
   const withVoices = new Set(tiers);
+  const named = (option: TierOption): TierOption => ({ value: option.value, label: labels[option.value] ?? option.label, disabled: !!option.disabled });
   const out: TierOption[] = [];
   for (const option of zoteroOptions) {
-    if (option.value === PUBLISHED_TIER && !withVoices.has(PUBLISHED_TIER)) continue;
-    out.push({ value: option.value, label: option.label, disabled: !!option.disabled });
+    if (!withVoices.has(option.value)) continue;
+    out.push(named(option));
   }
   for (const tier of withVoices) {
     if (ZOTERO_TIER_VALUES.includes(tier)) continue;
     out.push({ value: tier, label: labels[tier] ?? tier, disabled: false });
   }
+  if (!out.length) return zoteroOptions.map(named);
   return out.sort((a, b) => compareVoiceLabels(a.label, b.label) || (a.value < b.value ? -1 : a.value > b.value ? 1 : 0));
 }
 

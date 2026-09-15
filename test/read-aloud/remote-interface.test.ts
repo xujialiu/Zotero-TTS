@@ -522,6 +522,26 @@ describe("alongside Zotero's own interface", () => {
     return { iface, log, synthesize };
   }
 
+  it('hides the tiers switched off in the pane: neither offered nor published, credits untouched (issue #111)', async () => {
+    const premiumConfig = { voices: { p1: { label: 'Zotero premium' } }, locales: { 'en-US': ['p1'] } };
+    const listed = vi.fn();
+    const native = fakeNative({
+      getVoices: vi.fn(async () => ({ voices: { standard: [standardConfig], premium: [premiumConfig] }, standardCreditsRemaining: 120, premiumCreditsRemaining: 30 })),
+    });
+    const { iface } = withNative(native, { getHiddenTiers: () => ['standard'], onVoicesListed: listed });
+    const result = await iface.getVoices();
+    expect(result.voices!.standard).toBeUndefined();
+    expect(result.voices!.premium).toEqual([premiumConfig]);
+    expect(result.standardCreditsRemaining).toBe(120);
+    const ids = (list: { id: string }[]) => list.map((v) => v.id);
+    expect(ids(listed.mock.calls[0][0].offered)).not.toContain('s1');
+    expect(ids(listed.mock.calls[0][0].published)).not.toContain('s1');
+    expect(ids(listed.mock.calls[0][0].published)).toContain('p1');
+    // Nothing hidden: Zotero's answer as it came
+    const plain = await withNative(fakeNative(), { getHiddenTiers: () => [] }).iface.getVoices();
+    expect(plain.voices!.standard).toEqual([standardConfig]);
+  });
+
   it("keeps Zotero's tiers and credits and adds the plugin voices under local", async () => {
     const native = fakeNative();
     const result = await withNative(native).iface.getVoices();

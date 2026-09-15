@@ -2,7 +2,7 @@ import { SynthesisError } from '../core/providers/errors';
 import type { ProviderId, TTSProvider, VoiceInfo, VoiceListNotice } from '../core/providers/types';
 import { getLocalEngine } from '../core/providers/local/registry';
 import { presetSpec } from '../core/server-presets';
-import { enabledProviders, PROVIDER_IDS, type Settings } from '../core/settings';
+import { enabledProviders, hiddenZoteroTiers, PROVIDER_IDS, type Settings } from '../core/settings';
 import { withTimeout } from '../core/timeout';
 import { providerTierLabel, tierForProvider, zoteroTierLabel, type TierEntry, type TierNaming } from './voice-catalog';
 import { ZOTERO_TIERS } from './zotero-voices';
@@ -121,13 +121,15 @@ export function providerTierLabels(settings: Settings): Record<string, string> {
 /**
  * The voice browser's first column (issue #110): every enabled provider,
  * whether or not it lists anything right now, and Zotero's Standard and
- * Premium — unsorted; ui/voice-browser-rows.ts sorts by label.
+ * Premium while their switches are on (issue #111) — unsorted;
+ * ui/voice-browser-rows.ts sorts by label.
  */
 export function providerTierColumns(settings: Settings): TierEntry[] {
   const naming = providerNaming(settings);
+  const hidden: readonly string[] = hiddenZoteroTiers(settings);
   return [
     ...enabledProviders(settings).map((id) => ({ tier: tierForProvider(id, naming.localEngine), label: providerTierLabel(id, naming) })),
-    ...ZOTERO_TIERS.map((tier) => ({ tier, label: zoteroTierLabel(tier) })),
+    ...ZOTERO_TIERS.filter((tier) => !hidden.includes(tier)).map((tier) => ({ tier, label: zoteroTierLabel(tier) })),
   ];
 }
 

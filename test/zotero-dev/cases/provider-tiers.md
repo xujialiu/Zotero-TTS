@@ -3,8 +3,9 @@
 ## One entry per provider in the player's first dropdown (issue #110, 1.12.10)
 
 The player's first dropdown (Zotero's *Voice Mode*) lists one entry per
-enabled provider that has voices, beside Zotero's Standard and Premium,
-sorted by displayed name; each provider remembers its own last voice per
+enabled provider that has voices, beside Zotero's Standard and Premium
+(named `Zotero Standard` / `Zotero Premium` and each behind a switch since
+#111, `cases/zotero-tiers.md`), sorted by displayed name; each provider remembers its own last voice per
 language; voice labels carry no provider prefix; the voice browser's first
 column is the same list. Mechanism: every plugin voice's `impl.tier` is
 rewritten to its provider's key (`azure`, `cloudflare`, `speechify`,
@@ -19,7 +20,7 @@ entry only when a popup opens (`src/read-aloud/provider-tiers.ts`).
 Run the baseline first. Fixture: `fixture-a.pdf` as a standalone
 attachment, opened, its popup opened muted (`readAloud.volume` 0 for the
 run); the owner's paused player untouched. The checks name Kokoro and
-Fish-cloud; substitute whichever providers are enabled in the profile
+Fish Audio; substitute whichever providers are enabled in the profile
 (read `zotero-tts.<provider>.enabled`, never switch one on for the run).
 Expected values below are derived from `src/` (`buildTierOptions`,
 `strandedTarget`, `providerTierLabels`) unless a run is cited.
@@ -30,8 +31,8 @@ Expected values below are derived from `src/` (`buildTierOptions`,
    entries in the player` ok. `diagnostics.providerTiers()` (async) →
    `feature: "provider-tiers"` — the build's identity, since a sibling
    worktree may name the same `-betaN`; `labels` holding
-   `standard: "Standard"`, `premium: "Premium"`, `kokoro: "Kokoro"`,
-   `fish: "Fish-cloud"`, `fishspeech: "Fish-local"`, `system: "System"`,
+   `standard: "Zotero Standard"`, `premium: "Zotero Premium"` (#111), `kokoro: "Kokoro"`,
+   `fish: "Fish Audio"`, `fishspeech: "Fish Speech"` (#112), `system: "System"`,
    `azure`, `cloudflare`, `speechify`, `openai` (`OpenAI`, or the
    Server preset's name: `Xiaomi MiMo` / `Chatterbox-TTS-Server`).
 2. After the fixture's popup opened, its reader in `readers` →
@@ -41,10 +42,12 @@ Expected values below are derived from `src/` (`buildTierOptions`,
    **never `local`**; `retagged` = one count per provider key, no
    `local` key (a `local` count is the re-tag not landing — FAIL);
    `selectedTier` a key of `tiers`; `options` = the list last handed to
-   the dropdown: Zotero's Standard/Premium as given (present, `disabled`
-   when empty), one `{ value, label, disabled: false }` per provider tier
-   with voices, sorted by label (`Fish-cloud`, `Kokoro`, `Premium`,
-   `Standard` on a Fish + Kokoro profile), no `local` entry.
+   the dropdown: Zotero's Standard/Premium only while they have voices,
+   relabeled `Zotero Standard` / `Zotero Premium` (#111; as given and
+   greyed when empty until then), one `{ value, label, disabled: false }`
+   per provider tier with voices, sorted by label (`Fish Audio`, `Kokoro`,
+   `Zotero Premium`, `Zotero Standard` on a Fish + Kokoro profile), no
+   `local` entry.
    `diagnostics.patches()` → `providerTiers.live` = 2 per open tab whose
    popup opened this session (one prototype, one React; the selectTier
    hook is not in that log), `total` equal.
@@ -61,8 +64,8 @@ Expected values below are derived from `src/` (`buildTierOptions`,
    or `-option-premium` (React's `useId` prefix varies; never match the
    localized aria-label). Its `.option` rows, in DOM order: ids ending
    `-option-<value>` for exactly the `options` of item 2 in that order,
-   `.label` texts the labels — `Fish-cloud`, `Kokoro`, `Premium`,
-   `Standard`; no row ending `-option-local`; the `selected` class on the
+   `.label` texts the labels — `Fish Audio`, `Kokoro`, `Zotero Premium`,
+   `Zotero Standard`; no row ending `-option-local`; the `selected` class on the
    row of `selectedTier`; the trigger's text the selected entry's name.
    Zotero's `checked` gutter and the ♥ column (favorite-marks) are
    unaffected. Close the dropdown with Escape.
@@ -96,7 +99,7 @@ Expected values below are derived from `src/` (`buildTierOptions`,
    session), so since beta4 the selectTier hook refreshes it first, and the
    debug log carries `provider tiers: each entry's own memory follows the
    reader's state` once per attached tab. Labels: every
-   `voicesForLanguage[i].label` carries no `Kokoro-` / `Fish-cloud-` prefix
+   `voicesForLanguage[i].label` carries no provider prefix (`Kokoro-`, `Fish-`)
    (`af_bella`, `Dax — Casual US male (EN)`).
 
 ### 4. A selection no voice carries
@@ -126,9 +129,10 @@ Expected values below are derived from `src/` (`buildTierOptions`,
 
 7. Settings → Zotero-TTS: `#ztts-voices-tiers` children read `<Name> (N)`
    for **every enabled provider** — `(0)` for one that lists nothing,
-   e.g. Fish-cloud with the key removed for the check — plus
-   `Premium (N)` and `Standard (N)`, sorted by name (Han by pinyin first:
-   `标准 / 高级 / 系统` before the Latin names in zh-CN); the selected
+   e.g. Fish Audio with the key removed for the check — plus
+   `Zotero Premium (N)` and `Zotero Standard (N)`, sorted by name (Han by
+   pinyin first: `系统` before the Latin names in zh-CN, and `Zotero 标准` /
+   `Zotero 高级` after them, since #111); the selected
    column is the default voice's provider (`readAloud.memory`'s voice), the
    language column that entry's languages, the rows without prefix.
    `diagnostics.defaultVoice()` → `opensOn.tier` the provider key of the

@@ -1,4 +1,4 @@
-<!-- translated-from: README.md sha256:d87eb3542cb6 -->
+<!-- translated-from: README.md sha256:0df668f1961e -->
 <p align="center"><img src="assets/icon.png" width="80" alt="Zotero-TTS 图标"></p>
 <h1 align="center">Zotero-TTS</h1>
 
@@ -20,9 +20,9 @@
 
 ## 它增加了什么
 
-Zotero-TTS 在 Zotero 10 的朗读（Read Aloud）里工作：每个服务商都是播放器第一个下拉框里的一个条目，和 Zotero 自己的标准、高级并列。它按作者自己的阅读习惯来做——[为什么这样做、往哪里去](docs/PHILOSOPHY.zh.md)。
+Zotero-TTS 在 Zotero 10 的朗读（Read Aloud）里工作：每个服务商都是播放器第一个下拉框里的一个条目，而 Zotero 自己的标准和高级是另外两个，各自都有自己的开关。它按作者自己的阅读习惯来做——[为什么这样做、往哪里去](docs/PHILOSOPHY.zh.md)。
 
-- 🗣️ **朗读播放器里更多语音**，每个服务商都是一个条目，和 Zotero 自己的标准、高级并列——Azure Speech、Cloudflare Workers AI、Speechify、Fish Audio、装在你机器上的 [Kokoro-FastAPI](https://github.com/remsky/Kokoro-FastAPI) 或 [Fish Speech](https://github.com/fishaudio/fish-speech) 服务器、OpenAI 或任何 OpenAI 兼容服务器。[→ 服务商](#服务商)
+- 🗣️ **朗读播放器里更多语音**，每个服务商都是一个条目——Azure Speech、Cloudflare Workers AI、Speechify、Fish Audio、装在你机器上的 [Kokoro-FastAPI](https://github.com/remsky/Kokoro-FastAPI) 或 [Fish Speech](https://github.com/fishaudio/fish-speech) 服务器、OpenAI 或任何 OpenAI 兼容服务器——旁边是 Zotero 自己的标准和高级，各自都有一个开关。[→ 服务商](#服务商)
 - 🔖 **从上次停下的地方接着读**——关掉文档，过些天再打开，按 `Shift+Space`，朗读就从你上次停下的那一句开始。[→ 从上次停下的地方接着读](#从上次停下的地方接着读)
 - 📄 **整句都在屏幕内**——读 PDF 时，一句话如果超出窗口底部、延伸到下一页或下一栏，会被滚动到可见范围内，而不是被截断在外，`Shift+Enter` 也能用同样的方式把它带回来。[→ 朗读](#朗读)
 - 📃 **翻页不漏行**——一句话跨到下一页、那一页的第一行本该被 Zotero 漏掉时，这一行照常朗读、照常高亮。[→ 朗读](#朗读)
@@ -52,20 +52,22 @@ Zotero-TTS 在 Zotero 10 的朗读（Read Aloud）里工作：每个服务商都
 | **Speechify** | 一个 platform.speechify.ai 的 API 密钥 · 36 种语言，没有普通话 | 免费：每月 50,000 字符，约十几页；之后每月 10 美元 100 万字符 | 逐词 |
 | **Fish Audio** | 一个 fish.audio 的 API 密钥 · 官方语音、你自己克隆的语音，以及 Model ID，每种来源都有独立开关 · [教程](tutorials/fish-audio.zh.md) | 免费模型不花钱、不限量、不保证速度；付费模型每百万字节文本 15 美元，一个汉字算三个字节 | 逐词 |
 | **Kokoro-FastAPI** | 一台跑在本机或局域网里的服务器 · [教程](tutorials/kokoro-fastapi.zh.md) | 免费；CPU 也能跑，有 GPU 更快 | 逐词 |
-| **Fish Speech 服务器** | 一台跑在 24 GB 显卡上的 [fish-speech](https://github.com/fishaudio/fish-speech) 服务器，语音由你自己的录音克隆而来 · [教程](tutorials/fish-speech-server.zh.md) | 免费 | 逐句 |
+| **Fish Speech** | 一台跑在 24 GB 显卡上的 [fish-speech](https://github.com/fishaudio/fish-speech) 服务器，语音由你自己的录音克隆而来 · [教程](tutorials/fish-speech-server.zh.md) | 免费 | 逐句 |
 | **OpenAI 兼容服务器** | API 地址和模型；服务器若要密钥再加一个 | OpenAI 按字符计费；自建的服务器，例如 [Chatterbox](tutorials/chatterbox-tts-server.zh.md)，不花钱 | 逐句 |
 | **Xiaomi MiMo** | 一个 platform.xiaomimimo.com 的 API 密钥，在 OpenAI 那一节的**服务器**下拉框里选 | 限时免费 | 逐句 |
 | **系统语音** | 什么都不用——Windows 和 macOS | 免费、离线 | Windows 逐词，macOS 逐句 |
+| **Zotero 标准/高级** | 登录 Zotero 账户（编辑 → 设置 → 同步）；**Zotero** 这一节里每档各有一个开关，一开始都是开着的 | Zotero 自己的额度，在播放器里显示和购买 | 逐词 |
 
-播放器第一个下拉框列出眼下有语音的每一个已启用服务商，和 Zotero 自己的**标准**、**高级**并列，按名称排序。
+播放器第一个下拉框列出眼下有语音的每一个已启用服务商，以及开关开着时 Zotero 自己的 **Zotero 标准**和 **Zotero 高级**，按名称排序。
 
-- **这些条目**是 Azure、Cloudflare、Fish-cloud、Fish-local、Kokoro、OpenAI（或者服务器自己的名字：Xiaomi MiMo、Chatterbox-TTS-Server）、Speechify 和系统；条目下面的语音各自带着自己的名字。
+- **这些条目**是 Azure、Cloudflare、Fish Audio、Fish Speech、Kokoro、OpenAI（或者服务器自己的名字：Xiaomi MiMo、Chatterbox-TTS-Server）、Speechify、系统、Zotero 高级和 Zotero 标准；条目下面的语音各自带着自己的名字。
 - **每个条目按语言各记住自己最后一个语音**：Kokoro → Fish → Kokoro，用的还是原来那个 Kokoro 语音。
 - **没有语音可提供的服务商**——关着、服务器没起来，或者只提供收藏的语音时自己一个都没收藏——在它又有语音之前都不会列出来。
 - **你正用着的条目不再提供语音时**，播放器会切到记住的那个语音所在的服务商；没有的话，切到默认语音所在的服务商；再没有，就切到第一个条目。
 - **暂停时切换服务商或语言**立刻生效；按下播放后，这一句会用新语音重新开始。暂停时选择的语音，则要等按下播放后，才从暂停的那个词之后继续。
 - **Zotero 自己的首次运行窗口和它的*语音管理*窗口**依然把插件的每一个语音都归在本地下面。
 - 每个服务商那一节末尾的**启用**会先跑一次连接检查：连不上的服务商不会被打开。
+- **Zotero 自己的标准和高级**在 **Zotero** 这一节里各有一个开关，一开始都是开着的。关掉一档，它就从播放器第一个下拉框、语音浏览器和语言列表里消失；Zotero 记住的语音不会丢，重新打开就回来。**启用**会检查已登录，且 Zotero 在这一档列出了语音；**测试连接**会报告语音和剩余额度。
 - **测试连接**只探测，不改变任何开关。
 - 服务商开着时，这一节的字段是锁住的——要改先按**停用**。
 - API 密钥、网关请求头和 WebDAV 密码都是掩码显示的。它们和其他插件设置一样，以明文存在 Zotero 的首选项里，也会进入设置备份文件。
@@ -161,9 +163,9 @@ Zotero-TTS 在 Zotero 10 的朗读（Read Aloud）里工作：每个服务商都
 <details>
 <summary><b>收藏、试听、默认语音</b></summary>
 
-- **每个启用的服务商都有自己的一栏**——列表里没有语音时显示 `(0)`——**标准**和**高级**是 Zotero 自己的；多语种语音归在「多语言」下，排在语言那一栏的最前面。
+- **每个启用的服务商都有自己的一栏**——列表里没有语音时显示 `(0)`——**Zotero 标准**和 **Zotero 高级**是 Zotero 自己的，各自开关开着时才有；多语种语音归在「多语言」下，排在语言那一栏的最前面。
 - **▶**——用语音自己的语言试听一句：你的语音要花一次短请求，Zotero 自己的不花钱。
-- *朗读播放器中只提供收藏的语音*会把播放器**按每个服务商**都裁到你标记过的那些——某个服务商一个都没标，就会从播放器第一个下拉框里消失，而 Zotero 自己的标准或高级要是一个都没标，则会被 Zotero 置灰。一个都没标，或者标过的语音都不再列出时，就又全部提供。开关开着时，只有收藏的语音才能当默认；而默认语音不是收藏时，这个开关打不开。收藏会跟着设置备份走。
+- *朗读播放器中只提供收藏的语音*会把播放器**按每个服务商**都裁到你标记过的那些——某个服务商一个都没标，就会从播放器第一个下拉框里消失，Zotero 自己的两档也在内。一个都没标，或者标过的语音都不再列出时，就又全部提供。开关开着时，只有收藏的语音才能当默认；而默认语音不是收藏时，这个开关打不开。收藏会跟着设置备份走。
 - 收藏也会显示在播放器自己的语音列表里：*朗读播放器中只提供收藏的语音*关着时，标记过的语音在下拉列表里带一颗 ♥，其余的没有，于是不必舍弃别的语音也能找到收藏的那个。它是标记，不是按钮——收藏在这里标——开关开着时它就没有了，那时列出的每一个语音都是收藏。
 - 点默认那一行就清除默认语音，回到 Zotero 自己按语言各记一个的做法。设置开着时在任意标签页的播放器里另选一个语音，高亮会跟着挪过去。
 - **速度**滑块按这个速度播放试听，松开滑块就把它设为朗读的起始速度——正在播放的文档立刻就变。改速度不花钱，音高也不变。

@@ -71,11 +71,16 @@ export function parseZoteroVoices(response: unknown): ZoteroVoice[] {
   return out;
 }
 
-/** The two methods of Zotero's sync API client this uses (`Zotero.Sync.Runner.getAPIClient`). */
+/** The methods of Zotero's sync API client this uses (`Zotero.Sync.Runner.getAPIClient`). */
 export interface ZoteroTTSClient {
   getReadAloudVoices(): Promise<{ voices?: unknown; error?: string } | null>;
   getReadAloudAudio(segment: 'sample', voiceId: string): Promise<{ audio?: unknown; error?: string } | null>;
+  /** `GET tts/credits` (syncAPIClient.js 743): the account's credits per tier, null where it has none or the call failed; never rejects. Absent on a client that predates it. */
+  getReadAloudCreditsRemaining?(): Promise<{ standardCreditsRemaining?: unknown; premiumCreditsRemaining?: unknown } | null>;
 }
+
+/** The credits left on the account, per tier; null where Zotero says nothing. */
+export type ZoteroCredits = { standard: number | null; premium: number | null };
 
 export interface ZoteroVoiceServiceDeps {
   /** Zotero's API client, built per call because it carries the API key of the moment; null when Zotero has none. */
@@ -96,6 +101,8 @@ export interface ZoteroVoiceService {
   listVoices(): Promise<ZoteroVoice[]>;
   /** One sample of Zotero's own, in the server's own words. */
   sample(voiceId: string): Promise<Blob>;
+  /** The account's credits per tier (issue #111); both null without a client, a key or the call. */
+  credits(): Promise<ZoteroCredits>;
 }
 
 const DEFAULT_TIMEOUT_MS = 20_000;
@@ -117,6 +124,15 @@ export function createZoteroVoiceService(deps: ZoteroVoiceServiceDeps): ZoteroVo
       // detail there is to report.
       if (result?.error) throw new Error(`Zotero's own voices are unavailable (${result.error})`);
       return parseZoteroVoices(result?.voices);
+    },
+
+    async credits() {
+      const none: ZoteroCredits = { standard: null, premium: null };
+      const client = await deps.client();
+      if (!client?.getReadAloudCreditsRemaining) return none;
+      const result = await bounded(client.getReadAloudCreditsRemaining(), 'credits');
+      const figure = (value: unknown): number | null => (typeof value === 'number' && Number.isFinite(value) ? value : null);
+      return { standard: figure(result?.standardCreditsRemaining), premium: figure(result?.premiumCreditsRemaining) };
     },
 
     async sample(voiceId) {

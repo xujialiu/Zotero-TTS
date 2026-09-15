@@ -25,7 +25,9 @@ Items 1.2 and 1.4 of the checklist, under their original numbers.
    `InspectorUtils.getMatchingCSSRules` lists the plugin's
    `label.ztts-help[value]` with `width: 1.25em` and no `font-size`.
    The About section's three lines (`src/ui/about-rows.ts`, 1.11.7),
-   the last of the pane's 14 groupboxes and after Backup, its `h2`
+   the last of the pane's 17 groupboxes (counted live on 1.12.11-beta:
+   Fish Audio and Fish Speech are two since #112, Zotero one more since
+   #111) and after Backup, its `h2`
    `About` (`ztts-heading-about`): `#ztts-about-build` `Version <build> ·
    Date <date> · Time <hh:mm:ss UTC±n>` — its two separators the only
    non-ASCII in it (U+00B7) — over `#ztts-about-author` `Author Xujia

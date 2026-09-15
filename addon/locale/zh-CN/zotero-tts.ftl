@@ -37,7 +37,6 @@ ztts-help-cloudflare =
 ztts-help-speechify =
     .value = ?
     .help = 密钥在 Speechify 工作区的 API keys 页面上（platform.speechify.ai）。密钥能列出的每个语音都归在自己的语言下——没有普通话，只有粤语——并逐词高亮。免费：每月 50,000 字符，约十几页，往前跳读时开头可能要等一两秒；之后每月 10 美元 100 万字符。
-ztts-heading-fish-cloud = 云端（api.fish.audio）
 ztts-help-fish =
     .value = ?
     .help = 密钥在 fish.audio 账号的 Developers 页面上。下面的来源开关决定是否列出官方语音、你的语音和 Model IDs；模型自带的 Default 始终可用。它们都支持逐词高亮。免费模型不花钱，但会保留你的请求文本，不保证速度，也可能随时结束；付费模型按文本字节计费，一个汉字算三个字节。
@@ -69,7 +68,6 @@ ztts-fish-model-ids-input =
 ztts-help-fish-model-ids =
     .value = ?
     .help = Fish Audio 中的 Model ID 就是音色的 ID。可在 https://fish.audio/app/discovery/ 查找音色，打开其页面并复制 Model ID。多个 ID 用逗号或空格隔开；以前粘贴的音色链接仍然有效。
-ztts-heading-fish-speech = 本地（github.com/fishaudio/fish-speech）
 ztts-help-fish-speech =
     .value = ?
     .help = 本机或局域网里的 fish-speech API 服务（见 README 里的教程）：服务器上的每个参考语音都会列出来，按句高亮，不逐词。需要 24 GB 显存。用 --api-key 启动的服务器，把密钥以 "Authorization: Bearer …" 的形式填进"额外请求头"。
@@ -85,6 +83,19 @@ ztts-help-system-voices =
     .help = 插件接管系统自带的语音，于是它们和其他服务商的语音一样，有语音浏览器、试听、收藏和缓存。Windows 上还有逐词高亮；macOS 上按句高亮。不支持 Linux。
 
 ## The provider switch, written by ui/provider-rows.ts
+
+## Zotero 自带的语音（issue #111）：每档一个开关，没有字段
+
+ztts-zotero-note = Zotero 自带的语音，需要登录 Zotero 账户。关掉的一档从播放器中消失；标准和高级各有自己的额度，在播放器里购买。
+ztts-help-zotero =
+    .value = ?
+    .help = 标准和高级是登录 Zotero 账户（编辑 → 设置 → 同步）后 Zotero 自己提供的语音，各有自己的额度，在播放器里显示和购买。关掉一档，它就从播放器的第一个下拉框、语音浏览器和语言列表里消失；Zotero 记住的语音不会丢，重新打开就回来。启用前会检查已登录，且 Zotero 在这一档列出了语音。
+ztts-zotero-standard = 标准
+ztts-zotero-premium = 高级
+ztts-zotero-not-signed-in = 未登录 Zotero 账户：请在 编辑 → 设置 → 同步 中登录。
+ztts-zotero-tier-empty = Zotero 没有列出{ $tier }语音。
+ztts-zotero-tier-ok = 已登录：{ $tier }语音 { $count } 个，剩余额度 { $credits }。
+ztts-zotero-tier-ok-no-credits = 已登录：{ $tier }语音 { $count } 个。
 
 ztts-switch-enable = 启用
 ztts-switch-disable = 停用
@@ -372,12 +383,13 @@ ztts-preset-note-other = 填写服务器需要的项；测试连接会告诉你�
 ## The voice browser
 
 # Zotero 自己的词（reader.ftl）：标准 / 高级
-ztts-tier-standard = 标准
-ztts-tier-premium = 高级
+ztts-tier-standard = Zotero 标准
+ztts-tier-premium = Zotero 高级
 # 系统语音在播放器第一个下拉框和语音浏览器第一列里的条目名（issue #110），与本页标题一致
 ztts-provider-system = 系统
 ztts-listing-voices = 正在列出语音…
 ztts-no-voices = 没有语音。请在上方启用一个服务商。
+ztts-no-providers-on = 没有打开任何服务商：请在上方启用一个。
 ztts-listing-failed = 列出语音失败：{ $problems }
 ztts-plugin-voices-problem = 插件的语音：{ $detail }
 ztts-fish-list-limited = Fish Audio 的平台列表上限为 1,000 个语音；可从 Fish Audio discovery 获取 Model IDs 来添加其他语音。

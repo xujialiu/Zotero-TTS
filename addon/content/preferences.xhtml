@@ -25,7 +25,141 @@
        passes, locking the fields; Disable unlocks them. Test connection
        probes without switching. Both write to the description beside them.
        The switch's label is painted by provider-rows on load (Enable or
-       Disable, by the pref), so it carries none here. -->
+       Disable, by the pref), so it carries none here. The sections stand
+       in alphabetical order of their headings, and a heading names the
+       provider's site in parentheses as a link (issue #112); OpenAI's
+       does not, since that section serves several servers. -->
+  <groupbox id="ztts-provider-azure">
+    <label><html:h2>Azure (<label is="zotero-text-link" href="https://portal.azure.com">portal.azure.com</label>)</html:h2></label>
+    <hbox align="center">
+      <label data-l10n-id="ztts-field-api-key" class="ztts-field-label"/>
+      <html:input type="password" preference="extensions.zotero.zotero-tts.azure.apiKey"/>
+    </hbox>
+    <hbox align="center">
+      <label data-l10n-id="ztts-field-region" class="ztts-field-label"/>
+      <html:input type="text" preference="extensions.zotero.zotero-tts.azure.region"/>
+    </hbox>
+    <hbox align="center">
+      <button id="ztts-enable-azure"/>
+      <button id="ztts-test-azure" data-l10n-id="ztts-test-connection"/>
+      <description id="ztts-test-result-azure"/>
+    </hbox>
+  </groupbox>
+
+  <!-- Cloudflare Workers AI (issue #72): the account id and an API token,
+       both from the dashboard's Workers AI page. No address and no model:
+       every text-to-speech model the account lists contributes its
+       voices. The token is masked like the keys. -->
+  <groupbox id="ztts-provider-cloudflare">
+    <label><html:h2>Cloudflare Workers AI (<label is="zotero-text-link" href="https://dash.cloudflare.com">dash.cloudflare.com</label>)</html:h2></label>
+    <hbox align="center">
+      <label data-l10n-id="ztts-field-account-id" class="ztts-field-label"/>
+      <html:input type="text" preference="extensions.zotero.zotero-tts.cloudflare.accountId"/>
+    </hbox>
+    <hbox align="center">
+      <label data-l10n-id="ztts-field-api-token" class="ztts-field-label"/>
+      <html:input type="password" preference="extensions.zotero.zotero-tts.cloudflare.apiToken"/>
+      <label class="ztts-help" value="?" data-l10n-id="ztts-help-cloudflare" data-l10n-attrs="help"/>
+    </hbox>
+    <hbox align="center">
+      <button id="ztts-enable-cloudflare"/>
+      <button id="ztts-test-cloudflare" data-l10n-id="ztts-test-connection"/>
+      <description id="ztts-test-result-cloudflare"/>
+    </hbox>
+  </groupbox>
+
+  <!-- Fish Audio (issues #89, #112): the cloud API behind one key, with a
+       switch that keeps every request on the free model and independent
+       sources for official voices, your voices and Model IDs. The heading
+       names the site as a link, like every section with one. -->
+  <groupbox id="ztts-provider-fish">
+    <label><html:h2>Fish Audio (<label is="zotero-text-link" href="https://fish.audio">fish.audio</label>)</html:h2></label>
+    <hbox align="center">
+      <label data-l10n-id="ztts-field-api-key" class="ztts-field-label"/>
+      <html:input type="password" preference="extensions.zotero.zotero-tts.fish.apiKey"/>
+      <label class="ztts-help" value="?" data-l10n-id="ztts-help-fish" data-l10n-attrs="help"/>
+    </hbox>
+    <hbox align="center">
+      <checkbox data-l10n-id="ztts-fish-free-only" preference="extensions.zotero.zotero-tts.fish.freeOnly"/>
+      <label class="ztts-help" value="?" data-l10n-id="ztts-help-fish-free-only" data-l10n-attrs="help"/>
+    </hbox>
+    <hbox align="center">
+      <description class="ztts-field-label ztts-fish-voices-label" data-l10n-id="ztts-field-fish-voices">
+        <label is="zotero-text-link" href="https://fish.audio/app/discovery/" data-l10n-name="model-ids"/>
+      </description>
+      <html:input id="ztts-fish-model-ids" type="text" data-l10n-id="ztts-fish-model-ids-input" data-l10n-attrs="placeholder" preference="extensions.zotero.zotero-tts.fish.voices"/>
+      <label class="ztts-help" value="?" data-l10n-id="ztts-help-fish-model-ids" data-l10n-attrs="help"/>
+    </hbox>
+    <hbox id="ztts-fish-sources" align="center">
+      <label data-l10n-id="ztts-heading-fish-sources" class="ztts-field-label" style="font-weight: normal"/>
+      <hbox align="center">
+        <checkbox id="ztts-fish-include-official" data-l10n-id="ztts-fish-include-official" data-l10n-attrs="label"/>
+        <label class="ztts-help" value="?" data-l10n-id="ztts-help-fish-include-official" data-l10n-attrs="help"/>
+      </hbox>
+      <hbox align="center" style="margin-inline-start: 8px">
+        <checkbox id="ztts-fish-include-own" data-l10n-id="ztts-fish-include-own" data-l10n-attrs="label"/>
+        <label class="ztts-help" value="?" data-l10n-id="ztts-help-fish-include-own" data-l10n-attrs="help"/>
+      </hbox>
+      <hbox align="center" style="margin-inline-start: 8px">
+        <checkbox id="ztts-fish-include-manual" data-l10n-id="ztts-fish-include-manual" data-l10n-attrs="label"/>
+        <label class="ztts-help" value="?" data-l10n-id="ztts-help-fish-include-manual" data-l10n-attrs="help"/>
+      </hbox>
+    </hbox>
+    <hbox align="center">
+      <button id="ztts-enable-fish"/>
+      <button id="ztts-test-fish" data-l10n-id="ztts-test-connection"/>
+      <description id="ztts-test-result-fish"/>
+    </hbox>
+  </groupbox>
+
+  <!-- A Fish Speech server of the user's own (issues #89, #112): an
+       address and, for a gateway or the server's own api key, Extra
+       headers. Its own switch, so it can be on without the cloud. -->
+  <groupbox id="ztts-provider-fishspeech">
+    <label><html:h2>Fish Speech (<label is="zotero-text-link" href="https://github.com/fishaudio/fish-speech">github.com/fishaudio/fish-speech</label>)</html:h2></label>
+    <hbox align="center">
+      <label data-l10n-id="ztts-field-address" class="ztts-field-label"/>
+      <html:input type="text" preference="extensions.zotero.zotero-tts.fishspeech.baseURL"/>
+      <label class="ztts-help" value="?" data-l10n-id="ztts-help-fish-speech" data-l10n-attrs="help"/>
+    </hbox>
+    <!-- Same format as the OpenAI section's, and masked for the same
+         reason: a gateway's token, or the server's own api key as a bearer. -->
+    <hbox align="center">
+      <label data-l10n-id="ztts-field-extra-headers" class="ztts-field-label"/>
+      <html:input type="password" placeholder="Name: value; Name: value" preference="extensions.zotero.zotero-tts.fishspeech.headers"/>
+      <label class="ztts-help" value="?" data-l10n-id="ztts-help-extra-headers" data-l10n-attrs="help"/>
+    </hbox>
+    <hbox align="center">
+      <button id="ztts-enable-fishspeech"/>
+      <button id="ztts-test-fishspeech" data-l10n-id="ztts-test-connection"/>
+      <description id="ztts-test-result-fishspeech"/>
+    </hbox>
+  </groupbox>
+
+  <groupbox id="ztts-provider-local">
+    <!-- One block per engine: its own switch and address. Only Kokoro
+         exists today; the heading, name and site link, is rendered from
+         the engine registry in onPaneLoad (ui/section-heading.ts). -->
+    <label><html:h2 id="ztts-local-heading"/></label>
+    <hbox align="center">
+      <label data-l10n-id="ztts-field-address" class="ztts-field-label"/>
+      <html:input type="text" preference="extensions.zotero.zotero-tts.local.baseURL"/>
+    </hbox>
+    <!-- Same format as the OpenAI section's, and masked for the same
+         reason: for a gateway in front of the server, e.g. a Cloudflare
+         Access service token. -->
+    <hbox align="center">
+      <label data-l10n-id="ztts-field-extra-headers" class="ztts-field-label"/>
+      <html:input type="password" placeholder="Name: value; Name: value" preference="extensions.zotero.zotero-tts.local.headers"/>
+      <label class="ztts-help" value="?" data-l10n-id="ztts-help-extra-headers" data-l10n-attrs="help"/>
+    </hbox>
+    <hbox align="center">
+      <button id="ztts-enable-local"/>
+      <button id="ztts-test-local" data-l10n-id="ztts-test-connection"/>
+      <description id="ztts-test-result-local"/>
+    </hbox>
+  </groupbox>
+
   <groupbox id="ztts-provider-openai">
     <label><html:h2>OpenAI</html:h2></label>
     <!-- Not bound with preference=: server-preset-rows.ts writes the choice
@@ -82,50 +216,11 @@
     </hbox>
   </groupbox>
 
-  <groupbox id="ztts-provider-azure">
-    <label><html:h2>Azure</html:h2></label>
-    <hbox align="center">
-      <label data-l10n-id="ztts-field-api-key" class="ztts-field-label"/>
-      <html:input type="password" preference="extensions.zotero.zotero-tts.azure.apiKey"/>
-    </hbox>
-    <hbox align="center">
-      <label data-l10n-id="ztts-field-region" class="ztts-field-label"/>
-      <html:input type="text" preference="extensions.zotero.zotero-tts.azure.region"/>
-    </hbox>
-    <hbox align="center">
-      <button id="ztts-enable-azure"/>
-      <button id="ztts-test-azure" data-l10n-id="ztts-test-connection"/>
-      <description id="ztts-test-result-azure"/>
-    </hbox>
-  </groupbox>
-
-  <!-- Cloudflare Workers AI (issue #72): the account id and an API token,
-       both from the dashboard's Workers AI page. No address and no model:
-       every text-to-speech model the account lists contributes its
-       voices. The token is masked like the keys. -->
-  <groupbox id="ztts-provider-cloudflare">
-    <label><html:h2>Cloudflare Workers AI</html:h2></label>
-    <hbox align="center">
-      <label data-l10n-id="ztts-field-account-id" class="ztts-field-label"/>
-      <html:input type="text" preference="extensions.zotero.zotero-tts.cloudflare.accountId"/>
-    </hbox>
-    <hbox align="center">
-      <label data-l10n-id="ztts-field-api-token" class="ztts-field-label"/>
-      <html:input type="password" preference="extensions.zotero.zotero-tts.cloudflare.apiToken"/>
-      <label class="ztts-help" value="?" data-l10n-id="ztts-help-cloudflare" data-l10n-attrs="help"/>
-    </hbox>
-    <hbox align="center">
-      <button id="ztts-enable-cloudflare"/>
-      <button id="ztts-test-cloudflare" data-l10n-id="ztts-test-connection"/>
-      <description id="ztts-test-result-cloudflare"/>
-    </hbox>
-  </groupbox>
-
   <!-- Speechify (issue #79): one key from the workspace's API keys page. No
        address and no model: every voice the key lists is offered, and the
        voice's language picks the model. The key is masked like the others. -->
   <groupbox id="ztts-provider-speechify">
-    <label><html:h2>Speechify</html:h2></label>
+    <label><html:h2>Speechify (<label is="zotero-text-link" href="https://platform.speechify.ai">platform.speechify.ai</label>)</html:h2></label>
     <hbox align="center">
       <label data-l10n-id="ztts-field-api-key" class="ztts-field-label"/>
       <html:input type="password" preference="extensions.zotero.zotero-tts.speechify.apiKey"/>
@@ -135,98 +230,6 @@
       <button id="ztts-enable-speechify"/>
       <button id="ztts-test-speechify" data-l10n-id="ztts-test-connection"/>
       <description id="ztts-test-result-speechify"/>
-    </hbox>
-  </groupbox>
-
-  <!-- Fish Audio (issue #89): the cloud API behind one key, with a switch
-       that keeps every request on the free model, and a Fish Speech server of
-       the user's own (its block is headed Local) — two providers in one section, each with its own
-       switch, so either can be on without the other. The cloud block offers
-       independent sources for official voices, your voices and Model IDs. -->
-  <groupbox id="ztts-provider-fish-audio">
-    <label><html:h2>Fish Audio</html:h2></label>
-    <vbox id="ztts-provider-fish">
-      <label><html:h3 class="ztts-subheading" data-l10n-id="ztts-heading-fish-cloud"/></label>
-      <hbox align="center">
-        <label data-l10n-id="ztts-field-api-key" class="ztts-field-label"/>
-        <html:input type="password" preference="extensions.zotero.zotero-tts.fish.apiKey"/>
-        <label class="ztts-help" value="?" data-l10n-id="ztts-help-fish" data-l10n-attrs="help"/>
-      </hbox>
-      <hbox align="center">
-        <checkbox data-l10n-id="ztts-fish-free-only" preference="extensions.zotero.zotero-tts.fish.freeOnly"/>
-        <label class="ztts-help" value="?" data-l10n-id="ztts-help-fish-free-only" data-l10n-attrs="help"/>
-      </hbox>
-      <hbox align="center">
-        <description class="ztts-field-label ztts-fish-voices-label" data-l10n-id="ztts-field-fish-voices">
-          <label is="zotero-text-link" href="https://fish.audio/app/discovery/" data-l10n-name="model-ids"/>
-        </description>
-        <html:input id="ztts-fish-model-ids" type="text" data-l10n-id="ztts-fish-model-ids-input" data-l10n-attrs="placeholder" preference="extensions.zotero.zotero-tts.fish.voices"/>
-        <label class="ztts-help" value="?" data-l10n-id="ztts-help-fish-model-ids" data-l10n-attrs="help"/>
-      </hbox>
-      <hbox id="ztts-fish-sources" align="center">
-        <label data-l10n-id="ztts-heading-fish-sources" class="ztts-field-label" style="font-weight: normal"/>
-        <hbox align="center">
-          <checkbox id="ztts-fish-include-official" data-l10n-id="ztts-fish-include-official" data-l10n-attrs="label"/>
-          <label class="ztts-help" value="?" data-l10n-id="ztts-help-fish-include-official" data-l10n-attrs="help"/>
-        </hbox>
-        <hbox align="center" style="margin-inline-start: 8px">
-          <checkbox id="ztts-fish-include-own" data-l10n-id="ztts-fish-include-own" data-l10n-attrs="label"/>
-          <label class="ztts-help" value="?" data-l10n-id="ztts-help-fish-include-own" data-l10n-attrs="help"/>
-        </hbox>
-        <hbox align="center" style="margin-inline-start: 8px">
-          <checkbox id="ztts-fish-include-manual" data-l10n-id="ztts-fish-include-manual" data-l10n-attrs="label"/>
-          <label class="ztts-help" value="?" data-l10n-id="ztts-help-fish-include-manual" data-l10n-attrs="help"/>
-        </hbox>
-      </hbox>
-    </vbox>
-    <hbox id="ztts-fish-cloud-actions" align="center">
-      <button id="ztts-enable-fish"/>
-      <button id="ztts-test-fish" data-l10n-id="ztts-test-connection"/>
-      <description id="ztts-test-result-fish"/>
-    </hbox>
-    <vbox id="ztts-provider-fishspeech">
-      <label><html:h3 class="ztts-subheading" data-l10n-id="ztts-heading-fish-speech"/></label>
-      <hbox align="center">
-        <label data-l10n-id="ztts-field-address" class="ztts-field-label"/>
-        <html:input type="text" preference="extensions.zotero.zotero-tts.fishspeech.baseURL"/>
-        <label class="ztts-help" value="?" data-l10n-id="ztts-help-fish-speech" data-l10n-attrs="help"/>
-      </hbox>
-      <!-- Same format as the OpenAI section's, and masked for the same
-           reason: a gateway's token, or the server's own api key as a bearer. -->
-      <hbox align="center">
-        <label data-l10n-id="ztts-field-extra-headers" class="ztts-field-label"/>
-        <html:input type="password" placeholder="Name: value; Name: value" preference="extensions.zotero.zotero-tts.fishspeech.headers"/>
-        <label class="ztts-help" value="?" data-l10n-id="ztts-help-extra-headers" data-l10n-attrs="help"/>
-      </hbox>
-      <hbox align="center">
-        <button id="ztts-enable-fishspeech"/>
-        <button id="ztts-test-fishspeech" data-l10n-id="ztts-test-connection"/>
-        <description id="ztts-test-result-fishspeech"/>
-      </hbox>
-    </vbox>
-  </groupbox>
-
-  <groupbox id="ztts-provider-local">
-    <!-- One block per engine: its own switch and address. Only Kokoro
-         exists today; the heading is filled from the engine registry in
-         onPaneLoad. -->
-    <label><html:h2 id="ztts-local-heading"/></label>
-    <hbox align="center">
-      <label data-l10n-id="ztts-field-address" class="ztts-field-label"/>
-      <html:input type="text" preference="extensions.zotero.zotero-tts.local.baseURL"/>
-    </hbox>
-    <!-- Same format as the OpenAI section's, and masked for the same
-         reason: for a gateway in front of the server, e.g. a Cloudflare
-         Access service token. -->
-    <hbox align="center">
-      <label data-l10n-id="ztts-field-extra-headers" class="ztts-field-label"/>
-      <html:input type="password" placeholder="Name: value; Name: value" preference="extensions.zotero.zotero-tts.local.headers"/>
-      <label class="ztts-help" value="?" data-l10n-id="ztts-help-extra-headers" data-l10n-attrs="help"/>
-    </hbox>
-    <hbox align="center">
-      <button id="ztts-enable-local"/>
-      <button id="ztts-test-local" data-l10n-id="ztts-test-connection"/>
-      <description id="ztts-test-result-local"/>
     </hbox>
   </groupbox>
 
@@ -249,6 +252,32 @@
       <button id="ztts-enable-system"/>
       <button id="ztts-test-system" data-l10n-id="ztts-test-connection"/>
       <description id="ztts-test-result-system"/>
+    </hbox>
+  </groupbox>
+
+  <!-- Zotero's own Standard and Premium voices (issue #111): nothing to
+       configure, the account is Zotero's and the credits are bought in the
+       player, so only a switch per tier, each an hbox provider-rows.ts
+       wires like a provider's section (ids ztts-provider-zotero-standard
+       and -premium, with no fields to lock). Off, the tier is hidden from
+       the player, the voice browser and the language dropdown. -->
+  <groupbox id="ztts-zotero-section">
+    <label><html:h2>Zotero</html:h2></label>
+    <hbox align="center">
+      <description data-l10n-id="ztts-zotero-note"/>
+      <label class="ztts-help" value="?" data-l10n-id="ztts-help-zotero" data-l10n-attrs="help"/>
+    </hbox>
+    <hbox id="ztts-provider-zotero-standard" align="center">
+      <label data-l10n-id="ztts-zotero-standard" class="ztts-field-label"/>
+      <button id="ztts-enable-zotero-standard"/>
+      <button id="ztts-test-zotero-standard" data-l10n-id="ztts-test-connection"/>
+      <description id="ztts-test-result-zotero-standard"/>
+    </hbox>
+    <hbox id="ztts-provider-zotero-premium" align="center">
+      <label data-l10n-id="ztts-zotero-premium" class="ztts-field-label"/>
+      <button id="ztts-enable-zotero-premium"/>
+      <button id="ztts-test-zotero-premium" data-l10n-id="ztts-test-connection"/>
+      <description id="ztts-test-result-zotero-premium"/>
     </hbox>
   </groupbox>
 

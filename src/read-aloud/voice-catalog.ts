@@ -55,8 +55,8 @@ const PROVIDER_NAMES: Record<Exclude<ProviderId, 'system'>, string> = {
   azure: 'Azure',
   cloudflare: 'Cloudflare',
   speechify: 'Speechify',
-  fish: 'Fish-cloud',
-  fishspeech: 'Fish-local',
+  fish: 'Fish Audio',
+  fishspeech: 'Fish Speech',
   local: 'Local',
 };
 
@@ -65,7 +65,9 @@ const PROVIDER_NAMES: Record<Exclude<ProviderId, 'system'>, string> = {
  * voice browser's first column (issue #110) — the names the voice labels
  * carried as prefixes until then: "Azure", "Kokoro" (the engine), "Xiaomi
  * MiMo" (the server preset), and "System" in the app's language, like the
- * pane's heading.
+ * pane's heading. Fish Audio's cloud and a Fish Speech server are named as
+ * their settings sections are (issue #112; "Fish-cloud" / "Fish-local"
+ * while the two shared one section).
  */
 export function providerTierLabel(provider: ProviderId, naming: TierNaming = {}): string {
   switch (provider) {
@@ -171,6 +173,17 @@ export function listVoicesResponse(response: unknown): ListedVoice[] {
       }
     }
   }
+  return out;
+}
+
+/**
+ * A voices response without the given tiers (issue #111): what Zotero's
+ * answer becomes when a tier's switch is off, before anything reads it.
+ */
+export function withoutTiers<T>(response: Record<string, T>, tiers: readonly string[]): Record<string, T> {
+  if (!tiers.length) return response;
+  const out: Record<string, T> = {};
+  for (const [tier, configs] of Object.entries(response)) if (!tiers.includes(tier)) out[tier] = configs;
   return out;
 }
 

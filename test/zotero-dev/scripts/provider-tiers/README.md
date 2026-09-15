@@ -12,6 +12,7 @@ never pipe the whole log through a param).
 | --- | --- | --- | --- |
 | `00-baseline-snapshot.js` | Zotero/reader state, error ring, debug store, a typed snapshot of every pref the case touches | Applies the run's own state (volume 0, both WebDAV switches off) once the snapshot is captured | — |
 | `01-enable-system.js` | The System section's Enable button (pane route), falls back to a raw pref write and says so | `enabledAfter: true` | — |
+| `01-enable-fishspeech.js` | Same, for Fish Speech (issue #112's split needs a #2 provider beside Fish Audio to show two distinct labels) — configured in this profile, authorized per the rulebook | `enabledAfter: true`, `"Connected. 2 voices available."` | — |
 | `02-open-fixture-item1.js` | Opens the fixture, pauses in the same script, then item 1/2: `providerTiers()`/`patches()` right after the popup opens | `tiers` includes every enabled provider + standard/premium, never `local`; `patchesAfterOpen.live === total` | `fixtureItemID` |
 | `03-dropdown-rows.js` | Item 2 (`options` populated) and item 3 (the tier dropdown's DOM rows) | Rows match `options` in order, `selected` on `selectedTier`, closes on Escape (falls back to a second trigger click) | — |
 | `04-per-provider-memory.js` | Item 4 (beta5: tier/language picks apply at once, no resume; only `selectVoice` is the #108 handoff): `selectTier('system')` at once → `selectVoice(<2nd system voice>)` resumed/polled(≤15s)/paused, retried once on a timeout → `selectTier('fish')` at once → `selectTier('system')` at once (the per-provider memory), then labels + `providerTiers()` + the memory-hook debug line. Probes the audio device first (≤2s). Reads every `m.voices`/`m.voicesForLanguage` array **by index** — see Limits | Step 1 PASS; step 2 (the voice pick) is timing-sensitive, not reliably observed within the poll — see Limits; steps 3–4 PASS once step 2 lands | — |
@@ -94,6 +95,17 @@ never pipe the whole log through a param).
   steady at 6 — but not within `08`'s own 800 ms fixed wait (read
   unchanged at 6/6; a follow-up read ~15 s later caught the drop), so `08`
   now polls up to 5 s instead.
+- **`02`'s own `fixtureReader.options` read (right after opening/pausing,
+  no settle wait) can catch `buildTierOptions`' "nothing has voices yet"
+  fallback while `tiers` in the SAME read is already correct** — found
+  2026-09-15 verifying #111/#112 (labels run): `tiers` read
+  `["premium","standard","fish","system"]` but `options` read Zotero's
+  raw 3-entry all-disabled fallback. `03`'s own read, ~3 s later after the
+  Options panel/dropdown is explicitly opened, is correct and matches the
+  DOM exactly — a timing artifact of the async catalog fetch (Fish's
+  339-voice listing), not a product bug; confirmed the same way on the
+  `zotero-tiers` kit (see its README). Treat `02`'s `options` as
+  informational only; `03` is the check that actually verifies it.
 - **`02`'s `memoryVoiceHasNamespace`/`memoryVoiceWarning` always reads
   false/fires** — found 2026-09-15 (third run), not fixed: it stringifies
   the parsed `{id, lang}` object instead of `.id`, so
@@ -110,6 +122,14 @@ never pipe the whole log through a param).
   half already polls up to 10s for (`systemReappearedMs`), just not yet
   applied to the disable half. Item 6 is still a PASS on the DOM evidence,
   which is what the case's "the dropdown's rows agree" asks for.
+- **`00`/`09` tracked only `system.enabled`, not every provider** — found
+  running with Fish Speech substituted instead of System: it enabled
+  cleanly but `09`'s cleanup never restored it (not in the old
+  `systemEnabled`-only snapshot), and it had to be disabled by hand.
+  Genericized to all 8 providers' `.enabled` (`baseline.providers`, the
+  `zotero-tiers` kit's own shape) — prepared this run, not yet re-executed
+  in this exact form; the next run that substitutes any second provider
+  exercises it live.
 - All three runs below reported every restored pref `matches: true`.
 
 ## Runs
@@ -119,3 +139,5 @@ never pipe the whole log through a param).
 | 2026-09-15 | 1.12.10-beta3, Zotero 10.0.3-beta.1+cfec88e31 | first run's reply (issue #110) | 1 PASS, 2 PASS, 3 PASS, 4 NOT TESTABLE (wrong expectation — superseded below), 5 PASS, 6 PASS (re-enable confirmed only after a longer poll), 7 PASS, 8 PASS (`total`/`live` wording correction above) | First run of this case's kit; `04` and `06` revised mid-run, fixed in the scripts as committed |
 | 2026-09-15 | 1.12.10-beta3, Zotero 10.0.3-beta.1+cfec88e31 | this run's reply (issue #110), item 4 only | step 2 PASS, step 3 PASS, step 4 PASS, step 5 FAIL (per-provider memory — see Limits), step 6 PASS | Second run, item 4 only (00/01/02/09 reused unchanged); `04` rewritten for the resume/poll/pause handoff and the array-iteration fix above; `system.enabled`'s pane route did not settle in ~25s this time and fell back to a raw pref write (unrelated to item 4) |
 | 2026-09-15 | 1.12.10-beta5, Zotero 10.0.3-beta.1+cfec88e31 | this run's reply (issue #110), full case | 1 PASS, 2 PASS, 3 PASS, 4 step 1 PASS / step 2 timing-sensitive, not landed within the scripted poll (see Limits) / steps 3–4 PASS via a manual continuation, 5 PASS, 6 PASS, 7 PASS, 8 PASS (confirmed by a manual follow-up read; script's own wait was too short — fixed after) | Third run, full case on beta5 (System substitutes for Kokoro throughout); `04` rewritten for beta5's at-once tier/language picks (only `selectVoice` keeps the #108 resume dance) plus a step-2 retry-on-timeout; `08`'s close poll widened from a fixed 800ms to up to 5s; `01` again fell back to a raw pref write (pane route did not settle in ~25s) |
+| 2026-09-15 | 1.12.11-beta, Zotero 10.0.3-beta.1+cfec88e31 | this run's reply (issues #111/#112 verification) | 2 PASS (`03`'s settled read; `02`'s own immediate read is stale, see Limits), 3 PASS (labels `Fish Audio`, `System`, `Zotero Premium`, `Zotero Standard`, alphabetical, none disabled), 7 PASS (`#ztts-voices-tiers` `Fish Audio (339)`, `System (9)`, `Zotero Premium (1452)`, `Zotero Standard (28)`, `defaultVoice`/`languageColumn` both `same: true`) | Scripts run unchanged (00, 01, 02, 03, 07 only — 04–06/08 out of scope for this brief); `01` settled through the pane route this time (3.3s); System substituted for Kokoro; fixture tab closed by hand (08 not run) before `09` |
+| 2026-09-15 | 1.12.11-beta2, Zotero 10.0.3-beta.1+cfec88e31 | this run's reply (issues #111/#112 second-pass verification) | 2 PASS (`retagged: {fish:339, fishspeech:2}`, `tiers` includes both), 3 PASS (labels `Fish Audio`, `Fish Speech`, `Zotero Premium`, `Zotero Standard`, alphabetical, none disabled), 7 PASS (`#ztts-voices-tiers` `Fish Audio (339)`, `Fish Speech (2)`, `Zotero Premium (1452)`, `Zotero Standard (28)`, `defaultVoice`/`languageColumn` both `same: true`) | Scripts run unchanged except the new `01-enable-fishspeech.js` and the `00`/`09` genericization above (00, 01-fishspeech, 02, 03, 07 only — 04–06/08 out of scope); Fish Speech substituted for System so BOTH Fish Audio and Fish Speech render as distinct labels (issue #112); its `.enabled` had to be restored by hand since `09` did not yet track it; fixture tab closed by hand (08 not run) before `09` |

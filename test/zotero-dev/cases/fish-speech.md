@@ -36,9 +36,10 @@ Items 1a.9–1a.13 of the checklist, under their original numbers.
 ### 1a.11
 
 11. **The server's references are the voices.** On a reader tab,
-    `_allVoices` walked **by index**: `Fish-local-bella` /
-    `fishspeech::bella` and `Fish-local-xiaobei` / `fishspeech::xiaobei`,
-    both language `mul`, tier `local`, no title of their own — the
+    `_allVoices` walked **by index**: `bella` / `fishspeech::bella` and
+    `xiaobei` / `fishspeech::xiaobei` under the `Fish Speech` entry (no
+    prefix since #110, the entry's name since #112), both language `mul`,
+    tier `local` re-tagged `fishspeech`, no title of their own — the
     server's list gives an id and nothing else.
 
 ### 1a.12

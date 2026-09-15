@@ -493,3 +493,5 @@ then) and is in the git history before that day.
 - Provider entries in the player's first dropdown: three hard-coded places and the way past each (issue #110)
 - Provider entries built: a second shadow on _resolveVoice, a createElement wrapper, and the keys the memory follows (issue #110)
 - Zotero refreshes a tier's remembered voice only at a popup open, and a paused pick previewed by #108 never reached the lists (issue #110)
+- Zotero's Standard and Premium behind switches: one dropped key hides a tier everywhere, and the dropdown follows (issue #111)
+- Verified live, issue #111: the browser's safety net re-added a hidden tier, `languages` is the selected tier's, and a fresh open never strands (issue #111)

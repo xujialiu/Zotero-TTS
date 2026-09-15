@@ -15,9 +15,8 @@ player.
 1. Sign up at [fish.audio](https://fish.audio) and open the dashboard's
    **API** section.
 2. **API Keys** → create one, name it, copy it.
-3. In Zotero, **Edit → Settings → Zotero-TTS → Fish Audio**, the
-   **Cloud** block: paste it into **API key**, click **Test connection**,
-   then **Enable**.
+3. In Zotero, **Edit → Settings → Zotero-TTS → Fish Audio**: paste it
+   into **API key**, click **Test connection**, then **Enable**.
 
 ## Free or paid
 
@@ -37,7 +36,7 @@ The block's **Use only the free model** switch is on when you start.
 
 ## Voices
 
-Voices appear under **Local** in the player, as `Fish-cloud-<name>`.
+Voices appear under **Fish Audio** in the player's first dropdown, by name.
 The three source switches start on and work independently.
 
 - **Official voices.** Voices published by **Fish Official** are listed

@@ -1,6 +1,9 @@
 // Final cleanup: restores every pref from state.baseline (00-baseline-snapshot.js)
-// byte for byte, in order -- system.enabled, both WebDAV switches (via
-// setBoolPref(true), matching their original user value), sameForAllDocuments
+// byte for byte, in order -- all 8 providers' own .enabled (found the hard
+// way on the #112 labels run: a Fish Speech substitution left untracked by
+// the old system-only snapshot, and had to be restored by hand), both
+// WebDAV switches (via setBoolPref(true), matching their original user
+// value), sameForAllDocuments
 // (already restored at the tail of 06-provider-switch-between-opens.js; reasserted
 // here defensively), volume, extensions.zotero.reader.readAloudVoices (only
 // after the fixture tab is closed -- 08-after-reload-dispose.js runs first),
@@ -44,7 +47,7 @@
       restored[name].matches = JSON.stringify(restored[name].value) === JSON.stringify(entry.value) && restored[name].hasUserValue === entry.hasUserValue;
     };
 
-    restoreOne('systemEnabled', b.systemEnabled);
+    for (const id of Object.keys(b.providers || {})) restoreOne('provider:' + id, b.providers[id]);
     restoreOne('webdavSyncPositions', b.webdavSyncPositions);
     restoreOne('webdavAutoUploadSettings', b.webdavAutoUploadSettings);
     restoreOne('sameForAllDocuments', b.sameForAllDocuments);
