@@ -18,3 +18,12 @@ when the requested voice locale is unknown or multilingual. No new setting.
 
 Fish Speech Local voices have no locale metadata. Defer its pronunciation
 fix and language-source decision to #99; #98 changes Fish cloud only.
+
+## Built to the owner's preference, moving off Read Aloud (2026-09-15 14:31, issue #109)
+
+The owner's own preference is the only yardstick; no reader group is named.
+The plugin moves off Zotero's Read Aloud step by step, and Zotero keeps the
+document analysis, which is too heavy to redo. No end state (a player of
+our own) is written down. Requests are built when the owner likes them and
+they do not get in the way; bugs are fixed by severity, whoever hits them.
+The rules are in [docs/PHILOSOPHY.md](../docs/PHILOSOPHY.md).

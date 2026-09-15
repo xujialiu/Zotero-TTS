@@ -2,7 +2,8 @@
 // `node scripts/build-site.mjs [outDir]`, default site/ (gitignored).
 // .github/workflows/pages.yml runs it and deploys the result on every push to
 // main that touches the docs. README.md becomes index.html, README.zh.md
-// index.zh.html, PHILOSOPHY.md and tutorials/*.md keep their paths; the body
+// index.zh.html, docs/PHILOSOPHY.md and its translation keep the addresses
+// they had at the root (issue #109), tutorials/*.md keep their paths; the body
 // of each is the pandoc rendering of render-md.mjs. Links: one to a published
 // page stays on the site, an image is copied in, anything else local
 // (LICENSE, notes/) goes to the file on GitHub. The head carries what a search
@@ -51,7 +52,8 @@ function pages() {
   const map = new Map([
     ['README.md', 'index.html'],
     ['README.zh.md', 'index.zh.html'],
-    ['PHILOSOPHY.md', 'PHILOSOPHY.html'],
+    ['docs/PHILOSOPHY.md', 'PHILOSOPHY.html'],
+    ['docs/PHILOSOPHY.zh.md', 'PHILOSOPHY.zh.html'],
   ]);
   for (const name of readdirSync(join(ROOT, 'tutorials')).sort()) {
     if (name.endsWith('.md')) map.set(`tutorials/${name}`, `tutorials/${name.slice(0, -3)}.html`);

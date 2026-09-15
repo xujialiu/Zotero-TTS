@@ -11,7 +11,7 @@ on:
     paths:
       - 'README.md'
       - 'README.zh.md'
-      - 'PHILOSOPHY.md'
+      - 'docs/**'
       - 'tutorials/**'
       - 'assets/**'
       - 'scripts/render-md.mjs'

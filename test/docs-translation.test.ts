@@ -15,20 +15,22 @@ import { describe, expect, it } from 'vitest';
  * `npm run docs:pin` to record the new hash.
  *
  * The pairing is required both ways, so a tutorial added in English cannot
- * ship untranslated. PHILOSOPHY.md and notes/ are out of scope by design.
+ * ship untranslated. notes/ is out of scope by design; docs/ is in since
+ * PHILOSOPHY.md moved there with its translation (issue #109).
  */
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const SUFFIX = '.zh.md';
 /** `<!-- translated-from: README.md sha256:3f9a2c1b7e04 -->`, the first line of every translated page. */
 const MARKER = /^<!-- translated-from: (\S+) sha256:([0-9a-f]{12}) -->$/;
 
-/** Every English page that must have a Chinese one: the README and the tutorials. */
+/** Every English page that must have a Chinese one: the README, docs/ and the tutorials. */
 function englishPages(): string[] {
-  const tutorials = readdirSync(join(root, 'tutorials'))
-    .filter((name) => name.endsWith('.md') && !name.endsWith(SUFFIX))
-    .sort()
-    .map((name) => join('tutorials', name));
-  return ['README.md', ...tutorials];
+  const inDir = (dir: string) =>
+    readdirSync(join(root, dir))
+      .filter((name) => name.endsWith('.md') && !name.endsWith(SUFFIX))
+      .sort()
+      .map((name) => join(dir, name));
+  return ['README.md', ...inDir('docs'), ...inDir('tutorials')];
 }
 
 function pin(source: string): string {
@@ -59,7 +61,7 @@ describe('the Chinese pages', () => {
 
   it('every translated page belongs to an English one', () => {
     const orphans = [];
-    for (const dir of ['.', 'tutorials']) {
+    for (const dir of ['.', 'docs', 'tutorials']) {
       for (const name of readdirSync(join(root, dir))) {
         if (!name.endsWith(SUFFIX)) continue;
         const source = join(dir === '.' ? '' : dir, name.slice(0, -SUFFIX.length) + '.md');

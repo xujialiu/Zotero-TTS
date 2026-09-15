@@ -17,7 +17,7 @@ function pin(source) {
   return createHash('sha256').update(text).digest('hex').slice(0, 12);
 }
 
-for (const dir of ['.', 'tutorials']) {
+for (const dir of ['.', 'docs', 'tutorials']) {
   for (const name of readdirSync(dir).sort()) {
     if (!name.endsWith(SUFFIX)) continue;
     const translated = dir === '.' ? name : join(dir, name);

@@ -31,6 +31,11 @@ A standalone-player mode was designed and half-planned as a fallback in case
 the hijack did not work. The hijack worked; the standalone mode was deleted
 before it was ever built.
 
+Since 2026-09-15 the direction is to move off Read Aloud step by step while
+Zotero keeps the document analysis ([docs/PHILOSOPHY.md](../docs/PHILOSOPHY.md),
+issue #109). What can be separated, and at what cost, is in
+[NOTES_2026-09-15.md](NOTES_2026-09-15.md).
+
 ---
 
 ## Facts about Zotero 10 worth keeping
@@ -117,6 +122,10 @@ security note is in [NOTES_2026-08-22.md](NOTES_2026-08-22.md). These remain:
    as "local server down" (since issue #55 the catalog aborts a listing
    that ran past its bound, but that rejection is discarded by the
    timeout race and never read).
+4. **A user not signed in to Zotero sync may see no plugin voices**
+   (2026-09-15, not verified): Zotero loads the remote voices only when
+   sync is enabled, and ours come through that interface. The evidence is
+   in [NOTES_2026-09-15.md](NOTES_2026-09-15.md).
 
 ---
 
@@ -480,3 +489,4 @@ then) and is in the git history before that day.
 - Player voice changes share preparation and paused resume (issue #108)
 - Native resume and notification cleanup pass in beta2 (issue #108)
 - The tester independently completes beta2 verification (issue #108)
+- What can be separated from Read Aloud (issue #109)

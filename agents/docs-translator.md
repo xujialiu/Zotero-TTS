@@ -17,7 +17,7 @@ A brief that names no page means: whatever
 
 1. `npx vitest run test/docs-translation.test.ts` first: it names every
    page whose translation follows an older English revision, and every
-   tutorial without one.
+   tutorial or `docs/` page without one.
 2. Translate the delta, never the page again. The translation was last
    pinned in the commit that last touched the `.zh.md`
    (`git log -1 --format=%H -- README.zh.md`), so
@@ -51,16 +51,16 @@ A brief that names no page means: whatever
      `npm run docs:pin` rewrites it, you do not — and the language
      switcher stays where the English page has its own:
      `<p align="center"><a href="README.md">English</a> · <b>简体中文</b></p>`
-     in the README, `[English](<name>.md) · **简体中文**` under a
-     tutorial's title.
-   - A new tutorial gets a new `<name>.zh.md` beside it, the whole page
+     in the README, `[English](<name>.md) · **简体中文**` under the title
+     of a tutorial or a `docs/` page.
+   - A new tutorial or `docs/` page gets a new `<name>.zh.md` beside it, the whole page
      translated, its switcher line included. If the English page lacks
      its own switcher line, the report says so; you do not add it there.
 4. Keep the file's line endings as you found them — this Windows checkout
    holds the pages as CRLF, others as LF — and its UTF-8 without BOM.
 5. Then, in this order: `npm run docs:pin` (only once the translation is
    up to date, never before), `npx vitest run test/docs-translation.test.ts`
-   (green), `npm run docs` (the preview; name the `docs/….html` to open),
+   (green), `npm run docs` (the preview; name the `.docs/….html` to open),
    `git diff --stat`.
 
 ## Rules
@@ -77,5 +77,5 @@ A brief that names no page means: whatever
 Per page: the sections touched and, for each hunk, the English in one
 line and the Chinese as written; any 国内网络 note added, and why; any
 wording you could not source. Then the test's result, docs:pin's output,
-`git diff --stat`, and the `docs/….html` files to open. Short — the
+`git diff --stat`, and the `.docs/….html` files to open. Short — the
 session reads the diff, not the prose.

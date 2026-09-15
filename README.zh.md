@@ -1,8 +1,8 @@
-<!-- translated-from: README.md sha256:64f20d0688be -->
+<!-- translated-from: README.md sha256:8bbc83f954d4 -->
 <p align="center"><img src="assets/icon.png" width="80" alt="Zotero-TTS 图标"></p>
 <h1 align="center">Zotero-TTS</h1>
 
-<p align="center"><em>Zotero 10 朗读功能的增强插件：本地语音模式里更多语音、按你的颜色逐词与逐句高亮、键盘快捷键。</em></p>
+<p align="center"><em>Zotero 10 的文字转语音插件：更多语音、按你的颜色逐词与逐句高亮、键盘快捷键。</em></p>
 
 <p align="center">
   <a href="https://www.zotero.org"><img src="https://img.shields.io/badge/Zotero-10-green?style=flat-square&logo=zotero&logoColor=CC2936" alt="Zotero 10"></a>
@@ -20,7 +20,7 @@
 
 ## 它增加了什么
 
-Zotero 10 自己就会朗读（Read Aloud），本插件不取代它的播放器——只是往播放器的**本地**语音模式里添语音，并把周边调得更顺手。[为什么这样做](PHILOSOPHY.md)（英文）。
+Zotero-TTS 在 Zotero 10 的朗读（Read Aloud）里工作：它的语音在播放器的**本地**语音模式里。它按作者自己的阅读习惯来做——[为什么这样做、往哪里去](docs/PHILOSOPHY.zh.md)。
 
 - 🗣️ **本地语音模式里更多语音**——朗读播放器里，Azure Speech、Cloudflare Workers AI、Speechify、Fish Audio、装在你机器上的 [Kokoro-FastAPI](https://github.com/remsky/Kokoro-FastAPI) 或 [Fish Speech](https://github.com/fishaudio/fish-speech) 服务器、OpenAI 或任何 OpenAI 兼容服务器。[→ 服务商](#服务商)
 - 🔖 **从上次停下的地方接着读**——关掉文档，过些天再打开，按 `Shift+Space`，朗读就从你上次停下的那一句开始。[→ 从上次停下的地方接着读](#从上次停下的地方接着读)

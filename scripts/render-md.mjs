@@ -1,8 +1,8 @@
 // Render Markdown to a browser preview: `node scripts/render-md.mjs [files...]`
-// (default: README, PHILOSOPHY, test/zotero-dev/, tutorials/, notes/, MEMORY/). Each file becomes
-// docs/<same path>.html — the source tree mirrored under docs/, with relative
+// (default: README, docs/, test/zotero-dev/, tutorials/, notes/, MEMORY/). Each file becomes
+// .docs/<same path>.html — the source tree mirrored under .docs/, with relative
 // links rewritten so images and cross-links still resolve.
-// Needs pandoc on PATH. docs/ is gitignored.
+// Needs pandoc on PATH. .docs/ is gitignored; docs/ holds pages of the repo (issue #109).
 // The public site (scripts/build-site.mjs, issue #57) imports the pandoc call
 // and the stylesheet from here; the command line below runs only when this
 // file is the one invoked.
@@ -11,7 +11,7 @@ import { mkdirSync, readdirSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join, posix, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const OUT_DIR = 'docs';
+const OUT_DIR = '.docs';
 
 export const STYLE = `
 :root {
@@ -77,7 +77,7 @@ function render(src) {
   const srcDir = dirname(src).split(/[\\/]/).join('/');
   const outDir = srcDir === '.' ? OUT_DIR : posix.join(OUT_DIR, srcDir);
   const body = pandocHtml(src)
-    // docs/ mirrors the source tree, so a link to another rendered .md keeps
+    // .docs/ mirrors the source tree, so a link to another rendered .md keeps
     // its path; everything else (images, LICENSE) is re-aimed at the source.
     .replace(/\b(src|href)="([^"]+)"/g, (whole, attr, url) => {
       if (/^(?:[a-z][a-z0-9+.-]*:|\/|#)/i.test(url)) return whole;
@@ -113,13 +113,13 @@ ${body}</body>
 
 // The default set is every doc the README links to, so the preview navigates.
 function defaultFiles() {
-  const files = ['README.md', 'README.zh.md', 'PHILOSOPHY.md'];
+  const files = ['README.md', 'README.zh.md'];
   for (const entry of readdirSync(join('test', 'zotero-dev'), { recursive: true, withFileTypes: true })) {
     if (entry.isFile() && entry.name.endsWith('.md')) {
       files.push(join(entry.parentPath, entry.name));
     }
   }
-  for (const dir of ['tutorials', 'notes', 'MEMORY']) {
+  for (const dir of ['docs', 'tutorials', 'notes', 'MEMORY']) {
     for (const name of readdirSync(dir)) {
       if (name.endsWith('.md')) files.push(join(dir, name));
     }

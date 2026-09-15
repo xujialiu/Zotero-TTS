@@ -1,7 +1,7 @@
 <p align="center"><img src="assets/icon.png" width="80" alt="Zotero-TTS icon"></p>
 <h1 align="center">Zotero-TTS</h1>
 
-<p align="center"><em>An enhancer for Zotero 10's Read Aloud: more voices in its Local tier, word-and-sentence highlighting in your colors, keyboard shortcuts.</em></p>
+<p align="center"><em>Text-to-speech for Zotero 10: more voices, word-and-sentence highlighting in your colors, keyboard shortcuts.</em></p>
 
 <p align="center">
   <a href="https://www.zotero.org"><img src="https://img.shields.io/badge/Zotero-10-green?style=flat-square&logo=zotero&logoColor=CC2936" alt="Zotero 10"></a>
@@ -19,9 +19,9 @@
 
 ## What it adds
 
-Zotero 10 already reads aloud, and this plugin does not replace its player —
-it adds voices to the player's **Local** tier and tunes what is around them.
-[Why it is built this way](PHILOSOPHY.md).
+Zotero-TTS works inside Zotero 10's Read Aloud: its voices are under
+**Local** in the player. It is built for the way its author reads —
+[why, and where it is going](docs/PHILOSOPHY.md).
 
 - 🗣️ **More voices in the Local tier** of the Read Aloud player — Azure Speech, Cloudflare Workers AI, Speechify, Fish Audio, a [Kokoro-FastAPI](https://github.com/remsky/Kokoro-FastAPI) or a [Fish Speech](https://github.com/fishaudio/fish-speech) server on your machine, OpenAI or any OpenAI-compatible server. [→ Providers](#providers)
 - 🔖 **Resume where you stopped** — close a document, open it again later, press `Shift+Space`, and Read Aloud starts at the sentence you left off on. [→ Resume where you stopped](#resume-where-you-stopped)

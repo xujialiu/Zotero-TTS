@@ -38,21 +38,25 @@ WebDAV), highlight colors.
   through for the one line that applies to them is the shape this
   replaces.
   **After editing any `.md` under the repo, run `npm run docs`** — it
-  renders every doc to `docs/` (gitignored), the source tree mirrored; tell
-  the user which `docs/….html` to open. The README in both languages,
-  `PHILOSOPHY.md` and `tutorials/` are also the public site
+  renders every doc to `.docs/` (gitignored), the source tree mirrored;
+  tell the user which `.docs/….html` to open. `docs/` holds pages of the
+  repo (issue #109). The README and `docs/PHILOSOPHY.md` in both languages,
+  and `tutorials/`, are also the public site
   https://xujialiu.github.io/Zotero-TTS/ — `npm run site` builds it into
   `site/` (gitignored), `.github/workflows/pages.yml` deploys it on every
   push to `main` that touches them (issue #57); `notes/` and the test
   checklist stay off it, and its links to them go to GitHub.
-  `PHILOSOPHY.md` — the plugin is an enhancer for Read Aloud, not a
-  replacement; the yardstick for new features.
+  `docs/PHILOSOPHY.md` — the plugin is built to the owner's own preference
+  and moves off Read Aloud step by step, leaving document analysis to
+  Zotero (settled 2026-09-15, issue #109); its rules are the yardstick for
+  new features, and a feature they do not settle is put to the user.
   `tutorials/` — Azure's free tier, Kokoro-FastAPI and Chatterbox-TTS-Server
   in Docker, remote access through Cloudflare. Provider and server how-tos
   go there, not into the README.
-- **The Chinese pages** (issue #29): `README.zh.md` and
-  `tutorials/<name>.zh.md`, siblings of the English files, with a switcher
-  line at the top of both. They are one-to-one translations — the same
+- **The Chinese pages** (issue #29): `README.zh.md`,
+  `docs/PHILOSOPHY.zh.md` (issue #109) and `tutorials/<name>.zh.md`,
+  siblings of the English files, with a switcher line at the top of both.
+  They are one-to-one translations — the same
   sections, the same `<details>` blocks, the same tables — and the only thing
   they add is a `> **国内网络**` blockquote in a tutorial where the English
   would mislead a reader in China (a Docker Hub or Hugging Face mirror, the
@@ -359,7 +363,7 @@ WebDAV), highlight colors.
 npm test              # vitest, ~340 tests, includes test/build.test.ts which runs the build
 npm run typecheck     # tsc --noEmit
 npm run build         # esbuild → addon/content/zotero-tts.js, zip → build/zotero-tts.xpi
-npm run docs          # pandoc → docs/*.html, the Markdown rendered for the browser
+npm run docs          # pandoc → .docs/*.html, the Markdown rendered for the browser
 npm run site          # the public docs site → site/, what .github/workflows/pages.yml deploys
 npm run docs:pin      # record which English revision each .zh.md follows
 ```

@@ -4,7 +4,7 @@ addon/content/zotero-tts.js
 
 # Agent scratch space and the rendered docs (npm run docs, npm run site) — never committed.
 .superpowers/
-docs/
+.docs/
 site/
 .tmp/
 

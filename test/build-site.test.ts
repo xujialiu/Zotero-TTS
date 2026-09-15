@@ -6,8 +6,9 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { buildSite, SITE } from '../scripts/build-site.mjs';
 
 // The public docs site, published to GitHub Pages (issue #57): README.md is
-// the index, README.zh.md its Chinese twin, PHILOSOPHY.md and the tutorials
-// keep their paths. The pages are rendered by the same pandoc call as
+// the index, README.zh.md its Chinese twin, docs/PHILOSOPHY.md and its
+// translation keep the addresses they had at the root (issue #109), the
+// tutorials keep their paths. The pages are rendered by the same pandoc call as
 // `npm run docs`; what differs is everything a search engine reads — the
 // title, the description, the canonical URL, the language alternates, the
 // sitemap — and the links, which must all resolve on the site.
@@ -39,19 +40,31 @@ afterAll(() => {
 });
 
 describe('build-site', () => {
-  it('renders the README as the index, its translation, PHILOSOPHY and every tutorial, and nothing else', () => {
+  it('renders the README as the index, its translation, PHILOSOPHY in both languages and every tutorial, and nothing else', () => {
     const tutorials = readdirSync(join(root, 'tutorials'))
       .filter((name) => name.endsWith('.md'))
       .map((name) => `tutorials/${name.slice(0, -3)}.html`);
     const pages = walk(out).filter((file) => file.endsWith('.html'));
-    expect(pages.sort()).toEqual(['index.html', 'index.zh.html', 'PHILOSOPHY.html', ...tutorials].sort());
+    expect(pages.sort()).toEqual(
+      ['index.html', 'index.zh.html', 'PHILOSOPHY.html', 'PHILOSOPHY.zh.html', ...tutorials].sort(),
+    );
+  });
+
+  it('publishes PHILOSOPHY from docs/ at its old address, paired with its translation', () => {
+    const h = head('PHILOSOPHY.html');
+    expect(h).toContain(`<link rel="canonical" href="${SITE.base}PHILOSOPHY.html">`);
+    expect(h).toContain(`<link rel="alternate" hreflang="zh-CN" href="${SITE.base}PHILOSOPHY.zh.html">`);
+    expect(read('PHILOSOPHY.html')).toContain('href="PHILOSOPHY.zh.html"');
+    expect(read('PHILOSOPHY.zh.html')).toContain('href="PHILOSOPHY.html"');
+    expect(read('PHILOSOPHY.html')).toContain(`href="${SITE.repo}/blob/main/notes/NOTES.md"`);
+    expect(read('index.zh.html')).toContain('href="PHILOSOPHY.zh.html"');
   });
 
   it('puts what a search engine reads into the head of the index', () => {
     const h = head('index.html');
     expect(read('index.html')).toMatch(/^<!doctype html>\n<html lang="en">/);
     expect(h).toContain('<title>Zotero-TTS</title>');
-    expect(h).toMatch(/<meta name="description" content="An enhancer for Zotero 10.s Read Aloud/);
+    expect(h).toMatch(/<meta name="description" content="Text-to-speech for Zotero 10: more voices/);
     expect(h).toContain(`<link rel="canonical" href="${SITE.base}">`);
     expect(h).toContain(`<link rel="alternate" hreflang="en" href="${SITE.base}">`);
     expect(h).toContain(`<link rel="alternate" hreflang="zh-CN" href="${SITE.base}index.zh.html">`);
@@ -63,7 +76,7 @@ describe('build-site', () => {
     const h = head('index.zh.html');
     expect(read('index.zh.html')).toMatch(/^<!doctype html>\n<html lang="zh-CN">/);
     expect(h).toContain('<title>Zotero-TTS</title>');
-    expect(h).toMatch(/<meta name="description" content="Zotero 10 朗读功能的增强插件/);
+    expect(h).toMatch(/<meta name="description" content="Zotero 10 的文字转语音插件/);
     expect(h).toContain(`<link rel="canonical" href="${SITE.base}index.zh.html">`);
     expect(h).toContain(`<link rel="alternate" hreflang="en" href="${SITE.base}">`);
     expect(h).toContain(`<link rel="alternate" hreflang="zh-CN" href="${SITE.base}index.zh.html">`);

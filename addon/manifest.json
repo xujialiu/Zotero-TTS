@@ -3,7 +3,7 @@
   "name": "Zotero-TTS",
   "version": "1.12.10-beta2",
   "author": "Xujia Liu",
-  "description": "Enhances Read Aloud: more voices in its Local tier, highlight colors, keyboard shortcuts, settings backup and reading-position sync",
+  "description": "Text-to-speech for Zotero 10: more voices, word and sentence highlighting in your colors, keyboard shortcuts, settings backup and reading-position sync",
   "icons": {
     "48": "content/icons/favicon@0.5x.png",
     "96": "content/icons/favicon.png"
