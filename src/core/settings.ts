@@ -162,8 +162,15 @@ export interface Settings {
     wordAlpha: number;
     sentenceColor: string;
     sentenceAlpha: number;
-    /** In word mode, keep the sentence highlighted as well. */
-    sentenceUnderWord: boolean;
+    /**
+     * The two levels as switches, both on by default and never both off
+     * (core/highlight-level.ts, issue #114): the sentence being spoken, and
+     * the word inside it. Zotero's own level follows the Word switch
+     * (core/highlight-pin.ts); the sentence under the word is the plugin's
+     * own drawing.
+     */
+    sentence: boolean;
+    word: boolean;
   };
 }
 
@@ -260,10 +267,10 @@ export const DEFAULTS: Settings = {
     stripAngleBrackets: true,
     bracketPairs: '<> []',
   },
-  // A blue word (near Zotero's own #4072e5) on a yellow sentence, both at 70%, the sentence
-  // kept under the word; the reader still draws them at its own 0.4 (light) / 0.3 (dark).
+  // A blue word (near Zotero's own #4072e5) on a yellow sentence, both at 70%, both levels
+  // on; the reader still draws them at its own 0.4 (light) / 0.3 (dark).
   // Zotero's own is #4072e5 at 45% and 30%. Green at 100% until 1.8.1.
-  highlight: { wordColor: '#3478f6', wordAlpha: 70, sentenceColor: '#ffff00', sentenceAlpha: 70, sentenceUnderWord: true },
+  highlight: { wordColor: '#3478f6', wordAlpha: 70, sentenceColor: '#ffff00', sentenceAlpha: 70, sentence: true, word: true },
 };
 
 function str(prefs: PrefsBackend, key: string, fallback: string): string {
@@ -389,7 +396,8 @@ export function loadSettings(prefs: PrefsBackend): Settings {
       wordAlpha: num(prefs, 'highlight.wordAlpha', DEFAULTS.highlight.wordAlpha, 0, 100),
       sentenceColor: str(prefs, 'highlight.sentenceColor', DEFAULTS.highlight.sentenceColor),
       sentenceAlpha: num(prefs, 'highlight.sentenceAlpha', DEFAULTS.highlight.sentenceAlpha, 0, 100),
-      sentenceUnderWord: bool(prefs, 'highlight.sentenceUnderWord', DEFAULTS.highlight.sentenceUnderWord),
+      sentence: bool(prefs, 'highlight.sentence', DEFAULTS.highlight.sentence),
+      word: bool(prefs, 'highlight.word', DEFAULTS.highlight.word),
     },
   };
 }

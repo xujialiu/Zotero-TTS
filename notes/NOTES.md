@@ -58,7 +58,12 @@ Verified by reading the unpacked `omni.ja` of both `10.0-beta.26` and
   `normalizedOffsetsToRawOffsets`). Never estimate per-word timings.
 - **Word mode has no fallback of its own.** The highlight level is Zotero's
   pref `reader.readAloud.highlightGranularity` (default `sentence`; Settings →
-  General → Read Aloud → "Highlight current"). In `word` mode the reader
+  General → Read Aloud → "Highlight current"). Since 1.12.11 (issue #114)
+  the plugin pins that pref to its own two switches,
+  `zotero-tts.highlight.sentence` / `.word` (`word` while Word is on, else
+  `sentence`, never `paragraph`; core/highlight-pin.ts writes it back inside
+  its own observer), and greys Zotero's menulist (ui/zotero-highlight-menu.ts).
+  In `word` mode the reader
   draws only `activeWordSourcePosition` (`_resolvePrimarySelector`, bundle
   ~53313/76406), which is null without timestamps — so a segment without
   them shows **no highlight at all**. Since 2026-08-22 the plugin returns one
@@ -495,3 +500,8 @@ then) and is in the git history before that day.
 - Zotero refreshes a tier's remembered voice only at a popup open, and a paused pick previewed by #108 never reached the lists (issue #110)
 - Zotero's Standard and Premium behind switches: one dropped key hides a tier everywhere, and the dropdown follows (issue #111)
 - Verified live, issue #111: the browser's safety net re-added a hidden tier, `languages` is the selected tier's, and a fresh open never strands (issue #111)
+
+### [2026-09-16](NOTES_2026-09-16.md)
+
+- The highlight levels are the plugin's own two switches: Zotero's pref pinned to them through its own observers, and its settings menulist greyed (issue #114)
+- Verified live, issue #114: the pin snaps inside the write, an in-place reinstall keeps the previous prefs.js default, and a bare W on the library pane is Zotero's (issue #114)

@@ -178,16 +178,16 @@ ztts-help-cache-audio =
 ## Highlight
 
 ztts-heading-highlight = 高亮
-ztts-highlight-word =
-    .value = 单词
 ztts-highlight-sentence =
-    .value = 句子
+    .label = 句子
+ztts-highlight-word =
+    .label = 单词
 ztts-highlight-opacity =
     .value = 不透明度 (%)
-ztts-sentence-under-word =
-    .label = 逐词高亮时，句子也保持高亮
-ztts-preview-sentence-line = <span data-l10n-name="tag">逐句模式</span>第一句已经读完。<span data-l10n-name="active">朗读正停在这一句上。</span>下一句接着来。
-ztts-preview-word-line = <span data-l10n-name="tag">逐词模式</span>第一句已经读完。<span data-l10n-name="before">朗读正停在</span><span data-l10n-name="word">这个</span><span data-l10n-name="after">词上。</span>下一句接着来。
+ztts-help-highlight-switches =
+    .value = ?
+    .help = 两个都勾：正在朗读的单词用单词色，它所在的句子用句子色衬在下面。只勾一个：只高亮那一个，最后一个勾不能取消。没有单词时间的语音无论怎么选都按整句高亮。Zotero 自己的“高亮当前”设置跟随这里的选择，在那里改不了。
+ztts-preview-line = 第一句已经读完。<span data-l10n-name="before">朗读正停在</span><span data-l10n-name="word">这个</span><span data-l10n-name="after">词上。</span>下一句接着来。
 ztts-restore-colors =
     .label = 恢复默认颜色
 
@@ -242,7 +242,7 @@ ztts-help-key-stop =
     .help = 一次关闭所有标签页里的朗读播放器。每个标签页的阅读位置都会保留，再次开始朗读时从原处继续。没有播放器打开时，这个键保持原来的作用。
 ztts-help-key-word-highlight =
     .value = ?
-    .help = 在高亮正在朗读的单词和高亮整句之间切换——和 Zotero 自己的“高亮当前”设置是同一个选择，对所有标签页生效，并一直保留到下次更改。没有单词时间的语音无论怎么选都按整句高亮。
+    .help = 不离开文档就能打开或关闭“高亮”一节里的“单词”开关，对所有标签页生效，并一直保留到下次更改。关掉它不会变成什么都不高亮：句子会自动勾上。没有单词时间的语音无论怎么选都按整句高亮。
 ztts-help-key-volume =
     .value = ?
     .help = 把上面的“音量”设置调 10%，对每个语音有效，正在读的这一句立刻生效。仅在朗读打开时生效；否则这个键在阅读器里保持原来的作用。
@@ -472,9 +472,11 @@ ztts-action-word-highlight = 单词高亮 开 / 关
 # The toast the volume keys show, where the speed's shows `1.3×`
 ztts-volume-toast = 音量 { $percent }%
 ztts-stopped-toast = 已停止 { $count } 个标签页的朗读
+ztts-highlight-toast-both = 高亮：单词和句子
 ztts-highlight-toast-word = 高亮：单词
 ztts-highlight-toast-sentence = 高亮：句子
 ztts-highlight-toast-word-no-timing = 高亮：单词（此语音没有单词时间，仍按整句高亮）
+ztts-zotero-highlight-hint = 在 Zotero-TTS 设置的“高亮”一节里选择
 
 ## Backup and Sync
 

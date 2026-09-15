@@ -185,20 +185,20 @@ ztts-help-cache-audio =
 ## Highlight
 
 ztts-heading-highlight = Highlight
-ztts-highlight-word =
-    .value = Word
+# The two levels as switches (issue #114), each the label of its color's row
 ztts-highlight-sentence =
-    .value = Sentence
+    .label = Sentence
+ztts-highlight-word =
+    .label = Word
 ztts-highlight-opacity =
     .value = Opacity (%)
-ztts-sentence-under-word =
-    .label = While highlighting words, keep the sentence highlighted too
-# The preview's two sample lines. The spans are the markup's own elements,
-# matched by data-l10n-name: the tag in gray, and the pieces
-# ui/highlight-rows.ts paints — the sentence, and the word with the sentence
-# before and after it.
-ztts-preview-sentence-line = <span data-l10n-name="tag">Sentence mode</span>The first sentence has been read. <span data-l10n-name="active">Read Aloud is now on this sentence.</span> The next one follows.
-ztts-preview-word-line = <span data-l10n-name="tag">Word mode</span>The first sentence has been read. <span data-l10n-name="before">Read Aloud is now on </span><span data-l10n-name="word">this</span><span data-l10n-name="after"> word.</span> The next one follows.
+ztts-help-highlight-switches =
+    .value = ?
+    .help = Both on: the word being spoken in its color, with its sentence in the sentence color under it. One off: only the other is highlighted, and the last one on cannot be turned off. A voice without word timing highlights the sentence either way. Zotero's own Highlight current setting follows this choice and cannot be changed there.
+# The preview's sample line. The spans are the markup's own elements,
+# matched by data-l10n-name: the pieces ui/highlight-rows.ts paints from
+# the switches — the word, and the sentence before and after it.
+ztts-preview-line = The first sentence has been read. <span data-l10n-name="before">Read Aloud is now on </span><span data-l10n-name="word">this</span><span data-l10n-name="after"> word.</span> The next one follows.
 ztts-restore-colors =
     .label = Restore default colors
 
@@ -253,7 +253,7 @@ ztts-help-key-stop =
     .help = Closes the Read Aloud player in every tab at once. Each tab keeps its place, and Read Aloud picks up there when you start it again. While no player is open the key keeps its usual meaning.
 ztts-help-key-word-highlight =
     .value = ?
-    .help = Switches the Read Aloud highlight between the word being spoken and the whole sentence — the same choice as Zotero's own Highlight current setting, for every tab, and it stays until changed again. A voice without word timing keeps highlighting the sentence either way.
+    .help = Turns the Word switch of the Highlight section on and off without leaving the document, for every tab, and it stays until changed again. Turning it off never leaves nothing highlighted: the sentence comes on. A voice without word timing keeps highlighting the sentence either way.
 ztts-help-key-volume =
     .value = ?
     .help = Changes the Volume setting above by 10%, for every voice, within the sentence being spoken. Acts only while Read Aloud is open; otherwise the key keeps its usual meaning in the reader.
@@ -519,11 +519,14 @@ ztts-stopped-toast = Stopped Read Aloud in { $count ->
         [one] one tab
        *[other] { $count } tabs
     }
-# The highlight key's toast (issue #67): the level it set, in Zotero's own words for it
+# The highlight key's toast (issues #67 and #114): what is highlighted now
+ztts-highlight-toast-both = Highlight: word and sentence
 ztts-highlight-toast-word = Highlight: word
 ztts-highlight-toast-sentence = Highlight: sentence
-# The word toast on a voice without word timing: the setting changed, the screen did not
+# The word toast on a voice without word timing: the switch changed, the screen did not
 ztts-highlight-toast-word-no-timing = Highlight: word (this voice has no word timing, so the sentence stays highlighted)
+# The hint on Zotero's own Highlight current menulist, greyed while the plugin runs (ui/zotero-highlight-menu.ts, issue #114)
+ztts-zotero-highlight-hint = Chosen in Zotero-TTS's settings, under Highlight
 
 ## Backup and Sync (ui/backup-rows.ts, ui/webdav-rows.ts)
 

@@ -46,7 +46,9 @@ import { createVolumeControl, type VolumeControl } from './read-aloud/volume';
 import { createVoiceSwitcher, type VoiceSwitcher } from './read-aloud/voice-switch';
 import { createPlayerVoiceList } from './read-aloud/player-voice-list';
 import { settleVolumePref, VOLUME_OBSERVER } from './core/read-aloud-volume';
-import { HIGHLIGHT_LEVEL_PREF, type HighlightLevel, type WordTiming } from './core/highlight-level';
+import { HIGHLIGHT_LEVEL_PREF, readHighlightLevels, type HighlightLevels, type WordTiming } from './core/highlight-level';
+import { createHighlightPin, type HighlightPin } from './core/highlight-pin';
+import { createZoteroHighlightMenu, type ZoteroHighlightMenu } from './ui/zotero-highlight-menu';
 import { createPositionSync, ACTIVE_TICK_MS, IDLE_TICK_MS, type PositionSync } from './read-aloud/position-sync';
 import { createPositionStore, type PositionStore } from './read-aloud/position-store';
 import { createPositionTransport, SYNC_POSITIONS_OBSERVER, type PositionTransport } from './read-aloud/position-transport';
@@ -134,6 +136,9 @@ const positionSyncListeners = new Set<() => void>();
 let positionDB: any = null;
 let deleteNotifierID: string | null = null;
 let highlightStyling: HighlightStyling | null = null;
+/** Zotero's highlight level pinned to the plugin's two switches, and its settings window's menulist greyed (issue #114). */
+let highlightPin: HighlightPin | null = null;
+let zoteroHighlightMenu: ZoteroHighlightMenu | null = null;
 /** The whole sentence on screen while a PDF is followed (read-aloud/sentence-in-view.ts, issue #83). */
 let sentenceInView: SentenceInView | null = null;
 let domFollowing: ReturnType<typeof createDOMFollow> | null = null;
@@ -1041,18 +1046,20 @@ function startReadAloudShortcuts(pluginID: string): void {
     // (ui/player-options.ts). No player on screen, no button — the key
     // falls through.
     findOptionsButton: (reader: any) => findOptionsButton(reader?._iframeWindow?.document),
-    // The highlight key's toast (issue #67): the level in Zotero's own words,
-    // and, on a voice without word timing, why nothing on screen changed —
-    // that one stays up long enough to be read
     showAutoScrollToast: (reader: any, mode) => {
       const doc = toastDoc(reader);
       if (doc) showToast(doc, mode === 'sentence' ? t('ztts-auto-scroll-toast-sentence') : t('ztts-auto-scroll-toast-outside'));
     },
-    showHighlightToast: (reader: any, level: HighlightLevel, timing: WordTiming) => {
+    // The highlight key's toast (issues #67 and #114): what is highlighted
+    // now, and, on a voice without word timing, why nothing on screen
+    // changed — that one stays up long enough to be read
+    showHighlightToast: (reader: any, levels: HighlightLevels, timing: WordTiming) => {
       const doc = toastDoc(reader);
       if (!doc) return;
-      if (level === 'word' && timing === 'stand-in') showToast(doc, t('ztts-highlight-toast-word-no-timing'), undefined, ANNOUNCEMENT_TOAST_MS);
-      else showToast(doc, level === 'word' ? t('ztts-highlight-toast-word') : t('ztts-highlight-toast-sentence'));
+      if (levels.word && timing === 'stand-in') showToast(doc, t('ztts-highlight-toast-word-no-timing'), undefined, ANNOUNCEMENT_TOAST_MS);
+      else if (levels.word && levels.sentence) showToast(doc, t('ztts-highlight-toast-both'));
+      else if (levels.word) showToast(doc, t('ztts-highlight-toast-word'));
+      else showToast(doc, t('ztts-highlight-toast-sentence'));
     },
     wordTiming: (reader: any) => highlightStyling?.wordTiming(reader) ?? 'none',
     log: (e) => Zotero.logError(e),
@@ -1548,6 +1555,92 @@ function stopHighlightStyling(): void {
   highlightStyling = null;
 }
 
+// ---- Highlight levels -----------------------------------------------------
+//
+// The sentence and the word are the plugin's two switches (core/highlight-level.ts,
+// issue #114). Zotero still draws the highlight, so its own level is pinned
+// to them (core/highlight-pin.ts) and the menulist in its settings window
+// is greyed with a hint (ui/zotero-highlight-menu.ts).
+
+const SETTINGS_WINDOW_TYPE = 'zotero:pref';
+
+/**
+ * Every Zotero settings window, open now or opened later, handed over once
+ * loaded — `Services.wm` for the open ones, `Services.ww`'s
+ * `domwindowopened` for the rest, the window type read after its load
+ * since an opening window has no document yet. Returns what stops the watch.
+ */
+function watchSettingsWindows(onDocument: (doc: any, onUnload: (fn: () => void) => void) => void): () => void {
+  const seen = new WeakSet<object>();
+  const offer = (win: any): void => {
+    try {
+      if (!win || win.closed || seen.has(win)) return;
+      if (win.document?.documentElement?.getAttribute('windowtype') !== SETTINGS_WINDOW_TYPE) return;
+      seen.add(win);
+      onDocument(win.document, (fn) => win.addEventListener('unload', fn, { once: true }));
+    } catch (e) {
+      Zotero.logError(e);
+    }
+  };
+  const open = Services.wm.getEnumerator(SETTINGS_WINDOW_TYPE);
+  while (open.hasMoreElements()) offer(open.getNext());
+  const observer = {
+    observe: (subject: any, topic: string) => {
+      if (topic !== 'domwindowopened') return;
+      try {
+        if (subject?.document?.readyState === 'complete') offer(subject);
+        else subject.addEventListener('load', () => offer(subject), { once: true });
+      } catch (e) {
+        Zotero.logError(e);
+      }
+    },
+  };
+  Services.ww.registerNotification(observer);
+  return () => Services.ww.unregisterNotification(observer);
+}
+
+function startHighlightLevels(): void {
+  stopHighlightLevels();
+  // The switch the Sentence switch replaced (1.12.10 and before): its user
+  // value goes, so the profile carries nothing the plugin no longer reads
+  try {
+    Zotero.Prefs.clear(PREF_PREFIX + 'highlight.sentenceUnderWord', true);
+  } catch (e) {
+    Zotero.logError(e);
+  }
+  highlightPin = createHighlightPin({
+    levels: () => readHighlightLevels(prefs),
+    zoteroLevel: () => Zotero.Prefs.get(HIGHLIGHT_LEVEL_PREF, true),
+    setZoteroLevel: (level) => Zotero.Prefs.set(HIGHLIGHT_LEVEL_PREF, level, true),
+    observe: (name, changed) => {
+      const token = Zotero.Prefs.registerObserver(name, changed);
+      return () => Zotero.Prefs.unregisterObserver(token);
+    },
+    log: (e) => Zotero.logError(e),
+  });
+  highlightPin.start();
+  zoteroHighlightMenu = createZoteroHighlightMenu({
+    hint: () => t('ztts-zotero-highlight-hint'),
+    watchSettingsWindows,
+    // The settings window is chrome, like the pane: a plain callback and observer will do
+    observe: (doc: any, changed) => {
+      const observer = new doc.defaultView.MutationObserver(() => changed());
+      observer.observe(doc.documentElement, { childList: true, subtree: true });
+      return () => observer.disconnect();
+    },
+    isDead: (value) => Components.utils.isDeadWrapper(value),
+    error: (e) => Zotero.logError(e),
+  });
+  zoteroHighlightMenu.start();
+}
+
+function stopHighlightLevels(): void {
+  zoteroHighlightMenu?.stop();
+  zoteroHighlightMenu = null;
+  highlightPin?.stop();
+  highlightPin = null;
+}
+
 // ---- The whole sentence on screen -----------------------------------------
 //
 // The PDF controller owns follow intent (#90); sentence-in-view retains
@@ -2011,6 +2104,7 @@ async function startup({ id, version, rootURI }: StartupParams): Promise<void> {
       ['reading-position store', startPositionTracking],
       ['settings auto-upload', startSettingsAutoUpload],
       ['settings sync', startSettingsSync],
+      ['highlight levels', startHighlightLevels],
       ['highlight colors', startHighlightStyling],
       ['sentence in view', startSentenceInView],
       ['skipped lines', startSkippedLines],
@@ -2093,6 +2187,7 @@ async function shutdown(reason?: number): Promise<void> {
   stopReadAloudMemory();
   stopSentenceInView();
   stopHighlightStyling();
+  stopHighlightLevels();
   stopSkippedLines();
   selectionStart?.dispose();
   selectionStart = null;
@@ -2609,17 +2704,42 @@ const diagnostics = {
     return JSON.stringify(result, null, 1);
   },
   /**
-   * The highlight key (issue #67) as the plugin sees it: its binding, the
-   * level Zotero's pref holds, and per reader the level the reader's own
-   * state carries — what its views draw by — with the word timing the toast
-   * would report. `highlightKey(true)` runs the very `toggleWordHighlight`
-   * the key runs, on the reader a press on the main window would pick, and
-   * reports the pref, every reader's state and the toast's text afterwards
-   * — proved by the pref and the states flipping in the same call, never by
-   * the highlight looking different.
+   * The two highlight switches (issue #114) and everything that follows
+   * them: Zotero's pref and whether the pin holds it (with the foreign
+   * writes it undid), per reader the level the reader's own state carries
+   * — what its views draw by — with the word timing, and per open settings
+   * window whether Zotero's Highlight current menulist was found and
+   * greyed.
+   */
+  highlightLevels: () =>
+    JSON.stringify(
+      {
+        switches: safe(() => readHighlightLevels(prefs)),
+        pin: safe(() => highlightPin?.inspect() ?? null),
+        menu: safe(() => zoteroHighlightMenu?.inspect() ?? null),
+        readers: (Zotero.Reader._readers ?? []).map((r: any) => ({
+          itemID: safe(() => r?.itemID),
+          state: safe(() => r?._internalReader?._state?.readAloudState?.highlightGranularity ?? null),
+          wordTiming: safe(() => highlightStyling?.wordTiming(r) ?? 'none'),
+        })),
+      },
+      null,
+      1,
+    ),
+  /**
+   * The highlight key (issues #67 and #114) as the plugin sees it: its
+   * binding, the two switches, the level Zotero's pref holds, and per
+   * reader the level the reader's own state carries — what its views draw
+   * by — with the word timing the toast would report. `highlightKey(true)`
+   * runs the very `toggleWordHighlight` the key runs, on the reader a
+   * press on the main window would pick, and reports the switches, the
+   * pref, every reader's state and the toast's text afterwards — proved by
+   * the switches, the pref and the states flipping in the same call, never
+   * by the highlight looking different.
    */
   highlightKey: (press = false) => {
     const state = () => ({
+      switches: safe(() => readHighlightLevels(prefs)),
       pref: safe(() => Zotero.Prefs.get(HIGHLIGHT_LEVEL_PREF, true)),
       readers: (Zotero.Reader._readers ?? []).map((r: any) => ({
         itemID: safe(() => r?.itemID),
@@ -2633,7 +2753,7 @@ const diagnostics = {
     const win = mainWindows()[0];
     const reader = pickReader(Zotero.Reader._readers ?? [], win, win?.Zotero_Tabs ? win.Zotero_Tabs.selectedID : null, (r: any) => isSpeaking(readAloudManager(r)));
     result.picked = safe(() => reader?.itemID ?? null);
-    result.level = reader ? safe(() => readAloudShortcuts?.toggleWordHighlight(reader)) : 'no reader';
+    result.levels = reader ? safe(() => readAloudShortcuts?.toggleWordHighlight(reader)) : 'no reader';
     result.after = state();
     const doc = reader ? toastDoc(reader) : null;
     result.toast = safe(() => doc?.getElementById(SPEED_TOAST_ID)?.textContent ?? null);

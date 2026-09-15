@@ -9,8 +9,9 @@ Items 3.5 and 5.5 of the checklist, under their original numbers.
 5. **Highlight.** While speaking, `diagnostics.highlight()` → `patched:
    true`, `sentenceSlot: "ours"`, `activeWordTimestamp: "real"` (Azure,
    Kokoro, System on Windows) or the stand-in kind (OpenAI, System on
-   macOS, granularity down to `sentence`), `style` = the pane's five
-   prefs; the log `highlight style
+   macOS, granularity down to `sentence`), `style` = the pane's six
+   prefs — the two colors, their opacities, and the `sentence` and `word`
+   switches of issue #114; the log `highlight style
    attached to a PDF view`; a screenshot with the word in the word color
    inside the sentence in the sentence color. Since 1.11.7 every tab is
    attached at its open, before its popup: a PDF tab reads `patched:
@@ -35,8 +36,9 @@ Items 3.5 and 5.5 of the checklist, under their original numbers.
 5. **Colors live.** The pane's color input (`preference=`-bound; set
    `value`, dispatch `input`) → the pref, `diagnostics.highlight().style`,
    the drawn word (at the next draw — a word onset while playing, or
-   `view._render()` on a paused session; the *sentence under word* switch
-   takes effect at the next state push, so a paused session keeps its
-   sentence until it resumes — by mechanism, 2026-09-05), the pane's
-   preview; *Restore default colors* puts the
-   five defaults back (no user value left).
+   `view._render()` on a paused session; the *Sentence* switch — issue
+   #114's, formerly *sentence under word* — takes effect at the next state
+   push, so a paused session keeps its sentence until it resumes — by
+   mechanism, 2026-09-05), the pane's preview; *Restore default colors*
+   puts the six defaults back, the two switches included (no user value
+   left).

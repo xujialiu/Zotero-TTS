@@ -640,19 +640,21 @@ Platform notes:
 src/core/           pure logic, no Zotero globals: settings (DEFAULTS ↔ addon/prefs.js,
                     pinned by test/prefs-defaults.test.ts), providers/{openai,azure,cloudflare,speechify,fish,fishspeech,local/kokoro},
                     shortcuts, shortcut-actions, read-aloud-speed, settings-backup,
-                    webdav, reader-theme, timeout
+                    highlight-level + highlight-pin (the Sentence and Word switches;
+                    Zotero's own level kept equal to them), webdav, reader-theme, timeout
 src/read-aloud/     the Read Aloud integration: index (intercepts Zotero.Reader._readers and
                     overrides _getReadAloudRemoteInterface per reader), remote-interface
                     (composite of Zotero's native interface + our voices), voice-catalog,
                     catalog, read-aloud-memory (+ memory-sync: one voice/speed across documents
                     and open tabs; default-speed / default-voice: what the voice browser sets),
-                    highlight-style (Zotero's highlight colors, sentence under word),
-                    system-voices (hide Zotero's own Local voices)
+                    highlight-style (Zotero's highlight colors, the sentence under the word
+                    by the Sentence switch), system-voices (hide Zotero's own Local voices)
 src/ui/             prefs pane (prefs-pane, shortcut-rows, backup-rows, webdav-rows,
                     server-preset-rows, highlight-rows, shortcut-recorder, voice-browser-rows,
                     voice-list-switches: the two unbound checkboxes that edit the player's list,
                     reading-guard: nothing edits that list while a tab reads, help-tips: the ?
-                    icons' tooltips, opened at once), read-aloud-shortcuts, speed-toast
+                    icons' tooltips, opened at once), read-aloud-shortcuts, speed-toast,
+                    zotero-highlight-menu: Zotero's own Highlight current greyed with a hint
 src/index.ts        bootstrap wiring; with core/settings.createZoteroPrefs and ui/prefs-pane the
                     only code that touches Zotero globals (declared in src/globals.d.ts)
 addon/              manifest.json, bootstrap.js, prefs.js (defaults), content/preferences.xhtml,

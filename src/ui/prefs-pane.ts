@@ -528,7 +528,15 @@ export function onPaneLoad(doc: Document, hooks: PaneHooks = {}): void {
   // registerPrefsPane kept the version startup handed the plugin, and the
   // date and time come baked into the bundle
   initAboutRows(doc, { version: pluginVersion });
-  const highlightRows = initHighlightRows(doc, prefs, { theme: () => currentReaderTheme(doc.defaultView) });
+  // The switches' prefs are also written behind the pane's back — the key,
+  // a restore, the sync — so the rows watch them to repaint and grey
+  const highlightRows = initHighlightRows(doc, prefs, {
+    theme: () => currentReaderTheme(doc.defaultView),
+    watch: (name, onChange) => {
+      const token = Zotero.Prefs.registerObserver(name, onChange);
+      return () => Zotero.Prefs.unregisterObserver(token);
+    },
+  });
   // Prefetch keeps the audio cache on and its checkbox locked: without the
   // cache the warmer has nowhere to put what it synthesizes (ui/prefetch-rows.ts)
   const prefetchRows = initPrefetchRows(doc, {
@@ -672,6 +680,7 @@ export function onPaneLoad(doc: Document, hooks: PaneHooks = {}): void {
       prefetchRows.dispose();
       voiceListSwitches.dispose();
       bracketRows.dispose();
+      highlightRows.dispose();
     },
     { once: true },
   );

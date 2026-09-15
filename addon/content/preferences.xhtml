@@ -408,8 +408,9 @@
     </hbox>
   </groupbox>
 
-  <!-- Zotero's Read Aloud highlight colors, applied per reader by read-aloud/highlight-style.ts;
-       the preview and the Restore button are wired by ui/highlight-rows.ts -->
+  <!-- The two highlight levels as switches (issue #114) and Zotero's Read Aloud highlight colors,
+       applied per reader by read-aloud/highlight-style.ts; the switches' greying, the preview and
+       the Restore button are wired by ui/highlight-rows.ts -->
   <groupbox>
     <label><html:h2 data-l10n-id="ztts-heading-highlight"/></label>
     <hbox align="center">
@@ -430,32 +431,32 @@
                 preference="extensions.zotero.zotero-tts.readAloud.keepFollowingWhileVisible"/>
       <label class="ztts-help" value="?" data-l10n-id="ztts-help-keep-following-visible" data-l10n-attrs="help"/>
     </hbox>
+    <!-- One row per level (issue #114): its switch, then its color and opacity. The
+         last switch still on is greyed by highlight-rows.ts; both off is not a state. -->
     <hbox align="center">
-      <label data-l10n-id="ztts-highlight-word" style="width: 8em"/>
+      <checkbox id="ztts-highlight-sentence" data-l10n-id="ztts-highlight-sentence" style="width: 8em"
+                preference="extensions.zotero.zotero-tts.highlight.sentence"/>
+      <html:input id="ztts-highlight-sentenceColor" type="color" preference="extensions.zotero.zotero-tts.highlight.sentenceColor"/>
+      <label data-l10n-id="ztts-highlight-opacity" style="margin-inline-start: 1em"/>
+      <html:input id="ztts-highlight-sentenceAlpha" type="number" min="0" max="100" step="5" style="width: 5em"
+                  preference="extensions.zotero.zotero-tts.highlight.sentenceAlpha"/>
+      <label class="ztts-help" value="?" data-l10n-id="ztts-help-highlight-switches" data-l10n-attrs="help"/>
+    </hbox>
+    <hbox align="center">
+      <checkbox id="ztts-highlight-word" data-l10n-id="ztts-highlight-word" style="width: 8em"
+                preference="extensions.zotero.zotero-tts.highlight.word"/>
       <html:input id="ztts-highlight-wordColor" type="color" preference="extensions.zotero.zotero-tts.highlight.wordColor"/>
       <label data-l10n-id="ztts-highlight-opacity" style="margin-inline-start: 1em"/>
       <html:input id="ztts-highlight-wordAlpha" type="number" min="0" max="100" step="5" style="width: 5em"
                   preference="extensions.zotero.zotero-tts.highlight.wordAlpha"/>
     </hbox>
-    <hbox align="center">
-      <label data-l10n-id="ztts-highlight-sentence" style="width: 8em"/>
-      <html:input id="ztts-highlight-sentenceColor" type="color" preference="extensions.zotero.zotero-tts.highlight.sentenceColor"/>
-      <label data-l10n-id="ztts-highlight-opacity" style="margin-inline-start: 1em"/>
-      <html:input id="ztts-highlight-sentenceAlpha" type="number" min="0" max="100" step="5" style="width: 5em"
-                  preference="extensions.zotero.zotero-tts.highlight.sentenceAlpha"/>
-    </hbox>
-    <hbox align="center">
-      <checkbox id="ztts-highlight-sentenceUnderWord" data-l10n-id="ztts-sentence-under-word"
-                preference="extensions.zotero.zotero-tts.highlight.sentenceUnderWord"/>
-    </hbox>
-    <!-- A sample page in the reader's current theme, blended as the reader blends its highlights;
-         highlight-rows.ts paints it, this style is the fallback until it does. Each line's text is
-         one message whose spans are these elements, matched by data-l10n-name, so the ids the
-         painter looks up survive the translation. -->
+    <!-- A sample sentence in the reader's current theme, blended as the reader blends its highlights;
+         highlight-rows.ts paints it from the switches, this style is the fallback until it does. The
+         line's text is one message whose spans are these elements, matched by data-l10n-name, so the
+         ids the painter looks up survive the translation. -->
     <html:div id="ztts-highlight-preview"
               style="background: #fff; color: #121212; border: 1px solid rgba(128, 128, 128, 0.4); border-radius: 4px; padding: 8px 12px; margin: 6px 0; max-width: 40em; font-family: Georgia, 'Times New Roman', serif; font-size: 13px; line-height: 1.7;">
-      <html:div data-l10n-id="ztts-preview-sentence-line"><html:span data-l10n-name="tag" style="color: #888; font-family: sans-serif; font-size: 11px; margin-inline-end: 0.6em;"/><html:span id="ztts-highlight-preview-sentence" data-l10n-name="active"/></html:div>
-      <html:div data-l10n-id="ztts-preview-word-line"><html:span data-l10n-name="tag" style="color: #888; font-family: sans-serif; font-size: 11px; margin-inline-end: 0.6em;"/><html:span id="ztts-highlight-preview-word-before" data-l10n-name="before"/><html:span id="ztts-highlight-preview-word" data-l10n-name="word"/><html:span id="ztts-highlight-preview-word-after" data-l10n-name="after"/></html:div>
+      <html:div data-l10n-id="ztts-preview-line"><html:span id="ztts-highlight-preview-word-before" data-l10n-name="before"/><html:span id="ztts-highlight-preview-word" data-l10n-name="word"/><html:span id="ztts-highlight-preview-word-after" data-l10n-name="after"/></html:div>
     </html:div>
     <hbox>
       <button id="ztts-highlight-defaults" data-l10n-id="ztts-restore-colors"/>

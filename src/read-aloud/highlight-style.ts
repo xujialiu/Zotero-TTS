@@ -102,8 +102,8 @@ export interface HighlightStyle {
   wordAlpha: number;
   sentenceColor: string;
   sentenceAlpha: number;
-  /** In word mode, keep the sentence highlighted as well. */
-  sentenceUnderWord: boolean;
+  /** The Sentence switch (issue #114): with Zotero at the word, draw the sentence under it as well. */
+  sentence: boolean;
 }
 
 export type Granularity = 'word' | 'sentence' | 'paragraph';
@@ -388,7 +388,7 @@ export function createHighlightStyling(deps: HighlightStylingDeps): HighlightSty
 
   function keepSentencePDF(reader: unknown, view: any, state: any): void {
     const style = deps.style();
-    const on = !!(style.sentenceUnderWord && state?.popupOpen && pdfRawGranularity(view) === 'word');
+    const on = !!(style.sentence && state?.popupOpen && pdfRawGranularity(view) === 'word');
     // Between segments the manager drops the active segment and the word
     // timestamp, and Zotero skips its own update — the last word's primary
     // stays on the page, now in the sentence color. Taking the sentence from
@@ -400,7 +400,7 @@ export function createHighlightStyling(deps: HighlightStylingDeps): HighlightSty
     const mine = oursPDF.get(view) ?? null;
     logChange(
       'pdf-sentence',
-      `highlight: sentence under word ${want ? 'wanted' : 'not wanted'} (switch ${style.sentenceUnderWord}, popup ${!!state?.popupOpen}); slot ${slot === null ? 'empty' : slot === want ? 'this sentence' : slot === mine ? 'ours' : 'another unit'}`,
+      `highlight: sentence under word ${want ? 'wanted' : 'not wanted'} (switch ${style.sentence}, popup ${!!state?.popupOpen}); slot ${slot === null ? 'empty' : slot === want ? 'this sentence' : slot === mine ? 'ours' : 'another unit'}`,
     );
     if (!want) {
       // Switched off, or not in word mode: take back only what we put there
@@ -706,7 +706,7 @@ export function createHighlightStyling(deps: HighlightStylingDeps): HighlightSty
     const spotlights: Map<unknown, unknown> | undefined = view?._spotlights;
     if (!spotlights || !view[PIECES_READY]) return;
     const style = deps.style();
-    const on = !!(style.sentenceUnderWord && state?.popupOpen && domRawGranularity(helper) === 'word');
+    const on = !!(style.sentence && state?.popupOpen && domRawGranularity(helper) === 'word');
     // The gap between segments: Zotero keeps the last word's spotlight on
     // screen, so the sentence stays around it (see keepSentencePDF)
     if (on && !state.activeSegment) return;
@@ -806,7 +806,7 @@ export function createHighlightStyling(deps: HighlightStylingDeps): HighlightSty
       if (flash && (flash === cached?.selector || state?.lastSkipGranularity === 'sentence')) view.setSpotlight(SENTENCE_KEY, null);
       return;
     }
-    const on = !!(style.sentenceUnderWord && state?.popupOpen && domRawGranularity(helper) === 'word');
+    const on = !!(style.sentence && state?.popupOpen && domRawGranularity(helper) === 'word');
     // The gap between segments: leave what is drawn (see keepSentencePDF)
     if (on && !state.activeSegment) return;
     const want = on && !!state.activeSegment;

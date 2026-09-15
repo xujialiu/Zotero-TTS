@@ -10,7 +10,7 @@ import {
 } from '../../src/read-aloud/highlight-style';
 import { WHOLE_SEGMENT_END_SECONDS } from '../../src/read-aloud/remote-interface';
 
-const STYLE: HighlightStyle = { wordColor: '#ff0000', wordAlpha: 50, sentenceColor: '#00ff00', sentenceAlpha: 20, sentenceUnderWord: true };
+const STYLE: HighlightStyle = { wordColor: '#ff0000', wordAlpha: 50, sentenceColor: '#00ff00', sentenceAlpha: 20, sentence: true };
 const WORD = '#ff000080';
 const SENTENCE = '#00ff0033';
 const ZOTERO_SEGMENT = '#4072e573';
@@ -473,7 +473,7 @@ describe('PDF sentence under the word', () => {
     s.attach(pdf.reader);
     await pdf.view.setReadAloudState(pdfState(A, 1));
     expect(pdf.view._readAloudSentenceHighlightedPosition).toBe(A.sourcePosition);
-    current.sentenceUnderWord = false;
+    current.sentence = false;
     await pdf.view.setReadAloudState(pdfState(A, 2));
     expect(pdf.view._readAloudSentenceHighlightedPosition).toBeNull();
 
@@ -568,10 +568,10 @@ describe('DOM view sentence under the word', () => {
     s.attach(dom.reader);
     dom.helper.setState(domState(A));
     expect(dom.view._spotlights.has('ReadAloudActiveSentence')).toBe(true);
-    current.sentenceUnderWord = false;
+    current.sentence = false;
     dom.helper.setState(domState(A));
     expect(dom.view._spotlights.has('ReadAloudActiveSentence')).toBe(false);
-    current.sentenceUnderWord = true;
+    current.sentence = true;
     dom.helper.setState({ ...domState(A), popupOpen: false });
     expect(dom.view._spotlights.has('ReadAloudActiveSentence')).toBe(false);
   });
@@ -786,7 +786,7 @@ describe('EPUB and snapshot: the sentence is drawn around the word', () => {
     const off = reader();
     off.read(LEAN);
     expect(off.view._spotlights.has(HEAD)).toBe(true);
-    off.current.sentenceUnderWord = false;
+    off.current.sentence = false;
     off.read(LEAN);
     expect(off.view._spotlights.has(HEAD)).toBe(false);
     expect(off.view._spotlights.has(TAIL)).toBe(false);

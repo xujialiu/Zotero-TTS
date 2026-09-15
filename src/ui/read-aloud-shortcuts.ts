@@ -1,4 +1,4 @@
-import { HIGHLIGHT_LEVEL_PREF, nextHighlightLevel, readHighlightLevel, type HighlightLevel, type WordTiming } from '../core/highlight-level';
+import { readHighlightLevels, toggleWord, writeHighlightLevels, type HighlightLevels, type WordTiming } from '../core/highlight-level';
 import { nextSpeed, persistSpeed, readPersistedSpeed, type SpeedAction } from '../core/read-aloud-speed';
 import { clampVolume, nextVolume, VOLUME_PREF, type VolumeAction } from '../core/read-aloud-volume';
 import { autoScrollMode, PREF_PREFIX, type AutoScrollMode, type PrefsBackend } from '../core/settings';
@@ -165,13 +165,13 @@ export interface ReadAloudShortcutsDeps {
    */
   showStopToast?(reader: unknown, count: number, fallbackDoc: unknown): void;
   /**
-   * The highlight key's toast (issue #67): the level the pref now holds, in
-   * Zotero's own words for it, and what the reader's active word timestamp
-   * is — a stand-in means the voice has no word timing, so a switch to
-   * word changes nothing on screen and the toast has to say so.
+   * The highlight key's toast (issues #67 and #114): the two switches as
+   * they stand after the press, and what the reader's active word
+   * timestamp is — a stand-in means the voice has no word timing, so the
+   * Word switch changes nothing on screen and the toast has to say so.
    */
   showAutoScrollToast?(reader: unknown, mode: AutoScrollMode): void;
-  showHighlightToast?(reader: unknown, level: HighlightLevel, timing: WordTiming): void;
+  showHighlightToast?(reader: unknown, levels: HighlightLevels, timing: WordTiming): void;
   /** What the manager's active word timestamp is (read-aloud/highlight-style.ts `wordTiming`). Unwired reads as none. */
   wordTiming?(reader: unknown): WordTiming;
   log?(e: unknown): void;
@@ -199,8 +199,8 @@ export interface ReadAloudShortcuts {
   toggleOptions(reader: unknown): boolean;
   /** The stop key: close every open player and say how many; returns the count closed (0 unwired). */
   stopReading(reader: unknown, fallbackDoc?: unknown): number;
-  /** Word highlight on / off, through Zotero's own pref; the level set, or null when the write failed. */
-  toggleWordHighlight(reader: unknown): HighlightLevel | null;
+  /** Word highlight on / off — the plugin's Word switch; the switches as set, or null when the write failed. */
+  toggleWordHighlight(reader: unknown): HighlightLevels | null;
   toggleAutoScroll(reader: unknown): AutoScrollMode | null;
   /** Attach a capturing keydown listener to a window; idempotent per window, detaches itself on unload. */
   listen(target: EventTargetLike, resolveReader: () => unknown, options?: HandleOptions): void;
@@ -432,15 +432,18 @@ export function createReadAloudShortcuts(deps: ReadAloudShortcutsDeps): ReadAlou
   }
 
   /**
-   * The highlight level is Zotero's own setting (core/highlight-level.ts):
-   * the pref is the one thing written, and Zotero's own observer repaints
-   * every open reader inside the write. Like the volume, a write that fails
-   * shows no toast — the level did not move.
+   * The highlight levels are the plugin's two switches (core/highlight-level.ts,
+   * issue #114): the key flips the Word switch, and turning it off never
+   * leaves nothing — the Sentence switch comes on in the same press. The
+   * switches' prefs are the one thing written: the pin
+   * (core/highlight-pin.ts) moves Zotero's own level inside the write, and
+   * Zotero repaints every open reader. Like the volume, a write that fails
+   * shows no toast — the switches did not move.
    */
-  function toggleWordHighlight(reader: unknown): HighlightLevel | null {
-    const next = nextHighlightLevel(readHighlightLevel(deps.prefs));
+  function toggleWordHighlight(reader: unknown): HighlightLevels | null {
+    const next = toggleWord(readHighlightLevels(deps.prefs));
     try {
-      deps.prefs.set(HIGHLIGHT_LEVEL_PREF, next);
+      writeHighlightLevels(deps.prefs, next);
     } catch (e) {
       log(e);
       return null;

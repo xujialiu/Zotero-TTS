@@ -93,6 +93,7 @@ opens a fixture ends with item 3.26's teardown ([playback](cases/playback.md)).
 ### The highlight and following
 
 - [The highlight and its colors](cases/highlight.md) — 3.5, 5.5
+- [The Sentence and Word switches (issue #114, 1.12.11)](cases/highlight-levels.md)
 - [3a. The whole sentence on screen (issue #83, 1.11.7)](cases/whole-sentence.md)
 - [3c. The colors follow the first page (issue #88, 1.11.7)](cases/page-colors.md)
 - [3d. Plugin-owned PDF following (issue #90, 1.12.1-beta3)](cases/pdf-follow.md)

@@ -74,7 +74,8 @@ pref('extensions.zotero.zotero-tts.highlight.wordColor', '#3478f6');
 pref('extensions.zotero.zotero-tts.highlight.wordAlpha', 70);
 pref('extensions.zotero.zotero-tts.highlight.sentenceColor', '#ffff00');
 pref('extensions.zotero.zotero-tts.highlight.sentenceAlpha', 70);
-pref('extensions.zotero.zotero-tts.highlight.sentenceUnderWord', true);
+pref('extensions.zotero.zotero-tts.highlight.sentence', true);
+pref('extensions.zotero.zotero-tts.highlight.word', true);
 
 pref('extensions.zotero.zotero-tts.readAloud.autoScrollMode', 'sentence');
 pref('extensions.zotero.zotero-tts.readAloud.keepFollowingWhileVisible', true);

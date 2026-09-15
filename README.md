@@ -31,7 +31,7 @@ is built for the way its author reads —
 - 📃 **No line lost at a page turn** — when a sentence runs onto the next page and Zotero would skip that page's first line, the line is read and highlighted like any other. [→ Reading](#reading)
 - 🧵 **No sentence cut in two** — when Zotero breaks a paragraph in the middle of a sentence, the halves are read and highlighted as one sentence. [→ Reading](#reading)
 - 🎧 **A voice browser** in the settings: every voice by provider and language, a play button for a short sample, hearts for favorites, and a switch to offer only the favorites. [→ Voice browser](#voice-browser)
-- ✨ **Word *and* sentence highlighting at once**, in your own colors and opacities — for Zotero's voices too. [→ Highlight](#highlight)
+- ✨ **Word *and* sentence highlighting**, each behind a switch of its own, in your own colors and opacities — for Zotero's voices too. [→ Highlight](#highlight)
 - ⌨️ **Keyboard shortcuts** for speed, volume, jumping by sentence or paragraph, reading from the selection, the player's options panel, auto-scroll mode, the word highlight on or off, and stopping Read Aloud in every tab at once. All rebindable. [→ Shortcuts](#keyboard-shortcuts)
 - 📌 **One voice and speed everywhere** — every document and every open tab, instead of Zotero's choice per language. [→ Reading](#reading)
 - ⏱️ **The pauses are yours** — how long every voice waits between sentences and before a paragraph, shorter as you read faster. [→ Reading](#reading)
@@ -179,13 +179,18 @@ Everything is under **Edit → Settings → Zotero-TTS**.
 
 <p align="center"><img src="assets/settings-highlight.png" width="520" alt="The Highlight group"></p>
 
-- A color and an opacity for the word and for its sentence, and a switch to
-  keep the sentence highlighted under the word — for Zotero's own voices too.
-- The default is a blue word on a yellow sentence, both at 70 %; *Restore
-  default colors* brings it back.
+- *Sentence* and *Word* are two switches, both on to begin with: the word
+  being spoken in its color, its sentence in the sentence color under it.
+  One off leaves only the other; the last one on cannot be turned off.
+- A color and an opacity for each — for Zotero's own voices too. The
+  default is a blue word on a yellow sentence, both at 70 %; *Restore
+  default colors* brings it all back, the switches included.
 - The preview is painted in your reader's theme.
-- Word-by-word highlighting also needs Zotero's own switch: **Settings →
-  General → Read Aloud → Highlight current → Word**.
+- Zotero's own **Highlight current** setting (Settings → General → Read
+  Aloud) follows this choice and is greyed out while Zotero-TTS is
+  installed; there is no paragraph level.
+- A voice without word timing highlights the sentence whatever the
+  switches say.
 
 ### Keyboard shortcuts
 
@@ -208,9 +213,10 @@ once, a short message says how many, and each tab keeps its place for the
 next time. While no player is open the key keeps its usual meaning.
 
 **`Shift+W` turns the word highlight on and off** without leaving the
-document — the same choice as Zotero's *Highlight current* setting. It
+document — the *Word* switch of the [Highlight](#highlight) section. It
 takes effect on the sentence being spoken, in every tab, and stays until
-you change it again; a short message says which you got. A voice without
+you change it again; a short message says what is highlighted now. Turning
+it off never leaves the page bare: the sentence comes on. A voice without
 word timing keeps highlighting the sentence either way, and the message
 says so.
 
