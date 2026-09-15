@@ -17,7 +17,7 @@ import {
 } from './read-aloud-memory';
 import { createProtoPatches } from './proto-patches';
 import { ownerOf } from './system-voices';
-import { PLUGIN_TIER, type ListedVoice } from './voice-catalog';
+import { isZoteroTier, pluginVoiceTier, type ListedVoice } from './voice-catalog';
 
 /**
  * Wires read-aloud-memory.ts to Zotero. The memory lives in its pref
@@ -68,7 +68,7 @@ import { PLUGIN_TIER, type ListedVoice } from './voice-catalog';
  * against the list: the manager's own once loaded, or the one about to
  * land, which the plugin's getVoices hands to `reconcile` right before
  * returning it. A voice the list lacks is replaced, for that open only, by
- * the first Local voice the list offers (read-aloud-memory.ts
+ * the first of the plugin's voices the list offers (read-aloud-memory.ts
  * pickSubstitute), said out loud in the reader once per open; the memory
  * itself is not touched, so the voice comes back the moment a list offers
  * it again. `reconcile` runs no restore — the manager's `allVoices` still
@@ -137,6 +137,13 @@ export interface ReadAloudMemoryDeps {
   refreshVoices?(reader: unknown): void;
   /** Every favorite voice id, switch or no switch: what a substitute prefers (read-aloud-memory.ts pickSubstitute). */
   favorites?(): readonly string[];
+  /**
+   * The local engine's display name ("Kokoro"), read per use: what the
+   * local provider's voices are filed under in Zotero's per-tier memory
+   * (voice-catalog.ts tierForProvider, issue #110). Absent, those voices
+   * are filed under the unknown-engine key.
+   */
+  localEngine?(): string | undefined;
   /** Tells the user, in the reader, that Read Aloud is not starting with the remembered voice this time — a toast. */
   announce?(reader: unknown, message: string): void;
   /**
@@ -216,7 +223,7 @@ export interface ListedVoices {
 export interface Substitution {
   /** The remembered voice the list did not offer. */
   missing: string;
-  /** The Local voice put in its place for this open; null when the list offered none and the choice was left to Zotero. */
+  /** The plugin voice put in its place for this open; null when the list offered none and the choice was left to Zotero. */
   instead: string | null;
 }
 
@@ -372,6 +379,15 @@ export function createReadAloudMemorySync(deps: ReadAloudMemoryDeps): ReadAloudM
     published.get(internal)?.find((voice) => voice.id === id)?.label ?? listed.find((voice) => voice.id === id)?.label ?? id;
 
   /**
+   * The tier Zotero files a listed voice under (issue #110): a plugin
+   * voice's is its provider's key, read off its id — never off the list,
+   * which says `local` for the response's half and the provider's key only
+   * once the manager's objects are re-tagged — and a Zotero voice's is what
+   * the list says.
+   */
+  const tierOf = (voice: ListedVoice): string | null => pluginVoiceTier(voice.id, deps.localEngine?.()) ?? (voice.tier || null);
+
+  /**
    * The lane move: what Zotero's `setLanguage` sets (`_lang`, `_region`
    * cleared) and what `applyPersistedVoices` clears before it resolves
    * (`_voiceID`, `_selectedTier`), without a resolution of its own — the
@@ -410,8 +426,8 @@ export function createReadAloudMemorySync(deps: ReadAloudMemoryDeps): ReadAloudM
     // Only what is switched on is put in front of Zotero's restore; the rest is Zotero's per language
     const stored = memory();
     let voice = wanted.voice ? stored.voice : null;
-    // The voice's tier as the list has it (a Zotero voice's is not in its id); null while the list is still loading
-    let tier: string | null = null;
+    // The voice's tier: a plugin voice's from its id, a Zotero voice's from the list once it is loaded (null meanwhile)
+    let tier: string | null = voice ? pluginVoiceTier(voice.id, deps.localEngine?.()) : null;
     let substitution: Substitution | null = null;
     let announcement: string | null = null;
     const listed = upcoming ?? listedVoicesOf(manager);
@@ -419,16 +435,16 @@ export function createReadAloudMemorySync(deps: ReadAloudMemoryDeps): ReadAloudM
       const remembered = voice;
       const found = listed.find((entry) => entry.id === remembered.id);
       if (found) {
-        tier = found.tier || null;
+        tier = tierOf(found);
       } else if (docLang) {
-        // Not offered: a Local voice the list does offer takes its place for this open, and the user is told
+        // Not offered: one of the plugin's voices the list does offer takes its place for this open, and the user is told
         const pick = pickSubstitute(listed, deps.favorites?.() ?? [], docLang);
         substitution = { missing: remembered.id, instead: pick?.id ?? null };
         const base = memoryLangForLocale(docLang);
-        const paidOffered = listed.some((entry) => entry.tier !== PLUGIN_TIER && memoryLangForLocale(entry.language) === base);
+        const paidOffered = listed.some((entry) => isZoteroTier(entry.tier) && memoryLangForLocale(entry.language) === base);
         announcement = substitutionMessage(labelOf(internal, remembered.id, listed), pick?.label ?? null, paidOffered);
         voice = pick ? { id: pick.id, lang: memoryLangForLocale(pick.language) } : null;
-        tier = pick?.tier ?? null;
+        tier = pick ? tierOf(pick) : null;
       }
     }
     const current: ReadAloudMemory = { speed: wanted.speed ? stored.speed : null, voice };
@@ -476,7 +492,7 @@ export function createReadAloudMemorySync(deps: ReadAloudMemoryDeps): ReadAloudM
     announced.set(internal, key);
     deps.debug?.(
       `read-aloud memory: ${substitution.missing} is not offered by this reader's list; ` +
-        (substitution.instead ? `starting ${substitution.instead} instead` : "no Local voice is either, so Zotero's own choice stands"),
+        (substitution.instead ? `starting ${substitution.instead} instead` : "no plugin voice is either, so Zotero's own choice stands"),
     );
     const reader = owners.get(internal);
     if (reader && announcement) deps.announce?.(reader, announcement);
@@ -576,7 +592,7 @@ export function createReadAloudMemorySync(deps: ReadAloudMemoryDeps): ReadAloudM
       ? entry.tierVoices as Record<string, unknown>
       : {};
     const target = m.selectedTier || Object.keys(tiers).at(-1) || null;
-    const tierPool = target ? compatible.filter((voice) => voice.tier === target) : compatible;
+    const tierPool = target ? compatible.filter((voice) => tierOf(voice) === target) : compatible;
     const pool = tierPool.length ? tierPool : compatible;
     const exact = pool.filter((voice) => dropdownLanguage(voice.language) === wanted);
     const savedIDs = [target ? tiers[target] : undefined, entry.voice];
@@ -589,9 +605,10 @@ export function createReadAloudMemorySync(deps: ReadAloudMemoryDeps): ReadAloudM
       && (!region || remembered) && (!remembered || dropdownLanguage(remembered.language) !== wanted)) {
       const pick = savedIDs.map((id) => exact.find((voice) => voice.id === id)).find(Boolean) ?? exact[0];
       const tierVoices = { ...tiers };
-      if (pick.tier) {
-        delete tierVoices[pick.tier];
-        tierVoices[pick.tier] = pick.id;
+      const pickTier = tierOf(pick);
+      if (pickTier) {
+        delete tierVoices[pickTier];
+        tierVoices[pickTier] = pick.id;
       }
       entry = { ...entry, region, voice: pick.id, tierVoices };
       m._persistedVoices = deps.cloneForReader ? deps.cloneForReader(reader, entry) : entry;

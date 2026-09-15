@@ -75,12 +75,13 @@ describe('getVoices', () => {
     expect(result.voices!.standard).toBeUndefined();
   });
 
-  // Our voices carry no marker at all: the provider's name in front of the
-  // voice's is what names them (issue #9), and Zotero's own Local voices are
-  // no longer listed beside them (system-voices.ts, issue #17)
-  it('publishes the plugin’s voices under their provider name alone', async () => {
+  // Our voices carry no marker at all (issue #9) and no provider prefix:
+  // the provider is the entry the voice sits under in the player's first
+  // dropdown (read-aloud/provider-tiers.ts, issue #110), and Zotero's own
+  // Local voices are no longer listed beside them (system-voices.ts, issue #17)
+  it('publishes the plugin’s voices under their own bare labels', async () => {
     const labelOf = (result: any) => (Object.values((result.voices!.local as any[])[0].voices)[0] as { label: string }).label;
-    expect(labelOf(await createRemoteInterface(deps()).getVoices())).toBe('OpenAI-Alloy');
+    expect(labelOf(await createRemoteInterface(deps()).getVoices())).toBe('Alloy');
   });
 
   // The "offer only favorites" switch: the ids come from the voice browser's
@@ -129,10 +130,10 @@ describe('getVoices', () => {
     await createRemoteInterface({ ...deps(provider), getFavoriteVoices: () => [echo], onVoicesListed }).getVoices();
     expect(onVoicesListed).toHaveBeenCalledTimes(1);
     expect(onVoicesListed).toHaveBeenCalledWith({
-      offered: [{ id: echo, language: 'en-US', tier: 'local', label: 'OpenAI-Echo' }],
+      offered: [{ id: echo, language: 'en-US', tier: 'local', label: 'Echo' }],
       published: [
-        { id: alloy, language: 'en-US', tier: 'local', label: 'OpenAI-Alloy' },
-        { id: echo, language: 'en-US', tier: 'local', label: 'OpenAI-Echo' },
+        { id: alloy, language: 'en-US', tier: 'local', label: 'Alloy' },
+        { id: echo, language: 'en-US', tier: 'local', label: 'Echo' },
       ],
     });
   });

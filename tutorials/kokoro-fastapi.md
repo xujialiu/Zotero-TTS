@@ -75,8 +75,8 @@ The first run downloads a few GB; later starts take seconds.
 
 In Zotero, *Settings → Zotero-TTS → Kokoro-FastAPI*, press **Test
 connection**; it should say `Connected. 68 voices available.` **Enable**
-then switches the provider on. Open Read Aloud, choose the Local tier, and
-pick a `Kokoro-…` voice (`af_bella` and `af_heart` are good English voices;
+then switches the provider on. Open Read Aloud, choose **Kokoro** in the
+first dropdown, and pick a voice (`af_bella` and `af_heart` are good English voices;
 `zf_xiaobei` / `zm_yunxi` speak Chinese). For word-by-word highlighting set
 *Settings → General → Read Aloud → Highlight current* to **Word**.
 

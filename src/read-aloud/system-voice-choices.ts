@@ -26,7 +26,12 @@ import type { SystemVoiceRecord } from '../core/providers/system/protocol';
 import { systemVoiceIdFor } from '../core/providers/system/voices';
 import type { VoicesMap } from '../core/read-aloud-speed';
 import type { ReadAloudMemory } from './read-aloud-memory';
-import { encodeVoiceId, PLUGIN_TIER } from './voice-catalog';
+import { encodeVoiceId, tierForProvider } from './voice-catalog';
+
+/** Zotero's own tier for the operating system's voices, where a remembered one of its own copies sits. */
+const ZOTERO_LOCAL_TIER = 'local';
+/** The plugin's tier for the same voices once the system provider serves them (issue #110). */
+const SYSTEM_TIER = tierForProvider('system');
 
 /** The plugin's encoded id for one of Zotero's system-voice ids, or null when nothing installed answers to it. */
 export function pluginIdForZoteroVoice(zoteroId: string, records: readonly SystemVoiceRecord[]): string | null {
@@ -48,7 +53,9 @@ export interface MigratedChoices {
  * system-voice id replaced by the plugin's own. `tierVoices.local` is
  * rewritten alongside `voice`, since `_findFallbackVoice` reads it when the
  * named voice is gone — leaving the old id there would put the ghost back
- * the first time a document resolves to that language.
+ * the first time a document resolves to that language. The rewritten id
+ * moves to the `system` key, the tier the plugin's copies carry (issue
+ * #110), pushed last so Zotero's fallback looks there first.
  */
 export function migrateChoices(voices: VoicesMap, memory: ReadAloudMemory, records: readonly SystemVoiceRecord[]): MigratedChoices {
   const changes: { from: string; to: string }[] = [];
@@ -68,8 +75,11 @@ export function migrateChoices(voices: VoicesMap, memory: ReadAloudMemory, recor
     const tierVoices = entry?.tierVoices;
     if (tierVoices && typeof tierVoices === 'object' && !Array.isArray(tierVoices)) {
       const tiers = tierVoices as Record<string, unknown>;
-      const local = map(tiers[PLUGIN_TIER]);
-      if (local) nextEntry = { ...nextEntry, tierVoices: { ...tiers, [PLUGIN_TIER]: local } };
+      const local = map(tiers[ZOTERO_LOCAL_TIER]);
+      if (local) {
+        const { [ZOTERO_LOCAL_TIER]: _ghost, [SYSTEM_TIER]: _stale, ...rest } = tiers;
+        nextEntry = { ...nextEntry, tierVoices: { ...rest, [SYSTEM_TIER]: local } };
+      }
     }
     if (nextEntry !== entry) nextVoices = { ...(nextVoices ?? voices), [lang]: nextEntry };
   }

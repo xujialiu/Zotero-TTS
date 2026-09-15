@@ -1,42 +1,97 @@
+import { t } from '../core/l10n';
 import type { ProviderId, VoiceInfo } from '../core/providers/types';
+import { ZOTERO_TIERS } from './zotero-voices';
 
 const SEPARATOR = '::';
 const PROVIDERS: readonly ProviderId[] = ['openai', 'azure', 'cloudflare', 'speechify', 'fish', 'fishspeech', 'local', 'system'];
 
 /**
- * The tier every plugin voice is filed under. Zotero's tier dropdown is
- * hard-coded to standard / premium / local (TierSelect, reader.js:38826-
- * 38853) and parseVoicesResponse drops any other key (reader.js:40522), so a
- * tier of the plugin's own is impossible. standard and premium are Zotero's
- * cloud voices, which the composite interface keeps intact; that leaves
- * local, shared with the operating system's voices.
+ * The key the plugin's voices travel under in the voices response. Zotero's
+ * parser keeps only its three keys (parseVoicesResponse, reader.js:40531),
+ * so everything is published as `local`; the tier Zotero then works with is
+ * rewritten per provider on the manager's parsed voice objects, whose
+ * `tier` reads `impl.tier` (read-aloud/provider-tiers.ts, issue #110). The
+ * 2026-08-22 note that a tier of the plugin's own was impossible rested on
+ * the parser and the dropdown alone; both are hard-coded still, and both
+ * have a way past them (notes/NOTES_2026-09-15.md, issue #110).
  */
-export const PLUGIN_TIER = 'local';
+export const PUBLISHED_TIER = 'local';
 
-const PROVIDER_NAMES: Record<ProviderId, string> = { openai: 'OpenAI', azure: 'Azure', cloudflare: 'Cloudflare', speechify: 'Speechify', fish: 'Fish-cloud', fishspeech: 'Fish-local', local: 'Local', system: 'System' };
+/** The tier key of the local provider while its engine is unknown; never `local`, which is Zotero's own tier. */
+export const UNKNOWN_ENGINE_TIER = 'local-engine';
 
 /**
- * "Azure-Ava Multilingual": the provider's name in front of the voice's,
- * since every enabled provider's voices are listed together. The local
- * provider passes the engine's name ("Kokoro", "Piper") as `providerName`,
- * so its voices are named after the engine that serves them; "Local" is
- * only the fallback when no engine is known.
- *
- * No marker of the plugin's own: these are the labels read all day, in the
- * player and in the settings pane alike, and the provider's name already
- * tells them from "Microsoft David Desktop". It is Zotero's own Local
- * voices that are marked, and only while they are listed beside these
- * (read-aloud/system-voices.ts) — issue #9, which retired the TTS- prefix.
- *
- * The system provider's name is what makes that distinction readable once
- * the same voices can be listed twice: the plugin's are "System-Microsoft
- * David", Zotero's own copies "Local-Microsoft David - English (United
- * States)" (issue #12). Switching the provider on hides Zotero's, so the
- * pair is only ever seen by someone who turned the hiding back off.
+ * The tier Zotero files a provider's voices under, per provider (issue
+ * #110): the provider id, except for the local provider, whose id is
+ * Zotero's own tier name — its engine's name instead, lower-cased
+ * (`kokoro`). Zotero's per-tier memory (`tierVoices`) and its Voice Mode
+ * dropdown are keyed by this, so each provider remembers its own last voice
+ * per language. Only the local engine's name counts: the OpenAI section's
+ * server preset changes the entry's label, never its key, so the memory
+ * kept under `openai` survives a switch of server.
  */
-export function pluginVoiceLabel(provider: ProviderId, label: string, providerName?: string): string {
-  return `${providerName ?? PROVIDER_NAMES[provider]}-${label}`;
+export function tierForProvider(provider: ProviderId, localEngine?: string): string {
+  if (provider !== 'local') return provider;
+  const engine = localEngine?.trim();
+  return engine ? engine.toLowerCase() : UNKNOWN_ENGINE_TIER;
 }
+
+/** The tier of a plugin voice id (tierForProvider); null for a Zotero voice id, whose tier only the list knows. */
+export function pluginVoiceTier(id: string, localEngine?: string): string | null {
+  const decoded = decodeVoiceId(id);
+  return decoded ? tierForProvider(decoded.provider, localEngine) : null;
+}
+
+/** What the entry names depend on beyond the provider id: the local engine's name and the OpenAI section's server. */
+export interface TierNaming {
+  /** The local engine's display name ("Kokoro"); "Local" without one. */
+  localEngine?: string;
+  /** The OpenAI section's server, when its preset has a name of its own ("Xiaomi MiMo"); "OpenAI" without one. */
+  openaiServer?: string;
+}
+
+const PROVIDER_NAMES: Record<Exclude<ProviderId, 'system'>, string> = {
+  openai: 'OpenAI',
+  azure: 'Azure',
+  cloudflare: 'Cloudflare',
+  speechify: 'Speechify',
+  fish: 'Fish-cloud',
+  fishspeech: 'Fish-local',
+  local: 'Local',
+};
+
+/**
+ * The name of a provider's entry in the player's first dropdown and the
+ * voice browser's first column (issue #110) — the names the voice labels
+ * carried as prefixes until then: "Azure", "Kokoro" (the engine), "Xiaomi
+ * MiMo" (the server preset), and "System" in the app's language, like the
+ * pane's heading.
+ */
+export function providerTierLabel(provider: ProviderId, naming: TierNaming = {}): string {
+  switch (provider) {
+    case 'local':
+      return naming.localEngine?.trim() || PROVIDER_NAMES.local;
+    case 'openai':
+      return naming.openaiServer?.trim() || PROVIDER_NAMES.openai;
+    case 'system':
+      return t('ztts-provider-system');
+    default:
+      return PROVIDER_NAMES[provider];
+  }
+}
+
+/** Zotero's own words for its two cloud tiers, in the app's language (reader.ftl `reader-read-aloud-voice-tier-*`; the zh-CN file copies Zotero's); any other key as it is. */
+export function zoteroTierLabel(tier: string): string {
+  if (tier === 'standard') return t('ztts-tier-standard');
+  if (tier === 'premium') return t('ztts-tier-premium');
+  return tier;
+}
+
+/** Whether a tier key is one of Zotero's own cloud tiers. */
+export const isZoteroTier = (tier: string): boolean => (ZOTERO_TIERS as readonly string[]).includes(tier);
+
+/** One entry of the first dropdown or column: a tier key and the name it shows. */
+export type TierEntry = { tier: string; label: string };
 
 export function encodeVoiceId(provider: ProviderId, voiceId: string): string {
   return provider + SEPARATOR + voiceId;
@@ -53,10 +108,6 @@ export function decodeVoiceId(encoded: string): { provider: ProviderId; voiceId:
   if (!(PROVIDERS as readonly string[]).includes(provider)) return null;
   // Split only on the first separator so a voice id that itself contains the separator isn't truncated
   return { provider: provider as ProviderId, voiceId: encoded.slice(at + SEPARATOR.length) };
-}
-
-export function tierForProvider(_provider: ProviderId): typeof PLUGIN_TIER {
-  return PLUGIN_TIER;
 }
 
 // Chinese collation orders Han characters by pinyin instead of code point
@@ -76,7 +127,12 @@ export interface ListedVoice {
   id: string;
   /** The locale it is filed under: `mul` for the multilingual group, else a locale (`en-US`) or a bare language. */
   language: string;
-  /** `local` for the plugin's; `standard` / `premium` for Zotero's own. */
+  /**
+   * The tier as the list says it: `standard` / `premium` for Zotero's own;
+   * for the plugin's, the response's `local` or, off a manager's list, the
+   * provider's own (the re-tag). Read a plugin voice's tier off its id
+   * (pluginVoiceTier), never from here.
+   */
   tier: string;
   label: string;
 }
@@ -120,13 +176,15 @@ export function listVoicesResponse(response: unknown): ListedVoice[] {
 
 /**
  * Build the format=2 structure that Zotero's parseVoicesResponse
- * (reader.js:40499) recognizes.
+ * (reader.js:40528) recognizes.
  *
  * One config per voice, in label order. Zotero shows voices in the order
  * it is given (buildVoiceOptions sorts only by creditsPerMinute, which we
  * never set) and flattens configs in order, locale by locale, so that is
  * the only shape that yields an alphabetical dropdown across a language's
- * several locales and the multilingual group alike.
+ * several locales and the multilingual group alike. The label is the
+ * voice's own: the provider is the dropdown entry it sits under (issue
+ * #110), not a prefix of its name.
  *
  * The voice list under each locale uses the **plain array** form. The
  * object form { default, other } gets spread without any guard
@@ -140,11 +198,7 @@ export function buildVoicesResponse(
   const all: { id: string; label: string; locale: string }[] = [];
   for (const entry of entries) {
     for (const voice of entry.voices) {
-      all.push({
-        id: encodeVoiceId(entry.provider, voice.id),
-        label: pluginVoiceLabel(entry.provider, voice.label, entry.name),
-        locale: voice.locale,
-      });
+      all.push({ id: encodeVoiceId(entry.provider, voice.id), label: voice.label, locale: voice.locale });
     }
   }
   if (!all.length) return {};
@@ -154,7 +208,7 @@ export function buildVoicesResponse(
   );
 
   return {
-    [PLUGIN_TIER]: all.map((voice) => ({
+    [PUBLISHED_TIER]: all.map((voice) => ({
       voices: { [voice.id]: { label: voice.label } },
       locales: { [voice.locale]: [voice.id] },
       // Prerequisite for word-level highlighting (reader.js:53332)

@@ -10,7 +10,7 @@ import { SynthesisError } from '../core/providers/errors';
 import { sentences, t } from '../core/l10n';
 import { withTimeout } from '../core/timeout';
 import { createWebDAVClient } from '../core/webdav';
-import { CATALOG_CAP_MS, listNamedCatalog } from '../read-aloud/catalog';
+import { CATALOG_CAP_MS, listNamedCatalog, providerTierColumns } from '../read-aloud/catalog';
 import { FAVORITES_ONLY_OBSERVER, parseFavoriteVoices } from '../read-aloud/favorites';
 import { languageDisplayName } from '../read-aloud/language-dropdown';
 import { readMemory, writeMemory, READ_ALOUD_MEMORY_OBSERVER, type VoiceChoice } from '../read-aloud/read-aloud-memory';
@@ -603,6 +603,9 @@ export function onPaneLoad(doc: Document, hooks: PaneHooks = {}): void {
       );
     },
     synthesizeSample: (id, voiceId, text) => synthesizeSample(win, prefs, id, voiceId, text, providerDeps()),
+    // The first column: every enabled provider, whether or not it lists
+    // anything right now, and Zotero's two (issue #110)
+    tierColumns: () => providerTierColumns(loadSettings(prefs)),
     // Zotero's own Standard and Premium voices, listed and sampled beside
     // the plugin's; failing on its own leaves the plugin's voices listed
     listZoteroVoices: () => zoteroVoiceService().listVoices(),

@@ -490,3 +490,5 @@ then) and is in the git history before that day.
 - Native resume and notification cleanup pass in beta2 (issue #108)
 - The tester independently completes beta2 verification (issue #108)
 - What can be separated from Read Aloud (issue #109)
+- Provider entries in the player's first dropdown: three hard-coded places and the way past each (issue #110)
+- Provider entries built: a second shadow on _resolveVoice, a createElement wrapper, and the keys the memory follows (issue #110)

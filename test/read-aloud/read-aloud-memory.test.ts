@@ -34,12 +34,14 @@ function fakePrefs(initial: Record<string, unknown> = {}): PrefsBackend & { stor
 
 const ISABELLA = 'openai::bf_v0isabella';
 const AOEDE = 'local::af_aoede';
+/** The local provider's tier: its engine's name (voice-catalog.ts tierForProvider, issue #110); the caller passes it with the voice. */
+const KOKORO = 'kokoro';
 
 // What Zotero writes: one entry per base language the user has read
 const voices: VoicesMap = {
-  en: { region: 'US', voice: AOEDE, speed: 1.4, tierVoices: { standard: 'bdd0dcc3-en-US', local: AOEDE } },
+  en: { region: 'US', voice: AOEDE, speed: 1.4, tierVoices: { standard: 'bdd0dcc3-en-US', [KOKORO]: AOEDE } },
   zh: { region: null, voice: 'azure::fr-FR-LucienMultilingualNeural', speed: 1.2, tierVoices: {} },
-  [MULTILINGUAL]: { region: null, voice: ISABELLA, speed: 1.4, tierVoices: { local: ISABELLA } },
+  [MULTILINGUAL]: { region: null, voice: ISABELLA, speed: 1.4, tierVoices: { openai: ISABELLA } },
 };
 
 describe('readMemory / writeMemory', () => {
@@ -177,22 +179,24 @@ describe('planSync', () => {
   // rule): a document in another language is moved to the voice's own,
   // whose entry Zotero then restores from
   it('moves every document to a single-language voice’s own language', () => {
-    expect(planSync('zh', voices, english)).toEqual({ lang: 'en', voices: null });
-    expect(planSync('en', voices, english)).toEqual({ lang: 'en', voices: null });
-    expect(planSync('fr', voices, english)).toEqual({ lang: 'en', voices: null });
+    expect(planSync('zh', voices, english, KOKORO)).toEqual({ lang: 'en', voices: null });
+    expect(planSync('en', voices, english, KOKORO)).toEqual({ lang: 'en', voices: null });
+    expect(planSync('fr', voices, english, KOKORO)).toEqual({ lang: 'en', voices: null });
   });
 
-  it('creates the entry for the voice’s language when Zotero has none, naming the voice and its tier', () => {
+  // The tier is the provider's own (issue #110): read off the id when the
+  // caller passes none, which only the local engine's key needs a name for
+  it('creates the entry for the voice’s language when Zotero has none, naming the voice and its provider’s tier', () => {
     const denise = 'azure::fr-FR-DeniseNeural';
     expect(planSync('zh', voices, { speed: 1.4, voice: { id: denise, lang: 'fr' } })).toEqual({
       lang: 'fr',
-      voices: { ...voices, fr: { speed: 1.4, voice: denise, tierVoices: { local: denise } } },
+      voices: { ...voices, fr: { speed: 1.4, voice: denise, tierVoices: { azure: denise } } },
     });
   });
 
   it('resolves a regional key the way Zotero does', () => {
     const regional: VoicesMap = { 'en-GB': { voice: AOEDE, speed: 1.1 } };
-    expect(planSync('en', regional, english)).toEqual({ lang: 'en', voices: { 'en-GB': { voice: AOEDE, speed: 1.4, tierVoices: { local: AOEDE } } } });
+    expect(planSync('en', regional, english, KOKORO)).toEqual({ lang: 'en', voices: { 'en-GB': { voice: AOEDE, speed: 1.4, tierVoices: { [KOKORO]: AOEDE } } } });
   });
 
   // Zotero's _findFallbackVoice takes its target tier from the LAST key of
@@ -202,12 +206,12 @@ describe('planSync', () => {
     const remembered: ReadAloudMemory = { speed: 1.4, voice: { id: standard, lang: 'en' } };
     const told = planSync('zh', voices, remembered, 'standard');
     expect(told.lang).toBe('en');
-    expect(told.voices?.en).toEqual({ ...voices.en, voice: standard, tierVoices: { local: AOEDE, standard } });
-    expect(Object.keys((told.voices?.en.tierVoices ?? {}) as object)).toEqual(['local', 'standard']);
+    expect(told.voices?.en).toEqual({ ...voices.en, voice: standard, tierVoices: { [KOKORO]: AOEDE, standard } });
+    expect(Object.keys((told.voices?.en.tierVoices ?? {}) as object)).toEqual([KOKORO, 'standard']);
     // The tier unknown (the list still loading): the voice alone, the tiers as they are
     expect(planSync('zh', voices, remembered).voices?.en).toEqual({ ...voices.en, voice: standard });
     // Already the entry's voice with its tier last: nothing to write
-    const settled = { ...voices, en: { ...voices.en, voice: standard, tierVoices: { local: AOEDE, standard } } };
+    const settled = { ...voices, en: { ...voices.en, voice: standard, tierVoices: { [KOKORO]: AOEDE, standard } } };
     expect(planSync('zh', settled, remembered, 'standard')).toEqual({ lang: 'en', voices: null });
   });
 
@@ -217,13 +221,13 @@ describe('planSync', () => {
       lang: MULTILINGUAL,
       voices: {
         ...drifted,
-        [MULTILINGUAL]: { ...drifted[MULTILINGUAL], voice: ISABELLA, speed: 1.4, tierVoices: { local: ISABELLA } },
+        [MULTILINGUAL]: { ...drifted[MULTILINGUAL], voice: ISABELLA, speed: 1.4, tierVoices: { openai: ISABELLA } },
       },
     });
     const missing = { en: voices.en };
     expect(planSync('en', missing, multilingual).voices).toEqual({
       ...missing,
-      [MULTILINGUAL]: { speed: 1.4, voice: ISABELLA, tierVoices: { local: ISABELLA } },
+      [MULTILINGUAL]: { speed: 1.4, voice: ISABELLA, tierVoices: { openai: ISABELLA } },
     });
   });
 
@@ -274,7 +278,7 @@ describe('planSync on a non-canonical document tag', () => {
   // move to it is planned as for any document
   it('moves a raw-tagged document to the remembered voice’s lane as before', () => {
     const english: ReadAloudMemory = { speed: 1.5, voice: { id: AOEDE, lang: 'en' } };
-    expect(planSync('EN', voices, english)).toEqual({ lang: 'en', voices: { ...voices, en: { ...voices.en, speed: 1.5 } } });
+    expect(planSync('EN', voices, english, KOKORO)).toEqual({ lang: 'en', voices: { ...voices, en: { ...voices.en, speed: 1.5 } } });
   });
 });
 
@@ -282,17 +286,19 @@ describe('planSync on a non-canonical document tag', () => {
 // a reader received (issue #35): Zotero's own fallback would take any voice
 // for the language, a Standard one included, and say nothing
 describe('pickSubstitute', () => {
+  // The response's half of a list says `local` for every plugin voice; a
+  // manager's half says the provider's key — the pick goes by the id
   const local = (id: string, language: string, label: string): ListedVoice => ({ id, language, tier: 'local', label });
   const STANDARD: ListedVoice = { id: 'bdd0dcc3-en-US', language: 'en-US', tier: 'standard', label: 'Standard Voice 1' };
-  const AVA = local('azure::en-US-AvaMultilingualNeural', MULTILINGUAL, 'Azure-Ava Multilingual');
-  const BRIAN = local('azure::en-US-BrianMultilingualNeural', MULTILINGUAL, 'Azure-Brian Multilingual');
-  const BELLA = local('local::af_bella', 'en-US', 'Kokoro-af_bella');
-  const PUCK = local('local::am_puck', 'en-US', 'Kokoro-am_puck');
-  const XIAOXIAO = local('azure::zh-CN-XiaoxiaoNeural', 'zh-CN', 'Azure-晓晓');
+  const AVA = local('azure::en-US-AvaMultilingualNeural', MULTILINGUAL, 'Ava Multilingual');
+  const BRIAN = local('azure::en-US-BrianMultilingualNeural', MULTILINGUAL, 'Brian Multilingual');
+  const BELLA: ListedVoice = { id: 'local::af_bella', language: 'en-US', tier: 'kokoro', label: 'af_bella' };
+  const PUCK: ListedVoice = { id: 'local::am_puck', language: 'en-US', tier: 'kokoro', label: 'am_puck' };
+  const XIAOXIAO = local('azure::zh-CN-XiaoxiaoNeural', 'zh-CN', '晓晓');
 
   // Issue #35's list: Zotero's Standard voice is the only English one and
   // the favorites are multilingual — the substitute is never a paid voice
-  it('takes the first Local voice the list offers, never a Standard or Premium one', () => {
+  it('takes the first of the plugin’s voices the list offers, never a Standard or Premium one', () => {
     expect(pickSubstitute([STANDARD, BRIAN, AVA], [], 'en')).toEqual(AVA);
     expect(pickSubstitute([STANDARD], [], 'en')).toBeNull();
     expect(pickSubstitute([], [], 'en')).toBeNull();
@@ -322,17 +328,17 @@ describe('pickSubstitute', () => {
 
 describe('substitutionMessage', () => {
   it('names the voice that is not offered and the one reading instead', () => {
-    expect(substitutionMessage('Kokoro-am_puck', 'Azure-Ava Multilingual', false)).toBe(
-      'Zotero-TTS: Kokoro-am_puck is not offered here. Reading with Azure-Ava Multilingual instead.',
+    expect(substitutionMessage('am_puck', 'Ava Multilingual', false)).toBe(
+      'Zotero-TTS: am_puck is not offered here. Reading with Ava Multilingual instead.',
     );
   });
 
-  it('says when no Local voice is offered either, and warns of credits when a paid voice covers the language', () => {
-    expect(substitutionMessage('Kokoro-am_puck', null, true)).toBe(
-      'Zotero-TTS: Kokoro-am_puck is not offered here, and no Local voice is. Zotero picks the voice; it may use credits.',
+  it('says when no plugin voice is offered either, and warns of credits when a paid voice covers the language', () => {
+    expect(substitutionMessage('am_puck', null, true)).toBe(
+      'Zotero-TTS: am_puck is not offered here, and no other voice of Zotero-TTS is. Zotero picks the voice; it may use credits.',
     );
-    expect(substitutionMessage('Kokoro-am_puck', null, false)).toBe(
-      'Zotero-TTS: Kokoro-am_puck is not offered here, and no Local voice is. Zotero picks the voice.',
+    expect(substitutionMessage('am_puck', null, false)).toBe(
+      'Zotero-TTS: am_puck is not offered here, and no other voice of Zotero-TTS is. Zotero picks the voice.',
     );
   });
 });

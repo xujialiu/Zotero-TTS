@@ -52,8 +52,8 @@ export interface PresetSpec {
   synthesis: SynthesisRoute;
   /** The voices the server documents, for one that publishes no list on /v1/audio/voices; absent, OpenAI's own list is the last resort. */
   voices?: readonly string[];
-  /** The name in front of this server's voices in the player and the voice browser ("MiMo-冰糖"); the section's "OpenAI" when absent. */
-  voiceName?: string;
+  /** The name of this server's entry in the player's first dropdown and the voice browser's first column (issue #110); the section's "OpenAI" when absent. */
+  providerName?: string;
   /** The server's own hostname, for a hosted service with one address: a Base URL on another host is a typo or a mirror (addressHint, issue #54). */
   host?: string;
 }
@@ -75,6 +75,7 @@ export const PRESETS: Record<ServerPreset, PresetSpec> = {
     uses: { apiKey: false, baseURL: true, model: false, voices: false, headers: true },
     note: () => t('ztts-preset-note-chatterbox'),
     synthesis: 'speech',
+    providerName: 'Chatterbox-TTS-Server',
   },
   mimo: {
     id: 'mimo',
@@ -90,7 +91,7 @@ export const PRESETS: Record<ServerPreset, PresetSpec> = {
     // The built-in voices of mimo-v2.5-tts, from the platform's documentation
     // (verified live 2026-09-06); the server has no /v1/audio/voices.
     voices: ['mimo_default', '冰糖', '茉莉', '苏打', '白桦', 'Mia', 'Chloe', 'Milo', 'Dean'],
-    voiceName: 'MiMo',
+    providerName: 'Xiaomi MiMo',
   },
   other: {
     id: 'other',

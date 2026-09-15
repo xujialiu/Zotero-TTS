@@ -2,10 +2,18 @@ import { SynthesisError } from '../core/providers/errors';
 import type { ProviderId, TTSProvider, VoiceInfo, VoiceListNotice } from '../core/providers/types';
 import { getLocalEngine } from '../core/providers/local/registry';
 import { presetSpec } from '../core/server-presets';
-import { enabledProviders, type Settings } from '../core/settings';
+import { enabledProviders, PROVIDER_IDS, type Settings } from '../core/settings';
 import { withTimeout } from '../core/timeout';
+import { providerTierLabel, tierForProvider, zoteroTierLabel, type TierEntry, type TierNaming } from './voice-catalog';
+import { ZOTERO_TIERS } from './zotero-voices';
 
-/** `name` overrides the provider's display name in voice labels; the local provider sets it to its engine's name. */
+/**
+ * `name` is the provider's entry name where it is not the provider's own
+ * (issue #110): the local provider's engine ("Kokoro"), the OpenAI
+ * section's server when its preset has a name ("Xiaomi MiMo"). The entry
+ * is what the player's first dropdown and the voice browser's first column
+ * show; the voices' labels are their own.
+ */
 export type CatalogEntry = { provider: ProviderId; name?: string; voices: VoiceInfo[]; notices?: VoiceListNotice[] };
 
 /**
@@ -80,13 +88,57 @@ export async function collectCatalog(
 }
 
 /**
+ * What the entry names depend on beyond the provider id (voice-catalog.ts
+ * providerTierLabel): the local engine's name, and the OpenAI section's
+ * server when its preset has a name of its own.
+ */
+export function providerNaming(settings: Settings): TierNaming {
+  return { localEngine: getLocalEngine(settings.local.engine)?.voiceName, openaiServer: presetSpec(settings.openai).providerName };
+}
+
+/**
+ * The tier key of every provider (voice-catalog.ts tierForProvider): the
+ * provider id, the local engine's name for the local provider.
+ */
+export function providerTierKeys(settings: Settings): Record<ProviderId, string> {
+  const { localEngine } = providerNaming(settings);
+  return Object.fromEntries(PROVIDER_IDS.map((id) => [id, tierForProvider(id, localEngine)])) as Record<ProviderId, string>;
+}
+
+/**
+ * The entry names by tier key — every provider's, enabled or not, and
+ * Zotero's two in the plugin's copy of Zotero's words — for the player's
+ * first dropdown and the stranded rule (read-aloud/provider-tiers.ts).
+ */
+export function providerTierLabels(settings: Settings): Record<string, string> {
+  const naming = providerNaming(settings);
+  const out: Record<string, string> = {};
+  for (const tier of ZOTERO_TIERS) out[tier] = zoteroTierLabel(tier);
+  for (const id of PROVIDER_IDS) out[tierForProvider(id, naming.localEngine)] = providerTierLabel(id, naming);
+  return out;
+}
+
+/**
+ * The voice browser's first column (issue #110): every enabled provider,
+ * whether or not it lists anything right now, and Zotero's Standard and
+ * Premium — unsorted; ui/voice-browser-rows.ts sorts by label.
+ */
+export function providerTierColumns(settings: Settings): TierEntry[] {
+  const naming = providerNaming(settings);
+  return [
+    ...enabledProviders(settings).map((id) => ({ tier: tierForProvider(id, naming.localEngine), label: providerTierLabel(id, naming) })),
+    ...ZOTERO_TIERS.map((tier) => ({ tier, label: zoteroTierLabel(tier) })),
+  ];
+}
+
+/**
  * The catalog as the plugin publishes it: every enabled provider's voices,
- * local voices named after the engine serving them ("Kokoro-…", since
- * "Local" says nothing once several engines exist), the OpenAI section's
- * after its server when the preset has a name of its own ("MiMo-冰糖",
- * issue #50; "OpenAI-…" otherwise). The Read Aloud interface and the
- * settings' voice browser both list through this, so they agree on voices
- * and names.
+ * the local provider's entry named after the engine serving them
+ * ("Kokoro", since "Local" says nothing once several engines exist), the
+ * OpenAI section's after its server when the preset has a name of its own
+ * ("Xiaomi MiMo", issue #50; "OpenAI" otherwise). The Read Aloud interface
+ * and the settings' voice browser both list through this, so they agree
+ * on voices and entries.
  */
 export async function listNamedCatalog(
   settings: Settings,
@@ -95,11 +147,10 @@ export async function listNamedCatalog(
   bound?: CatalogBound,
 ): Promise<CatalogEntry[]> {
   const entries = await collectCatalog(enabledProviders(settings), getProvider, log, bound);
-  const engineName = getLocalEngine(settings.local.engine)?.voiceName;
-  const serverName = presetSpec(settings.openai).voiceName;
+  const { localEngine, openaiServer } = providerNaming(settings);
   return entries.map((e) => {
-    if (e.provider === 'local' && engineName) return { ...e, name: engineName };
-    if (e.provider === 'openai' && serverName) return { ...e, name: serverName };
+    if (e.provider === 'local' && localEngine) return { ...e, name: localEngine };
+    if (e.provider === 'openai' && openaiServer) return { ...e, name: openaiServer };
     return e;
   });
 }

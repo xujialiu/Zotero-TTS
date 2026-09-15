@@ -2,7 +2,7 @@ import { t } from '../core/l10n';
 import { MULTILINGUAL } from '../core/providers/types';
 import { isZoteroLangKey, resolveVoiceLang, type VoiceEntry, type VoicesMap } from '../core/read-aloud-speed';
 import { PREF_PREFIX, type PrefsBackend } from '../core/settings';
-import { compareVoiceLabels, decodeVoiceId, PLUGIN_TIER, type ListedVoice } from './voice-catalog';
+import { compareVoiceLabels, decodeVoiceId, pluginVoiceTier, type ListedVoice } from './voice-catalog';
 
 /**
  * Zotero remembers the Read Aloud voice and speed per document language
@@ -166,11 +166,12 @@ export function sameChoice(a: VoiceChoice | null, b: VoiceChoice | null): boolea
  * favorites are, a provider switched off, a server that did not answer.
  * Zotero's own fallback (`_findFallbackVoice`) takes any voice for the
  * language once the entry's is missing, a metered Standard one included,
- * and says nothing. This takes the first **Local** voice the list offers —
- * never a Standard or Premium one — favorites before the rest, the
+ * and says nothing. This takes the first of the **plugin's own** voices the
+ * list offers — one whose id decodes, whatever provider's entry it sits
+ * under; never a Standard or Premium one — favorites before the rest, the
  * document's language before Multiple languages before other languages,
  * and within a rank the voice browser's order. Null when the list has no
- * Local voice at all, which leaves the choice to Zotero.
+ * plugin voice at all, which leaves the choice to Zotero.
  */
 export function pickSubstitute(listed: readonly ListedVoice[], favorites: readonly string[], docLang: string | null): ListedVoice | null {
   const wanted = new Set(favorites);
@@ -184,7 +185,7 @@ export function pickSubstitute(listed: readonly ListedVoice[], favorites: readon
   let best: ListedVoice | null = null;
   let bestRank: [number, number] = [0, 0];
   for (const voice of listed) {
-    if (voice.tier !== PLUGIN_TIER) continue;
+    if (!decodeVoiceId(voice.id)) continue;
     const r = rank(voice);
     if (best === null || compare(voice, r, best, bestRank) < 0) {
       best = voice;
@@ -218,8 +219,10 @@ export function substitutionMessage(missing: string, instead: string | null, pai
  * drops voices whose language does not match the manager's; and that
  * lane's entry is made to name the voice, with its tier pushed to the end
  * of `tierVoices`, where `_findFallbackVoice` looks first. `tier` is the
- * voice's tier as the manager lists it (`local` for the plugin's own is
- * known from the id); unknown, the entry's `voice` alone is set. `docLang`
+ * voice's tier as the manager lists it — a plugin voice's is its
+ * provider's key, read off the id (pluginVoiceTier, issue #110; the caller
+ * passes it with the local engine's name); a Zotero voice's is unknown
+ * until the list says it, and the entry's `voice` alone is set then. `docLang`
  * is the document's language — what the manager is on, or was on before
  * memory-sync moved it — so with no voice remembered the manager goes back
  * there and Zotero restores its own choice for it. The entry is the one
@@ -242,7 +245,7 @@ export function planSync(docLang: string | null, voices: VoicesMap, memory: Read
   if (memory.speed !== null && speedOf(entry) !== memory.speed) next = { ...next, speed: memory.speed };
   if (voice) {
     const tierVoices = entry.tierVoices && typeof entry.tierVoices === 'object' ? (entry.tierVoices as Record<string, unknown>) : {};
-    const voiceTier = tier ?? (decodeVoiceId(voice.id) ? PLUGIN_TIER : null);
+    const voiceTier = tier ?? pluginVoiceTier(voice.id);
     const keys = Object.keys(tierVoices);
     const tierLast = !voiceTier || (keys[keys.length - 1] === voiceTier && tierVoices[voiceTier] === voice.id);
     if (voiceOf(entry) !== voice.id || !tierLast) {

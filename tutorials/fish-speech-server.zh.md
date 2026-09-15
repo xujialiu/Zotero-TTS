@@ -1,9 +1,9 @@
-<!-- translated-from: fish-speech-server.md sha256:7def094cc427 -->
+<!-- translated-from: fish-speech-server.md sha256:73b4ba16dcf0 -->
 # 自建 Fish Speech 服务器
 
 [English](fish-speech-server.md) · **简体中文**
 
-[fish-speech](https://github.com/fishaudio/fish-speech) 是 Fish Audio 开源的那一部分：它的 S2 Pro 模型跑在你自己的机器上，你给它一段简短的录音，它就能用那个声音说话。插件的 **Fish Audio** 那一节里有一块是给它的，标题是**本地**，会把它上面的每个语音都列出来，在播放器里写成 `Fish-local-<name>`，跟其他插件语音一样，归在 Zotero 的**本地**语音模式下面。高亮是按句的，不是按词：这个服务器不报词级时间戳。
+[fish-speech](https://github.com/fishaudio/fish-speech) 是 Fish Audio 开源的那一部分：它的 S2 Pro 模型跑在你自己的机器上，你给它一段简短的录音，它就能用那个声音说话。插件的 **Fish Audio** 那一节里有一块是给它的，标题是**本地**，会把它上面的每个语音都列在播放器第一个下拉框的**Fish-local**条目下面，用它们各自的名字。高亮是按句的，不是按词：这个服务器不报词级时间戳。
 
 ## 它需要什么
 

@@ -117,7 +117,9 @@ export type RemoteInterfaceDeps = {
    * Builds Zotero's own interface for this reader, or returns null when
    * there is none. Called lazily, once. With it present, Zotero's Standard
    * and Premium voices, credits and audio pass straight through and the
-   * plugin's voices are merged in under the local tier.
+   * plugin's voices are merged in under the response's `local` key, the
+   * one key Zotero's parser has for them; the player then files them per
+   * provider (read-aloud/provider-tiers.ts, issue #110).
    */
   native?(): NativeRemoteInterface | null;
   /**

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { ProviderId, TTSProvider } from '../../src/core/providers/types';
 import { DEFAULTS } from '../../src/core/settings';
-import { CATALOG_CAP_MS, collectCatalog, listNamedCatalog, PROVIDER_LISTING_TIMEOUT_MS } from '../../src/read-aloud/catalog';
+import { CATALOG_CAP_MS, collectCatalog, listNamedCatalog, PROVIDER_LISTING_TIMEOUT_MS, providerNaming, providerTierColumns, providerTierKeys, providerTierLabels } from '../../src/read-aloud/catalog';
 import { TEST_CONNECTION_TIMEOUT_MS } from '../../src/ui/prefs-pane';
 
 function provider(id: ProviderId, voices: { id: string; label: string; locale: string }[] | Error): TTSProvider {
@@ -143,14 +143,15 @@ describe('listNamedCatalog', () => {
     ]);
   });
 
-  // Xiaomi MiMo (issue #50): the OpenAI section's voices are named after its
-  // preset when the preset has a name of its own, "OpenAI-" otherwise
+  // Xiaomi MiMo (issue #50): the OpenAI section's entry is named after its
+  // preset when the preset has a name of its own, "OpenAI" otherwise (issue #110)
   it("names the OpenAI section's voices after its server preset, when the preset has a name", async () => {
     const bingtang = { id: '冰糖', label: '冰糖', locale: 'mul' };
     const mimo = { ...DEFAULTS, openai: { ...DEFAULTS.openai, server: 'mimo' } };
-    expect(await listNamedCatalog(mimo, () => provider('openai', [bingtang]))).toEqual([{ provider: 'openai', name: 'MiMo', voices: [bingtang] }]);
+    expect(await listNamedCatalog(mimo, () => provider('openai', [bingtang]))).toEqual([{ provider: 'openai', name: 'Xiaomi MiMo', voices: [bingtang] }]);
     const chatterbox = { ...DEFAULTS, openai: { ...DEFAULTS.openai, server: 'chatterbox' } };
-    expect(await listNamedCatalog(chatterbox, () => provider('openai', [alloy]))).toEqual([{ provider: 'openai', voices: [alloy] }]);
+    expect(await listNamedCatalog(chatterbox, () => provider('openai', [alloy]))).toEqual([{ provider: 'openai', name: 'Chatterbox-TTS-Server', voices: [alloy] }]);
+    expect(await listNamedCatalog(DEFAULTS, () => provider('openai', [alloy]))).toEqual([{ provider: 'openai', voices: [alloy] }]);
   });
 
   it('leaves an unknown engine nameless instead of failing', async () => {
@@ -161,5 +162,59 @@ describe('listNamedCatalog', () => {
     };
     const catalog = await listNamedCatalog(settings, () => provider('local', [bella]));
     expect(catalog).toEqual([{ provider: 'local', voices: [bella] }]);
+  });
+});
+
+// The entries of the player's first dropdown and the browser's first column
+// (issue #110), from the settings: every provider keyed by its id, the local
+// engine by its name; the labels the prefixes carried until then
+describe('provider tiers from the settings', () => {
+  it('names the entries after the engine and the server preset', () => {
+    expect(providerNaming(DEFAULTS)).toEqual({ localEngine: 'Kokoro', openaiServer: undefined });
+    const mimo = { ...DEFAULTS, openai: { ...DEFAULTS.openai, server: 'mimo' } };
+    expect(providerNaming(mimo).openaiServer).toBe('Xiaomi MiMo');
+    expect(providerNaming({ ...DEFAULTS, local: { ...DEFAULTS.local, engine: 'piper' } }).localEngine).toBeUndefined();
+  });
+
+  it('keys every provider by its id and the local provider by its engine', () => {
+    expect(providerTierKeys(DEFAULTS)).toEqual({
+      openai: 'openai',
+      azure: 'azure',
+      cloudflare: 'cloudflare',
+      speechify: 'speechify',
+      fish: 'fish',
+      fishspeech: 'fishspeech',
+      local: 'kokoro',
+      system: 'system',
+    });
+  });
+
+  it('labels every tier key, Zotero’s two included', () => {
+    const labels = providerTierLabels({ ...DEFAULTS, openai: { ...DEFAULTS.openai, server: 'mimo' } });
+    expect(labels).toEqual({
+      standard: 'Standard',
+      premium: 'Premium',
+      openai: 'Xiaomi MiMo',
+      azure: 'Azure',
+      cloudflare: 'Cloudflare',
+      speechify: 'Speechify',
+      fish: 'Fish-cloud',
+      fishspeech: 'Fish-local',
+      kokoro: 'Kokoro',
+      system: 'System',
+    });
+  });
+
+  it('lists the enabled providers as columns, and Zotero’s two always', () => {
+    const settings = { ...DEFAULTS, azure: { ...DEFAULTS.azure, enabled: true }, local: { ...DEFAULTS.local, enabled: true } };
+    expect(providerTierColumns(settings)).toEqual([
+      { tier: 'openai', label: 'OpenAI' },
+      { tier: 'azure', label: 'Azure' },
+      { tier: 'kokoro', label: 'Kokoro' },
+      { tier: 'standard', label: 'Standard' },
+      { tier: 'premium', label: 'Premium' },
+    ]);
+    const none = { ...settings, openai: { ...settings.openai, enabled: false }, azure: { ...settings.azure, enabled: false }, local: { ...settings.local, enabled: false } };
+    expect(providerTierColumns(none).map((c) => c.tier)).toEqual(['standard', 'premium']);
   });
 });

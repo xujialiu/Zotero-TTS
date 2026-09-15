@@ -5,15 +5,15 @@ import type { PrefsBackend } from '../../src/core/settings';
 import { setDefaultSpeed } from '../../src/read-aloud/default-speed';
 import { createReadAloudMemorySync, READ_ALOUD_VOICES_OBSERVER, type ReadAloudMemoryDeps } from '../../src/read-aloud/memory-sync';
 import { READ_ALOUD_MEMORY_PREF, writeMemory, type ReadAloudMemory } from '../../src/read-aloud/read-aloud-memory';
-import { decodeVoiceId } from '../../src/read-aloud/voice-catalog';
+import { decodeVoiceId, pluginVoiceTier } from '../../src/read-aloud/voice-catalog';
 
 const ISABELLA = 'openai::bf_v0isabella';
 const AOEDE = 'local::af_aoede';
 const PREF_BRANCH = 'extensions.zotero.';
 
 const voices: VoicesMap = {
-  en: { region: 'US', voice: AOEDE, speed: 1.4, tierVoices: { local: AOEDE } },
-  [MULTILINGUAL]: { region: null, voice: ISABELLA, speed: 1.4, tierVoices: { local: ISABELLA } },
+  en: { region: 'US', voice: AOEDE, speed: 1.4, tierVoices: { kokoro: AOEDE } },
+  [MULTILINGUAL]: { region: null, voice: ISABELLA, speed: 1.4, tierVoices: { openai: ISABELLA } },
 };
 
 /** Zotero.Prefs in miniature: observers fire synchronously from set(), as Gecko's do, and not for an unchanged value. */
@@ -55,6 +55,8 @@ function fakeZotero(initialVoices: VoicesMap | null = voices, memory?: ReadAloud
     error,
     debug,
     refreshVoices,
+    // The local engine's name: what the local provider's voices are filed under (issue #110)
+    localEngine: () => 'Kokoro',
   } satisfies ReadAloudMemoryDeps;
   return {
     store,
@@ -78,7 +80,9 @@ type FakeVoice = { id: string; language: string; tier: string; label: string };
  * A voice of the list from an id alone: the language the id says (`mul`
  * for OpenAI's and Azure's multilingual voices, the locale prefix of the
  * other Azure ids, en-US for the local engines'; a Zotero id ends in its
- * locale), the plugin's tier for the plugin's ids and Standard for Zotero's.
+ * locale), the provider's own tier for the plugin's ids — as the manager's
+ * objects carry it once read-aloud/provider-tiers.ts has re-tagged them
+ * (issue #110) — and Standard for Zotero's.
  */
 function describeVoice(voice: string | (Partial<FakeVoice> & { id: string })): FakeVoice {
   const v = typeof voice === 'string' ? { id: voice } : voice;
@@ -92,7 +96,7 @@ function describeVoice(voice: string | (Partial<FakeVoice> & { id: string })): F
         : decoded.provider === 'azure'
           ? decoded.voiceId.split('-').slice(0, 2).join('-')
           : 'en-US');
-  return { id: v.id, language, tier: v.tier ?? (decoded ? 'local' : 'standard'), label: v.label ?? v.id };
+  return { id: v.id, language, tier: v.tier ?? (decoded ? pluginVoiceTier(v.id, 'Kokoro')! : 'standard'), label: v.label ?? v.id };
 }
 
 const baseOf = (lang: string | null): string | null => (lang ? lang.replace(/-.+$/, '') : lang);
@@ -365,7 +369,7 @@ describe('createReadAloudMemorySync', () => {
       const sync = createReadAloudMemorySync(z.deps);
       const migrated = 'system::onecore/MSTTS_V110_zhCN_HuihuiM';
       sync.applySilently(() => {
-        z.deps.prefs.set(READ_ALOUD_VOICES_PREF, JSON.stringify({ ...voices, zh: { voice: migrated, tierVoices: { local: migrated } } }));
+        z.deps.prefs.set(READ_ALOUD_VOICES_PREF, JSON.stringify({ ...voices, zh: { voice: migrated, tierVoices: { system: migrated } } }));
       });
       expect(z.voices().zh.voice).toBe(migrated);
       // The remembered default is still the user's own choice
@@ -521,7 +525,7 @@ describe('createReadAloudMemorySync', () => {
       selectedVoiceID: AOEDE,
       // What ReadAloudManager.setSpeed(speed, true) does: _persistCurrentVoice writes the entry with the current voice
       setSpeed: vi.fn((speed: number, persist?: boolean) => {
-        if (persist) z.zoteroWrites('en', { region: 'US', voice: AOEDE, speed, tierVoices: { local: AOEDE } });
+        if (persist) z.zoteroWrites('en', { region: 'US', voice: AOEDE, speed, tierVoices: { kokoro: AOEDE } });
       }),
     };
     setDefaultSpeed(z.deps.prefs, 1.8, [playing]);
@@ -622,14 +626,14 @@ describe('the speed is global while the setting is on', () => {
     // What ReadAloudManager.setSpeed(speed, true) does: _persistCurrentVoice writes the entry with the current voice
     tab2.manager.setSpeed.mockImplementation((speed: number, persist?: boolean) => {
       tab2.manager.speed = speed;
-      if (persist) z.zoteroWrites('zh', { region: 'CN', voice: xiaoxiao, speed, tierVoices: { local: xiaoxiao } });
+      if (persist) z.zoteroWrites('zh', { region: 'CN', voice: xiaoxiao, speed, tierVoices: { azure: xiaoxiao } });
     });
     z.readers.push(tab2.reader);
     z.zoteroWrites('en', { ...voices.en, speed: 2.2 });
     expect(z.voices().zh).toMatchObject({ voice: xiaoxiao, speed: 2.2 });
     expect(sync.memory()).toEqual({ ...multilingual, speed: 2.2 });
     // The user now picks a voice for Chinese in the popup: a voice moving alone
-    z.zoteroWrites('zh', { region: 'CN', voice: yunxi, speed: 2.2, tierVoices: { local: yunxi } });
+    z.zoteroWrites('zh', { region: 'CN', voice: yunxi, speed: 2.2, tierVoices: { azure: yunxi } });
     expect(sync.memory()).toEqual({ speed: 2.2, voice: { id: yunxi, lang: 'zh' } });
     expect(z.deps.error).not.toHaveBeenCalled();
   });
@@ -675,8 +679,8 @@ describe('the voice is global while the setting is on', () => {
   const XIAOXIAO = 'azure::zh-CN-XiaoxiaoNeural';
   const YUNXI = 'azure::zh-CN-YunxiNeural';
   const listed = [ISABELLA, AOEDE, ADA, XIAOXIAO, YUNXI];
-  const ada = { region: null, voice: ADA, speed: 1.4, tierVoices: { local: ADA } };
-  const xiaoxiao = { region: 'CN', voice: XIAOXIAO, speed: 1.4, tierVoices: { local: XIAOXIAO } };
+  const ada = { region: null, voice: ADA, speed: 1.4, tierVoices: { azure: ADA } };
+  const xiaoxiao = { region: 'CN', voice: XIAOXIAO, speed: 1.4, tierVoices: { azure: XIAOXIAO } };
   const attached = (z: ReturnType<typeof fakeZotero>, sync: ReturnType<typeof createReadAloudMemorySync>, ...tabs: ReturnType<typeof fakeReader>[]) => {
     for (const tab of tabs) {
       z.readers.push(tab.reader);
@@ -824,10 +828,10 @@ describe('the voice is global while the setting is on', () => {
     const tab2 = fakeReader('en', z, { active: true, selectedVoiceID: AOEDE, voices: listed });
     attached(z, sync, tab2);
     // Tab 1 picked Ada under English (a multilingual voice is global by its id wherever it is picked)
-    z.zoteroWrites('en', { region: 'US', voice: ADA, speed: 1.4, tierVoices: { local: ADA } });
+    z.zoteroWrites('en', { region: 'US', voice: ADA, speed: 1.4, tierVoices: { azure: ADA } });
     expect(sync.memory()).toEqual({ speed: 1.4, voice: { id: ADA, lang: 'en' } });
     expect(tab2.log).toEqual(['lang:mul', 'zotero-sync:mul:1.4']);
-    expect(z.voices()[MULTILINGUAL]).toMatchObject({ voice: ADA, tierVoices: { local: ADA } });
+    expect(z.voices()[MULTILINGUAL]).toMatchObject({ voice: ADA, tierVoices: { azure: ADA } });
     z.zoteroWrites('zh', xiaoxiao);
     expect(sync.memory()).toEqual({ speed: 1.4, voice: { id: XIAOXIAO, lang: 'zh' } });
     expect(z.deps.error).not.toHaveBeenCalled();
@@ -859,7 +863,7 @@ describe('the voice is global while the setting is on', () => {
     writeMemory(z.deps.prefs, { speed: 1.4, voice: { id: ADA, lang: MULTILINGUAL } });
     sync.spreadVoice({ id: ADA, lang: MULTILINGUAL });
     expect(tab2.log).toEqual(['zotero-sync:mul:1.4']);
-    expect(z.voices()[MULTILINGUAL]).toMatchObject({ voice: ADA, tierVoices: { local: ADA } });
+    expect(z.voices()[MULTILINGUAL]).toMatchObject({ voice: ADA, tierVoices: { azure: ADA } });
     expect(tab2.manager.selectedVoiceID).toBe(ADA);
     sync.spreadVoice(null);
     expect(tab2.original).toHaveBeenCalledTimes(1);
@@ -909,8 +913,8 @@ describe('a pick the pref does not show', () => {
   // Ada is the only voice under Multiple languages, and the mul entry holds
   // her from an earlier session; the popup's last pick was Brian for English
   const before: VoicesMap = {
-    en: { region: 'US', voice: BRIAN, speed: 1.6, tierVoices: { local: BRIAN } },
-    [MULTILINGUAL]: { region: null, voice: ADA, speed: 1.6, tierVoices: { local: ADA } },
+    en: { region: 'US', voice: BRIAN, speed: 1.6, tierVoices: { azure: BRIAN } },
+    [MULTILINGUAL]: { region: null, voice: ADA, speed: 1.6, tierVoices: { azure: ADA } },
   };
   const brian: ReadAloudMemory = { speed: 1.6, voice: { id: BRIAN, lang: 'en' } };
   const reading = (voice: string, extra: Record<string, unknown> = {}) => ({ speed: 1.6, active: true, selectedVoiceID: voice, voices: listed, ...extra });
@@ -951,7 +955,7 @@ describe('a pick the pref does not show', () => {
     expect(sync.memory().voice).toEqual({ id: ADA, lang: MULTILINGUAL });
     expect(tab2.manager.selectedVoiceID).toBe(ADA);
     // Tab 2's popup switches its Voice Mode; the voice the tier resolves is a pick too
-    tab2.manager.selectTier('local');
+    tab2.manager.selectTier('kokoro');
     expect(sync.memory().voice).toEqual({ id: AOEDE, lang: MULTILINGUAL });
   });
   it('does not learn or spread the native choice while the switcher is previewing it', () => {
@@ -1024,7 +1028,7 @@ describe('a pick the pref does not show', () => {
     tab1.manager.setLanguage('en', { region: 'GB', persist: true });
     expect(tab1.manager._persistedVoices).toEqual(before.en);
     expect(tab1.manager.selectedVoiceID).toBe(SONIA);
-    expect(z.voices().en).toEqual({ region: 'GB', voice: SONIA, speed: 1.6, tierVoices: { local: SONIA } });
+    expect(z.voices().en).toEqual({ region: 'GB', voice: SONIA, speed: 1.6, tierVoices: { azure: SONIA } });
     expect(sync.memory().voice).toEqual({ id: SONIA, lang: 'en' });
   });
 
@@ -1039,7 +1043,7 @@ describe('a pick the pref does not show', () => {
     tab1.manager.setLanguage('zh', { region: 'CN', persist: true });
     expect(tab1.manager._persistedVoices).toEqual({});
     expect(tab1.manager.selectedVoiceID).toBe(XIAOXIAO);
-    expect(z.voices().zh).toEqual({ region: 'CN', voice: XIAOXIAO, speed: 1.6, tierVoices: { local: XIAOXIAO } });
+    expect(z.voices().zh).toEqual({ region: 'CN', voice: XIAOXIAO, speed: 1.6, tierVoices: { azure: XIAOXIAO } });
     expect(sync.memory().voice).toEqual({ id: XIAOXIAO, lang: 'zh' });
   });
 
@@ -1203,13 +1207,13 @@ describe('a reader moved to Multiple languages finds its way back', () => {
 describe('the remembered voice is not in the list', () => {
   const STANDARD: FakeVoice = { id: 'bdd0dcc3-en-US', language: 'en-US', tier: 'standard', label: 'Standard Voice 1' };
   const PUCK = 'local::am_puck';
-  const puckVoice: FakeVoice = { id: PUCK, language: 'en-US', tier: 'local', label: 'Kokoro-am_puck' };
-  const AVA: FakeVoice = { id: 'azure::en-US-AvaMultilingualNeural', language: MULTILINGUAL, tier: 'local', label: 'Azure-Ava Multilingual' };
-  const BRIAN: FakeVoice = { id: 'azure::en-US-BrianMultilingualNeural', language: MULTILINGUAL, tier: 'local', label: 'Azure-Brian Multilingual' };
-  const BELLA: FakeVoice = { id: 'local::af_bella', language: 'en-US', tier: 'local', label: 'Kokoro-af_bella' };
+  const puckVoice: FakeVoice = { id: PUCK, language: 'en-US', tier: 'kokoro', label: 'am_puck' };
+  const AVA: FakeVoice = { id: 'azure::en-US-AvaMultilingualNeural', language: MULTILINGUAL, tier: 'azure', label: 'Ava Multilingual' };
+  const BRIAN: FakeVoice = { id: 'azure::en-US-BrianMultilingualNeural', language: MULTILINGUAL, tier: 'azure', label: 'Brian Multilingual' };
+  const BELLA: FakeVoice = { id: 'local::af_bella', language: 'en-US', tier: 'kokoro', label: 'af_bella' };
   const puck: ReadAloudMemory = { speed: 1.7, voice: { id: PUCK, lang: 'en' } };
   /** Zotero's pref as the profile of issue #35 had it: the English entry names the remembered voice. */
-  const prefs: VoicesMap = { en: { region: 'US', voice: PUCK, speed: 1.7, tierVoices: { local: PUCK } } };
+  const prefs: VoicesMap = { en: { region: 'US', voice: PUCK, speed: 1.7, tierVoices: { kokoro: PUCK } } };
   const withDeps = (z: ReturnType<typeof fakeZotero>) => {
     const announce = vi.fn<(reader: unknown, message: string) => void>();
     const favorites = vi.fn<() => readonly string[]>(() => []);
@@ -1228,13 +1232,13 @@ describe('the remembered voice is not in the list', () => {
     expect(r.log).toEqual(['lang:mul', 'zotero-sync:mul:1.7']);
     expect(r.manager.lang).toBe(MULTILINGUAL);
     expect(r.manager.selectedVoiceID).toBe(AVA.id);
-    expect(r.manager.selectedTier).toBe('local');
-    expect(z.voices()[MULTILINGUAL]).toEqual({ voice: AVA.id, speed: 1.7, tierVoices: { local: AVA.id } });
+    expect(r.manager.selectedTier).toBe('azure');
+    expect(z.voices()[MULTILINGUAL]).toEqual({ voice: AVA.id, speed: 1.7, tierVoices: { azure: AVA.id } });
     // The English entry and the memory still name the user's own choice
     expect(z.voices().en.voice).toBe(PUCK);
     expect(z.storedMemory()).toEqual(puck);
     expect(t.announce).toHaveBeenCalledTimes(1);
-    expect(t.announce).toHaveBeenCalledWith(r.reader, 'Zotero-TTS: local::am_puck is not offered here. Reading with Azure-Ava Multilingual instead.');
+    expect(t.announce).toHaveBeenCalledWith(r.reader, 'Zotero-TTS: local::am_puck is not offered here. Reading with Ava Multilingual instead.');
     expect(z.deps.debug).toHaveBeenCalledWith(expect.stringContaining('not offered'));
     expect(sync.substitution(r.reader)).toEqual({ missing: PUCK, instead: AVA.id });
     expect(sync.documentLanguage(r.reader)).toBe('en');
@@ -1260,7 +1264,7 @@ describe('the remembered voice is not in the list', () => {
     open(r2);
     expect(r2.manager.lang).toBe('en');
     expect(r2.manager.selectedVoiceID).toBe(BELLA.id);
-    expect(z.voices().en).toEqual({ region: 'US', voice: BELLA.id, speed: 1.7, tierVoices: { local: BELLA.id } });
+    expect(z.voices().en).toEqual({ region: 'US', voice: BELLA.id, speed: 1.7, tierVoices: { kokoro: BELLA.id } });
     expect(z.storedMemory()).toEqual(puck);
   });
 
@@ -1281,7 +1285,7 @@ describe('the remembered voice is not in the list', () => {
     expect(z.storedMemory()).toEqual(puck);
     expect(t.announce).toHaveBeenCalledWith(
       r.reader,
-      'Zotero-TTS: local::am_puck is not offered here, and no Local voice is. Zotero picks the voice; it may use credits.',
+      'Zotero-TTS: local::am_puck is not offered here, and no other voice of Zotero-TTS is. Zotero picks the voice; it may use credits.',
     );
     expect(sync.substitution(r.reader)).toEqual({ missing: PUCK, instead: null });
   });
@@ -1371,14 +1375,14 @@ describe('the remembered voice is not in the list', () => {
       expect(r.manager._region).toBeNull();
       expect(r.manager._voiceID).toBeNull();
       expect(r.manager._selectedTier).toBeNull();
-      expect(r.manager._persistedVoices).toEqual({ voice: AVA.id, speed: 1.7, tierVoices: { local: AVA.id } });
+      expect(r.manager._persistedVoices).toEqual({ voice: AVA.id, speed: 1.7, tierVoices: { azure: AVA.id } });
       expect(t.cloneForReader).toHaveBeenCalledWith(r.reader, r.manager._persistedVoices);
       expect(z.deps.debug).toHaveBeenCalledWith(expect.stringContaining('staged'));
       // Zotero's loadVoices: the list lands and _resolveVoice runs
       r.manager.allVoices = [STANDARD, BRIAN, AVA];
       r.resolve();
       expect(r.manager.selectedVoiceID).toBe(AVA.id);
-      expect(r.manager.selectedTier).toBe('local');
+      expect(r.manager.selectedTier).toBe('azure');
       expect(t.announce).toHaveBeenCalledTimes(1);
       expect(sync.documentLanguage(r.reader)).toBe('en');
     });
@@ -1448,7 +1452,7 @@ describe('the remembered voice is not in the list', () => {
       expect(r.manager.lang).toBe(MULTILINGUAL);
       expect(r.manager.selectedVoiceID).toBe(AVA.id);
       // Named as the player names it, from the untrimmed list the hook carried
-      expect(t.announce).toHaveBeenCalledWith(r.reader, 'Zotero-TTS: Kokoro-am_puck is not offered here. Reading with Azure-Ava Multilingual instead.');
+      expect(t.announce).toHaveBeenCalledWith(r.reader, 'Zotero-TTS: am_puck is not offered here. Reading with Ava Multilingual instead.');
     });
 
     it('attaches a reader it has not seen, and ignores what is not a reader', () => {
@@ -1490,11 +1494,11 @@ describe('the remembered voice is not in the list', () => {
 // resolves across every tier.
 describe('a manager on a tier without the voice’s language', () => {
   const STANDARD: FakeVoice = { id: 'bdd0dcc3-en-US', language: 'en-US', tier: 'standard', label: 'Standard Voice 1' };
-  const AVA: FakeVoice = { id: 'azure::en-US-AvaMultilingualNeural', language: MULTILINGUAL, tier: 'local', label: 'Azure-Ava Multilingual' };
+  const AVA: FakeVoice = { id: 'azure::en-US-AvaMultilingualNeural', language: MULTILINGUAL, tier: 'azure', label: 'Ava Multilingual' };
   const ava: ReadAloudMemory = { speed: 1.7, voice: { id: AVA.id, lang: MULTILINGUAL } };
   const prefs: VoicesMap = {
     en: { region: 'US', voice: STANDARD.id, speed: 1.7, tierVoices: { standard: STANDARD.id } },
-    [MULTILINGUAL]: { region: null, voice: AVA.id, speed: 1.7, tierVoices: { local: AVA.id } },
+    [MULTILINGUAL]: { region: null, voice: AVA.id, speed: 1.7, tierVoices: { azure: AVA.id } },
   };
   const onStandard = { selectedTier: 'standard', selectedVoiceID: STANDARD.id, persisted: prefs.en, voices: [STANDARD, AVA] };
 
@@ -1507,7 +1511,7 @@ describe('a manager on a tier without the voice’s language', () => {
     expect(r.log).toEqual(['lang:mul', 'zotero-sync:mul:1.7']);
     expect(r.manager.lang).toBe(MULTILINGUAL);
     expect(r.manager.selectedVoiceID).toBe(AVA.id);
-    expect(r.manager.selectedTier).toBe('local');
+    expect(r.manager.selectedTier).toBe('azure');
     expect(r.setLanguageSpy).not.toHaveBeenCalled();
     expect(z.deps.debug).toHaveBeenCalledWith(expect.stringContaining('applied read-aloud memory: en -> mul'));
   });
@@ -1515,7 +1519,7 @@ describe('a manager on a tier without the voice’s language', () => {
   it('takes a voice spread from another tab while sitting on Standard', () => {
     const z = fakeZotero(prefs, { speed: 1.7, voice: { id: STANDARD.id, lang: 'en' } });
     const sync = createReadAloudMemorySync(z.deps);
-    const picker = fakeReader(MULTILINGUAL, z, { active: true, speed: 1.7, selectedVoiceID: AVA.id, selectedTier: 'local', voices: [STANDARD, AVA] });
+    const picker = fakeReader(MULTILINGUAL, z, { active: true, speed: 1.7, selectedVoiceID: AVA.id, selectedTier: 'azure', voices: [STANDARD, AVA] });
     const standing = fakeReader('en', z, { ...onStandard, active: true });
     z.readers.push(picker.reader, standing.reader);
     sync.attach(picker.reader);
@@ -1524,7 +1528,7 @@ describe('a manager on a tier without the voice’s language', () => {
     expect(sync.memory().voice).toEqual({ id: AVA.id, lang: MULTILINGUAL });
     expect(standing.manager.lang).toBe(MULTILINGUAL);
     expect(standing.manager.selectedVoiceID).toBe(AVA.id);
-    expect(standing.manager.selectedTier).toBe('local');
+    expect(standing.manager.selectedTier).toBe('azure');
   });
 });
 
@@ -1635,7 +1639,7 @@ describe('the restore Zotero lacks after _resolveVoice moves the language (issue
     z.deps.sameVoice.mockReturnValue(false);
     z.deps.globalSpeed.mockReturnValue(false);
     const sync = createReadAloudMemorySync(z.deps);
-    const r = fakeReader('en', z, { voices: [AOEDE], selectedVoiceID: AOEDE, selectedTier: 'local' });
+    const r = fakeReader('en', z, { voices: [AOEDE], selectedVoiceID: AOEDE, selectedTier: 'kokoro' });
     sync.attach(r.reader);
     r.manager.setLanguage('fr', { persist: true });
     expect(r.manager.lang).toBe('en');
@@ -1701,18 +1705,18 @@ describe('learnSpeed', () => {
 // Generic Fish voices and regional Fish voices keep the same en/<id>
 // encoding. The dropdown follows the selected voice's language, not _region.
 describe('explicit generic and regional language picks', () => {
-  const generic = { id: `fish::en/${'a'.repeat(32)}`, language: 'en', tier: 'local' };
-  const us = { id: `fish::en/${'b'.repeat(32)}`, language: 'en-US', tier: 'local' };
-  const gb = { id: `fish::en/${'c'.repeat(32)}`, language: 'en-GB', tier: 'local' };
-  const usSecond = { id: `fish::en/${'d'.repeat(32)}`, language: 'en-US', tier: 'local' };
+  const generic = { id: `fish::en/${'a'.repeat(32)}`, language: 'en', tier: 'fish' };
+  const us = { id: `fish::en/${'b'.repeat(32)}`, language: 'en-US', tier: 'fish' };
+  const gb = { id: `fish::en/${'c'.repeat(32)}`, language: 'en-GB', tier: 'fish' };
+  const usSecond = { id: `fish::en/${'d'.repeat(32)}`, language: 'en-US', tier: 'fish' };
   const pool = [generic, us, gb, usSecond];
 
   function setup(current = generic, region: string | null = null, sameVoice = true, list = pool) {
-    const entry = { region, voice: current.id, speed: 1.6, tierVoices: { local: current.id } };
+    const entry = { region, voice: current.id, speed: 1.6, tierVoices: { fish: current.id } };
     const z = fakeZotero({ en: entry }, { speed: 1.6, voice: { id: current.id, lang: 'en' } });
     z.deps.sameVoice.mockReturnValue(sameVoice);
     const sync = createReadAloudMemorySync(z.deps);
-    const tab = fakeReader('en', z, { active: true, speed: 1.6, selectedVoiceID: current.id, selectedTier: 'local', region, persisted: entry, voices: list });
+    const tab = fakeReader('en', z, { active: true, speed: 1.6, selectedVoiceID: current.id, selectedTier: 'fish', region, persisted: entry, voices: list });
     z.readers.push(tab.reader);
     sync.attach(tab.reader);
     return { z, sync, tab, entry };
@@ -1756,7 +1760,7 @@ describe('explicit generic and regional language picks', () => {
     const { tab } = setup(generic, null, true, [generic, paid]);
     tab.manager.setLanguage('en', { region: 'US', persist: true });
     expect(tab.manager.selectedVoiceID).toBe(generic.id);
-    expect(tab.manager.selectedTier).toBe('local');
+    expect(tab.manager.selectedTier).toBe('fish');
   });
 
   it('does not override the remembered voice for an automatic language restore', () => {

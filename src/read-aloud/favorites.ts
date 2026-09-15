@@ -60,7 +60,9 @@ export function filterCatalogToFavorites(entries: CatalogEntry[], favorites: rea
  *
  * Strict, like the catalog filter beside it: a tier none of whose voices is
  * marked comes back empty, which is what "offer only favorite voices" says —
- * Zotero's Voice Mode dropdown then shows that tier disabled. Filtered
+ * Zotero's Voice Mode dropdown then shows that tier disabled (a provider
+ * of the plugin's with no favorite leaves the dropdown altogether, issue
+ * #110). Filtered
  * locales are emitted as the plain array form, which Zotero's parser
  * tolerates explicitly (`Array.isArray(localeConfig)`); the
  * `{ default, other }` form it also accepts is read, never rebuilt.

@@ -371,10 +371,11 @@ ztts-preset-note-other = 填写服务器需要的项；测试连接会告诉你�
 
 ## The voice browser
 
-# Zotero 自己的词（reader.ftl）：本地 / 标准 / 高级
+# Zotero 自己的词（reader.ftl）：标准 / 高级
 ztts-tier-standard = 标准
 ztts-tier-premium = 高级
-ztts-tier-local = 本地
+# 系统语音在播放器第一个下拉框和语音浏览器第一列里的条目名（issue #110），与本页标题一致
+ztts-provider-system = 系统
 ztts-listing-voices = 正在列出语音…
 ztts-no-voices = 没有语音。请在上方启用一个服务商。
 ztts-listing-failed = 列出语音失败：{ $problems }
@@ -499,8 +500,8 @@ ztts-webdav-machine-file = 本机在服务器上的备份是 { $file }。
 ## The reader: the line shown when Read Aloud does not start with the remembered voice
 
 ztts-substitute = Zotero-TTS：这里没有提供 { $missing }，改用 { $instead } 朗读。
-ztts-substitute-none = Zotero-TTS：这里没有提供 { $missing }，也没有任何本地语音。由 Zotero 选择语音。
-ztts-substitute-paid = Zotero-TTS：这里没有提供 { $missing }，也没有任何本地语音。由 Zotero 选择语音，可能会消耗额度。
+ztts-substitute-none = Zotero-TTS：这里没有提供 { $missing }，也没有 Zotero-TTS 的其他语音。由 Zotero 选择语音。
+ztts-substitute-paid = Zotero-TTS：这里没有提供 { $missing }，也没有 Zotero-TTS 的其他语音。由 Zotero 选择语音，可能会消耗额度。
 
 ## Auto-scroll
 

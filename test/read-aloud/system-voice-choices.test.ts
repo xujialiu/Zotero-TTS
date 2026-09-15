@@ -31,17 +31,20 @@ describe('migrateChoices', () => {
     const result = migrateChoices(voices, memory, INSTALLED);
 
     expect(result.voices).toEqual({
-      en: { voice: 'system::onecore/MSTTS_V110_enUS_DavidM', speed: 1.4, tierVoices: { local: 'system::onecore/MSTTS_V110_enUS_DavidM' } },
+      en: { voice: 'system::onecore/MSTTS_V110_enUS_DavidM', speed: 1.4, tierVoices: { system: 'system::onecore/MSTTS_V110_enUS_DavidM' } },
       zh: { voice: 'system::onecore/MSTTS_V110_zhCN_YaoyaoM', speed: 1.4 },
     });
     expect(result.memory).toEqual({ speed: 1.4, voice: { id: 'system::onecore/MSTTS_V110_enUS_DavidM', lang: 'en' } });
     expect(result.changes).toHaveLength(4);
   });
 
-  it('rewrites tierVoices.local too, or Zotero’s fallback would put the ghost straight back', () => {
+  // The rewritten id moves to the plugin's `system` tier (issue #110),
+  // pushed last, where Zotero's fallback looks first; the `local` key goes
+  it('rewrites tierVoices.local too, under the system tier, or Zotero’s fallback would put the ghost straight back', () => {
     const voices = { en: { speed: 1, tierVoices: { local: DAVID, standard: 'zotero-voice' } } };
     const result = migrateChoices(voices, EMPTY_MEMORY, INSTALLED);
-    expect(result.voices!.en.tierVoices).toEqual({ local: 'system::onecore/MSTTS_V110_enUS_DavidM', standard: 'zotero-voice' });
+    expect(result.voices!.en.tierVoices).toEqual({ standard: 'zotero-voice', system: 'system::onecore/MSTTS_V110_enUS_DavidM' });
+    expect(Object.keys(result.voices!.en.tierVoices as object)).toEqual(['standard', 'system']);
     // A cloud voice in another tier is none of this module's business
     expect(result.changes.map((c) => c.from)).toEqual([DAVID]);
   });

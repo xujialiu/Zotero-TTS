@@ -34,7 +34,7 @@ export const SAME_VOICE_OBSERVER = 'zotero-tts.readAloud.sameForAllDocuments';
 export interface DefaultVoicePick extends VoiceChoice {
   /** The voice's own region subtag (`CN` for zh-CN; none for mul) — what `_persistCurrentVoice` stores as the entry's region. */
   region: string | null;
-  /** Zotero's tier of the voice: `local` for the plugin's, `standard` / `premium` for Zotero's own. */
+  /** Zotero's tier of the voice: the provider's key for the plugin's (voice-catalog.ts tierForProvider, issue #110), `standard` / `premium` for Zotero's own. */
   tier: string;
 }
 

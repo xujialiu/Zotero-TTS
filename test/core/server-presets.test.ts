@@ -168,13 +168,15 @@ describe('the Xiaomi MiMo preset', () => {
     for (const id of others) expect(PRESETS[id].synthesis, id).toBe('speech');
   });
 
-  it("carries the server's documented voices, since it publishes no list, and its own name for the player", () => {
+  // The entry of the player's first dropdown and the browser's first column
+  // (issue #110) carries the server's name where the preset has one of its
+  // own; the OpenAI server and an unnamed one read as the section, "OpenAI"
+  it("carries the server's documented voices, since it publishes no list, and its own name for the player's entry", () => {
     expect(PRESETS.mimo.voices).toEqual(MIMO_VOICES);
-    expect(PRESETS.mimo.voiceName).toBe('MiMo');
-    for (const id of others) {
-      expect(PRESETS[id].voices, id).toBeUndefined();
-      expect(PRESETS[id].voiceName, id).toBeUndefined();
-    }
+    expect(PRESETS.mimo.providerName).toBe('Xiaomi MiMo');
+    expect(PRESETS.chatterbox.providerName).toBe('Chatterbox-TTS-Server');
+    for (const id of others) expect(PRESETS[id].voices, id).toBeUndefined();
+    for (const id of ['openai', 'other'] as const) expect(PRESETS[id].providerName, id).toBeUndefined();
   });
 
   it('is remembered like the others', () => {

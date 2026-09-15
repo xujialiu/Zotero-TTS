@@ -9,33 +9,37 @@ import { regionOfLocale, setDefaultVoice } from '../read-aloud/default-voice';
 import { parseFavoriteVoices, serializeFavoriteVoices, toggleFavoriteVoice } from '../read-aloud/favorites';
 import { dropdownLabels, dropdownLanguage, languageDisplayName } from '../read-aloud/language-dropdown';
 import { isMultilingualVoiceId, memoryLangForLocale, readMemory, sameChoice, type VoiceChoice } from '../read-aloud/read-aloud-memory';
-import { compareVoiceLabels, encodeVoiceId, pluginVoiceLabel } from '../read-aloud/voice-catalog';
-import type { ZoteroVoice } from '../read-aloud/zotero-voices';
+import { compareVoiceLabels, encodeVoiceId, providerTierLabel, tierForProvider, zoteroTierLabel, type TierEntry } from '../read-aloud/voice-catalog';
+import { ZOTERO_TIERS, type ZoteroVoice } from '../read-aloud/zotero-voices';
 import { refuseWhileReading } from './reading-guard';
 
 /**
  * The voice browser of the settings pane: every voice Read Aloud can use, in
- * three columns — tier, then that tier's languages, then that language's
- * voices. The same three steps the reader's own popup takes (Voice Mode →
- * language → voice), so what is picked here is found there. The language
- * column is the popup's dropdown for the tier — the same entries, named
- * the same way (read-aloud/language-dropdown.ts).
+ * three columns — the provider (or Zotero's Standard / Premium), then its
+ * languages, then that language's voices. The same three steps the reader's
+ * own popup takes (Voice Mode → language → voice), so what is picked here
+ * is found there. The first column is the popup's first dropdown (issue
+ * #110, read-aloud/provider-tiers.ts): every enabled provider, `(0)` when
+ * it lists nothing right now, and Zotero's two, sorted by displayed name;
+ * the language column is the popup's dropdown for the entry — the same
+ * entries, named the same way (read-aloud/language-dropdown.ts).
  *
- * The tiers are Zotero's: the enabled providers' voices are the Local tier's
- * remote entries, Standard and Premium are Zotero's own cloud voices
- * (read-aloud/zotero-voices.ts). Each voice has a play button for a short
- * sample and a heart that marks it as a favorite (read-aloud/favorites.ts).
- * The plugin's voices are sampled by their provider like any sentence, in
- * the locale's own language (core/sample-text.ts); Zotero's through
- * Zotero's own sample endpoint, which speaks a text of its own and costs no
- * credits. Samples are kept for the pane's lifetime, so replaying is free.
- * One row is active at a time: a click on another voice stops the sample
- * playing at the click, not when its own has arrived, and a sample still
- * loading is dropped on arrival — into the cache, never the player — while
- * a click on the loading row cancels it (issue #61).
- * The plugin's voices are labeled here exactly as the player labels them
- * (read-aloud/voice-catalog.ts); Zotero's own Local voices are the reader
- * iframe's and never reach this pane, so the Local tier here is ours alone.
+ * The plugin's voices are the enabled providers' (read-aloud/catalog.ts),
+ * each under its provider's tier; Standard and Premium are Zotero's own
+ * cloud voices (read-aloud/zotero-voices.ts). Each voice has a play button
+ * for a short sample and a heart that marks it as a favorite
+ * (read-aloud/favorites.ts). The plugin's voices are sampled by their
+ * provider like any sentence, in the locale's own language
+ * (core/sample-text.ts); Zotero's through Zotero's own sample endpoint,
+ * which speaks a text of its own and costs no credits. Samples are kept
+ * for the pane's lifetime, so replaying is free. One row is active at a
+ * time: a click on another voice stops the sample playing at the click,
+ * not when its own has arrived, and a sample still loading is dropped on
+ * arrival — into the cache, never the player — while a click on the
+ * loading row cancels it (issue #61). The plugin's voices are labeled here
+ * exactly as the player labels them — their own names, the provider being
+ * the entry they sit under; Zotero's own Local voices are the reader
+ * iframe's and never reach this pane.
  *
  * A speed slider — the popup's own, 0.5×–3.0× by 0.1 — plays the samples at
  * the speed Read Aloud will read at, and releasing it makes its value that
@@ -51,11 +55,11 @@ import { refuseWhileReading } from './reading-guard';
  *
  * The voice Read Aloud starts with — the one remembered across documents
  * (read-aloud/read-aloud-memory.ts), which is the popup's last pick — is
- * shown: the browser opens on its tier and language, its row is painted
+ * shown: the browser opens on its provider and language, its row is painted
  * like a selected column entry, both columns scrolled to the selection
- * (issue #33), and the status line names it by tier,
- * language and label with the speed (`Default voice: Local | English
- * (United States) | Azure-Brandon | 1.7×`); a pick in any tab's popup while
+ * (issue #33), and the status line names it by provider,
+ * language and label with the speed (`Default voice: Azure | English
+ * (United States) | Brandon | 1.7×`); a pick in any tab's popup while
  * the pane is open moves the highlight there (the pane observes the memory
  * pref). The memory is the source of truth; the browser is its view. The
  * line follows the Reading group's two "everywhere" switches: with the
@@ -89,29 +93,14 @@ export const formatSpeed = (speed: number) => `${speed.toFixed(1)}×`;
 export const GLYPHS = { play: '▶', stop: '■', loading: '…', favorite: '♥', notFavorite: '♡' } as const;
 
 /**
- * Zotero's three tiers, in the order its Voice Mode dropdown lists them
- * (TierSelect, reader bundle 38826). The plugin's voices are published
- * under `local`, beside the operating system's; the other two are Zotero's
- * cloud voices. A tier of the plugin's own is impossible — see
- * read-aloud/voice-catalog.ts.
+ * A tier key as Zotero's manager files a voice under it (issue #110): a
+ * provider's own — its id, the local engine's name (read-aloud/voice-catalog.ts
+ * tierForProvider) — or Zotero's `standard` / `premium`.
  */
-export type VoiceTier = 'standard' | 'premium' | 'local';
-export const TIERS: readonly VoiceTier[] = ['standard', 'premium', 'local'];
+export type VoiceTier = string;
 
-/** Zotero's own words for them, in the app's language (reader.ftl `reader-read-aloud-voice-tier-*`; the zh-CN file copies Zotero's). */
-export function tierLabel(tier: VoiceTier): string {
-  switch (tier) {
-    case 'standard':
-      return t('ztts-tier-standard');
-    case 'premium':
-      return t('ztts-tier-premium');
-    default:
-      return t('ztts-tier-local');
-  }
-}
-
-/** Which tier to open on: the plugin's own first — this is the plugin's pane — then whichever has voices at all. */
-const TIER_PREFERENCE: readonly VoiceTier[] = ['local', 'standard', 'premium'];
+/** One entry of the first column: a tier key and the name it shows. */
+export type TierColumn = TierEntry;
 
 const FAVORITES_PREF = PREF_PREFIX + 'readAloud.favoriteVoices';
 const XHTML = 'http://www.w3.org/1999/xhtml';
@@ -152,6 +141,13 @@ export interface VoiceBrowserDeps {
   localeName?(code: string): string;
   /** The ReadAloudManager of every open reader, looked up when the slider is released; omitted where there is no Zotero to ask. */
   readAloudManagers?(): SpeedManagerLike[];
+  /**
+   * The first column's entries, read at every listing: every enabled
+   * provider — a column with `(0)` when it lists nothing right now — and
+   * Zotero's two (read-aloud/catalog.ts providerTierColumns). Omitted, the
+   * providers that listed and Zotero's two.
+   */
+  tierColumns?(): TierColumn[];
   /** The "one speed everywhere" switch, read when the slider is released and at every repaint of the status line; off, the slider drives the samples only. Omitted means on. */
   globalSpeed?(): boolean;
   /**
@@ -212,26 +208,23 @@ export type BrowserVoice = {
 };
 /** One entry of the language column: a dropdown entry (read-aloud/language-dropdown.ts) and the voices that file under it. */
 type LanguageGroup = { language: string; name: string; voices: BrowserVoice[] };
-export type TierGroup = { tier: VoiceTier; count: number; languages: LanguageGroup[] };
+export type TierGroup = { tier: VoiceTier; label: string; count: number; languages: LanguageGroup[] };
+
+/** The local engine's name as a catalog entry carries it, for the local provider's tier key and label; nothing for the rest. */
+const engineOf = (entry: Pick<CatalogEntry, 'provider' | 'name'>): string | undefined => (entry.provider === 'local' ? entry.name : undefined);
 
 /**
  * Every voice the browser lists: the plugin's from the catalog it publishes,
- * Zotero's from its own. A favorite is keyed by the id Read Aloud itself
- * uses — encoded `provider::voice` for ours, Zotero's own id for Zotero's,
- * which never decodes as one of ours.
+ * each under its provider's tier, Zotero's from its own. A favorite is
+ * keyed by the id Read Aloud itself uses — encoded `provider::voice` for
+ * ours, Zotero's own id for Zotero's, which never decodes as one of ours.
  */
 export function browserVoices(catalog: CatalogEntry[], zoteroVoices: readonly ZoteroVoice[] = []): BrowserVoice[] {
   const out: BrowserVoice[] = [];
   for (const entry of catalog) {
+    const tier = tierForProvider(entry.provider, engineOf(entry));
     for (const voice of entry.voices) {
-      out.push({
-        provider: entry.provider,
-        id: voice.id,
-        encoded: encodeVoiceId(entry.provider, voice.id),
-        label: pluginVoiceLabel(entry.provider, voice.label, entry.name),
-        tier: 'local',
-        locale: voice.locale,
-      });
+      out.push({ provider: entry.provider, id: voice.id, encoded: encodeVoiceId(entry.provider, voice.id), label: voice.label, tier, locale: voice.locale });
     }
   }
   for (const voice of zoteroVoices) {
@@ -241,17 +234,38 @@ export function browserVoices(catalog: CatalogEntry[], zoteroVoices: readonly Zo
 }
 
 /**
- * The columns as the browser shows them: always all three tiers, in Zotero's
- * order — an empty one reads "(0)" rather than disappearing and shifting the
- * others under the pointer — each holding the popup's language dropdown for
- * that tier (read-aloud/language-dropdown.ts: a voice files under Zotero's
+ * The first column when the pane hands over none (tierColumns): the
+ * providers that listed, named as their entries are, and Zotero's two.
+ */
+export function listedColumns(catalog: readonly Pick<CatalogEntry, 'provider' | 'name'>[]): TierColumn[] {
+  return [
+    ...catalog.map((entry) => ({
+      tier: tierForProvider(entry.provider, engineOf(entry)),
+      label: providerTierLabel(entry.provider, { localEngine: engineOf(entry), openaiServer: entry.provider === 'openai' ? entry.name : undefined }),
+    })),
+    ...ZOTERO_TIERS.map((tier) => ({ tier, label: zoteroTierLabel(tier) })),
+  ];
+}
+
+/**
+ * The columns as the browser shows them (issue #110): the entries given —
+ * every enabled provider and Zotero's two, an empty one reading "(0)"
+ * rather than disappearing — plus any tier a listed voice carries that
+ * none of them names, so nothing listed is lost; sorted by displayed name
+ * with the voice list's collation, Han by pinyin before Latin, like the
+ * player's first dropdown. Each holds the popup's language dropdown for
+ * that entry (read-aloud/language-dropdown.ts: a voice files under Zotero's
  * normalized language, so every Chinese region is the one "Chinese"; an
- * entry carries its region only where the tier holds the language in
+ * entry carries its region only where the entry holds the language in
  * several), Multilingual first and the rest by display name, each holding
  * its voices by label.
  */
-export function groupVoicesByTier(voices: BrowserVoice[], localeName: (code: string) => string): TierGroup[] {
-  return TIERS.map((tier) => {
+export function groupVoicesByTier(voices: BrowserVoice[], localeName: (code: string) => string, columns: readonly TierColumn[]): TierGroup[] {
+  const entries = new Map<string, string>();
+  for (const column of columns) if (!entries.has(column.tier)) entries.set(column.tier, column.label);
+  for (const voice of voices) if (!entries.has(voice.tier)) entries.set(voice.tier, zoteroTierLabel(voice.tier));
+  const sorted = [...entries].sort(([tierA, a], [tierB, b]) => compareVoiceLabels(a, b) || (tierA < tierB ? -1 : tierA > tierB ? 1 : 0));
+  return sorted.map(([tier, label]) => {
     const mine = voices.filter((voice) => voice.tier === tier);
     const byLanguage = new Map<string, BrowserVoice[]>();
     for (const voice of mine) {
@@ -271,8 +285,13 @@ export function groupVoicesByTier(voices: BrowserVoice[], localeName: (code: str
         const mul = Number(b.language === MULTILINGUAL) - Number(a.language === MULTILINGUAL);
         return mul || compareVoiceLabels(a.name, b.name);
       });
-    return { tier, count: mine.length, languages };
+    return { tier, label, count: mine.length, languages };
   });
+}
+
+/** The name of a listed voice's entry in the first column: the column's, or Zotero's word for the tier, or the key itself. */
+export function tierLabelOf(tiers: readonly TierGroup[], tier: string): string {
+  return tiers.find((g) => g.tier === tier)?.label ?? zoteroTierLabel(tier);
 }
 
 /** The name of the language entry a listed voice sits under: its tier's dropdown entry, the tag itself for a voice not listed. */
@@ -300,7 +319,7 @@ export function defaultVoiceRows(voices: readonly BrowserVoice[], choice: VoiceC
 
 /**
  * The status line's account of what Read Aloud starts with, in the order
- * the columns stand: `Default voice: <tier> | <language> | <label> |
+ * the columns stand: `Default voice: <provider> | <language> | <label> |
  * <speed>` — the voice by its row when one is listed, by its id when none
  * is (`<id> (not listed now)`: a provider switched off does not read as
  * "no default"), or `Zotero’s own choice per language` when none is
@@ -317,7 +336,7 @@ export function defaultVoiceLine(choice: VoiceChoice | null, home: BrowserVoice 
     : !choice
       ? t('ztts-zotero-own-choice')
       : home
-        ? [tierLabel(home.tier), languageNameOf(tiers, home), home.label].join(' | ')
+        ? [tierLabelOf(tiers, home.tier), languageNameOf(tiers, home), home.label].join(' | ')
         : t('ztts-not-listed-now', { id: choice.id });
   const pace = speed === null ? null : formatSpeed(speed);
   if (voice) return pace ? t('ztts-default-voice-speed', { voice, speed: pace }) : t('ztts-default-voice', { voice });
@@ -384,7 +403,9 @@ const ROW_LABEL_BLOCKED_STYLE = ROW_LABEL_STYLE + ' opacity: 0.5; cursor: defaul
  * shows it. The pane lists through this, and so does
  * `diagnostics.defaultVoice()`, so the two see one listing (issue #32).
  */
-export async function listBrowserVoices(deps: Pick<VoiceBrowserDeps, 'listCatalog' | 'listZoteroVoices'>): Promise<{ voices: BrowserVoice[]; problems: string[] }> {
+export async function listBrowserVoices(
+  deps: Pick<VoiceBrowserDeps, 'listCatalog' | 'listZoteroVoices' | 'tierColumns'>,
+): Promise<{ voices: BrowserVoice[]; problems: string[]; columns: TierColumn[] }> {
   const problems: string[] = [];
   const failed = (ours: boolean) => (e: unknown) => {
     problems.push(ours ? t('ztts-plugin-voices-problem', { detail: describeError(e) }) : describeError(e));
@@ -399,7 +420,13 @@ export async function listBrowserVoices(deps: Pick<VoiceBrowserDeps, 'listCatalo
     const notices = (entry as CatalogEntry & { notices?: VoiceListNotice[] }).notices ?? [];
     for (const notice of notices) problems.push(describeListNotice(notice));
   }
-  return { voices: browserVoices(catalog, zoteroVoices), problems };
+  // The pane's columns are the enabled providers; a provider that listed
+  // while the settings do not name it (a switch flipped mid-listing) keeps
+  // its column all the same, so nothing listed is lost
+  const columns = deps.tierColumns?.() ?? [];
+  const known = new Set(columns.map((column) => column.tier));
+  for (const column of listedColumns(catalog)) if (!known.has(column.tier)) columns.push(column);
+  return { voices: browserVoices(catalog, zoteroVoices), problems, columns };
 }
 
 /** What the status line is made of, as the pane holds it at a repaint. */
@@ -659,7 +686,7 @@ export function initVoiceBrowserRows(
     column.replaceChildren(
       ...tiers.map((group) =>
         columnEntry(
-          `${tierLabel(group.tier)} (${group.count})`,
+          `${group.label} (${group.count})`,
           group.tier === selectedTier ? 'selected' : group.count ? 'normal' : 'empty',
           () => {
             selectedTier = group.tier;
@@ -892,14 +919,15 @@ export function initVoiceBrowserRows(
 
   /**
    * Keep the selection where it was when the new listing still has it. The
-   * first listing — and one that lost the tier being browsed — opens on the
-   * default voice's tier and language, where its row is; without a listed
-   * default, on the plugin's own tier, else the first that holds voices.
+   * first listing — and one that lost the entry being browsed, a provider
+   * switched off — opens on the default voice's provider and language,
+   * where its row is; without a listed default, on the first entry that
+   * holds voices, else the first entry.
    */
   function reselect(): void {
     if (!selectedTier || !tiers.some((g) => g.tier === selectedTier && g.count)) {
       const home = defaults[0];
-      selectedTier = home?.tier ?? TIER_PREFERENCE.find((tier) => tiers.some((g) => g.tier === tier && g.count)) ?? 'local';
+      selectedTier = home?.tier ?? tiers.find((g) => g.count)?.tier ?? tiers[0]?.tier ?? null;
       selectedLanguage = home ? dropdownLanguage(home.locale) : selectedLanguage;
     }
     const group = tierGroup();
@@ -926,7 +954,7 @@ export function initVoiceBrowserRows(
       const listing = await listBrowserVoices(deps);
       listed = listing.voices;
       problems = listing.problems;
-      tiers = groupVoicesByTier(listed, localeName);
+      tiers = groupVoicesByTier(listed, localeName, listing.columns);
       defaults = defaultVoiceRows(listed, choice);
       reselect();
       render();

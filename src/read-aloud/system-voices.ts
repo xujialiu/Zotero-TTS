@@ -2,10 +2,13 @@
  * Zotero's own Local-tier voices — the operating system's — are taken out
  * of the Read Aloud player, always (issue #17).
  *
- * They share the Local tier with the plugin's, and the player draws no
- * divider between the two groups (buildVoiceOptions sorts by
- * creditsPerMinute alone, reader.js:38449-38452) and shows no tier beside a
- * voice (issue #9). That used to be a setting, with an off-state that
+ * They shared the Local tier with the plugin's until issue #110 gave every
+ * provider a tier of its own (read-aloud/provider-tiers.ts, whose shadow
+ * of the same method runs outside this one and counts no OS voice as a
+ * tier with voices), and the player draws no divider between two groups
+ * of one tier (buildVoiceOptions sorts by creditsPerMinute alone,
+ * reader.js:38449-38452) and shows no tier beside a voice (issue #9).
+ * The hiding used to be a setting, with an off-state that
  * marked Zotero's own `Local-Microsoft David Desktop` so the two could be
  * told apart. Both are gone: the system provider
  * (core/providers/system/index.ts, issue #12) republishes the same SAPI /

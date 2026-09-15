@@ -236,7 +236,7 @@ ztts-help-key-return =
     .help = Acts only while Read Aloud is open; otherwise the key keeps its usual meaning in the reader.
 ztts-help-key-options =
     .value = ?
-    .help = Opens and closes the player's options panel — the speed slider, the tier, the language and the voice. Acts only while Read Aloud is open; otherwise the key keeps its usual meaning in the reader.
+    .help = Opens and closes the player's options panel — the speed slider, the voice mode, the language and the voice. Acts only while Read Aloud is open; otherwise the key keeps its usual meaning in the reader.
 ztts-help-key-stop =
     .value = ?
     .help = Closes the Read Aloud player in every tab at once. Each tab keeps its place, and Read Aloud picks up there when you start it again. While no player is open the key keeps its usual meaning.
@@ -401,10 +401,11 @@ ztts-preset-note-other = Fill in what the server wants; Test connection says whi
 
 ## The voice browser (ui/voice-browser-rows.ts)
 
-# Zotero's own words for its three tiers (reader.ftl reader-read-aloud-voice-tier-*)
+# Zotero's own words for its two cloud tiers (reader.ftl reader-read-aloud-voice-tier-*)
 ztts-tier-standard = Standard
 ztts-tier-premium = Premium
-ztts-tier-local = Local
+# The System voices' entry in the player's first dropdown and the browser's first column (issue #110), like the pane's heading
+ztts-provider-system = System
 ztts-listing-voices = Listing voices…
 ztts-no-voices = No voices. Enable a provider above.
 ztts-listing-failed = Listing voices failed: { $problems }
@@ -551,8 +552,8 @@ ztts-webdav-machine-file = This computer's backup on the server is { $file }.
 ## The reader: the line shown when Read Aloud does not start with the remembered voice (read-aloud/read-aloud-memory.ts, issue #35)
 
 ztts-substitute = Zotero-TTS: { $missing } is not offered here. Reading with { $instead } instead.
-ztts-substitute-none = Zotero-TTS: { $missing } is not offered here, and no Local voice is. Zotero picks the voice.
-ztts-substitute-paid = Zotero-TTS: { $missing } is not offered here, and no Local voice is. Zotero picks the voice; it may use credits.
+ztts-substitute-none = Zotero-TTS: { $missing } is not offered here, and no other voice of Zotero-TTS is. Zotero picks the voice.
+ztts-substitute-paid = Zotero-TTS: { $missing } is not offered here, and no other voice of Zotero-TTS is. Zotero picks the voice; it may use credits.
 
 ## Auto-scroll
 

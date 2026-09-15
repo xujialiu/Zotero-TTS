@@ -6,9 +6,9 @@
 of Fish Audio: its S2 Pro model, running on your own machine, speaking in
 any voice you give it a short recording of. The plugin's **Fish Audio**
 section has a block for it, headed **Local**, and lists every voice on it
-in the player as `Fish-local-<name>`, under Zotero's Local tier like every
-plugin voice. Sentences are highlighted, not words: the server reports no
-word timings.
+in the player under a **Fish-local** entry of the first dropdown, by its
+name. Sentences are highlighted, not words: the server reports no word
+timings.
 
 ## What it needs
 

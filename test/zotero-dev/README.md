@@ -68,6 +68,7 @@ opens a fixture ends with item 3.26's teardown ([playback](cases/playback.md)).
 - [Voice samples in the browser](cases/voice-samples.md) — 2.6
 - [The player's voice list](cases/reader-voice-list.md) — 3.1, 3.3
 - [One regional list for the player and shortcuts (issue #106)](cases/player-voice-list.md)
+- [One entry per provider in the player's first dropdown (issue #110)](cases/provider-tiers.md)
 - [A voice list landing on the playing voice keeps the controller](cases/unchanged-voice.md) — 3.27
 - [The remembered voice](cases/remembered-voice.md) — 3.2, 3.11, 4.7
 - [A PDF's raw /Lang tag](cases/raw-lang-tag.md) — 3.12–3.14

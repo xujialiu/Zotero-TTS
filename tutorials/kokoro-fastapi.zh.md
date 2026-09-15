@@ -1,4 +1,4 @@
-<!-- translated-from: kokoro-fastapi.md sha256:1b6a5993a339 -->
+<!-- translated-from: kokoro-fastapi.md sha256:51294e954d75 -->
 # 用 Docker 跑 Kokoro-FastAPI
 
 [English](kokoro-fastapi.md) · **简体中文**
@@ -58,7 +58,7 @@ Mac 上的 Docker 用不了 GPU：GPU 镜像只支持 CUDA，而苹果的 Metal 
 
 ## 检查一下
 
-在 Zotero 里，*设置 → Zotero-TTS → Kokoro-FastAPI*，按**测试连接**；它应该回答 `已连接。68 个语音可用。`，再按**启用**把这个服务商打开。然后打开朗读，语音模式选本地，挑一个 `Kokoro-…` 的语音（`af_bella` 和 `af_heart` 是不错的英语语音；`zf_xiaobei` / `zm_yunxi` 说中文）。要逐词高亮，把*设置 → 常规 → 朗读 → 高亮当前*设成**单词**。
+在 Zotero 里，*设置 → Zotero-TTS → Kokoro-FastAPI*，按**测试连接**；它应该回答 `已连接。68 个语音可用。`，再按**启用**把这个服务商打开。然后打开朗读，在第一个下拉框里选**Kokoro**，挑一个语音（`af_bella` 和 `af_heart` 是不错的英语语音；`zf_xiaobei` / `zm_yunxi` 说中文）。要逐词高亮，把*设置 → 常规 → 朗读 → 高亮当前*设成**单词**。
 
 ## 日常使用
 

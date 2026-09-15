@@ -19,16 +19,17 @@
 
 ## What it adds
 
-Zotero-TTS works inside Zotero 10's Read Aloud: its voices are under
-**Local** in the player. It is built for the way its author reads —
+Zotero-TTS works inside Zotero 10's Read Aloud: each provider is an entry
+of the player's first dropdown, beside Zotero's Standard and Premium. It
+is built for the way its author reads —
 [why, and where it is going](docs/PHILOSOPHY.md).
 
-- 🗣️ **More voices in the Local tier** of the Read Aloud player — Azure Speech, Cloudflare Workers AI, Speechify, Fish Audio, a [Kokoro-FastAPI](https://github.com/remsky/Kokoro-FastAPI) or a [Fish Speech](https://github.com/fishaudio/fish-speech) server on your machine, OpenAI or any OpenAI-compatible server. [→ Providers](#providers)
+- 🗣️ **More voices in the Read Aloud player**, one entry per provider beside Zotero's Standard and Premium — Azure Speech, Cloudflare Workers AI, Speechify, Fish Audio, a [Kokoro-FastAPI](https://github.com/remsky/Kokoro-FastAPI) or a [Fish Speech](https://github.com/fishaudio/fish-speech) server on your machine, OpenAI or any OpenAI-compatible server. [→ Providers](#providers)
 - 🔖 **Resume where you stopped** — close a document, open it again later, press `Shift+Space`, and Read Aloud starts at the sentence you left off on. [→ Resume where you stopped](#resume-where-you-stopped)
 - 📄 **The whole sentence on screen** — while a PDF is read, a sentence that runs past the bottom of the window, onto the next page or into the next column is scrolled into view instead of left cut, and `Shift+Enter` brings it back the same way. [→ Reading](#reading)
 - 📃 **No line lost at a page turn** — when a sentence runs onto the next page and Zotero would skip that page's first line, the line is read and highlighted like any other. [→ Reading](#reading)
 - 🧵 **No sentence cut in two** — when Zotero breaks a paragraph in the middle of a sentence, the halves are read and highlighted as one sentence. [→ Reading](#reading)
-- 🎧 **A voice browser** in the settings: every voice by tier and language, a play button for a short sample, hearts for favorites, and a switch to offer only the favorites. [→ Voice browser](#voice-browser)
+- 🎧 **A voice browser** in the settings: every voice by provider and language, a play button for a short sample, hearts for favorites, and a switch to offer only the favorites. [→ Voice browser](#voice-browser)
 - ✨ **Word *and* sentence highlighting at once**, in your own colors and opacities — for Zotero's voices too. [→ Highlight](#highlight)
 - ⌨️ **Keyboard shortcuts** for speed, volume, jumping by sentence or paragraph, reading from the selection, the player's options panel, auto-scroll mode, the word highlight on or off, and stopping Read Aloud in every tab at once. All rebindable. [→ Shortcuts](#keyboard-shortcuts)
 - 📌 **One voice and speed everywhere** — every document and every open tab, instead of Zotero's choice per language. [→ Reading](#reading)
@@ -40,9 +41,9 @@ Zotero-TTS works inside Zotero 10's Read Aloud: its voices are under
 
 1. Download `zotero-tts.xpi` from the [latest release](https://github.com/xujialiu/Zotero-TTS/releases/latest) — in Firefox, right-click → *Save Link As…*
 2. **Tools → Plugins → ⚙ → Install Plugin From File…**, then restart Zotero.
-3. Enable a provider in **Edit → Settings → Zotero-TTS**, and pick its voice — `Kokoro-af_bella`, `Azure-Ava Multilingual` — under **Local** in the player.
+3. Enable a provider in **Edit → Settings → Zotero-TTS**, then pick it in the player's first dropdown — **Kokoro**, **Azure** — and one of its voices, `af_bella`, `Ava Multilingual`.
 
-<p align="center"><img src="assets/popup.png" width="640" alt="The Read Aloud player with a plugin voice chosen under the Local tier"></p>
+<p align="center"><img src="assets/popup.png" width="640" alt="The Read Aloud player with a provider chosen in its first dropdown"></p>
 
 ## Providers
 
@@ -58,6 +59,22 @@ Zotero-TTS works inside Zotero 10's Read Aloud: its voices are under
 | **Xiaomi MiMo** | An API key from platform.xiaomimimo.com, picked in the OpenAI section's **Server** dropdown | Free for a limited time | sentence |
 | **System voices** | Nothing — Windows and macOS | Free, offline | word on Windows, sentence on macOS |
 
+The player's first dropdown lists every enabled provider that has voices
+right now, beside Zotero's **Standard** and **Premium**, sorted by name.
+
+- **The entries** are Azure, Cloudflare, Fish-cloud, Fish-local, Kokoro,
+  OpenAI (or the server's own name: Xiaomi MiMo, Chatterbox-TTS-Server),
+  Speechify and System; the voices under them carry their own names.
+- **Each entry remembers its own last voice** per language: Kokoro → Fish
+  → Kokoro brings the Kokoro voice back.
+- **A provider with nothing to offer** — switched off, its server down,
+  no favorite of its own while only favorites are offered — is not
+  listed until it has voices again.
+- **When the entry you are on stops offering voices**, the player moves
+  to the provider of the remembered voice, else of the default voice,
+  else to the first entry.
+- **Zotero's own first-run window and its *Manage voices* window** keep
+  filing every plugin voice under Local.
 - **Enable**, at the end of every provider section, runs the connection
   check first: a provider that does not answer never switches on.
 - **Test connection** probes without switching anything on.
@@ -111,9 +128,9 @@ Read Aloud already lists the voices Windows and macOS install, under
 
 **Enable** in the *System voices* section gives them all of that:
 
-- They come back as `System-Microsoft David`, `System-Samantha` and so on —
-  the same voices, now with the voice browser, samples, favorites and the
-  cache behind them.
+- They come back under a **System** entry of the player's first dropdown —
+  `Microsoft David`, `Samantha` and so on — the same voices, now with the
+  voice browser, samples, favorites and the cache behind them.
 - Word-by-word highlighting on Windows. On macOS the highlight stays on the
   sentence, and every sentence takes about half a second to start.
 - Zotero's own copies leave the player, so nothing is listed twice, and a
@@ -201,10 +218,10 @@ says so.
 
 ### Voice browser
 
-<p align="center"><img src="assets/settings-voices.png" width="700" alt="The voice browser: tier, language and voice columns"></p>
+<p align="center"><img src="assets/settings-voices.png" width="700" alt="The voice browser: provider, language and voice columns"></p>
 
-Every voice Read Aloud can use, in the player's own three steps — tier,
-language, voice.
+Every voice Read Aloud can use, in the player's own three steps —
+provider (or Zotero's Standard / Premium), language, voice.
 
 - **▶** plays a short sample, **♥** marks a favorite.
 - A click on a row makes that voice the **default**: what Read Aloud starts
@@ -215,14 +232,15 @@ language, voice.
 <details>
 <summary><b>Favorites, samples, the default voice</b></summary>
 
-- **Local** holds the voices your enabled providers publish, **Standard**
-  and **Premium** are Zotero's own; multilingual voices sit under "Multiple
-  languages", first in the language column.
+- **Every enabled provider has a column** — `(0)` while it lists nothing —
+  and **Standard** and **Premium** are Zotero's own; multilingual voices
+  sit under "Multiple languages", first in the language column.
 - **▶** — a sample in the voice's own language: your voices cost one short
   request, Zotero's own cost nothing.
 - *Offer only favorite voices* trims the Read Aloud player to the marked
-  ones **in every tier** — a tier you marked nothing in comes up empty, and
-  Zotero grays it out. With nothing marked at all, or when none of the
+  ones **for every provider** — a provider you marked nothing in leaves
+  the player's first dropdown, and Zotero grays out its own Standard or
+  Premium when nothing there is marked. With nothing marked at all, or when none of the
   marked voices is listed any more, everything is offered again. While the
   switch is on, only a favorite can be the default, and the switch stays
   off while the default is not one. Favorites travel with the settings
@@ -272,7 +290,7 @@ language, voice.
   tab, set from the player's slider, the shortcuts or the settings slider.
   Off, Zotero keeps a speed per document language.
 - *Pause between sentences* — how long every voice waits before the next
-  sentence, whatever its tier, at 1× speed; reading faster shortens it in
+  sentence, whatever its provider, at 1× speed; reading faster shortens it in
   step. On at 0 by default, so every voice runs sentence to sentence. Off,
   each voice pauses as Zotero sets it.
 - *Extra pause between paragraphs* — added on top where a paragraph

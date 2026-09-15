@@ -22,8 +22,9 @@ Items 1.10–1.12 of the checklist, under their original numbers.
     tab, then try again.` / `以下 1 个标签页打开了朗读：\n  • A\n\n关闭该标签页后再试。`,
     and `2 tabs` … `those tabs` / `2 个标签页` … `这些标签页`; `joined`
     two sentences through `ztts-join` — `Connected. Synthesis works.` with
-    the space, `已连接。合成正常。` without; `tier` `Local` / `本地`
-    (Zotero's own word, reader.ftl); `isolationMarks: false` — no bidi
+    the space, `已连接。合成正常。` without; `tier` `Standard` / `标准`
+    (Zotero's own word, reader.ftl; `Local` / `本地` until #110 retired
+    the plugin's use of that tier); `isolationMarks: false` — no bidi
     isolation mark (U+2066–U+2069) around a placeable (all measured
     2026-09-06 on 1.11.0-beta5; a build without `formatted` is older than
     #43). **The plugin's own copy of the file** (issue #64, 1.11.2):
@@ -58,8 +59,11 @@ Items 1.10–1.12 of the checklist, under their original numbers.
     `-word-after`) with the message's text in them; the four provider
     switches read `Enable` or `Disable` (the `ztts-switch-*` messages
     through `t()`), none blank; and the lines TypeScript writes read as
-    they did before #43: the tier column `Standard (N)` / `Premium (N)` /
-    `Local (N)` in that order (28 / 1452 / 787 = the 2267 of a
+    they did before #43: the first column one entry per enabled provider
+    beside `Premium (N)` and `Standard (N)`, sorted by name — `Azure (N)`,
+    `Fish-cloud (N)`, `Kokoro (N)`, `Premium (N)`, `Standard (N)`,
+    `System (N)` on a profile with those four on (issue #110; until then
+    `Standard` / `Premium` / `Local`, 28 / 1452 / 787 = the 2267 of a
     2026-09-06 listing), `#ztts-voices-status` beginning `Default voice: ` (or
     `Default speed: ` / `No default voice or speed:` per the two
     "everywhere" switches), `#ztts-about-build` `Version <build> · Date
@@ -94,7 +98,8 @@ Items 1.10–1.12 of the checklist, under their original numbers.
     retranslated in 172 ms; 117 ms on 2026-09-05; 56 ms on 2026-09-06). Each switch logs one Zotero-own `uncaught
     exception: undefined`, reproduced with no settings window open. After
     the reopen the lines TypeScript writes are Chinese too (issue #43,
-    1.11.0): the tier column `标准 (N)` / `高级 (N)` / `本地 (N)`, the
+    1.11.0): the first column `标准 (N)` / `高级 (N)` / `系统 (N)` before the
+    Latin-named providers (Han by pinyin, issue #110), the
     status line `默认语音：…` / `默认速度：…`, the Build line `版本
     <build> · 日期 <date> · 作者 Xujia Liu`, Test connection on the local
     engine `已连接。N 个语音可用。有单词时间戳。` — no space between the
