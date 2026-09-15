@@ -228,18 +228,37 @@ function legacySection(raw: (field: (typeof LEGACY_OPENAI_FIELDS)[number]) => un
   };
 }
 
+/** Whether an old pref still holds a value the user set, as opposed to a default left over from the old prefs.js. */
+export function legacyPrefSet(prefs: PrefsBackend, field: (typeof LEGACY_OPENAI_FIELDS)[number]): boolean {
+  const key = PREF_PREFIX + LEGACY_OPENAI_PREFIX + field;
+  if (prefs.has) return prefs.has(key);
+  const value = prefs.get(key);
+  return value !== undefined && value !== '';
+}
+
 /**
  * At startup, after migrateLegacyProviderPref: the old section's prefs, if
- * any holds a value, become the three sections' prefs; the remembered voices
- * — Zotero's per-language entries, the plugin's default voice, the
- * favorites — are re-prefixed to the section the server in force went to;
- * and the old prefs are cleared (blanked where the backend cannot clear),
- * so the next start finds nothing to do. Null when there was nothing.
+ * any holds a value the user set, become the three sections' prefs; the
+ * remembered voices — Zotero's per-language entries, the plugin's default
+ * voice, the favorites — are re-prefixed to the section the server in
+ * force went to; and the old prefs are cleared (blanked where the backend
+ * cannot clear), so the next start finds nothing to do. Null when there
+ * was nothing.
+ *
+ * "A value the user set" is the whole gate (verified live 2026-09-16, the
+ * first run of #113's build): Gecko keeps the old prefs.js's defaults —
+ * `openai.enabled` true, `openai.baseURL`, `openai.model`, `openai.voice`
+ * — registered for the rest of the process after an in-place upgrade,
+ * and clearing a user value leaves such a default readable, so a gate on
+ * the value read would reopen at the next in-place install and split the
+ * defaults over the sections it had just filled: the OpenAI section
+ * switched on with no key, the other two blanked. It did, once, on the
+ * owner's profile.
  */
 export function migrateOpenAISplit(prefs: PrefsBackend): SplitReport | null {
   const legacyKey = (field: string) => PREF_PREFIX + LEGACY_OPENAI_PREFIX + field;
   const raw = (field: (typeof LEGACY_OPENAI_FIELDS)[number]) => prefs.get(legacyKey(field));
-  if (!LEGACY_OPENAI_FIELDS.some((field) => raw(field) !== undefined && raw(field) !== '')) return null;
+  if (!LEGACY_OPENAI_FIELDS.some((field) => legacyPrefSet(prefs, field))) return null;
   const { sections, target } = splitOpenAISection(legacySection(raw));
   for (const [id, fields] of Object.entries(sections)) {
     for (const [field, value] of Object.entries(fields)) prefs.set(`${PREF_PREFIX}${id}.${field}`, value);
@@ -269,7 +288,8 @@ export function migrateOpenAISplit(prefs: PrefsBackend): SplitReport | null {
 
   let clearedKeys = 0;
   for (const field of LEGACY_OPENAI_FIELDS) {
-    if (raw(field) === undefined) continue;
+    // The user values go; a backend without `has` clears whatever is defined, a blank included
+    if (prefs.has ? !prefs.has(legacyKey(field)) : raw(field) === undefined) continue;
     if (prefs.clear) prefs.clear(legacyKey(field));
     else prefs.set(legacyKey(field), '');
     clearedKeys++;

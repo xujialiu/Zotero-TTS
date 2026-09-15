@@ -24,9 +24,12 @@ lengths of `openai.apiKey` and `openai.headers`, whether
 `openai.presetValues` holds each of `openai`, `chatterbox`, `mimo`,
 `other`, the `tierVoices` keys and any `openai::` id in
 `reader.readAloudVoices`, `readAloud.memory` and
-`readAloud.favoriteVoices`) — never a value. **No player may be open**
-while a switch is used: the reading guard refuses both directions, so the
-owner's paused player must be closed before items 4–5. Xiaomi MiMo's
+`readAloud.favoriteVoices`) — never a value, and by the full pref name
+with the global flag (`Zotero.Prefs.get('extensions.zotero.zotero-tts.openai.server', true)`;
+a relative name with the flag reads `undefined` and proves nothing —
+the first run's mistake). **No player may be open** while a switch is
+used: the reading guard refuses both directions, so the owner's paused
+player must be closed before items 4–5. Xiaomi MiMo's
 probe spends nothing (free for now); the Chatterbox behind OpenAI
 Compatible is the owner's own. Expected values below are derived from
 `src/` and the probes of 2026-09-15 (issue #113) and corrected by the
@@ -47,15 +50,26 @@ first run (`scripts/openai-split/README.md`).
    the old openai.apiKey>, model: "mimo-v2.5-tts", voices: "" }`,
    `sections["openai-official"]` = the remembered OpenAI set (`apiKey` 0
    here, `model: "gpt-4o-mini-tts"`), `sections.compatible` = the
-   remembered Chatterbox set (`baseURL` the owner's Chatterbox address,
+   remembered Chatterbox set (`baseURL` 36 — the address by length,
    `headers` 151, `apiKey` 0, `model: "tts-1"`), all three `enabled`
-   false on this profile; `legacyPrefs: []`. Every `openai.*` pref reads
-   `undefined` through `Zotero.Prefs.get(name, true)`; a second
-   `openaiSplit()` after a plugin restart (in-place reinstall) shows
-   `report: null` and the same sections — the migration does not run
-   twice. Any `openai::` id read before the install now carries the
-   target's prefix (`mimo::…`), and the `tierVoices` key `openai` is
-   `mimo` in the same position.
+   false on this profile; `legacyPrefs: []` — no `openai.*` pref holds a
+   user value (`Services.prefs.prefHasUserValue(fullName)`), while
+   `staleDefaults` lists the nine: `Zotero.Prefs.get(fullName, true)` still
+   answers the old prefs.js's defaults for every one of them as long as
+   this Zotero process has loaded a build from before the split (Gecko
+   keeps a default registered until it quits; none after a full restart).
+   **A second in-place install of the same xpi** — the check that failed
+   on 2026-09-16, when the gate read those defaults and split them over
+   the sections it had just filled — shows `report: null`, `legacyPrefs:
+   []`, the same `staleDefaults`, and the sections unchanged: the same key
+   lengths, `openai-official.enabled` still false. On a profile already
+   migrated (this one, since 2026-09-16) the install shows `report: null`
+   from the first start, and the migration itself is the unit tests';
+   the live proof is the gate holding. Any `openai::` id read before the
+   install now carries the target's prefix (`mimo::…`) wherever it sat —
+   an entry's `voice`, any `tierVoices` value — and a `tierVoices` key that
+   is literally `openai` becomes the target key in the same position (this
+   profile's `mul` entry kept its `local` key and had its value rewritten).
 2. **The pane.** Settings → Zotero-TTS: no `ztts-openai-server` menulist
    and no `ztts-provider-openai` groupbox; `ztts-provider-openai-official`
    right after `ztts-provider-local`, its `h2` `OpenAI (platform.openai.com)`
@@ -85,10 +99,10 @@ first run (`scripts/openai-split/README.md`).
    first; a request to `https://api.xiaomimimo.com/v1/chat/completions`
    and none to `/v1/audio/speech`. OpenAI Compatible (the Chatterbox set)
    → `Connected. 28 voices available. Synthesis works.`, `/v1/models` a
-   404 tolerated. OpenAI (no key on this profile) → `Connection failed:
-   … OpenAI API key is not set` with no request made. Address emptied on
-   OpenAI Compatible (temporarily, restored right after) → `Connection
-   failed: … OpenAI Compatible: no server address`, no request.
+   404 tolerated. OpenAI (no key on this profile) → `No API key set for
+   this provider.` with no request made. Address emptied on OpenAI
+   Compatible (temporarily, restored right after) → `Cannot connect:
+   OpenAI Compatible: no server address`, no request.
 4. **Two of them on at once, each its own entry.** No player open. Enable
    Xiaomi MiMo and Enable OpenAI Compatible (each runs its check first) →
    `mimo.enabled` and `compatible.enabled` true, both sections locked.

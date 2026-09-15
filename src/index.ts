@@ -11,7 +11,7 @@ import { FTL_FILE, hasMessageSource, sentences, setMessageSource, t } from './co
 import { installOwnSource, OWN_SOURCE_NAME, unregisterOwnSource } from './core/l10n-source';
 import { createMemoryCache } from './core/memory-cache';
 import { audioCacheOn, autoScrollMode, createZoteroPrefs, DEFAULTS, hiddenZoteroTiers, loadSettings, migrateLegacyProviderPref, PREF_PREFIX, ZOTERO_SWITCH_IDS } from './core/settings';
-import { LEGACY_OPENAI_FIELDS, LEGACY_OPENAI_PREFIX, migrateOpenAISplit, SPLIT_TARGETS, type SplitReport } from './core/openai-split';
+import { LEGACY_OPENAI_FIELDS, LEGACY_OPENAI_PREFIX, legacyPrefSet, migrateOpenAISplit, SPLIT_TARGETS, type SplitReport } from './core/openai-split';
 import { createBackup, flattenSettings, machineSettingsFilename, serializeBackup, SETTINGS_FILE_PATTERN } from './core/settings-backup';
 import { createSettingsAutoUpload, type SettingsAutoUpload } from './core/settings-autoupload';
 import { machineId } from './core/machine-id';
@@ -2254,20 +2254,26 @@ let openaiSplitReport: SplitReport | null = null;
 /** For Tools → Developer → Run JavaScript: `Zotero.ZoteroTTS.diagnostics.highlight()` etc. */
 const diagnostics = {
   /**
-   * Issue #113: the three sections as the prefs say (keys and headers by
-   * length, never by value), this start's split report, and any pref of
-   * the old section still holding a value — none after a split. Synchronous.
+   * Issue #113: the three sections as the prefs say (keys, headers and
+   * the address by length, never by value), this start's split report,
+   * any pref of the old section still holding a value the user set —
+   * none after a split — and the old prefs whose default is still
+   * registered from the old prefs.js (`staleDefaults`), which the split
+   * ignores. Synchronous.
    */
   openaiSplit(): string {
     const settings = loadSettings(prefs);
     const masked = (id: (typeof SPLIT_TARGETS)[number]) =>
-      Object.fromEntries(Object.entries(settings[id]).map(([field, value]) => [field, field === 'apiKey' || field === 'headers' ? String(value).length : value]));
+      Object.fromEntries(
+        Object.entries(settings[id]).map(([field, value]) => [field, field === 'apiKey' || field === 'headers' || field === 'baseURL' ? String(value).length : value]),
+      );
     return JSON.stringify(
       {
         feature: 'openai-split',
         report: openaiSplitReport,
         sections: Object.fromEntries(SPLIT_TARGETS.map((id) => [id, masked(id)])),
-        legacyPrefs: LEGACY_OPENAI_FIELDS.filter((field) => prefs.get(PREF_PREFIX + LEGACY_OPENAI_PREFIX + field) !== undefined),
+        legacyPrefs: LEGACY_OPENAI_FIELDS.filter((field) => legacyPrefSet(prefs, field)),
+        staleDefaults: LEGACY_OPENAI_FIELDS.filter((field) => !legacyPrefSet(prefs, field) && prefs.get(PREF_PREFIX + LEGACY_OPENAI_PREFIX + field) !== undefined),
       },
       null,
       1,

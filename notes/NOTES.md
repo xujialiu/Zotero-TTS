@@ -506,3 +506,4 @@ then) and is in the git history before that day.
 - The highlight levels are the plugin's own two switches: Zotero's pref pinned to them through its own observers, and its settings menulist greyed (issue #114)
 - The OpenAI section split into three, and the old keys read once (issue #113)
 - Verified live, issue #114: the pin snaps inside the write, an in-place reinstall keeps the previous prefs.js default, and a bare W on the library pane is Zotero's (issue #114)
+- The split ran twice: Gecko keeps a gone prefs.js's defaults, and the recovery (issue #113)

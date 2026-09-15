@@ -185,6 +185,15 @@ export interface PrefsBackend {
   set(key: string, value: unknown): void;
   /** Remove a user value so the default applies again; optional because tests' fakes may omit it. */
   clear?(key: string): void;
+  /**
+   * Whether the pref holds a user value, as opposed to a default only.
+   * Gecko keeps a default registered for the rest of the process even
+   * after the prefs.js that declared it is gone (issue #113: the old
+   * OpenAI section's defaults outlived an in-place upgrade), so a read
+   * alone cannot tell "set by the user" from "left over"; optional because
+   * tests' fakes may omit it.
+   */
+  has?(key: string): boolean;
 }
 
 export const PREF_PREFIX = 'extensions.zotero.zotero-tts.';
@@ -475,5 +484,6 @@ export function createZoteroPrefs(): PrefsBackend {
     get: (key) => Zotero.Prefs.get(key, true),
     set: (key, value) => Zotero.Prefs.set(key, value as never, true),
     clear: (key) => Zotero.Prefs.clear(key, true),
+    has: (key) => Zotero.Prefs.prefHasUserValue(key, true),
   };
 }

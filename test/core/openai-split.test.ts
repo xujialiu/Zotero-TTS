@@ -3,6 +3,7 @@ import {
   convertLegacyItems,
   convertLegacySettings,
   isLegacyOpenAIKey,
+  legacyPrefSet,
   legacyTarget,
   migrateOpenAISplit,
   rewriteVoiceId,
@@ -175,6 +176,46 @@ describe('migrateOpenAISplit', () => {
     const set = vi.spyOn(prefs, 'set');
     expect(migrateOpenAISplit(prefs)).toBeNull();
     expect(set).not.toHaveBeenCalled();
+  });
+
+  // Verified live 2026-09-16: Gecko keeps the old prefs.js's defaults
+  // registered after an in-place upgrade, and clearing a user value leaves
+  // the default readable — the gate must be the user value, never the read
+  it('ignores defaults left over from the old prefs.js: runs on user values only, and never again once they are cleared', () => {
+    const defaults = { [key('openai.enabled')]: true, [key('openai.apiKey')]: '', [key('openai.baseURL')]: 'https://api.openai.com', [key('openai.model')]: 'gpt-4o-mini-tts', [key('openai.voice')]: 'alloy' };
+    const gecko = (user: Record<string, unknown>) => {
+      const store = { ...user };
+      const backend: PrefsBackend & { store: Record<string, unknown> } = {
+        store,
+        get: (k) => (k in store ? store[k] : defaults[k]),
+        set: (k, v) => {
+          store[k] = v;
+        },
+        clear: (k) => {
+          delete store[k];
+        },
+        has: (k) => k in store,
+      };
+      return backend;
+    };
+    // Already migrated (or never had the section): the defaults alone must not start a split
+    const clean = gecko({ [key('mimo.apiKey')]: 'k', [key('compatible.baseURL')]: 'https://h200-chatterbox.example' });
+    const set = vi.spyOn(clean, 'set');
+    expect(migrateOpenAISplit(clean)).toBeNull();
+    expect(set).not.toHaveBeenCalled();
+    expect(clean.store[key('mimo.apiKey')]).toBe('k');
+    // A real old section: split once, and the defaults still readable afterwards do not reopen the gate
+    const legacyProfile = gecko({ ...profile() });
+    const first = migrateOpenAISplit(legacyProfile);
+    expect(first).toMatchObject({ target: 'mimo', clearedKeys: 9 });
+    expect(legacyProfile.store[key('mimo.apiKey')]).toBe('mimo-key');
+    expect(legacyProfile.get(key('openai.enabled'))).toBe(true);
+    expect(legacyPrefSet(legacyProfile, 'enabled')).toBe(false);
+    const again = vi.spyOn(legacyProfile, 'set');
+    expect(migrateOpenAISplit(legacyProfile)).toBeNull();
+    expect(again).not.toHaveBeenCalled();
+    expect(legacyProfile.store[key('mimo.apiKey')]).toBe('mimo-key');
+    expect(legacyProfile.store[key('openai-official.enabled')]).toBe(false);
   });
 
   it('leaves the voice prefs alone when they name no voice of the old section, and blanks an old pref where the backend cannot clear', () => {
