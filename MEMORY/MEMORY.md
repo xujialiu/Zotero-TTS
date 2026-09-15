@@ -270,7 +270,13 @@ WebDAV), highlight colors.
 - Commit only when told ("commit"); push only when told. Simple work
   (docs, wording, one-liners) goes directly on `main`; only hard work
   (bug fixes, features) gets a `feat/...`/`fix/...` branch, merged into
-  `main` with `--ff-only` when told. Commit
+  `main` with `--ff-only` when told. **One standing exception** (settled
+  2026-09-16, issue #113): a change that is done — tests, typecheck and
+  build green, docs and notes written — is committed on its branch
+  before its verification brief goes to `zotero-tester`, without a
+  separate "commit": the tester then verifies a committed state, the
+  closing comment names that commit, and whatever the run turns up is
+  fixed in a commit of its own. The push still waits for the word. Commit
   messages: `feat: …` / `fix: …` / `docs: …` / `chore: …`, as short as
   possible — usually the subject line alone; a body only when the why is
   not obvious, and then a line or two, never a long description. No
