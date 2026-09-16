@@ -279,7 +279,7 @@ export function createPluginPlayer(deps: {
   return {
     attach,
     inspect() {
-      return { enabled, layout, readers: [...entries].filter(([doc]) => !deps.dead(doc)).map(([doc, entry]) => ({
+      return { enabled, layout, resource: deps.uri, readers: [...entries].filter(([doc]) => !deps.dead(doc)).map(([doc, entry]) => ({
         open: entry.open, ready: !!entry.frame.contentDocument?.querySelector('.player'),
         frames: doc.querySelectorAll('#ztts-player-frame').length, actionError: entry.actionError,
         state: deps.snapshot(entry.reader),

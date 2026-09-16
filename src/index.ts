@@ -109,6 +109,7 @@ let hijackPatched = new WeakSet<object>();
 const interfaceInstanceToken = 'instance-' + Math.random().toString(36).slice(2, 10);
 let pluginVersion = '0.0.0';
 let playerResources: any = null;
+let playerResourceName = '';
 let pluginPlayer: ReturnType<typeof createPluginPlayer> | null = null;
 let readAloudShortcuts: ReadAloudShortcuts | null = null;
 /**
@@ -2122,15 +2123,17 @@ async function startup({ id, version, rootURI }: StartupParams): Promise<void> {
       ],
       ['settings pane', () => registerPrefsPane(rootURI, id, version)],
       ['plugin player', () => {
+        // Gecko retains resource stylesheet/script caches across in-place upgrades.
+        playerResourceName = 'zotero-tts-player-' + interfaceInstanceToken;
         playerResources = Services.io.getProtocolHandler('resource')
           .QueryInterface(Components.interfaces.nsISubstitutingProtocolHandler);
         playerResources.setSubstitutionWithFlags(
-          'zotero-tts-player', Services.io.newURI(rootURI + 'content/'),
+          playerResourceName, Services.io.newURI(rootURI + 'content/'),
           Components.interfaces.nsISubstitutingProtocolHandler.ALLOW_CONTENT_ACCESS,
         );
         pluginPlayer = createPluginPlayer({
-          uri: 'resource://zotero-tts-player/player.html',
-          iconURI: 'resource://zotero-tts-player/icons/favicon@0.5x.png',
+          uri: `resource://${playerResourceName}/player.html`,
+          iconURI: `resource://${playerResourceName}/icons/favicon@0.5x.png`,
           exportResize: (target, callback) => { Components.utils.exportFunction(callback, Components.utils.waiveXrays(target), { defineAs: 'zttsResizePreview' }); },
           exportFloating: (target, move) => {
             const win = Components.utils.waiveXrays(target);
@@ -2212,8 +2215,9 @@ async function startup({ id, version, rootURI }: StartupParams): Promise<void> {
 async function shutdown(reason?: number): Promise<void> {
   pluginPlayer?.dispose();
   pluginPlayer = null;
-  playerResources?.setSubstitution('zotero-tts-player', null);
+  if (playerResourceName) playerResources?.setSubstitution(playerResourceName, null);
   playerResources = null;
+  playerResourceName = '';
   // First: the pane goes with this instance, not with Zotero's observer,
   // which runs too late for the next instance's register on a reload (#28)
   try {

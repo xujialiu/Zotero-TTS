@@ -516,3 +516,5 @@ then) and is in the git history before that day.
 - Player label and combo corrections: native labels, light-dismiss-safe toggle, aligned controls
 
 - Real player verified, compact menus prepared: trusted voice handoff and exact preference restoration
+
+- Cached child styles clipped the compact floating panel: per-instance resource URLs
