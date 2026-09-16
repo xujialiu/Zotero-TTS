@@ -66,3 +66,25 @@ describe('the selectors', () => {
     expect(OPTIONS_BUTTON_SELECTOR).toBe('.read-aloud-popup .row.buttons .group:first-child > button.toolbar-button');
   });
 });
+
+describe('floating plugin Options', () => {
+  it('routes to the visible floating button and reads its expanded state', () => {
+    let expanded = false;
+    const button = { click: vi.fn(() => { expanded = !expanded; }), getAttribute: () => String(expanded) };
+    const native = { click: vi.fn() };
+    const child = fakeDoc({ '.options-toggle': button });
+    const frame = { hidden: false, getAttribute: () => 'B', contentDocument: child };
+    const doc = fakeDoc({ '#ztts-player-frame': frame, [OPTIONS_BUTTON_SELECTOR]: native, [EXPANDED_POPUP_SELECTOR]: {} });
+    expect(findOptionsButton(doc)).toBe(button);
+    expect(isOptionsPanelOpen(doc)).toBe(false);
+    findOptionsButton(doc)?.click();
+    expect(isOptionsPanelOpen(doc)).toBe(true);
+    expect(native.click).not.toHaveBeenCalled();
+    expect(hasPlayer(doc)).toBe(true);
+    frame.getAttribute = () => 'top';
+    expect(findOptionsButton(doc)).toBeNull();
+    expect(isOptionsPanelOpen(doc)).toBe(false);
+    frame.hidden = true;
+    expect(findOptionsButton(doc)).toBe(native);
+  });
+});

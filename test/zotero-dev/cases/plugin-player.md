@@ -6,6 +6,9 @@ Run the baseline first. Use disposable PDF and EPUB fixtures, a configured
 provider, and muted output. Do not start or resume the owner's document.
 Retain exact preference values and user-value flags; restore memory last.
 
+For floating menu placement, Options, skip buttons, speed steps and the
+top-bar default, also run [the player-controls case](player-controls.md).
+
 ## 1. Entry and layouts
 
 - Install the xpi; all startup steps succeed. `diagnostics.pluginPlayer()`

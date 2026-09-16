@@ -1,5 +1,6 @@
+import { floatingMenuPlacement } from './player-menu';
 import type { PlayerSnapshot } from '../read-aloud/player-controller';
-import { PREF_PREFIX, type PrefsBackend } from '../core/settings';
+import { PREF_PREFIX, playerLayout, setPlayerLayout, type PrefsBackend } from '../core/settings';
 
 /** Gecko can detach defaultView without marking the document wrapper dead. */
 export function isPlayerDocumentLive(doc: { readonly defaultView?: { closed?: boolean } | null } | null, dead: (value: unknown) => boolean): boolean {
@@ -15,6 +16,7 @@ export function createPluginPlayer(deps: {
   error(error: unknown): void;
   exportResize(target: Window, callback: (height: number) => void): void;
   exportFloating(target: Window, move: (dx: number, dy: number) => void): void;
+  exportMenu(target: Window, place: (json: string) => string): void;
   exportLayout(target: Window, change: (layout: string) => void): void;
   renderLayout(target: Window, layout: string): boolean;
   prefs: PrefsBackend;
@@ -27,7 +29,9 @@ export function createPluginPlayer(deps: {
   notice(reader: any, message: string): void;
   listenKeys(reader: any, target: Window): () => void;
 }) {
-  const readLayout = () => { const value = deps.prefs.get(PREF_PREFIX + 'readAloud.playerLayout'); return value === 'B' || value === 'top' ? value : 'A'; };
+  deps.prefs.setDefault?.(PREF_PREFIX + 'readAloud.playerLayout', 'top');
+  const readLayout = () => playerLayout(deps.prefs);
+  const panelHeight = (expanded: boolean) => expanded ? 202 : 108;
   let layout = readLayout();
   let enabled = deps.prefs.get(PREF_PREFIX + 'readAloud.usePluginPlayer') !== false;
   const live = (doc: Document) => isPlayerDocumentLive(doc, deps.dead);
@@ -47,16 +51,16 @@ export function createPluginPlayer(deps: {
     }
   }
   function changeLayout(value: string): void {
-    if (!['A', 'B', 'top'].includes(value)) return;
+    if (value !== 'A' && value !== 'B' && value !== 'top') return;
+    setPlayerLayout(deps.prefs, value);
     layout = value;
-    deps.prefs.set(PREF_PREFIX + 'readAloud.playerLayout', value);
     refresh();
     for (const doc of settingsDocuments) {
       if (!live(doc)) { settingsDocuments.delete(doc); continue; }
       updateSettingsLayout(doc);
     }
   }
-  const entries = new Map<Document, { frame: HTMLIFrameElement; style: HTMLStyleElement; button: HTMLButtonElement; open: boolean; reader: any; nativeOpened: boolean; lastSnapshot: string; actionError: string | null; openedAt: number; moved: boolean; listener: (event: MessageEvent) => void; resize: () => void; connect: () => void; cleanup: () => void }>();
+  const entries = new Map<Document, { frame: HTMLIFrameElement; style: HTMLStyleElement; button: HTMLButtonElement; open: boolean; reader: any; nativeOpened: boolean; lastSnapshot: string; actionError: string | null; openedAt: number; moved: boolean; expanded: boolean; menuInset: number; listener: (event: MessageEvent) => void; resize: () => void; connect: () => void; cleanup: () => void }>();
   function syncAppearance(doc: Document): void {
     const entry = entries.get(doc);
     if (!entry || !live(doc)) return;
@@ -91,7 +95,7 @@ export function createPluginPlayer(deps: {
       const split = doc.querySelector('#split-view')?.getBoundingClientRect();
       const top = (doc.querySelector('.toolbar')?.getBoundingClientRect().bottom ?? 41) + 10;
       entry.frame.style.left = Math.max(0, Math.min((split?.left ?? 0) + 10, (doc.defaultView?.innerWidth ?? 300) - 300)) + 'px';
-      entry.frame.style.top = top + 'px';
+      entry.frame.style.top = (top - entry.menuInset) + 'px';
     }
     if (layout === 'top') {
       const toolbarBottom = doc.querySelector('.toolbar')?.getBoundingClientRect().bottom ?? 41;
@@ -103,7 +107,7 @@ export function createPluginPlayer(deps: {
   function paint(doc: Document): void {
     if (!live(doc)) return;
     const entry = entries.get(doc)!;
-    entry.moved = false;
+    entry.moved = false; entry.menuInset = 0;
     const visible = enabled && entry.open;
     entry.frame.hidden = !visible;
     entry.button.hidden = !enabled;
@@ -116,7 +120,7 @@ export function createPluginPlayer(deps: {
     if (visible && layout === 'top') entry.style.textContent += '\n#split-view { top: 75px !important; }';
     entry.frame.style.cssText = 'position:fixed;z-index:10000;border:0;background:transparent;color-scheme:light;';
     if (layout === 'A') entry.frame.style.cssText += 'left:0;bottom:0;width:100%;height:34px;';
-    if (layout === 'B') entry.frame.style.cssText += 'left:10px;top:51px;width:min(300px,95vw);height:192px;';
+    if (layout === 'B') entry.frame.style.cssText += 'left:10px;top:51px;width:min(300px,95vw);height:' + panelHeight(entry.expanded) + 'px;';
     if (layout === 'top') entry.frame.style.cssText += 'left:0;top:41px;width:100%;height:34px;';
     const background = doc.defaultView?.getComputedStyle(doc.querySelector('.toolbar') ?? doc.body).backgroundColor ?? '';
     const channels = background.match(/[\d.]+/g)?.slice(0, 3).map(Number) ?? [255, 255, 255];
@@ -163,7 +167,14 @@ export function createPluginPlayer(deps: {
           return;
         }
       };
-      const resize = () => { try { syncAppearance(doc); } catch (error) { deps.error(error); } };
+      const resize = () => {
+        try {
+          syncAppearance(doc);
+          const entry = entries.get(doc);
+          // Host resize can change available menu space without resizing the child.
+          if (entry && layout === 'B') { entry.lastSnapshot = ''; publish(doc); }
+        } catch (error) { deps.error(error); }
+      };
       const win = doc.defaultView as any;
       const geometry = new win.ResizeObserver(resize);
       const split = doc.querySelector('#split-view');
@@ -177,18 +188,43 @@ export function createPluginPlayer(deps: {
       // Export a synchronous callback into the child, with no stale document retained.
       const resizeMenu = (value: number) => {
         const height = Number(value);
-        if (height >= 34 && height <= 500 && frame.style.height !== height + 'px') frame.style.height = height + 'px';
+        if (!(height >= 34 && height <= 500)) return;
+        const entry = entries.get(doc);
+        if (layout === 'B' && entry?.menuInset) {
+          frame.style.top = (frame.getBoundingClientRect().top + entry.menuInset) + 'px';
+          entry.menuInset = 0;
+          const player = frame.contentDocument?.querySelector('.player') as HTMLElement | null;
+          if (player) player.style.top = '0px';
+        }
+        if (frame.style.height !== height + 'px') frame.style.height = height + 'px';
       };
       let unlistenKeys: (() => void) | null = null;
       const loaded = () => {
         if (frame.contentWindow) {
           deps.exportResize(frame.contentWindow, resizeMenu);
+          deps.exportMenu(frame.contentWindow, json => {
+            const entry = entries.get(doc);
+            if (!entry || layout !== 'B' || !live(doc)) return '';
+            const request = JSON.parse(json);
+            const box = frame.getBoundingClientRect();
+            const placement = floatingMenuPlacement({
+              panelTop: box.top + entry.menuInset, panelHeight: panelHeight(entry.expanded),
+              anchorTop: box.top + Number(request.top), anchorBottom: box.top + Number(request.bottom),
+              menuHeight: Number(request.height), viewportHeight: win.innerHeight,
+            });
+            entry.menuInset = placement.panelInset;
+            const player = frame.contentDocument?.querySelector('.player') as HTMLElement | null;
+            if (player) player.style.top = placement.panelInset + 'px';
+            if (box.top !== placement.frameTop) frame.style.top = placement.frameTop + 'px';
+            if (box.height !== placement.frameHeight) frame.style.height = placement.frameHeight + 'px';
+            return JSON.stringify({ top: placement.menuTop - placement.frameTop, height: placement.menuHeight, side: placement.side });
+          });
           deps.exportFloating(frame.contentWindow, (dx, dy) => {
             if (layout !== 'B' || !Number.isFinite(dx) || !Number.isFinite(dy)) return;
             const box = frame.getBoundingClientRect();
             entries.get(doc)!.moved = true;
             frame.style.left = Math.max(0, Math.min(win.innerWidth - box.width, box.left + dx)) + 'px';
-            frame.style.top = Math.max(0, Math.min(win.innerHeight - 192, box.top + dy)) + 'px';
+            frame.style.top = Math.max(0, Math.min(win.innerHeight - panelHeight(entries.get(doc)!.expanded), box.top + dy)) + 'px';
           });
           deps.exportLayout(frame.contentWindow, changeLayout);
           unlistenKeys?.();
@@ -218,13 +254,14 @@ export function createPluginPlayer(deps: {
         event.stopPropagation();
         if (!enabled) return;
         const entry = entries.get(doc)!;
+        if (!entry.open) entry.expanded = deps.snapshot(reader).expandOnOpen;
         entry.open = !entry.open;
         entry.openedAt = entry.open ? Date.now() : 0;
         paint(doc);
         void act(doc, entry.open ? 'open' : 'close');
       };
       button.addEventListener('click', toggle);
-      entries.set(doc, { frame, style, button, open: false, reader, nativeOpened: deps.snapshot(reader).opened, lastSnapshot: '', actionError: null, openedAt: 0, moved: false, listener, resize, connect, cleanup: () => {
+      entries.set(doc, { frame, style, button, open: false, reader, nativeOpened: deps.snapshot(reader).opened, lastSnapshot: '', actionError: null, openedAt: 0, moved: false, expanded: deps.snapshot(reader).expandOnOpen, menuInset: 0, listener, resize, connect, cleanup: () => {
         clearTimeout(connectionTimer);
         for (const cleanup of [() => unlistenKeys?.(), () => button.removeEventListener('click', toggle),
           () => geometry.disconnect(), () => changes.disconnect(), () => scheme.removeEventListener('change', resize)]) {
@@ -248,6 +285,7 @@ export function createPluginPlayer(deps: {
     const entry = entries.get(doc);
     if (!entry || !enabled || !live(doc)) return;
     entry.actionError = null;
+    if (action === 'options') { if (layout === 'B') { entry.expanded = !entry.expanded; publish(doc); } return; }
     try { await deps.command(entry.reader, action, value); }
     catch (error) { if (!live(doc)) return; entry.actionError = error instanceof Error ? error.message : String(error); deps.notice(entry.reader, entry.actionError); deps.error(error); }
     if (live(doc)) publish(doc);
@@ -258,9 +296,9 @@ export function createPluginPlayer(deps: {
     const state = deps.snapshot(entry.reader);
     if (state.opened !== entry.nativeOpened) {
       entry.nativeOpened = state.opened;
-      if (enabled && entry.open !== state.opened) { entry.open = state.opened; entry.openedAt = state.opened ? Date.now() : 0; paint(doc); }
+      if (enabled && entry.open !== state.opened) { if (state.opened) entry.expanded = state.expandOnOpen; entry.open = state.opened; entry.openedAt = state.opened ? Date.now() : 0; paint(doc); }
     }
-    const json = JSON.stringify({ ...state, error: entry.actionError ?? state.error,
+    const json = JSON.stringify({ ...state, expanded: entry.expanded, error: entry.actionError ?? state.error,
       loading: entry.open && !state.voices.length && Date.now() - entry.openedAt < 15000,
       strings: deps.strings() });
     if (json !== entry.lastSnapshot && entry.frame.contentWindow && deps.update(entry.frame.contentWindow, json)) entry.lastSnapshot = json;
@@ -302,7 +340,7 @@ export function createPluginPlayer(deps: {
     attach,
     inspect() {
       return { enabled, layout, resource: deps.uri, readers: [...entries].filter(([doc]) => live(doc)).map(([doc, entry]) => ({
-        open: entry.open, ready: !!entry.frame.contentDocument?.querySelector('.player'),
+        open: entry.open, expanded: entry.expanded, menuInset: entry.menuInset, ready: !!entry.frame.contentDocument?.querySelector('.player'),
         frames: doc.querySelectorAll('#ztts-player-frame').length, actionError: entry.actionError,
         state: deps.snapshot(entry.reader),
       })) };

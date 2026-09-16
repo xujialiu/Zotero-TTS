@@ -528,3 +528,9 @@ then) and is in the git history before that day.
 ### [2026-09-17](NOTES_2026-09-17.md)
 
 - Player following passed after waiting for the selected iframe (issue #117)
+
+- Floating menus use the host viewport and keep the player stationary (issue #118)
+
+- A saved layout equal to the retained default is not a user value (issue #118)
+
+- Floating controls verified with frame and scroll evidence (issue #118)

@@ -1,3 +1,4 @@
+import { NAVIGATION_ACTIONS, type NavigationAction } from '../core/shortcut-actions';
 import { PREF_PREFIX, type PrefsBackend } from '../core/settings';
 import { VOLUME_PREF, clampVolume } from '../core/read-aloud-volume';
 import { parseFavoriteVoices, serializeFavoriteVoices, toggleFavoriteVoice } from './favorites';
@@ -6,7 +7,7 @@ import { compareVoiceLabels } from './voice-catalog';
 
 export interface PlayerOption { value: string; label: string }
 export interface PlayerSnapshot {
-  opened: boolean; active: boolean; playing: boolean; buffering: boolean;
+  expandOnOpen: boolean; opened: boolean; active: boolean; playing: boolean; buffering: boolean;
   provider: string; locale: string; voice: string; speed: number; volume: number; automatic: boolean;
   providers: PlayerOption[]; locales: PlayerOption[]; voices: PlayerOption[]; favorites: string[];
   error: string | null;
@@ -20,6 +21,7 @@ export interface PlayerControllerDeps {
   togglePaused(reader: any): void;
   rememberSpeed(speed: number): void;
   follow(reader: any): void;
+  navigate(reader: any, action: NavigationAction): void;
   automatic(reader: any): boolean;
   manual(reader: any): void;
   anyReading(): boolean;
@@ -61,6 +63,7 @@ export function createPlayerController(deps: PlayerControllerDeps) {
     const full = m?.lang ? String(m.lang) + (region ? '-' + region : '') : '';
     const locale = locales.some(v => v.value === full) ? full : locales.some(v => v.value === m?.lang) ? String(m.lang) : '';
     return {
+      expandOnOpen: pref('openExpanded') === true,
       opened: popupOpen(reader) || !!m?.active,
       active: !!m?.active, playing: !!m?.active && !m?.paused, buffering: !!m?.buffering,
       provider: String(m?.selectedTier ?? ''), locale, voice: String(m?.selectedVoiceID ?? ''),
@@ -91,6 +94,12 @@ export function createPlayerController(deps: PlayerControllerDeps) {
         if (m.active) deps.togglePaused(reader); else deps.start(reader);
         return;
       case 'close': deps.close(reader); return;
+      case 'navigate': {
+        const action = NAVIGATION_ACTIONS.find(action => action === value);
+        if (!action) throw new Error(deps.message('ztts-player-invalid-value'));
+        if (m.active) deps.navigate(reader, action);
+        return;
+      }
       case 'provider': await m.selectTier(requireChoice(state.providers)); return;
       case 'locale': {
         const language = requireChoice(state.locales), base = baseLanguage(language);

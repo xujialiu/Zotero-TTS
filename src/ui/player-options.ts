@@ -11,6 +11,8 @@
  * `click()` on the element runs the same handler the mouse does — and the
  * mouse does not focus it either (the reader's `_handlePointerDown`
  * preventDefault()s a press on a button), so nothing here touches focus.
+ * A visible plugin floating panel takes priority over that native popup;
+ * its Options button exposes the session expansion through aria-expanded.
  */
 
 /** The player's root. It exists exactly while the popup is on screen. */
@@ -47,18 +49,32 @@ function match(doc: MaybeDocument, selector: string): unknown {
   }
 }
 
+function pluginFrame(doc: MaybeDocument) {
+  const frame = match(doc, '#ztts-player-frame') as {
+    hidden: boolean; contentDocument: PopupDocumentLike | null; getAttribute(name: string): string | null;
+  } | null;
+  return frame && !frame.hidden ? frame : null;
+}
+
 /** The Options button, or null when no player is on screen — the key then falls through to the reader. */
 export function findOptionsButton(doc: MaybeDocument): ClickableLike | null {
-  const el = match(doc, OPTIONS_BUTTON_SELECTOR) as ClickableLike | null;
+  const frame = pluginFrame(doc);
+  const el = (frame ? frame.getAttribute('data-layout') === 'B' ? match(frame.contentDocument, '.options-toggle') : null :
+    match(doc, OPTIONS_BUTTON_SELECTOR)) as ClickableLike | null;
   return el && typeof el.click === 'function' ? el : null;
 }
 
 /** Whether the options panel is unfolded right now. */
 export function isOptionsPanelOpen(doc: MaybeDocument): boolean {
+  const frame = pluginFrame(doc);
+  if (frame) {
+    const button = findOptionsButton(doc) as (ClickableLike & { getAttribute(name: string): string | null }) | null;
+    return button?.getAttribute('aria-expanded') === 'true';
+  }
   return !!match(doc, EXPANDED_POPUP_SELECTOR);
 }
 
 /** Whether the player is on screen at all; a player without a button means the markup moved. */
 export function hasPlayer(doc: MaybeDocument): boolean {
-  return !!match(doc, PLAYER_POPUP_SELECTOR);
+  return !!pluginFrame(doc) || !!match(doc, PLAYER_POPUP_SELECTOR);
 }

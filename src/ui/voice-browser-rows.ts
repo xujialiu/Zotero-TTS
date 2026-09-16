@@ -41,7 +41,7 @@ import { refuseWhileReading } from './reading-guard';
  * the entry they sit under; Zotero's own Local voices are the reader
  * iframe's and never reach this pane.
  *
- * A speed slider — the popup's own, 0.5×–3.0× by 0.1 — plays the samples at
+ * A speed slider — 0.5×–3.0× by 0.5 — plays the samples at
  * the speed Read Aloud will read at, and releasing it makes its value that
  * speed: the default Read Aloud starts with, in every document and at once
  * in one that is playing (read-aloud/default-speed.ts) — while the "one

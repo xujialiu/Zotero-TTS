@@ -1,13 +1,12 @@
 import type { PrefsBackend } from './settings';
 
 /**
- * Read Aloud playback speed, as Zotero's own popup slider defines it:
- * 0.5×–3.0× in steps of 0.1. These are Zotero's numbers, not ours; the
- * shortcuts must land on the same values the slider can show.
+ * Plugin playback controls and shortcuts use 0.5x steps within Zotero's
+ * 0.5x-3.0x range. Existing remembered speeds retain their precision.
  */
 export const SPEED_MIN = 0.5;
 export const SPEED_MAX = 3;
-export const SPEED_STEP = 0.1;
+export const SPEED_STEP = 0.5;
 export const SPEED_DEFAULT = 1;
 
 export type SpeedAction = 'speedReset' | 'speedDown' | 'speedUp';
@@ -22,7 +21,7 @@ export const SPEED_ACTIONS: readonly SpeedAction[] = ['speedReset', 'speedDown',
  */
 export const READ_ALOUD_VOICES_PREF = 'extensions.zotero.reader.readAloudVoices';
 
-/** A value the slider can show: one decimal (1.1 + 0.1 is 1.2000000000000002 in floating point), within its range; anything that is not a number reads as 1. */
+/** Preserve remembered speeds to one decimal within the range; nonfinite values read as 1. */
 export function clampSpeed(value: number): number {
   if (!Number.isFinite(value)) return SPEED_DEFAULT;
   return Math.min(SPEED_MAX, Math.max(SPEED_MIN, Math.round(value * 10) / 10));

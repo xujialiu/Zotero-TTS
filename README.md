@@ -179,10 +179,21 @@ for every document you have listened to.
   and close it. Switch the setting off to use Zotero's original player.
 - **Bottom bar, Top bar, Floating panel** are available in Settings and
   from the player's layout button. Bars reserve space only in the document
-  area; the floating panel can be dragged. The layout is remembered.
+  area; the floating panel can be dragged. The top bar is the default when
+  no layout has been saved; existing choices are kept.
 - **Provider, language, voice, speed and volume** use the same choices as
   the voice browser and keyboard shortcuts. Hearts on the left mark the
   same favorites as Settings.
+- **Floating controls** include four sentence/paragraph skip buttons around
+  Play/Pause. **Options** at the upper left, or **Shift+O**, hides or shows
+  the provider, language and voice rows; **Layout** is at the upper right.
+  Each opening follows *Open the player expanded* in Reading settings.
+- **Floating menus** open below their button when they fit, above otherwise.
+  If neither side fits, the larger side gets a shorter, scrollable menu.
+  Language and voice search boxes stay visible while choices scroll in all
+  three layouts.
+- **Speed controls** in the player, Settings and keyboard shortcuts change
+  by 0.5×, within the existing 0.5×–3× range.
 - **A / M** shows whether this document is following the narration.
   Scrolling by hand shows **M**, even while the current sentence remains
   visible. A later visible sentence restores **A** when following resumes.
@@ -321,10 +332,10 @@ provider (or Zotero's Standard / Premium), language, voice.
 <details>
 <summary><b>Expanded player, one voice everywhere, pauses, prefetch, cache, the whole sentence on screen, a page's first line, a sentence split in two</b></summary>
 
-- *Open the player expanded* — show the speed and voice controls whenever
-  the player opens. Off by default. You can still fold them away for that
-  opening; closing and reopening expands them again. Changes apply on the
-  next opening, and the player may appear a moment later.
+- *Open the player expanded* — show the floating panel's provider, language
+  and voice rows whenever it opens; with Zotero's original player, show its
+  options panel. Off by default. Options or Shift+O changes this opening
+  only. Changes to the setting apply at the next opening.
 
 - *Use one voice everywhere* — one voice for every document and every open
   tab, whatever the document's language. Off, Zotero remembers a voice per

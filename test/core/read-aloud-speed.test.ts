@@ -27,11 +27,11 @@ const pref = READ_ALOUD_VOICES_PREF;
 const stored = (prefs: { store: Record<string, unknown> }) => JSON.parse(prefs.store[pref] as string);
 
 describe('nextSpeed', () => {
-  it('steps by 0.1 and rounds away floating point noise', () => {
-    expect(nextSpeed(1, 'speedUp')).toBe(1.1);
-    // 1.1 + 0.1 is 1.2000000000000002 in IEEE 754
-    expect(nextSpeed(1.1, 'speedUp')).toBe(1.2);
-    expect(nextSpeed(0.7, 'speedDown')).toBe(0.6);
+  it('steps by 0.5 without silently rounding an existing speed to a new grid', () => {
+    expect(nextSpeed(1, 'speedUp')).toBe(1.5);
+    expect(nextSpeed(1.2, 'speedUp')).toBe(1.7);
+    expect(nextSpeed(1.7, 'speedDown')).toBe(1.2);
+    expect(nextSpeed(0.7, 'speedDown')).toBe(0.5);
   });
 
   it('resets to 1', () => {
@@ -46,9 +46,9 @@ describe('nextSpeed', () => {
   });
 
   it('treats a missing or invalid current speed as 1', () => {
-    expect(nextSpeed(NaN, 'speedUp')).toBe(1.1);
-    expect(nextSpeed(0, 'speedDown')).toBe(0.9);
-    expect(nextSpeed(-5, 'speedUp')).toBe(1.1);
+    expect(nextSpeed(NaN, 'speedUp')).toBe(1.5);
+    expect(nextSpeed(0, 'speedDown')).toBe(0.5);
+    expect(nextSpeed(-5, 'speedUp')).toBe(1.5);
   });
 });
 

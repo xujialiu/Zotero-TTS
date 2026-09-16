@@ -25,7 +25,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--preview-acc
 .layout-menu { display: grid; place-items: center; width: 28px; min-width: 28px; height: 28px; padding: 4px; margin-left: auto; color: var(--preview-icon, #777); }
 .status-button { color: #d84444; font-weight: 700; padding: 2px 5px; }
 .status-button[hidden] { display: none; }
-.layout-B { top: 0; left: 0; width: 100%; height: 192px; padding: 8px; display: grid; grid-template-rows: 18px 28px 1fr 26px; gap: 4px; border: 1px solid var(--preview-border, #ddd); border-radius: 6px; }
+.layout-B { top: 0; left: 0; width: 100%; height: 202px; padding: 8px; display: grid; grid-template-rows: 28px 28px 1fr 26px; gap: 4px; border: 1px solid var(--preview-border, #ddd); border-radius: 6px; }
 .layout-B .identity { display: flex; align-items: center; gap: 8px; cursor: grab; touch-action: none; user-select: none; }
 .grip { margin-left: auto; opacity: .6; }
 .layout-B > .play { order: 0; justify-self: center; }
@@ -48,3 +48,16 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--preview-acc
 .layout-option.chosen::after { content: "✓"; float: right; }
 .empty, .error-message { padding: 10px; line-height: 1.5; }
 .retry { display: block; margin: 4px 10px; padding: 6px 12px; border: 1px solid var(--preview-control-border, #ddd); }
+
+.layout-B.collapsed { height: 108px; grid-template-rows: 28px 28px 26px; }
+.layout-B .voice-group[hidden] { display: none; }
+.layout-B .identity { cursor: default; }
+.layout-B .grip { flex: 1; margin: 0; text-align: center; cursor: grab; }
+.options-toggle, .skip { display: grid; place-items: center; flex-shrink: 0; width: 28px; height: 28px; padding: 0; color: var(--preview-icon, #777); border-radius: 0; }
+.options-toggle[aria-expanded="true"] { background: color-mix(in srgb, var(--preview-fg, #303137) 12%, transparent); }
+.transport { display: flex; justify-content: center; align-items: center; gap: 4px; }
+.transport .play { order: 0; }
+.skip { width: 32px; }
+.picker-popover { display: flex; flex-direction: column; overflow: hidden; }
+.picker-popover input[type="search"] { flex: 0 0 auto; }
+.option-list { min-height: 0; overflow-y: auto; overscroll-behavior: contain; }

@@ -13,7 +13,7 @@ function fixture() {
     selectVoice: vi.fn(), selectTier: vi.fn(), setLanguage: vi.fn(), setSpeed: vi.fn(),
   };
   const reader = { _internalReader: { _readAloudManager: manager, _state: { readAloudState: { popupOpen: false } } } };
-  const start = vi.fn(), close = vi.fn(), togglePaused = vi.fn(), rememberSpeed = vi.fn(), follow = vi.fn();
+  const start = vi.fn(), close = vi.fn(), togglePaused = vi.fn(), rememberSpeed = vi.fn(), follow = vi.fn(), navigate = vi.fn();
   const following = new Map<unknown, boolean>();
   const automatic = (reader: unknown) => following.get(reader) ?? true;
   const manual = vi.fn((reader: unknown) => { following.set(reader, false); });
@@ -21,10 +21,10 @@ function fixture() {
   const controller = createPlayerController({
     prefs: { get: key => values.get(key), set: (key, value) => { values.set(key, value); } },
     labels: () => ({ fish: 'Fish Audio' }), clone: (_reader, value) => value,
-    start, close, togglePaused, rememberSpeed, follow, automatic, manual, anyReading: () => manager.active,
+    start, close, togglePaused, rememberSpeed, follow, navigate, automatic, manual, anyReading: () => manager.active,
     message: key => key,
   });
-  return { values, manager, reader, controller, start, close, togglePaused, rememberSpeed, follow, following, manual };
+  return { values, manager, reader, controller, start, close, togglePaused, rememberSpeed, follow, following, manual, navigate };
 }
 
 describe('player controller', () => {
@@ -92,6 +92,15 @@ describe('player controller', () => {
     expect(f.controller.snapshot(f.reader).automatic).toBe(true);
     expect(f.togglePaused).not.toHaveBeenCalled();
     expect(f.start).not.toHaveBeenCalled();
+  });
+  it.each(['previousParagraph', 'previousSentence', 'nextSentence', 'nextParagraph'])('routes %s through the shared navigation path without starting playback', async action => {
+    const f = fixture(); f.manager.active = true;
+    await f.controller.command(f.reader, 'navigate', action);
+    expect(f.navigate).toHaveBeenCalledWith(f.reader, action);
+    expect(f.togglePaused).not.toHaveBeenCalled();
+    expect(f.start).not.toHaveBeenCalled();
+    await expect(f.controller.command(f.reader, 'navigate', 'arbitrary')).rejects.toThrow();
+    expect(f.navigate).toHaveBeenCalledTimes(1);
   });
   it('clones language options into the reader realm and validates provider and locale choices', async () => {
     const f = fixture();

@@ -186,6 +186,7 @@ const playerController = createPlayerController({
   togglePaused: togglePlayerPaused,
   rememberSpeed: (speed) => readAloudMemory?.learnSpeed(speed),
   follow: (reader) => { readAloudShortcuts?.returnToSpoken(reader); },
+  navigate: (reader, action) => { readAloudShortcuts?.navigate(reader, action); },
   automatic: (reader) => sentenceInView?.automatic(reader) ?? domFollowing?.automatic(reader) ??
     (reader?._internalReader?._lastView ?? reader?._internalReader?._primaryView)?._readAloud?.positionLocked !== false,
   manual: (reader) => {
@@ -214,6 +215,11 @@ function playerStrings(): Record<string, string> {
     'volume': t('ztts-player-volume'),
     'automatic': t('ztts-player-automatic'),
     'manual': t('ztts-player-manual'),
+    'options': t('ztts-player-options'),
+    'previousParagraph': t('ztts-player-previous-paragraph'),
+    'previousSentence': t('ztts-player-previous-sentence'),
+    'nextSentence': t('ztts-player-next-sentence'),
+    'nextParagraph': t('ztts-player-next-paragraph'),
     'layout': t('ztts-player-layout'),
     'bottom': t('ztts-player-bottom'),
     'floating': t('ztts-player-floating'),
@@ -1058,16 +1064,8 @@ function startReadAloudShortcuts(pluginID: string): void {
       reader._internalReader.startReadAloudAtPosition(win ? Components.utils.cloneInto(target, win) : target);
       return true;
     },
-    // The player's Options button, in the reader's own document: the panel
-    // is React state local to Zotero's popup, so there is nothing to call
-    // (ui/player-options.ts). No player on screen, no button — the key
-    // falls through.
-    findOptionsButton: (reader: any) => {
-      const doc = reader?._iframeWindow?.document;
-      const frame = doc?.getElementById('ztts-player-frame');
-      if (prefs.get(PREF_PREFIX + 'readAloud.usePluginPlayer') !== false && frame && !frame.hidden) return frame.contentDocument?.querySelector('[data-pick="voice"]') ?? null;
-      return findOptionsButton(doc);
-    },
+    // Route Shift+O to the visible floating or native Options control.
+    findOptionsButton: (reader: any) => findOptionsButton(reader?._iframeWindow?.document),
     showAutoScrollToast: (reader: any, mode) => {
       const doc = toastDoc(reader);
       if (doc) showToast(doc, mode === 'sentence' ? t('ztts-auto-scroll-toast-sentence') : t('ztts-auto-scroll-toast-outside'));
@@ -2146,6 +2144,7 @@ async function startup({ id, version, rootURI }: StartupParams): Promise<void> {
             const win = Components.utils.waiveXrays(target);
             Components.utils.exportFunction(move, win, { defineAs: 'zttsMovePreview' });
           },
+          exportMenu: (target, place) => { Components.utils.exportFunction(place, Components.utils.waiveXrays(target), { defineAs: 'zttsPlaceMenu' }); },
           exportLayout: (target, change) => { Components.utils.exportFunction(change, Components.utils.waiveXrays(target), { defineAs: 'zttsSwitchLayout' }); },
           renderLayout: (target, layout) => {
             const win = Components.utils.waiveXrays(target);

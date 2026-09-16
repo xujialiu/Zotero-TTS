@@ -185,6 +185,8 @@ export interface Settings {
 export interface PrefsBackend {
   get(key: string): unknown;
   set(key: string, value: unknown): void;
+  /** Update a string default without replacing an explicit user value. */
+  setDefault?(key: string, value: string): void;
   /** Remove a user value so the default applies again; optional because tests' fakes may omit it. */
   clear?(key: string): void;
   /**
@@ -252,7 +254,7 @@ export const DEFAULTS: Settings = {
   },
   readAloud: {
     usePluginPlayer: true,
-    playerLayout: 'A',
+    playerLayout: 'top',
     autoScrollMode: 'sentence',
     keepFollowingWhileVisible: true,
     sameForAllDocuments: true,
@@ -395,7 +397,7 @@ export function loadSettings(prefs: PrefsBackend): Settings {
     },
     readAloud: {
       usePluginPlayer: bool(prefs, 'readAloud.usePluginPlayer', true),
-      playerLayout: prefs.get(PREF_PREFIX + 'readAloud.playerLayout') === 'B' ? 'B' : prefs.get(PREF_PREFIX + 'readAloud.playerLayout') === 'top' ? 'top' : 'A',
+      playerLayout: playerLayout(prefs),
       autoScrollMode: autoScrollMode(prefs.get(PREF_PREFIX + 'readAloud.autoScrollMode')),
       keepFollowingWhileVisible: prefs.get(PREF_PREFIX + 'readAloud.keepFollowingWhileVisible') !== false,
       sameForAllDocuments: bool(prefs, 'readAloud.sameForAllDocuments', DEFAULTS.readAloud.sameForAllDocuments),
@@ -489,7 +491,23 @@ export function createZoteroPrefs(): PrefsBackend {
   return {
     get: (key) => Zotero.Prefs.get(key, true),
     set: (key, value) => Zotero.Prefs.set(key, value as never, true),
+    setDefault: (key, value) => Services.prefs.getDefaultBranch('').setStringPref(key, value),
     clear: (key) => Zotero.Prefs.clear(key, true),
     has: (key) => Zotero.Prefs.prefHasUserValue(key, true),
   };
+}
+
+/** A saved layout survives an upgrade; a retained Gecko default is not a choice. */
+export function playerLayout(prefs: PrefsBackend): 'A' | 'B' | 'top' {
+  const key = PREF_PREFIX + 'readAloud.playerLayout';
+  const value = prefs.has?.(key) === false ? undefined : prefs.get(key);
+  return value === 'A' || value === 'B' ? value : 'top';
+}
+
+export function setPlayerLayout(prefs: PrefsBackend, value: 'A' | 'B' | 'top'): void {
+  const key = PREF_PREFIX + 'readAloud.playerLayout';
+  // Gecko discards a user value equal to its default. Correct an old default
+  // before saving A, otherwise that deliberate choice disappears on reload.
+  prefs.setDefault?.(key, 'top');
+  prefs.set(key, value);
 }
