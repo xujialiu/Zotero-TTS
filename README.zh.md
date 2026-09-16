@@ -1,4 +1,4 @@
-<!-- translated-from: README.md sha256:f093c59d9d50 -->
+<!-- translated-from: README.md sha256:ec4b11be42cd -->
 <p align="center"><img src="assets/icon.png" width="80" alt="Zotero-TTS 图标"></p>
 <h1 align="center">Zotero-TTS</h1>
 

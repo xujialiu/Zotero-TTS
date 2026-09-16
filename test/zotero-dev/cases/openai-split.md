@@ -1,6 +1,6 @@
 [Checklist index](../README.md) · [Scripts](../scripts/openai-split/README.md)
 
-## The OpenAI section split into OpenAI, Xiaomi MiMo and OpenAI Compatible, and the old settings carried over (issue #113, 1.12.12)
+## The OpenAI section split into OpenAI, Xiaomi MiMo and OpenAI Compatible, and the old settings carried over (issue #113, 1.12.11)
 
 Three provider sections where there was one with a **Server** dropdown:
 **OpenAI** (`openai-official`: API key, Model, Voices; api.openai.com,
