@@ -1,16 +1,17 @@
 /** Throwaway reader UI: every playback control stays inside the mock page. */
 export function createPlayerPrototype(deps: {
   uri: string;
+  iconURI: string;
   dead(value: unknown): boolean;
   error(error: unknown): void;
   exportResize(target: Window, callback: (height: number) => void): void;
   exportFloating(target: Window, move: (dx: number, dy: number) => void): void;
   exportLayout(target: Window, change: (layout: string) => void): void;
   renderLayout(target: Window, layout: string): boolean;
+  setPlaying(target: Window, playing: boolean): boolean;
 }) {
   let layout = 'A';
   let enabled = true;
-  let hideNative = true;
   const settingsDocuments = new Set<Document>();
   function updateSettingsLayout(doc: Document): void {
     const select = doc.getElementById('ztts-prototype-layout') as HTMLSelectElement | null;
@@ -31,7 +32,7 @@ export function createPlayerPrototype(deps: {
       updateSettingsLayout(doc);
     }
   }
-  const entries = new Map<Document, { frame: HTMLIFrameElement; style: HTMLStyleElement; moved: boolean; listener: (event: MessageEvent) => void; resize: () => void; connect: () => void; cleanup: () => void }>();
+  const entries = new Map<Document, { frame: HTMLIFrameElement; style: HTMLStyleElement; button: HTMLButtonElement; open: boolean; pendingPlaying: boolean | null; moved: boolean; listener: (event: MessageEvent) => void; resize: () => void; connect: () => void; cleanup: () => void }>();
   function syncAppearance(doc: Document): void {
     const entry = entries.get(doc);
     if (!entry || deps.dead(doc)) return;
@@ -78,11 +79,16 @@ export function createPlayerPrototype(deps: {
   function paint(doc: Document): void {
     const entry = entries.get(doc)!;
     entry.moved = false;
-    entry.frame.hidden = !enabled;
-    entry.style.textContent = enabled && hideNative ? '.read-aloud-popup, #read-aloud { display: none !important; }' : '';
+    const visible = enabled && entry.open;
+    entry.frame.hidden = !visible;
+    entry.button.hidden = !enabled;
+    entry.button.classList.toggle('active', visible);
+    entry.button.setAttribute('aria-expanded', String(visible));
+    entry.style.textContent = '#ztts-player-toggle[hidden], #ztts-player-prototype[hidden] { display: none !important; }';
+    if (enabled) entry.style.textContent += '\n.read-aloud-popup, #read-aloud { display: none !important; }';
     // Reserve real reader space for the two docked layouts; floating leaves it intact.
-    if (enabled && layout === 'A') entry.style.textContent += '\n#split-view { bottom: 34px !important; }';
-    if (enabled && layout === 'top') entry.style.textContent += '\n#split-view { top: 75px !important; }';
+    if (visible && layout === 'A') entry.style.textContent += '\n#split-view { bottom: 34px !important; }';
+    if (visible && layout === 'top') entry.style.textContent += '\n#split-view { top: 75px !important; }';
     entry.frame.style.cssText = 'position:fixed;z-index:10000;border:0;background:transparent;color-scheme:light;';
     if (layout === 'A') entry.frame.style.cssText += 'left:0;bottom:0;width:100%;height:34px;';
     if (layout === 'B') entry.frame.style.cssText += 'left:10px;top:51px;width:min(300px,95vw);height:252px;';
@@ -103,7 +109,21 @@ export function createPlayerPrototype(deps: {
       const doc = reader?._iframeWindow?.document as Document | undefined;
       if (!doc?.body || entries.has(doc)) return;
       // Recover nodes left by an interrupted prototype hot-upgrade.
-      for (const stale of doc.querySelectorAll('#ztts-player-prototype, #ztts-player-prototype-layout, #ztts-player-toolbar-slot')) stale.remove();
+      for (const stale of doc.querySelectorAll('#ztts-player-prototype, #ztts-player-prototype-layout, #ztts-player-toolbar-slot, #ztts-player-toggle')) stale.remove();
+      const button = doc.createElement('button');
+      button.id = 'ztts-player-toggle';
+      button.className = 'toolbar-button';
+      button.type = 'button';
+      button.title = 'Zotero-TTS';
+      button.setAttribute('aria-label', 'Zotero-TTS');
+      button.setAttribute('aria-controls', 'ztts-player-prototype');
+      const icon = doc.createElement('img');
+      icon.src = deps.iconURI;
+      icon.alt = '';
+      icon.width = 20;
+      icon.height = 20;
+      button.append(icon);
+      doc.querySelector('#read-aloud')?.before(button);
       const frame = doc.createElement('iframe');
       frame.id = 'ztts-player-prototype';
       frame.setAttribute('title', 'Zotero-TTS player (UI preview)');
@@ -144,6 +164,8 @@ export function createPlayerPrototype(deps: {
             frame.style.top = Math.max(0, Math.min(win.innerHeight - 252, box.top + dy)) + 'px';
           });
           deps.exportLayout(frame.contentWindow, changeLayout);
+          const entry = entries.get(doc)!;
+          if (entry.pendingPlaying !== null && deps.setPlaying(frame.contentWindow, entry.pendingPlaying)) entry.pendingPlaying = null;
         }
         resize();
       };
@@ -161,7 +183,17 @@ export function createPlayerPrototype(deps: {
         };
         connectionTimer = setTimeout(tryConnect, 50);
       };
-      entries.set(doc, { frame, style, moved: false, listener, resize, connect, cleanup: () => {
+      const toggle = (event: Event) => {
+        event.stopPropagation();
+        if (!enabled) return;
+        const entry = entries.get(doc)!;
+        entry.open = !entry.open;
+        entry.pendingPlaying = entry.open;
+        paint(doc);
+      };
+      button.addEventListener('click', toggle);
+      entries.set(doc, { frame, style, button, open: false, pendingPlaying: false, moved: false, listener, resize, connect, cleanup: () => {
+        button.removeEventListener('click', toggle);
         clearTimeout(connectionTimer);
         geometry.disconnect(); changes.disconnect(); scheme.removeEventListener('change', resize);
       } });
@@ -181,8 +213,11 @@ export function createPlayerPrototype(deps: {
   return {
     attach,
     setLayout: changeLayout,
-    setEnabled(value: boolean) { enabled = value; refresh(); },
-    setHideNative(value: boolean) { hideNative = value; refresh(); },
+    setEnabled(value: boolean) {
+      enabled = value;
+      for (const entry of entries.values()) { entry.open = false; entry.pendingPlaying = false; }
+      refresh();
+    },
     toggleSettingsMenu(doc: Document) {
       const button = doc.getElementById('ztts-prototype-layout-trigger')!;
       const menu = doc.getElementById('ztts-prototype-layout-menu')!;
@@ -199,16 +234,14 @@ export function createPlayerPrototype(deps: {
       settingsDocuments.add(doc);
       const select = doc.getElementById('ztts-prototype-layout') as HTMLSelectElement | null;
       const toggle = doc.getElementById('ztts-prototype-enabled') as HTMLInputElement | null;
-      const hide = doc.getElementById('ztts-prototype-hide') as HTMLInputElement | null;
       if (select) select.value = layout;
       updateSettingsLayout(doc);
       if (toggle) toggle.checked = enabled;
-      if (hide) hide.checked = hideNative;
     },
     dispose() {
       for (const [doc, entry] of entries) {
         if (deps.dead(doc)) continue;
-        try { entry.cleanup(); doc.defaultView?.removeEventListener('message', entry.listener); doc.defaultView?.removeEventListener('resize', entry.resize); entry.frame.remove(); entry.style.remove(); }
+        try { entry.cleanup(); doc.defaultView?.removeEventListener('message', entry.listener); doc.defaultView?.removeEventListener('resize', entry.resize); entry.button.remove(); entry.frame.remove(); entry.style.remove(); }
         catch (error) { deps.error(error); }
       }
       entries.clear();

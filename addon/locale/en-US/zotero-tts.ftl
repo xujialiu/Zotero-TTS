@@ -624,9 +624,8 @@ ztts-bracket-error-duplicate = Duplicate pair “{ $entry }”. Enter each pair 
 
 ztts-prototype-heading = Player layout preview
 ztts-prototype-note = UI only: controls use sample voices and do not play audio. Preview choices reset when the plugin reloads.
-ztts-prototype-enabled = Show plugin player
+ztts-prototype-enabled = Use plugin player
 ztts-prototype-layout = Layout:
 ztts-prototype-bottom = Bottom bar
 ztts-prototype-floating = Floating panel
-ztts-prototype-hide = Hide Zotero Read Aloud
 ztts-prototype-top = Top bar
