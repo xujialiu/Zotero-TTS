@@ -464,6 +464,12 @@ before the issue is written.
   probes or cleanup still owed; do not leave two agents driving Zotero
   at once. What comes back is evidence — the issue, the fix and
   the commit stay in the main session.
+- **The tester may close the owner's player** (settled 2026-09-16): a
+  paused Read Aloud player left open blocks provider switches through
+  the reading guard; when a check needs the switch, the tester closes
+  the player itself with the popup toggle, notes the tab, says so in the
+  report and never reopens it — the owner is not asked first. Mirrored
+  in `agents/zotero-tester.md`.
 - **Plan first.** List every new behavior on the branch and the check that
   covers it — for research, every question and the observation that would
   settle it; name what only unit tests can cover and why, and what only a

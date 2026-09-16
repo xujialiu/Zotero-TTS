@@ -28,8 +28,9 @@ lengths of `openai.apiKey` and `openai.headers`, whether
 with the global flag (`Zotero.Prefs.get('extensions.zotero.zotero-tts.openai.server', true)`;
 a relative name with the flag reads `undefined` and proves nothing —
 the first run's mistake). **No player may be open** while a switch is
-used: the reading guard refuses both directions, so the owner's paused
-player must be closed before items 4–5. Xiaomi MiMo's
+used: the reading guard refuses both directions, so the tester closes
+the owner's paused player before items 4–5 (`toggleReadAloudPopup(false)`
+on that reader, the tab noted in the report) and does not reopen it. Xiaomi MiMo's
 probe spends nothing (free for now); the Chatterbox behind OpenAI
 Compatible is the owner's own. Expected values below are derived from
 `src/` and the probes of 2026-09-15 (issue #113) and corrected by the

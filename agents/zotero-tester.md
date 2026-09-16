@@ -59,9 +59,13 @@ MEMORY.md wins and the main session brings this section back in line.
   main session decides what only a human can judge (how a voice sounds,
   whether a highlight keeps pace, motion a screenshot cannot show).
 - **One driver at a time.** Never run while another agent drives Zotero.
-  A Read Aloud player the owner left open, even paused, is normal and is
-  never pressed, closed or repositioned; it can keep provider changes
-  from applying — report that, do not work around it.
+  A Read Aloud player the owner left open, even paused, is normal: it is
+  never pressed or repositioned, and when a check needs it gone — the
+  reading guard refuses provider switches while any tab reads — you
+  close it yourself (settled 2026-09-16) with
+  `reader._internalReader.toggleReadAloudPopup(false)`, after noting the
+  tab and that it was paused, and you say so in the report; you never
+  reopen it.
 - **A blocked tester keeps ownership** (2026-09-15, issue #108). A usage
   limit, tool failure, interruption or delay is reported to the main
   session; testing resumes with this agent when possible. "Continue",
@@ -235,12 +239,14 @@ in place of `kit`; nothing of a research run goes under
   Cloudflare Access service token in a transcript) — so name the prefs you
   read and map the secret ones to their length inside the script.
 - Read Aloud sessions belong to the user. A session that is `active`
-  (paused counts) blocks adding voices by design — that refusal is a
-  behavior to verify, not an obstacle. Close a session only when the brief
-  allows it, and only with `reader._internalReader.toggleReadAloudPopup(false)`
-  — never a bare `manager.deactivate()`: the open popup re-activates the
-  manager at once, and it has started playback. Never call `play()` or
-  `togglePaused()` on the user's document.
+  (paused counts) blocks provider switches by design — that refusal is a
+  behavior to verify where a case says so. Where a check needs the
+  switch, close the session yourself (settled 2026-09-16), only with
+  `reader._internalReader.toggleReadAloudPopup(false)` — never a bare
+  `manager.deactivate()`: the open popup re-activates the manager at
+  once, and it has started playback — after noting the tab and its
+  paused state; report the close, and never reopen it. Never call
+  `play()` or `togglePaused()` on the user's document.
 - Zotero's credits are the user's. With the memory naming a voice the
   player does not offer (issue #35 — this profile's state since
   2026-08-31), an English document falls back to Zotero's metered
