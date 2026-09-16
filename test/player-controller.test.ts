@@ -24,6 +24,11 @@ function fixture() {
 }
 
 describe('player controller', () => {
+  it('uses the native label getter instead of exposing an encoded voice id', () => {
+    const f = fixture();
+    Object.assign(f.manager.voicesForLanguage[0], { name: undefined, label: 'Abel — Warm US male (EN)' });
+    expect(f.controller.snapshot(f.reader).voices[0].label).toBe('Abel — Warm US male (EN)');
+  });
   it('treats a dead reader as closed instead of repeatedly throwing during cleanup', () => {
     const f = fixture();
     const reader = { get _internalReader(): never { throw new Error('dead object'); } };

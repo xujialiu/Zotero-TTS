@@ -17,7 +17,7 @@ function closePopover(resize = true) {
   if (resize) notifyHeight();
 }
 function field(key) {
-  return `<div class="field ${key === 'voice' ? 'voice' : ''}"><button class="picker" data-pick="${key}" aria-haspopup="dialog" aria-expanded="false"><span class="value">${escapeHTML(selectedLabel(key))}</span><span class="chevron" aria-hidden="true">⌄</span></button></div>`;
+  return `<div class="field ${key === 'voice' ? 'voice' : ''}"><button class="picker" data-pick="${key}" aria-haspopup="dialog" aria-expanded="false"><span class="value">${escapeHTML(selectedLabel(key))}</span><span class="chevron" aria-hidden="true"></span></button></div>`;
 }
 function render() {
   closePopover();
@@ -86,7 +86,7 @@ function place() {
   popover.style.visibility = 'visible';
 }
 function createPopover(button, label) {
-  if (anchor === button) { closePopover(); return false; }
+  if (anchor === button || button.getAttribute('aria-expanded') === 'true') { closePopover(); return false; }
   closePopover(false); anchor = button;
   popover = document.createElement('div'); popover.className = 'popover'; popover.style.visibility = 'hidden';
   popover.setAttribute('role', 'dialog'); popover.setAttribute('aria-label', label);

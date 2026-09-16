@@ -33,7 +33,11 @@ export function createPluginPlayer(deps: {
       label.textContent = select?.selectedOptions[0]?.textContent ?? '';
       label.setAttribute('data-l10n-id', 'ztts-player-' + ({ A: 'bottom', B: 'floating', top: 'top' }[layout]));
     }
-    for (const option of doc.querySelectorAll('#ztts-player-layout-menu [data-value]')) option.setAttribute('aria-checked', String(option.getAttribute('data-value') === layout));
+    for (const option of doc.querySelectorAll('#ztts-player-layout-menu [data-value]')) {
+      const selected = option.getAttribute('data-value') === layout;
+      option.setAttribute('aria-checked', String(selected));
+      option.toggleAttribute('autofocus', selected);
+    }
   }
   function changeLayout(value: string): void {
     if (!['A', 'B', 'top'].includes(value)) return;
@@ -288,17 +292,14 @@ export function createPluginPlayer(deps: {
       deps.prefs.set(PREF_PREFIX + 'readAloud.usePluginPlayer', value);
       refresh();
     },
-    toggleSettingsMenu(doc: Document) {
+    prepareSettingsMenu(doc: Document) {
       const button = doc.getElementById('ztts-player-layout-trigger')!;
       const menu = doc.getElementById('ztts-player-layout-menu')!;
-      if (menu.matches(':popover-open')) { menu.hidePopover(); return; }
       updateSettingsLayout(doc);
       const rect = button.getBoundingClientRect();
       menu.style.left = rect.left + 'px';
       menu.style.top = rect.bottom + 4 + 'px';
       menu.style.minWidth = rect.width + 'px';
-      menu.showPopover();
-      (menu.querySelector('[aria-checked="true"]') as HTMLElement | null)?.focus({ preventScroll: true });
     },
     initSettings(doc: Document) {
       settingsDocuments.add(doc);

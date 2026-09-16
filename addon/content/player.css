@@ -15,7 +15,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--preview-acc
 .field.voice { flex: 0 1 180px; width: 180px; min-width: 95px; }
 .picker { display: flex; width: 100%; height: 26px; min-width: 0; align-items: center; gap: 6px; padding: 3px 6px; background: var(--preview-control-bg, #fff); border: 1px solid var(--preview-control-border, #ddd); border-radius: 5px; text-align: left; }
 .value { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 1; }
-.chevron { color: var(--preview-icon, #777); }
+.chevron { display: block; width: 8px; height: 8px; flex: 0 0 8px; align-self: center; background: var(--preview-icon, #888); opacity: .7; mask: url('icons/chevron.svg') center / contain no-repeat; }
 .play { order: -1; width: 28px; height: 28px; padding: 0; display: grid; place-items: center; flex-shrink: 0; border-radius: 0; color: var(--preview-icon, #777); }
 .play svg { display: block; }
 .play[data-buffering="true"] { opacity: .55; }

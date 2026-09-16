@@ -3351,7 +3351,7 @@ Zotero.ZoteroTTS = {
     setLayout: (value: string) => pluginPlayer?.setLayout(value),
     setEnabled: (value: boolean) => pluginPlayer?.setEnabled(value),
     initSettings: (doc: Document) => pluginPlayer?.initSettings(doc),
-    toggleSettingsMenu: (doc: Document) => pluginPlayer?.toggleSettingsMenu(doc),
+    prepareSettingsMenu: (doc: Document) => pluginPlayer?.prepareSettingsMenu(doc),
   },
   startup,
   shutdown,

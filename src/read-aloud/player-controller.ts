@@ -41,7 +41,7 @@ export function createPlayerController(deps: PlayerControllerDeps) {
     const rows: PlayerOption[] = [];
     for (let i = 0; i < (source?.length ?? 0); i++) {
       const voice = source[i];
-      if (typeof voice?.id === 'string') rows.push({ value: voice.id, label: String(voice.name ?? voice.id) });
+      if (typeof voice?.id === 'string') rows.push({ value: voice.id, label: String(voice.label ?? voice.name ?? voice.id) });
     }
     return rows.sort((a, b) => compareVoiceLabels(a.label, b.label));
   };
