@@ -3,7 +3,7 @@
      (preferences.js: loadSubScript, then parseXULToFragment / append),
      and only afterwards dispatches a `load` event to the fragment's root.
      A script would find none of these elements. -->
-<vbox class="ztts-pane" onload="Zotero.ZoteroTTS.prefsPane.onPaneLoad(document)">
+<vbox class="ztts-pane" onload="Zotero.ZoteroTTS.prefsPane.onPaneLoad(document); Zotero.ZoteroTTS.playerPrototype.initSettings(document)">
   <!-- The pane's every string is in locale/<locale>/zotero-tts.ftl (issue
        #30): Zotero registers a plugin's Fluent files at startup, this link
        adds ours to the settings window, and Zotero translates every
@@ -29,6 +29,20 @@
        in alphabetical order of their headings, and a heading names the
        provider's site in parentheses as a link (issue #112); OpenAI's
        does not, since that section serves several servers. -->
+  <groupbox id="ztts-player-prototype-settings">
+    <label><html:h2 data-l10n-id="ztts-prototype-heading"/></label>
+    <description data-l10n-id="ztts-prototype-note"/>
+    <html:label><html:input id="ztts-prototype-enabled" type="checkbox" onchange="Zotero.ZoteroTTS.playerPrototype.setEnabled(this.checked)"/><html:span data-l10n-id="ztts-prototype-enabled"/></html:label>
+    <html:label><html:span data-l10n-id="ztts-prototype-layout"/>
+      <html:select id="ztts-prototype-layout" onchange="Zotero.ZoteroTTS.playerPrototype.setLayout(this.value)">
+        <html:option value="A" data-l10n-id="ztts-prototype-bottom"/>
+        <html:option value="B" data-l10n-id="ztts-prototype-floating"/>
+        <html:option value="C" data-l10n-id="ztts-prototype-sidebar"/>
+        <html:option value="D" data-l10n-id="ztts-prototype-toolbar"/>
+      </html:select>
+    </html:label>
+    <html:label><html:input id="ztts-prototype-hide" type="checkbox" onchange="Zotero.ZoteroTTS.playerPrototype.setHideNative(this.checked)"/><html:span data-l10n-id="ztts-prototype-hide"/></html:label>
+  </groupbox>
   <groupbox id="ztts-provider-azure">
     <label><html:h2>Azure (<label is="zotero-text-link" href="https://portal.azure.com">portal.azure.com</label>)</html:h2></label>
     <hbox align="center">

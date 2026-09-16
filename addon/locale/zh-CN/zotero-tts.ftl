@@ -568,3 +568,14 @@ ztts-bracket-use-defaults = 使用默认值
 ztts-bracket-error-empty = 请至少输入一组括号对，多组之间用空格分隔。是否改用默认列表 <> []？
 ztts-bracket-error-entry = 括号对“{ $entry }”无效。每组必须恰好包含两个不同的标点或符号。是否改用默认列表 <> []？
 ztts-bracket-error-duplicate = 括号对“{ $entry }”重复。每组只能输入一次。是否改用默认列表 <> []？
+
+
+ztts-prototype-heading = 播放器布局预览
+ztts-prototype-note = 仅演示界面：使用示例声音，不播放音频。插件重新加载后预览选项会重置。
+ztts-prototype-enabled = 显示插件播放器
+ztts-prototype-layout = 布局：
+ztts-prototype-bottom = A · 底部固定栏
+ztts-prototype-floating = B · 悬浮面板
+ztts-prototype-sidebar = C · 右侧面板
+ztts-prototype-hide = 隐藏 Zotero 原生朗读播放器
+ztts-prototype-toolbar = D · 顶部工具栏内嵌

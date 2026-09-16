@@ -8,6 +8,7 @@
     "doc": "docs"
   },
   "scripts": {
+    "prototype:player": "node scripts/player-prototype.mjs",
     "build": "node scripts/build.mjs",
     "test": "vitest run",
     "test:watch": "vitest",

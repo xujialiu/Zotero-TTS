@@ -1,3 +1,4 @@
+import { createPlayerPrototype } from './ui/player-prototype';
 import { createTextSettings } from './read-aloud/text-settings';
 import { getChromeWebSocket, newRequestId } from './core/providers/azure';
 import { createProvider, getFishVoiceCacheStats } from './core/providers/factory';
@@ -106,6 +107,8 @@ let hijackPatched = new WeakSet<object>();
  */
 const interfaceInstanceToken = 'instance-' + Math.random().toString(36).slice(2, 10);
 let pluginVersion = '0.0.0';
+let playerPrototypeResources: any = null;
+let playerPrototype: ReturnType<typeof createPlayerPrototype> | null = null;
 let readAloudShortcuts: ReadAloudShortcuts | null = null;
 /**
  * Every player that is open, in every window (read-aloud/player-stop.ts):
@@ -623,6 +626,7 @@ function watchWindow(win: any): void {
 
 function watchReader(reader: any): void {
   if (!reader || !readAloudShortcuts) return;
+  playerPrototype?.attach(reader);
   playerExpanded?.attach(reader);
   watchWindow(reader._window);
   readAloudMemory?.attach(reader);
@@ -2053,6 +2057,21 @@ async function startup({ id, version, rootURI }: StartupParams): Promise<void> {
         },
       ],
       ['settings pane', () => registerPrefsPane(rootURI, id, version)],
+      ['player UI prototype', () => {
+        playerPrototypeResources = Services.io.getProtocolHandler('resource')
+          .QueryInterface(Components.interfaces.nsISubstitutingProtocolHandler);
+        playerPrototypeResources.setSubstitutionWithFlags(
+          'zotero-tts-preview', Services.io.newURI(rootURI + 'content/'),
+          Components.interfaces.nsISubstitutingProtocolHandler.ALLOW_CONTENT_ACCESS,
+        );
+        playerPrototype = createPlayerPrototype({
+          uri: 'resource://zotero-tts-preview/player-prototype.html',
+          exportResize: (target, callback) => { Components.utils.exportFunction(callback, Components.utils.waiveXrays(target), { defineAs: 'zttsResizePreview' }); },
+          dead: (value) => Components.utils.isDeadWrapper(value),
+          error: (error) => Zotero.logError(error),
+        });
+        for (const reader of Zotero.Reader._readers) playerPrototype.attach(reader);
+      }],
       ['Read Aloud memory', startReadAloudMemory],
       // Awaited: the database rows must be in memory before the sampler and
       // the resume path run; open-failure is handled inside (in-memory mode)
@@ -2095,6 +2114,10 @@ async function startup({ id, version, rootURI }: StartupParams): Promise<void> {
 }
 
 async function shutdown(reason?: number): Promise<void> {
+  playerPrototype?.dispose();
+  playerPrototype = null;
+  playerPrototypeResources?.setSubstitution('zotero-tts-preview', null);
+  playerPrototypeResources = null;
   // First: the pane goes with this instance, not with Zotero's observer,
   // which runs too late for the next instance's register on a reload (#28)
   try {
@@ -3227,6 +3250,12 @@ const diagnostics = {
 };
 
 Zotero.ZoteroTTS = {
+  playerPrototype: {
+    setLayout: (value: string) => playerPrototype?.setLayout(value),
+    setEnabled: (value: boolean) => playerPrototype?.setEnabled(value),
+    setHideNative: (value: boolean) => playerPrototype?.setHideNative(value),
+    initSettings: (doc: Document) => playerPrototype?.initSettings(doc),
+  },
   startup,
   shutdown,
   onMainWindowLoad,

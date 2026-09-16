@@ -620,3 +620,14 @@ ztts-bracket-use-defaults = Use defaults
 ztts-bracket-error-empty = Enter at least one bracket pair, separated by spaces. Use the default list <> [] instead?
 ztts-bracket-error-entry = Invalid pair “{ $entry }”. Each pair must contain exactly two different punctuation or symbol characters. Use the default list <> [] instead?
 ztts-bracket-error-duplicate = Duplicate pair “{ $entry }”. Enter each pair only once. Use the default list <> [] instead?
+
+
+ztts-prototype-heading = Player layout preview
+ztts-prototype-note = UI only: controls use sample voices and do not play audio. Preview choices reset when the plugin reloads.
+ztts-prototype-enabled = Show plugin player
+ztts-prototype-layout = Layout:
+ztts-prototype-bottom = A · Bottom bar
+ztts-prototype-floating = B · Floating panel
+ztts-prototype-sidebar = C · Right sidebar
+ztts-prototype-hide = Hide Zotero Read Aloud
+ztts-prototype-toolbar = D · Top toolbar
