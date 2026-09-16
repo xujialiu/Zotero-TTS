@@ -520,3 +520,5 @@ then) and is in the git history before that day.
 - Cached child styles clipped the compact floating panel: per-instance resource URLs
 
 - A detached document still has a live wrapper: null-window guards and independent cleanup
+
+- Player verification closed: real controls and handoff, compact UI, fresh resources, clean teardown

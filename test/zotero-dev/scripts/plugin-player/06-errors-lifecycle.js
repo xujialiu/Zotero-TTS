@@ -1,0 +1,31 @@
+(async () => {
+  const state = Zotero.ZoteroTTSRun.state;
+  const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+  const readerOf = itemID => { const list = Zotero.Reader?._readers || []; for (let i = 0; i < list.length; i++) if (list[i]?.itemID === itemID) return list[i]; return null; };
+  const waitFor = async (test, ms = 10000) => { const end = Date.now() + ms; while (Date.now() < end) { const v = test(); if (v) return v; await sleep(100); } return test(); };
+  const reader = readerOf(state.fixtures.pdf.id);
+  if (!reader) throw new Error('PDF reader missing for lifecycle check');
+  const doc = reader._iframeWindow.document;
+  const frame = () => doc.getElementById('ztts-player-frame');
+  const button = () => doc.getElementById('ztts-player-toggle');
+  const manager = () => reader._internalReader?._readAloudManager;
+  const count = () => ({ frame: doc.querySelectorAll('#ztts-player-frame').length, style: doc.querySelectorAll('#ztts-player-style').length, icon: doc.querySelectorAll('#ztts-player-toggle').length, prototype: doc.querySelectorAll('#ztts-player-prototype, #ztts-player-prototype-layout, #ztts-player-toolbar-slot').length });
+  if (frame()?.hidden) button()?.click();
+  await waitFor(() => !frame()?.hidden && !!frame()?.contentDocument?.querySelector('.player'));
+  const child = frame()?.contentWindow ? Components.utils.waiveXrays(frame().contentWindow) : null;
+  const before = { counts: count(), active: !!manager()?.active, paused: !!manager()?.paused };
+  const stale = 'fish::en/stale-player-choice';
+  child?.zttsCommand?.('voice', stale);
+  await sleep(600);
+  const errorDiag = JSON.parse(await Zotero.ZoteroTTS.diagnostics.pluginPlayer());
+  let open = null; for (let i = 0; i < (errorDiag.readers || []).length; i++) if (errorDiag.readers[i]?.open) open = errorDiag.readers[i];
+  const error = { stale, actionError: open?.actionError || null, stateError: open?.state?.error || null, statusHidden: !!frame()?.contentDocument?.querySelector('.status-button')?.hidden, statusTitle: frame()?.contentDocument?.querySelector('.status-button')?.title || null };
+  const status = frame()?.contentDocument?.querySelector('.status-button'); status?.click(); await sleep(100);
+  const retry = frame()?.contentDocument?.querySelector('.retry'); const retryVisible = !!retry; retry?.click(); await sleep(900);
+  const retryDiag = JSON.parse(await Zotero.ZoteroTTS.diagnostics.pluginPlayer()); let retryOpen = null; for (let i = 0; i < (retryDiag.readers || []).length; i++) if (retryDiag.readers[i]?.open) retryOpen = retryDiag.readers[i];
+  const retryResult = { visible: retryVisible, actionError: retryOpen?.actionError || null, stateError: retryOpen?.state?.error || null, active: !!manager()?.active, paused: !!manager()?.paused, timestamps: manager()?._controller?._currentTimestamps?.length ?? 0 };
+  const beforeClose = count(); button()?.click(); await waitFor(() => !!frame()?.hidden && !manager()?.active); const closed = { counts: count(), active: !!manager()?.active, paused: !!manager()?.paused };
+  button()?.click(); await waitFor(() => !frame()?.hidden && !!manager()?.active); const reopened = { counts: count(), active: !!manager()?.active, paused: !!manager()?.paused };
+  state.errorsLifecycle = { before, error, retry: retryResult, beforeClose, closed, reopened };
+  return JSON.stringify(state.errorsLifecycle, null, 1);
+})()

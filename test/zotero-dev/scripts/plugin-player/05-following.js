@@ -1,0 +1,50 @@
+(async () => {
+  const state = Zotero.ZoteroTTSRun.state;
+  const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+  const readerOf = itemID => { const list = Zotero.Reader?._readers || []; for (let i = 0; i < list.length; i++) if (list[i]?.itemID === itemID) return list[i]; return null; };
+  const waitFor = async (test, ms = 10000) => { const end = Date.now() + ms; while (Date.now() < end) { const v = test(); if (v) return v; await sleep(100); } return test(); };
+  const auto = async kind => { try { const raw = JSON.parse(await Zotero.ZoteroTTS.diagnostics.autoScroll()); for (let i = 0; i < raw.length; i++) if (!kind || raw[i]?.kind === kind) return raw[i]; return null; } catch (e) { return { error: String(e) }; } };
+  const highlight = async kind => { try { const raw = JSON.parse(await Zotero.ZoteroTTS.diagnostics.highlight()); if (Array.isArray(raw)) { for (let i = 0; i < raw.length; i++) if (!kind || raw[i]?.kind === kind) return raw[i]; } return raw; } catch (e) { return { error: String(e) }; } };
+  const snap = reader => { const m = reader?._internalReader?._readAloudManager, c = m?._controller; return { active: !!m?.active, paused: !!m?.paused, voice: m?.selectedVoiceID || null, speed: Number(m?.speed) || null, position: c?._position ?? null, audio: c?._audioContext ? { state: c._audioContext.state, currentTime: c._audioContext.currentTime } : null }; };
+  const frame = reader => reader?._iframeWindow?.document?.getElementById('ztts-player-frame');
+  const icon = reader => reader?._iframeWindow?.document?.getElementById('ztts-player-toggle');
+  const openPlayer = async reader => { const f = frame(reader); if (f?.hidden) icon(reader)?.click(); await waitFor(() => !frame(reader)?.hidden && !!frame(reader)?.contentDocument?.querySelector('.player')); };
+  const closePlayer = async reader => { const f = frame(reader); if (f && !f.hidden) icon(reader)?.click(); await waitFor(() => !!frame(reader)?.hidden && !reader?._internalReader?._readAloudManager?.active); };
+  const setAutomatic = async (reader, value) => { const f = frame(reader); const button = f?.contentDocument?.querySelector('.mode'); if ((Zotero.Prefs.get('zotero-tts.readAloud.autoScrollEnabled') !== false) !== value) button?.click(); await sleep(80); if ((Zotero.Prefs.get('zotero-tts.readAloud.autoScrollEnabled') !== false) !== value) { const child = f?.contentWindow ? Components.utils.waiveXrays(f.contentWindow) : null; child?.zttsCommand?.('automatic', value); } await waitFor(() => (Zotero.Prefs.get('zotero-tts.readAloud.autoScrollEnabled') !== false) === value); await sleep(120); };
+  const skipSentence = async reader => { const m = reader?._internalReader?._readAloudManager; let result = null; try { result = m?.skipAhead?.('sentence'); } catch (e) { result = 'error: ' + String(e); } if (result && typeof result.then === 'function') await result; await sleep(350); return result === undefined ? 'called' : String(result); };
+  const pdf = readerOf(state.fixtures.pdf.id);
+  if (!pdf) throw new Error('PDF reader missing');
+  await openPlayer(pdf);
+  await setAutomatic(pdf, true);
+  const pdfBefore = { manager: snap(pdf), automatic: Zotero.Prefs.get('zotero-tts.readAloud.autoScrollEnabled') !== false, auto: await auto('pdf'), highlight: await highlight('pdf') };
+  await setAutomatic(pdf, false);
+  const pdfManualBefore = { automatic: Zotero.Prefs.get('zotero-tts.readAloud.autoScrollEnabled') !== false, manager: snap(pdf), auto: await auto('pdf'), highlight: await highlight('pdf') };
+  const pdfView = pdf._internalReader?._primaryView; const pdfInnerDoc = pdfView?.iframeWindow?.document || pdfView?._iframeWindow?.document || null; const pdfScroll = pdfInnerDoc?.querySelector('#viewerContainer'); if (pdfScroll) pdfScroll.scrollTop = 2000; const pdfManualScrollBefore = pdfScroll?.scrollTop ?? null;
+  const pdfSkip = await skipSentence(pdf);
+  const pdfManualAfterSkip = { automatic: Zotero.Prefs.get('zotero-tts.readAloud.autoScrollEnabled') !== false, manualScrollBefore: pdfManualScrollBefore, manualScrollAfter: pdfScroll?.scrollTop ?? null, manager: snap(pdf), auto: await auto('pdf'), highlight: await highlight('pdf') };
+  const pdfFrame = pdf._iframeWindow?.document;
+  const pdfPlay = frame(pdf)?.contentDocument?.querySelector('.play');
+  if (!pdf._internalReader?._readAloudManager?.paused) pdfPlay?.click(); await waitFor(() => !!pdf._internalReader?._readAloudManager?.paused); const pdfPaused = { automatic: Zotero.Prefs.get('zotero-tts.readAloud.autoScrollEnabled') !== false, manager: snap(pdf), auto: await auto('pdf'), highlight: await highlight('pdf') };
+  pdfPlay?.click(); await waitFor(() => !!pdf._internalReader?._readAloudManager?.active && !pdf._internalReader?._readAloudManager?.paused); const pdfResumed = { automatic: Zotero.Prefs.get('zotero-tts.readAloud.autoScrollEnabled') !== false, manager: snap(pdf), auto: await auto('pdf'), highlight: await highlight('pdf') };
+  await setAutomatic(pdf, true); if (pdfScroll) pdfScroll.scrollTop = 2000; const pdfAutoScrollBefore = pdfScroll?.scrollTop ?? null; const pdfAutoSkip = await skipSentence(pdf); const pdfAutomatic = { automatic: Zotero.Prefs.get('zotero-tts.readAloud.autoScrollEnabled') !== false, autoScrollBefore: pdfAutoScrollBefore, autoScrollAfter: pdfScroll?.scrollTop ?? null, autoSkip: pdfAutoSkip, manager: snap(pdf), auto: await auto('pdf') };
+  // Manual navigation followed by trusted Return-to-spoken while M is still allowed.
+  await setAutomatic(pdf, false);
+  const container = pdfFrame?.querySelector('#viewerContainer'); const beforeReturnScroll = container ? container.scrollTop : null; if (container) container.scrollTop = Math.max(2500, beforeReturnScroll || 0);
+  const rw = pdf._iframeWindow; let returnKeys = null;
+  try { pdf.focus?.(); rw?.focus?.(); const tip = Components.classes['@mozilla.org/text-input-processor;1'].createInstance(Components.interfaces.nsITextInputProcessor); const K = rw.KeyboardEvent; const ev = (key, code, keyCode, shiftKey = false) => new K('', { key, code, keyCode, bubbles: true, cancelable: true, shiftKey }); tip.beginInputTransactionForTests(rw); returnKeys = { downShift: tip.keydown(ev('Shift', 'ShiftLeft', 16)), down: tip.keydown(ev('Enter', 'Enter', 13, true)), up: tip.keyup(ev('Enter', 'Enter', 13, true)), upShift: tip.keyup(ev('Shift', 'ShiftLeft', 16)) }; if (typeof tip.endInputTransaction === 'function') tip.endInputTransaction(); } catch (e) { returnKeys = { error: String(e) }; }
+  await sleep(500); const afterReturnScroll = container ? container.scrollTop : null; const pdfReturn = { keys: returnKeys, beforeScroll: beforeReturnScroll, afterScroll: afterReturnScroll, auto: await auto('pdf'), manager: snap(pdf) };
+  await setAutomatic(pdf, true); await closePlayer(pdf);
+  const opened = Zotero.Reader.open(state.fixtures.epub.id); if (opened && typeof opened.then === 'function') await opened;
+  const epub = await waitFor(() => readerOf(state.fixtures.epub.id)?._internalReader?._readAloudManager ? readerOf(state.fixtures.epub.id) : null, 12000);
+  if (!epub) throw new Error('EPUB reader did not expose _internalReader/_readAloudManager');
+  await openPlayer(epub);
+  const epubBefore = { manager: snap(epub), automatic: Zotero.Prefs.get('zotero-tts.readAloud.autoScrollEnabled') !== false, auto: await auto('epub'), highlight: await highlight('epub') };
+  await setAutomatic(epub, false); const epubManualBefore = { automatic: Zotero.Prefs.get('zotero-tts.readAloud.autoScrollEnabled') !== false, manager: snap(epub), auto: await auto('epub'), highlight: await highlight('epub') };
+  const epubSkip = await skipSentence(epub); const epubManualAfterSkip = { automatic: Zotero.Prefs.get('zotero-tts.readAloud.autoScrollEnabled') !== false, manager: snap(epub), auto: await auto('epub'), highlight: await highlight('epub') };
+  const epubPlay = frame(epub)?.contentDocument?.querySelector('.play'); if (!epub._internalReader?._readAloudManager?.paused) epubPlay?.click(); await waitFor(() => !!epub._internalReader?._readAloudManager?.paused); const epubPaused = { automatic: Zotero.Prefs.get('zotero-tts.readAloud.autoScrollEnabled') !== false, manager: snap(epub), auto: await auto('epub'), highlight: await highlight('epub') };
+  epubPlay?.click(); await waitFor(() => !!epub._internalReader?._readAloudManager?.active && !epub._internalReader?._readAloudManager?.paused); const epubResumed = { automatic: Zotero.Prefs.get('zotero-tts.readAloud.autoScrollEnabled') !== false, manager: snap(epub), auto: await auto('epub'), highlight: await highlight('epub') };
+  await setAutomatic(epub, true); const epubAutomatic = { manager: snap(epub), automatic: Zotero.Prefs.get('zotero-tts.readAloud.autoScrollEnabled') !== false, auto: await auto('epub') };
+  await setAutomatic(epub, false); await closePlayer(epub);
+  state.following = { pdfBefore, pdfManualBefore, pdfSkip, pdfManualAfterSkip, pdfPaused, pdfResumed, pdfAutomatic, pdfReturn, epubBefore, epubManualBefore, epubSkip, epubManualAfterSkip, epubPaused, epubResumed, epubAutomatic };
+  return JSON.stringify(state.following, null, 1);
+})()
