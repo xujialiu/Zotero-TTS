@@ -3,7 +3,7 @@
      (preferences.js: loadSubScript, then parseXULToFragment / append),
      and only afterwards dispatches a `load` event to the fragment's root.
      A script would find none of these elements. -->
-<vbox class="ztts-pane" onload="Zotero.ZoteroTTS.prefsPane.onPaneLoad(document); Zotero.ZoteroTTS.playerPrototype.initSettings(document)">
+<vbox class="ztts-pane" onload="Zotero.ZoteroTTS.prefsPane.onPaneLoad(document)">
   <!-- The pane's every string is in locale/<locale>/zotero-tts.ftl (issue
        #30): Zotero registers a plugin's Fluent files at startup, this link
        adds ours to the settings window, and Zotero translates every
@@ -29,21 +29,20 @@
        in alphabetical order of their headings, and a heading names the
        provider's site in parentheses as a link (issue #112); OpenAI's
        does not, since that section serves several servers. -->
-  <groupbox id="ztts-player-prototype-settings">
-    <label><html:h2 data-l10n-id="ztts-prototype-heading"/></label>
-    <description data-l10n-id="ztts-prototype-note"/>
-    <html:label><html:input id="ztts-prototype-enabled" type="checkbox" onchange="Zotero.ZoteroTTS.playerPrototype.setEnabled(this.checked)"/><html:span data-l10n-id="ztts-prototype-enabled"/></html:label>
-    <html:div><html:span id="ztts-prototype-layout-caption" data-l10n-id="ztts-prototype-layout"/>
-      <html:select id="ztts-prototype-layout" hidden="hidden" onchange="Zotero.ZoteroTTS.playerPrototype.setLayout(this.value)">
-        <html:option value="A" data-l10n-id="ztts-prototype-bottom"/>
-        <html:option value="B" data-l10n-id="ztts-prototype-floating"/>
-        <html:option value="top" data-l10n-id="ztts-prototype-top"/>
+  <groupbox id="ztts-player-settings">
+    <label><html:h2 data-l10n-id="ztts-player-heading"/></label>
+    <html:label><html:input id="ztts-player-enabled" type="checkbox" onchange="Zotero.ZoteroTTS.pluginPlayer.setEnabled(this.checked)"/><html:span data-l10n-id="ztts-player-enabled"/></html:label>
+    <html:div><html:span id="ztts-player-layout-caption" data-l10n-id="ztts-player-layout"/>
+      <html:select id="ztts-player-layout" hidden="hidden" onchange="Zotero.ZoteroTTS.pluginPlayer.setLayout(this.value)">
+        <html:option value="A" data-l10n-id="ztts-player-bottom"/>
+        <html:option value="B" data-l10n-id="ztts-player-floating"/>
+        <html:option value="top" data-l10n-id="ztts-player-top"/>
       </html:select>
-      <html:button id="ztts-prototype-layout-trigger" type="button" aria-haspopup="menu" aria-labelledby="ztts-prototype-layout-caption ztts-prototype-layout-label" onclick="Zotero.ZoteroTTS.playerPrototype.toggleSettingsMenu(document)"><html:span id="ztts-prototype-layout-label" data-l10n-id="ztts-prototype-bottom"/><html:span aria-hidden="true">⌄</html:span></html:button>
-      <html:div id="ztts-prototype-layout-menu" popover="auto" role="menu">
-        <html:button type="button" role="menuitemradio" data-value="A" data-l10n-id="ztts-prototype-bottom" onclick="Zotero.ZoteroTTS.playerPrototype.setLayout('A'); this.parentElement.hidePopover()"/>
-        <html:button type="button" role="menuitemradio" data-value="B" data-l10n-id="ztts-prototype-floating" onclick="Zotero.ZoteroTTS.playerPrototype.setLayout('B'); this.parentElement.hidePopover()"/>
-        <html:button type="button" role="menuitemradio" data-value="top" data-l10n-id="ztts-prototype-top" onclick="Zotero.ZoteroTTS.playerPrototype.setLayout('top'); this.parentElement.hidePopover()"/>
+      <html:button id="ztts-player-layout-trigger" type="button" aria-haspopup="menu" aria-labelledby="ztts-player-layout-caption ztts-player-layout-label" onclick="Zotero.ZoteroTTS.pluginPlayer.toggleSettingsMenu(document)"><html:span id="ztts-player-layout-label" data-l10n-id="ztts-player-bottom"/><html:span aria-hidden="true">⌄</html:span></html:button>
+      <html:div id="ztts-player-layout-menu" popover="auto" role="menu">
+        <html:button type="button" class="ztts-player-layout-option" role="menuitemradio" data-value="A" data-l10n-id="ztts-player-bottom" onclick="Zotero.ZoteroTTS.pluginPlayer.setLayout('A'); this.parentElement.hidePopover()"/>
+        <html:button type="button" class="ztts-player-layout-option" role="menuitemradio" data-value="B" data-l10n-id="ztts-player-floating" onclick="Zotero.ZoteroTTS.pluginPlayer.setLayout('B'); this.parentElement.hidePopover()"/>
+        <html:button type="button" class="ztts-player-layout-option" role="menuitemradio" data-value="top" data-l10n-id="ztts-player-top" onclick="Zotero.ZoteroTTS.pluginPlayer.setLayout('top'); this.parentElement.hidePopover()"/>
       </html:div>
     </html:div>
   </groupbox>

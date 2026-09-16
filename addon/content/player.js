@@ -1,0 +1,3 @@
+// Zotero reader res/icons/20/play.svg and pause.svg.
+const nativePlay="<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"20\" height=\"20\" fill=\"none\" aria-hidden=\"true\"><path fill=\"currentColor\" d=\"M3.317 1.084a.625.625 0 0 1 .625 0l14.506 8.375a.625.625 0 0 1 0 1.082L3.942 18.916a.625.625 0 0 1-.937-.541V1.625l.006-.083a.625.625 0 0 1 .306-.458m.938 16.208L16.885 10 4.256 2.707z\"/></svg>";
+const nativePause="<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"20\" height=\"20\" fill=\"none\" aria-hidden=\"true\"><path fill=\"currentColor\" d=\"M9 1v18H3V1zm8 0v18h-6V1zm-4.75 16.75h3.5V2.25h-3.5zm-8 0h3.5V2.25h-3.5z\"/></svg>";

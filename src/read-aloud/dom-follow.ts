@@ -76,6 +76,7 @@ export function createDOMFollow(deps: SentenceInViewDeps) {
   }
 
   function run(r: Owned, state = waive(r.helper.state)) {
+    if (deps.enabled?.() === false && !(r.force && r.reason === 'explicit')) return;
     if (disposed || dead(r.view) || !state?.active || !state.popupOpen || state.annotationPopup || !r.view.initialized) return;
     if (state.paused && !r.force) return;
     if (r.manual.suspended) { r.manual.retry(); return; }

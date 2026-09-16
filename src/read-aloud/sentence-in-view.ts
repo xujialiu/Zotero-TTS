@@ -287,6 +287,7 @@ export function followTarget(input: FollowInput): FollowTarget {
 }
 
 export interface SentenceInViewDeps {
+  enabled?(): boolean;
   keepFollowingWhileVisible?(): boolean;
   resuming?(reader: any): boolean;
   mode?(): AutoScrollMode;

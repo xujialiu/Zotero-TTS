@@ -503,6 +503,8 @@ then) and is in the git history before that day.
 
 ### [2026-09-16](NOTES_2026-09-16.md)
 
+- The plugin player takes over the controls: layouts, shared real controls, manual following and the reader boundary
+
 - The highlight levels are the plugin's own two switches: Zotero's pref pinned to them through its own observers, and its settings menulist greyed (issue #114)
 - The OpenAI section split into three, and the old keys read once (issue #113)
 - Verified live, issue #114: the pin snaps inside the write, an in-place reinstall keeps the previous prefs.js default, and a bare W on the library pane is Zotero's (issue #114)

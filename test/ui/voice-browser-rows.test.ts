@@ -164,11 +164,13 @@ function setup(
   // Zotero.Prefs in miniature: an observer of a pref fires synchronously inside set()
   const watchers: Array<() => void> = [];
   const favoritesOnlyWatchers: Array<() => void> = [];
+  const favoriteWatchers: Array<() => void> = [];
   const switchWatchers: Array<() => void> = [];
   const rawSet = prefs.set;
   prefs.set = (k, v) => {
     rawSet(k, v);
     if (k === READ_ALOUD_MEMORY_PREF) for (const fn of [...watchers]) fn();
+    if (k === FAVORITES_PREF) for (const fn of [...favoriteWatchers]) fn();
     if (k === FAVORITES_ONLY_PREF) for (const fn of [...favoritesOnlyWatchers]) fn();
     if (k === SAME_VOICE_PREF || k === GLOBAL_SPEED_PREF) for (const fn of [...switchWatchers]) fn();
   };
@@ -205,6 +207,7 @@ function setup(
       favoritesOnlyWatchers.push(onChange);
       return () => void favoritesOnlyWatchers.splice(favoritesOnlyWatchers.indexOf(onChange), 1);
     }),
+    watchFavorites: (changed: () => void) => { favoriteWatchers.push(changed); return () => { favoriteWatchers.splice(favoriteWatchers.indexOf(changed), 1); }; },
     readingTabs: vi.fn(() => options.readingTabs ?? []),
     warn: vi.fn((_message: string) => {}),
     ...(options.tierColumns ? { tierColumns: vi.fn(() => options.tierColumns!) } : {}),
@@ -485,6 +488,17 @@ describe('loading the catalog', () => {
 
 describe('favorites', () => {
   const jenny = encodeVoiceId('azure', 'en-US-JennyNeural');
+
+  it('repaints hearts changed by a player without reloading the catalog', async () => {
+    const t = setup(); await t.rows.load();
+    const before = t.deps.listCatalog.mock.calls.length;
+    await t.heart(0).fire('click');
+    expect(t.heart(0).textContent).toBe(GLYPHS.favorite);
+    t.prefs.set(FAVORITES_PREF, '[]');
+    expect(t.heart(0).textContent).toBe(GLYPHS.notFavorite);
+    expect(t.deps.listCatalog.mock.calls.length).toBe(before);
+    t.rows.dispose();
+  });
 
   it('paints the hearts from the pref', async () => {
     const t = setup({ prefs: { [FAVORITES_PREF]: JSON.stringify([jenny]) } });

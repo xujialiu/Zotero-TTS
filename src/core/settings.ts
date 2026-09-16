@@ -108,6 +108,9 @@ export interface Settings {
    */
   shortcuts: Record<ShortcutAction, string>;
   readAloud: {
+    usePluginPlayer: boolean;
+    playerLayout: 'A' | 'B' | 'top';
+    autoScrollEnabled: boolean;
     /** Follow only clipped content, or center each new sentence. */
     autoScrollMode: AutoScrollMode;
     keepFollowingWhileVisible: boolean;
@@ -249,6 +252,9 @@ export const DEFAULTS: Settings = {
     nextVoice: 'Shift+.',
   },
   readAloud: {
+    usePluginPlayer: true,
+    playerLayout: 'A',
+    autoScrollEnabled: true,
     autoScrollMode: 'sentence',
     keepFollowingWhileVisible: true,
     sameForAllDocuments: true,
@@ -390,6 +396,9 @@ export function loadSettings(prefs: PrefsBackend): Settings {
       nextVoice: str(prefs, 'shortcuts.nextVoice', DEFAULTS.shortcuts.nextVoice),
     },
     readAloud: {
+      usePluginPlayer: bool(prefs, 'readAloud.usePluginPlayer', true),
+      playerLayout: prefs.get(PREF_PREFIX + 'readAloud.playerLayout') === 'B' ? 'B' : prefs.get(PREF_PREFIX + 'readAloud.playerLayout') === 'top' ? 'top' : 'A',
+      autoScrollEnabled: bool(prefs, 'readAloud.autoScrollEnabled', true),
       autoScrollMode: autoScrollMode(prefs.get(PREF_PREFIX + 'readAloud.autoScrollMode')),
       keepFollowingWhileVisible: prefs.get(PREF_PREFIX + 'readAloud.keepFollowingWhileVisible') !== false,
       sameForAllDocuments: bool(prefs, 'readAloud.sameForAllDocuments', DEFAULTS.readAloud.sameForAllDocuments),

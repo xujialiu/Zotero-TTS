@@ -47,13 +47,22 @@ function fixture() {
   const helper = view._readAloud = new Helper();
   const reader = { _window: {}, _internalReader: { _primaryView: view } };
   let mode: 'outside' | 'sentence' = 'outside';
-  const deps = { mode: () => mode, keepFollowingWhileVisible: () => false, resuming: () => false, wordTiming: () => 'real' as const, error: vi.fn() };
+  const deps = { enabled: () => true, mode: () => mode, keepFollowingWhileVisible: () => false, resuming: () => false, wordTiming: () => 'real' as const, error: vi.fn() };
   const module = createDOMFollow(deps);
   const push = (key: string, word?: string) => helper.setState({ active: true, popupOpen: true, activeSegment: { position: key, sourcePosition: key }, activeWordSourcePosition: word });
   return { view, helper, module, reader, range, push, win, nativeNavigate, rendered, deps, mode: (v: typeof mode) => { mode = v; } };
 }
 
 describe('EPUB auto-scroll', () => {
+  it('keeps rendering without scrolling in manual mode and follows again when enabled', () => {
+    const f = fixture(); f.deps.enabled = () => false;
+    f.module.attach(f.reader); f.push(f.range('manual', 1200, 1300));
+    expect(f.rendered).toHaveBeenCalled();
+    expect(f.win.scrollTo).not.toHaveBeenCalled();
+    expect(f.nativeNavigate).not.toHaveBeenCalled();
+    f.deps.enabled = () => true; f.module.refresh();
+    expect(f.win.scrollTo).toHaveBeenCalled(); f.module.dispose();
+  });
   it('automatically resumes when the current sentence reenters in either EPUB flow', () => {
     vi.useFakeTimers();
     for (const flow of ['scrolled', 'paginated']) {

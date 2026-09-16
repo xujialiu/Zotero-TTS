@@ -182,6 +182,8 @@ export interface VoiceBrowserDeps {
   favoritesOnly?(): boolean;
   /** Calls back whenever that switch flips (a pref observer), and returns the way to stop. */
   watchFavoritesOnly?(onChange: () => void): () => void;
+  /** Hearts changed in a player or another settings window. */
+  watchFavorites?(onChange: () => void): () => void;
   /**
    * The titles of the tabs Read Aloud is open in (ui/reading-guard.ts): a
    * favorite marked while only favorites are offered would not reach them,
@@ -981,6 +983,7 @@ export function initVoiceBrowserRows(
   paintSpeed();
   const unwatch = deps.watchMemory?.(onMemoryChange) ?? null;
   const unwatchFavoritesOnly = deps.watchFavoritesOnly?.(onFavoritesOnlyChange) ?? null;
+  const unwatchFavorites = deps.watchFavorites?.(onFavoritesOnlyChange) ?? null;
   // An "everywhere" switch flipped: the line names the voice, the speed, both or neither
   const unwatchSwitches = deps.watchSwitches?.(paintStatus) ?? null;
 
@@ -988,6 +991,7 @@ export function initVoiceBrowserRows(
   function dispose(): void {
     unwatch?.();
     unwatchFavoritesOnly?.();
+    unwatchFavorites?.();
     unwatchSwitches?.();
     stopPlayback();
     cancelLoading();

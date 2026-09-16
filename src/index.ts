@@ -1,4 +1,5 @@
-import { createPlayerPrototype } from './ui/player-prototype';
+import { createPluginPlayer } from './ui/player';
+import { createPlayerController } from './read-aloud/player-controller';
 import { createTextSettings } from './read-aloud/text-settings';
 import { getChromeWebSocket, newRequestId } from './core/providers/azure';
 import { createProvider, getFishVoiceCacheStats } from './core/providers/factory';
@@ -107,8 +108,8 @@ let hijackPatched = new WeakSet<object>();
  */
 const interfaceInstanceToken = 'instance-' + Math.random().toString(36).slice(2, 10);
 let pluginVersion = '0.0.0';
-let playerPrototypeResources: any = null;
-let playerPrototype: ReturnType<typeof createPlayerPrototype> | null = null;
+let playerResources: any = null;
+let pluginPlayer: ReturnType<typeof createPluginPlayer> | null = null;
 let readAloudShortcuts: ReadAloudShortcuts | null = null;
 /**
  * Every player that is open, in every window (read-aloud/player-stop.ts):
@@ -173,6 +174,63 @@ let textSettings: ReturnType<typeof createTextSettings> | null = null;
 let volumeObserver: unknown = null;
 
 const prefs = createZoteroPrefs();
+const playerController = createPlayerController({
+  prefs, labels: () => providerTierLabels(loadSettings(prefs)),
+  clone: (reader, value) => Components.utils.cloneInto(value, reader._iframeWindow),
+  start: (reader) => {
+    if (reader?._internalReader?._enableReadAloud === false) throw new Error(t('ztts-player-unavailable'));
+    if (!readAloudShortcuts?.smartPlay(reader)) throw new Error(t('ztts-player-unavailable'));
+  },
+  close: (reader) => reader._internalReader.toggleReadAloudPopup(false),
+  togglePaused: togglePlayerPaused,
+  rememberSpeed: (speed) => readAloudMemory?.learnSpeed(speed),
+  follow: (reader) => { readAloudShortcuts?.returnToSpoken(reader); },
+  anyReading: () => playerStop.open().length > 0,
+  message: playerMessage,
+});
+function togglePlayerPaused(reader: any): void {
+  const internal = reader?._internalReader;
+  if (prefs.get(PREF_PREFIX + 'readAloud.usePluginPlayer') !== false && prefs.get(PREF_PREFIX + 'readAloud.autoScrollEnabled') === false) {
+    internal?._readAloudManager?.togglePaused();
+  } else internal?.toggleReadAloudPaused();
+}
+function playerStrings(): Record<string, string> {
+  return {
+    'provider': t('ztts-player-provider'),
+    'locale': t('ztts-player-locale'),
+    'voice': t('ztts-player-voice'),
+    'play': t('ztts-player-play'),
+    'pause': t('ztts-player-pause'),
+    'speed': t('ztts-player-speed'),
+    'volume': t('ztts-player-volume'),
+    'automatic': t('ztts-player-automatic'),
+    'manual': t('ztts-player-manual'),
+    'layout': t('ztts-player-layout'),
+    'bottom': t('ztts-player-bottom'),
+    'floating': t('ztts-player-floating'),
+    'top': t('ztts-player-top'),
+    'search': t('ztts-player-search'),
+    'empty': t('ztts-player-empty'),
+    'loading': t('ztts-player-loading'),
+    'no-voices': t('ztts-player-no-voices'),
+    'favorite': t('ztts-player-favorite'),
+    'unfavorite': t('ztts-player-unfavorite'),
+    'retry': t('ztts-player-retry'),
+    'buffering': t('ztts-player-buffering'),
+  };
+}
+function playerMessage(key: string): string {
+  const messages: Record<string, string> = {
+    'ztts-player-unavailable': t('ztts-player-unavailable'),
+    'ztts-player-unavailable-choice': t('ztts-player-unavailable-choice'),
+    'ztts-player-invalid-value': t('ztts-player-invalid-value'),
+    'ztts-player-playback-error': t('ztts-player-playback-error'),
+    'ztts-player-quota-error': t('ztts-player-quota-error'),
+    'ztts-player-favorite-guard': t('ztts-player-favorite-guard'),
+  };
+  return messages[key] ?? key;
+}
+
 
 /** The cache key includes a config fingerprint, so old audio automatically invalidates after a provider's configuration changes. */
 function cacheVersion(): string {
@@ -626,7 +684,7 @@ function watchWindow(win: any): void {
 
 function watchReader(reader: any): void {
   if (!reader || !readAloudShortcuts) return;
-  playerPrototype?.attach(reader);
+  pluginPlayer?.attach(reader);
   playerExpanded?.attach(reader);
   watchWindow(reader._window);
   readAloudMemory?.attach(reader);
@@ -955,7 +1013,7 @@ function startReadAloudShortcuts(pluginID: string): void {
     startReadAloud: (reader: any) => reader?._internalReader?.startReadAloudAtPosition?.(),
     // The popup's play button; native state handling restarts from a selection
     // on unpause (reader.js _onReadAloudEngineStateChanged, 83880).
-    togglePaused: (reader: any) => reader?._internalReader?.toggleReadAloudPaused?.(),
+    togglePaused: togglePlayerPaused,
     // Zotero's EPUB, snapshot and Reading Mode views act on the push below
     // only when it is their first: forget the state they hold (issue #76).
     // The line in the debug log is the proof the path ran, and which branch
@@ -995,7 +1053,12 @@ function startReadAloudShortcuts(pluginID: string): void {
     // is React state local to Zotero's popup, so there is nothing to call
     // (ui/player-options.ts). No player on screen, no button — the key
     // falls through.
-    findOptionsButton: (reader: any) => findOptionsButton(reader?._iframeWindow?.document),
+    findOptionsButton: (reader: any) => {
+      const doc = reader?._iframeWindow?.document;
+      const frame = doc?.getElementById('ztts-player-frame');
+      if (prefs.get(PREF_PREFIX + 'readAloud.usePluginPlayer') !== false && frame && !frame.hidden) return frame.contentDocument?.querySelector('[data-pick="voice"]') ?? null;
+      return findOptionsButton(doc);
+    },
     showAutoScrollToast: (reader: any, mode) => {
       const doc = toastDoc(reader);
       if (doc) showToast(doc, mode === 'sentence' ? t('ztts-auto-scroll-toast-sentence') : t('ztts-auto-scroll-toast-outside'));
@@ -1600,6 +1663,7 @@ function stopHighlightLevels(): void {
 function startSentenceInView(): void {
   stopSentenceInView();
   const deps: SentenceInViewDeps = {
+    enabled: () => prefs.get(PREF_PREFIX + 'readAloud.usePluginPlayer') === false || prefs.get(PREF_PREFIX + 'readAloud.autoScrollEnabled') !== false,
     resuming: (reader) => followResumeGuard?.resuming(reader) ?? false,
     mode: () => autoScrollMode(prefs.get(PREF_PREFIX + 'readAloud.autoScrollMode')),
     keepFollowingWhileVisible: () => prefs.get(PREF_PREFIX + 'readAloud.keepFollowingWhileVisible') !== false,
@@ -2057,16 +2121,16 @@ async function startup({ id, version, rootURI }: StartupParams): Promise<void> {
         },
       ],
       ['settings pane', () => registerPrefsPane(rootURI, id, version)],
-      ['player UI prototype', () => {
-        playerPrototypeResources = Services.io.getProtocolHandler('resource')
+      ['plugin player', () => {
+        playerResources = Services.io.getProtocolHandler('resource')
           .QueryInterface(Components.interfaces.nsISubstitutingProtocolHandler);
-        playerPrototypeResources.setSubstitutionWithFlags(
-          'zotero-tts-preview', Services.io.newURI(rootURI + 'content/'),
+        playerResources.setSubstitutionWithFlags(
+          'zotero-tts-player', Services.io.newURI(rootURI + 'content/'),
           Components.interfaces.nsISubstitutingProtocolHandler.ALLOW_CONTENT_ACCESS,
         );
-        playerPrototype = createPlayerPrototype({
-          uri: 'resource://zotero-tts-preview/player-prototype.html',
-          iconURI: 'resource://zotero-tts-preview/icons/favicon@0.5x.png',
+        pluginPlayer = createPluginPlayer({
+          uri: 'resource://zotero-tts-player/player.html',
+          iconURI: 'resource://zotero-tts-player/icons/favicon@0.5x.png',
           exportResize: (target, callback) => { Components.utils.exportFunction(callback, Components.utils.waiveXrays(target), { defineAs: 'zttsResizePreview' }); },
           exportFloating: (target, move) => {
             const win = Components.utils.waiveXrays(target);
@@ -2079,16 +2143,30 @@ async function startup({ id, version, rootURI }: StartupParams): Promise<void> {
             Reflect.apply(win.zttsSetLayout, win, [layout]);
             return true;
           },
-          setPlaying: (target, playing) => {
+          prefs,
+          snapshot: (reader) => playerController.snapshot(reader),
+          command: (reader, action, value) => playerController.command(reader, action, value),
+          strings: playerStrings,
+          exportCommand: (target, command) => { Components.utils.exportFunction(command, Components.utils.waiveXrays(target), { defineAs: 'zttsCommand' }); },
+          update: (target, json) => {
             const win = Components.utils.waiveXrays(target);
-            if (typeof win.zttsSetPlaying !== 'function') return false;
-            Reflect.apply(win.zttsSetPlaying, win, [playing]);
-            return true;
+            if (typeof win.zttsUpdate !== 'function') return false;
+            Reflect.apply(win.zttsUpdate, win, [json]); return true;
+          },
+          watchSettings: (changed) => {
+            const names = ['readAloud.usePluginPlayer', 'readAloud.playerLayout', 'readAloud.autoScrollEnabled'];
+            const tokens = names.map(name => Zotero.Prefs.registerObserver('zotero-tts.' + name, () => { changed(); sentenceInView?.refresh(); domFollowing?.refresh(); }));
+            return () => { for (const token of tokens) Zotero.Prefs.unregisterObserver(token); };
+          },
+          notice: (reader, message) => { const doc = toastDoc(reader); if (doc) showToast(doc, message); },
+          listenKeys: (reader, target) => {
+            readAloudShortcuts?.listen(target, () => reader, { isEditable: event => isEditableTarget(event.target) || !!(event.target as any)?.ownerDocument?.querySelector('.popover') });
+            return () => { if (!Components.utils.isDeadWrapper(target)) readAloudShortcuts?.unlisten(target); };
           },
           dead: (value) => Components.utils.isDeadWrapper(value),
           error: (error) => Zotero.logError(error),
         });
-        for (const reader of Zotero.Reader._readers) playerPrototype.attach(reader);
+        for (const reader of Zotero.Reader._readers) pluginPlayer.attach(reader);
       }],
       ['Read Aloud memory', startReadAloudMemory],
       // Awaited: the database rows must be in memory before the sampler and
@@ -2132,10 +2210,10 @@ async function startup({ id, version, rootURI }: StartupParams): Promise<void> {
 }
 
 async function shutdown(reason?: number): Promise<void> {
-  playerPrototype?.dispose();
-  playerPrototype = null;
-  playerPrototypeResources?.setSubstitution('zotero-tts-preview', null);
-  playerPrototypeResources = null;
+  pluginPlayer?.dispose();
+  pluginPlayer = null;
+  playerResources?.setSubstitution('zotero-tts-player', null);
+  playerResources = null;
   // First: the pane goes with this instance, not with Zotero's observer,
   // which runs too late for the next instance's register on a reload (#28)
   try {
@@ -2239,6 +2317,7 @@ let openaiSplitReport: SplitReport | null = null;
 
 /** For Tools → Developer → Run JavaScript: `Zotero.ZoteroTTS.diagnostics.highlight()` etc. */
 const diagnostics = {
+  pluginPlayer: async () => JSON.stringify(pluginPlayer?.inspect() ?? { enabled: false }),
   /**
    * Issue #113: the three sections as the prefs say (keys, headers and
    * the address by length, never by value), this start's split report,
@@ -3268,11 +3347,11 @@ const diagnostics = {
 };
 
 Zotero.ZoteroTTS = {
-  playerPrototype: {
-    setLayout: (value: string) => playerPrototype?.setLayout(value),
-    setEnabled: (value: boolean) => playerPrototype?.setEnabled(value),
-    initSettings: (doc: Document) => playerPrototype?.initSettings(doc),
-    toggleSettingsMenu: (doc: Document) => playerPrototype?.toggleSettingsMenu(doc),
+  pluginPlayer: {
+    setLayout: (value: string) => pluginPlayer?.setLayout(value),
+    setEnabled: (value: boolean) => pluginPlayer?.setEnabled(value),
+    initSettings: (doc: Document) => pluginPlayer?.initSettings(doc),
+    toggleSettingsMenu: (doc: Document) => pluginPlayer?.toggleSettingsMenu(doc),
   },
   startup,
   shutdown,
@@ -3281,8 +3360,9 @@ Zotero.ZoteroTTS = {
   // The pane runs in this sandbox too, but its module has no reach to the
   // running memory-sync; a default picked there goes to the tabs through this
   prefsPane: {
-    onPaneLoad: (doc: Document) =>
-      onPaneLoad(doc, {
+    onPaneLoad: (doc: Document) => {
+      pluginPlayer?.initSettings(doc);
+      return onPaneLoad(doc, {
         spreadVoice: (choice) => readAloudMemory?.spreadVoice(choice),
         // A rewrite of Zotero's voices pref that is not a pick must not be learned as one
         applySilently: (fn) => (readAloudMemory ? readAloudMemory.applySilently(fn) : fn()),
@@ -3334,7 +3414,8 @@ Zotero.ZoteroTTS = {
             positionTransport?.poke('pane-open');
           },
         },
-      }),
+      });
+    },
   },
   diagnostics,
 };

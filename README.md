@@ -19,13 +19,14 @@
 
 ## What it adds
 
-Zotero-TTS works inside Zotero 10's Read Aloud: each provider is an entry
+Zotero-TTS adds voices and a player to Zotero 10: each provider is an entry
 of the player's first dropdown, and Zotero's own Standard and Premium are
 two more, each behind a switch of its own. It
 is built for the way its author reads —
 [why, and where it is going](docs/PHILOSOPHY.md).
 
 - 🗣️ **More voices in the Read Aloud player**, one entry per provider — Azure Speech, Cloudflare Workers AI, Speechify, Fish Audio, a [Kokoro-FastAPI](https://github.com/remsky/Kokoro-FastAPI) or a [Fish Speech](https://github.com/fishaudio/fish-speech) server on your machine, OpenAI, Xiaomi MiMo or any OpenAI-compatible server — with Zotero's own Standard and Premium beside them, each behind a switch. [→ Providers](#providers)
+- 🎛️ **A player in three layouts** — a bottom bar, a top bar below the toolbar, or a floating panel. Change layout without interrupting playback. [→ Player](#player)
 - 🔖 **Resume where you stopped** — close a document, open it again later, press `Shift+Space`, and Read Aloud starts at the sentence you left off on. [→ Resume where you stopped](#resume-where-you-stopped)
 - 📄 **The whole sentence on screen** — while a PDF is read, a sentence that runs past the bottom of the window, onto the next page or into the next column is scrolled into view instead of left cut, and `Shift+Enter` brings it back the same way. [→ Reading](#reading)
 - 📃 **No line lost at a page turn** — when a sentence runs onto the next page and Zotero would skip that page's first line, the line is read and highlighted like any other. [→ Reading](#reading)
@@ -170,6 +171,24 @@ for every document you have listened to.
   continues at that sentence.
 
 ## Settings
+
+### Player
+
+- **Use plugin player** is on by default. Click the red headphones icon
+  in the reader to open the player and start reading; click again to stop
+  and close it. Switch the setting off to use Zotero's original player.
+- **Bottom bar, Top bar, Floating panel** are available in Settings and
+  from the player's layout button. Bars reserve space only in the document
+  area; the floating panel can be dragged. The layout is remembered.
+- **Provider, language, voice, speed and volume** use the same choices as
+  the voice browser and keyboard shortcuts. Hearts on the left mark the
+  same favorites as Settings.
+- **A / M** switches automatic scrolling on or off. In manual mode the
+  highlight continues while the page stays where you put it. Automatic mode
+  follows the scrolling style chosen under Reading.
+- **Theme and controls** follow the reader's appearance. Loading and
+  playback errors appear in the player; an error can be opened for details
+  and a retry.
 
 Everything is under **Edit → Settings → Zotero-TTS**.
 

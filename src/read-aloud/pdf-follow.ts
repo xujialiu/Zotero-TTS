@@ -18,6 +18,7 @@ export function isFollowCall(options: unknown): boolean {
 }
 
 interface Deps {
+  enabled?(): boolean;
   keepFollowingWhileVisible?(): boolean;
   captureVisibility?(view: any): () => boolean | null;
   resuming?(reader: any): boolean;
@@ -92,6 +93,7 @@ export function createPdfFollow(deps: Deps) {
   }
 
   function run(r: OwnedView): void {
+    if (deps.enabled?.() === false && !(r.force && r.reason === 'explicit')) return;
     if (disposed || dead(r.view) || !records.has(r.id)) return;
     if (r.paused && !r.force) return;
     if (r.manual.suspended) { r.manual.retry(); return; }

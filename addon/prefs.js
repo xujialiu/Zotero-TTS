@@ -90,3 +90,7 @@ pref('extensions.zotero.zotero-tts.shortcuts.nextVoice', 'Shift+.');
 
 pref('extensions.zotero.zotero-tts.readAloud.stripAngleBrackets', true);
 pref('extensions.zotero.zotero-tts.readAloud.bracketPairs', '<> []');
+
+pref('extensions.zotero.zotero-tts.readAloud.usePluginPlayer', true);
+pref('extensions.zotero.zotero-tts.readAloud.playerLayout', 'A');
+pref('extensions.zotero.zotero-tts.readAloud.autoScrollEnabled', true);

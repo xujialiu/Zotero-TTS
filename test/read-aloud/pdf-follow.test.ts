@@ -77,6 +77,19 @@ function fixture(deps: Partial<Parameters<typeof createPdfFollow>[0]> = {}) {
 }
 const followOptions = { ifNeeded: true, inline: 'nearest', visibilityMargin: -200, behavior: 'smooth' };
 
+describe('player manual scroll mode', () => {
+  it('keeps rendering and highlights without following, then resumes when enabled', () => {
+    let enabled = false;
+    const f = fixture({ enabled: () => enabled });
+    f.start(); f.view.setReadAloudState(f.state(2)); f.flush();
+    expect(f.view.rendered).toBe(2);
+    expect(f.follow).not.toHaveBeenCalled();
+    expect(f.original).not.toHaveBeenCalled();
+    enabled = true; f.controller.refresh();
+    expect(f.follow).toHaveBeenCalled(); f.controller.dispose();
+  });
+});
+
 describe('PDF manual visibility (#100)', () => {
   it('allows normal sentence following but keeps a paused sentence still after focus', () => {
     vi.useFakeTimers(); let visible = false;

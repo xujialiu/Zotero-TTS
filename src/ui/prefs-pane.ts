@@ -10,7 +10,7 @@ import { sentences, t } from '../core/l10n';
 import { withTimeout } from '../core/timeout';
 import { createWebDAVClient } from '../core/webdav';
 import { CATALOG_CAP_MS, listNamedCatalog, providerTierColumns } from '../read-aloud/catalog';
-import { FAVORITES_ONLY_OBSERVER, parseFavoriteVoices } from '../read-aloud/favorites';
+import { FAVORITES_OBSERVER, FAVORITES_ONLY_OBSERVER, parseFavoriteVoices } from '../read-aloud/favorites';
 import { languageDisplayName } from '../read-aloud/language-dropdown';
 import { readMemory, writeMemory, READ_ALOUD_MEMORY_OBSERVER, type VoiceChoice } from '../read-aloud/read-aloud-memory';
 import type { PositionEntry } from '../read-aloud/read-aloud-position';
@@ -645,6 +645,10 @@ export function onPaneLoad(doc: Document, hooks: PaneHooks = {}): void {
     favoritesOnly: () => loadSettings(prefs).readAloud.favoritesOnly,
     watchFavoritesOnly: (onChange) => {
       const token = Zotero.Prefs.registerObserver(FAVORITES_ONLY_OBSERVER, onChange);
+      return () => Zotero.Prefs.unregisterObserver(token);
+    },
+    watchFavorites: (onChange) => {
+      const token = Zotero.Prefs.registerObserver(FAVORITES_OBSERVER, onChange);
       return () => Zotero.Prefs.unregisterObserver(token);
     },
   });

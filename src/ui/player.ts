@@ -1,5 +1,8 @@
-/** Throwaway reader UI: every playback control stays inside the mock page. */
-export function createPlayerPrototype(deps: {
+import type { PlayerSnapshot } from '../read-aloud/player-controller';
+import { PREF_PREFIX, type PrefsBackend } from '../core/settings';
+
+/** Own player UI, driven by a narrow adapter to the reader engine. */
+export function createPluginPlayer(deps: {
   uri: string;
   iconURI: string;
   dead(value: unknown): boolean;
@@ -8,31 +11,41 @@ export function createPlayerPrototype(deps: {
   exportFloating(target: Window, move: (dx: number, dy: number) => void): void;
   exportLayout(target: Window, change: (layout: string) => void): void;
   renderLayout(target: Window, layout: string): boolean;
-  setPlaying(target: Window, playing: boolean): boolean;
+  prefs: PrefsBackend;
+  snapshot(reader: any): PlayerSnapshot;
+  command(reader: any, action: string, value?: unknown): Promise<void>;
+  exportCommand(target: Window, command: (action: string, value?: unknown) => void): void;
+  update(target: Window, json: string): boolean;
+  strings(): Record<string, string>;
+  watchSettings(changed: () => void): () => void;
+  notice(reader: any, message: string): void;
+  listenKeys(reader: any, target: Window): () => void;
 }) {
-  let layout = 'A';
-  let enabled = true;
+  const readLayout = () => { const value = deps.prefs.get(PREF_PREFIX + 'readAloud.playerLayout'); return value === 'B' || value === 'top' ? value : 'A'; };
+  let layout = readLayout();
+  let enabled = deps.prefs.get(PREF_PREFIX + 'readAloud.usePluginPlayer') !== false;
   const settingsDocuments = new Set<Document>();
   function updateSettingsLayout(doc: Document): void {
-    const select = doc.getElementById('ztts-prototype-layout') as HTMLSelectElement | null;
+    const select = doc.getElementById('ztts-player-layout') as HTMLSelectElement | null;
     if (select) select.value = layout;
-    const label = doc.getElementById('ztts-prototype-layout-label');
+    const label = doc.getElementById('ztts-player-layout-label');
     if (label) {
       label.textContent = select?.selectedOptions[0]?.textContent ?? '';
-      label.setAttribute('data-l10n-id', 'ztts-prototype-' + ({ A: 'bottom', B: 'floating', top: 'top' }[layout]));
+      label.setAttribute('data-l10n-id', 'ztts-player-' + ({ A: 'bottom', B: 'floating', top: 'top' }[layout]));
     }
-    for (const option of doc.querySelectorAll('#ztts-prototype-layout-menu [data-value]')) option.setAttribute('aria-checked', String(option.getAttribute('data-value') === layout));
+    for (const option of doc.querySelectorAll('#ztts-player-layout-menu [data-value]')) option.setAttribute('aria-checked', String(option.getAttribute('data-value') === layout));
   }
   function changeLayout(value: string): void {
     if (!['A', 'B', 'top'].includes(value)) return;
     layout = value;
+    deps.prefs.set(PREF_PREFIX + 'readAloud.playerLayout', value);
     refresh();
     for (const doc of settingsDocuments) {
       if (deps.dead(doc) || doc.defaultView?.closed) { settingsDocuments.delete(doc); continue; }
       updateSettingsLayout(doc);
     }
   }
-  const entries = new Map<Document, { frame: HTMLIFrameElement; style: HTMLStyleElement; button: HTMLButtonElement; open: boolean; pendingPlaying: boolean | null; moved: boolean; listener: (event: MessageEvent) => void; resize: () => void; connect: () => void; cleanup: () => void }>();
+  const entries = new Map<Document, { frame: HTMLIFrameElement; style: HTMLStyleElement; button: HTMLButtonElement; open: boolean; reader: any; nativeOpened: boolean; lastSnapshot: string; actionError: string | null; openedAt: number; moved: boolean; listener: (event: MessageEvent) => void; resize: () => void; connect: () => void; cleanup: () => void }>();
   function syncAppearance(doc: Document): void {
     const entry = entries.get(doc);
     if (!entry || deps.dead(doc)) return;
@@ -84,7 +97,7 @@ export function createPlayerPrototype(deps: {
     entry.button.hidden = !enabled;
     entry.button.classList.toggle('active', visible);
     entry.button.setAttribute('aria-expanded', String(visible));
-    entry.style.textContent = '#ztts-player-toggle[hidden], #ztts-player-prototype[hidden] { display: none !important; }';
+    entry.style.textContent = '#ztts-player-toggle[hidden], #ztts-player-frame[hidden] { display: none !important; }';
     if (enabled) entry.style.textContent += '\n.read-aloud-popup, #read-aloud { display: none !important; }';
     // Reserve real reader space for the two docked layouts; floating leaves it intact.
     if (visible && layout === 'A') entry.style.textContent += '\n#split-view { bottom: 34px !important; }';
@@ -107,16 +120,17 @@ export function createPlayerPrototype(deps: {
     try {
       for (const doc of entries.keys()) if (deps.dead(doc)) entries.delete(doc);
       const doc = reader?._iframeWindow?.document as Document | undefined;
-      if (!doc?.body || entries.has(doc)) return;
+      if (!doc?.body) return;
+      if (entries.has(doc)) { entries.get(doc)!.connect(); return; }
       // Recover nodes left by an interrupted prototype hot-upgrade.
-      for (const stale of doc.querySelectorAll('#ztts-player-prototype, #ztts-player-prototype-layout, #ztts-player-toolbar-slot, #ztts-player-toggle')) stale.remove();
+      for (const stale of doc.querySelectorAll('#ztts-player-prototype, #ztts-player-prototype-layout, #ztts-player-toolbar-slot, #ztts-player-frame, #ztts-player-style, #ztts-player-toggle')) stale.remove();
       const button = doc.createElement('button');
       button.id = 'ztts-player-toggle';
       button.className = 'toolbar-button';
       button.type = 'button';
       button.title = 'Zotero-TTS';
       button.setAttribute('aria-label', 'Zotero-TTS');
-      button.setAttribute('aria-controls', 'ztts-player-prototype');
+      button.setAttribute('aria-controls', 'ztts-player-frame');
       const icon = doc.createElement('img');
       icon.src = deps.iconURI;
       icon.alt = '';
@@ -125,10 +139,10 @@ export function createPlayerPrototype(deps: {
       button.append(icon);
       doc.querySelector('#read-aloud')?.before(button);
       const frame = doc.createElement('iframe');
-      frame.id = 'ztts-player-prototype';
-      frame.setAttribute('title', 'Zotero-TTS player (UI preview)');
+      frame.id = 'ztts-player-frame';
+      frame.setAttribute('title', 'Zotero-TTS');
       const style = doc.createElement('style');
-      style.id = 'ztts-player-prototype-layout';
+      style.id = 'ztts-player-style';
       const listener = (event: MessageEvent) => {
         if (event.source !== frame.contentWindow || typeof event.data !== 'string') return;
         if (event.data === 'ztts-preview-ready') {
@@ -153,6 +167,7 @@ export function createPlayerPrototype(deps: {
         const height = Number(value);
         if (height >= 34 && height <= 500 && frame.style.height !== height + 'px') frame.style.height = height + 'px';
       };
+      let unlistenKeys: (() => void) | null = null;
       const loaded = () => {
         if (frame.contentWindow) {
           deps.exportResize(frame.contentWindow, resizeMenu);
@@ -164,8 +179,12 @@ export function createPlayerPrototype(deps: {
             frame.style.top = Math.max(0, Math.min(win.innerHeight - 252, box.top + dy)) + 'px';
           });
           deps.exportLayout(frame.contentWindow, changeLayout);
+          unlistenKeys?.();
+          unlistenKeys = deps.listenKeys(reader, frame.contentWindow);
+          deps.exportCommand(frame.contentWindow, (action, value) => { void act(doc, action, value); });
           const entry = entries.get(doc)!;
-          if (entry.pendingPlaying !== null && deps.setPlaying(frame.contentWindow, entry.pendingPlaying)) entry.pendingPlaying = null;
+          entry.lastSnapshot = '';
+          publish(doc);
         }
         resize();
       };
@@ -178,7 +197,7 @@ export function createPlayerPrototype(deps: {
           try {
             if (frame.contentDocument?.querySelector('.player')) { loaded(); return; }
             if (++attempts < 100) connectionTimer = setTimeout(tryConnect, 50);
-            else deps.error(new Error('Zotero-TTS: player preview did not finish loading.'));
+            else deps.error(new Error('Zotero-TTS: player did not finish loading.'));
           } catch (error) { deps.error(error); }
         };
         connectionTimer = setTimeout(tryConnect, 50);
@@ -188,11 +207,13 @@ export function createPlayerPrototype(deps: {
         if (!enabled) return;
         const entry = entries.get(doc)!;
         entry.open = !entry.open;
-        entry.pendingPlaying = entry.open;
+        entry.openedAt = entry.open ? Date.now() : 0;
         paint(doc);
+        void act(doc, entry.open ? 'open' : 'close');
       };
       button.addEventListener('click', toggle);
-      entries.set(doc, { frame, style, button, open: false, pendingPlaying: false, moved: false, listener, resize, connect, cleanup: () => {
+      entries.set(doc, { frame, style, button, open: false, reader, nativeOpened: deps.snapshot(reader).opened, lastSnapshot: '', actionError: null, openedAt: 0, moved: false, listener, resize, connect, cleanup: () => {
+        unlistenKeys?.();
         button.removeEventListener('click', toggle);
         clearTimeout(connectionTimer);
         geometry.disconnect(); changes.disconnect(); scheme.removeEventListener('change', resize);
@@ -210,17 +231,66 @@ export function createPlayerPrototype(deps: {
       try { paint(doc); } catch (error) { deps.error(error); }
     }
   }
+  async function act(doc: Document, action: string, value?: unknown): Promise<void> {
+    const entry = entries.get(doc);
+    if (!entry || !enabled || deps.dead(doc)) return;
+    entry.actionError = null;
+    try { await deps.command(entry.reader, action, value); }
+    catch (error) { entry.actionError = error instanceof Error ? error.message : String(error); deps.notice(entry.reader, entry.actionError); deps.error(error); }
+    if (!deps.dead(doc)) publish(doc);
+  }
+  function publish(doc: Document): void {
+    const entry = entries.get(doc);
+    if (!entry || deps.dead(doc)) return;
+    const state = deps.snapshot(entry.reader);
+    if (state.opened !== entry.nativeOpened) {
+      entry.nativeOpened = state.opened;
+      if (enabled && entry.open !== state.opened) { entry.open = state.opened; entry.openedAt = state.opened ? Date.now() : 0; paint(doc); }
+    }
+    const json = JSON.stringify({ ...state, error: entry.actionError ?? state.error,
+      loading: entry.open && !state.voices.length && Date.now() - entry.openedAt < 15000,
+      strings: deps.strings() });
+    if (json !== entry.lastSnapshot && entry.frame.contentWindow && deps.update(entry.frame.contentWindow, json)) entry.lastSnapshot = json;
+  }
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  let disposed = false;
+  function tick(): void {
+    if (disposed) return;
+    for (const [doc, entry] of entries) {
+      if (deps.dead(doc)) { try { entry.cleanup(); } catch {} entries.delete(doc); continue; }
+      try { publish(doc); } catch (error) { deps.error(error); }
+    }
+    timer = setTimeout(tick, 250);
+  }
+  timer = setTimeout(tick, 250);
+  const unwatch = deps.watchSettings(() => {
+    const nextLayout = readLayout(), nextEnabled = deps.prefs.get(PREF_PREFIX + 'readAloud.usePluginPlayer') !== false;
+    if (nextLayout !== layout || nextEnabled !== enabled) { layout = nextLayout; enabled = nextEnabled; refresh(); }
+    for (const doc of settingsDocuments) if (!deps.dead(doc) && !doc.defaultView?.closed) {
+      updateSettingsLayout(doc);
+      const toggle = doc.getElementById('ztts-player-enabled') as HTMLInputElement | null;
+      if (toggle) toggle.checked = enabled;
+    }
+  });
   return {
     attach,
+    inspect() {
+      return { enabled, layout, readers: [...entries].filter(([doc]) => !deps.dead(doc)).map(([doc, entry]) => ({
+        open: entry.open, ready: !!entry.frame.contentDocument?.querySelector('.player'),
+        frames: doc.querySelectorAll('#ztts-player-frame').length, actionError: entry.actionError,
+        state: deps.snapshot(entry.reader),
+      })) };
+    },
     setLayout: changeLayout,
     setEnabled(value: boolean) {
       enabled = value;
-      for (const entry of entries.values()) { entry.open = false; entry.pendingPlaying = false; }
+      for (const entry of entries.values()) entry.open = false;
+      deps.prefs.set(PREF_PREFIX + 'readAloud.usePluginPlayer', value);
       refresh();
     },
     toggleSettingsMenu(doc: Document) {
-      const button = doc.getElementById('ztts-prototype-layout-trigger')!;
-      const menu = doc.getElementById('ztts-prototype-layout-menu')!;
+      const button = doc.getElementById('ztts-player-layout-trigger')!;
+      const menu = doc.getElementById('ztts-player-layout-menu')!;
       if (menu.matches(':popover-open')) { menu.hidePopover(); return; }
       updateSettingsLayout(doc);
       const rect = button.getBoundingClientRect();
@@ -232,13 +302,14 @@ export function createPlayerPrototype(deps: {
     },
     initSettings(doc: Document) {
       settingsDocuments.add(doc);
-      const select = doc.getElementById('ztts-prototype-layout') as HTMLSelectElement | null;
-      const toggle = doc.getElementById('ztts-prototype-enabled') as HTMLInputElement | null;
+      const select = doc.getElementById('ztts-player-layout') as HTMLSelectElement | null;
+      const toggle = doc.getElementById('ztts-player-enabled') as HTMLInputElement | null;
       if (select) select.value = layout;
       updateSettingsLayout(doc);
       if (toggle) toggle.checked = enabled;
     },
     dispose() {
+      disposed = true; clearTimeout(timer); unwatch();
       for (const [doc, entry] of entries) {
         if (deps.dead(doc)) continue;
         try { entry.cleanup(); doc.defaultView?.removeEventListener('message', entry.listener); doc.defaultView?.removeEventListener('resize', entry.resize); entry.button.remove(); entry.frame.remove(); entry.style.remove(); }
