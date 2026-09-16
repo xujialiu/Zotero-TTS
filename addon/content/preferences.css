@@ -116,3 +116,10 @@ label.ztts-help[value]:hover {
 .ztts-pane #ztts-bracket-pairs {
   margin-inline-start: 24px;
 }
+
+/* Equal label alignment; selection does not create a native checkmark gutter. */
+.ztts-pane #ztts-prototype-layout[hidden] { display: none !important; }
+.ztts-pane #ztts-prototype-layout-trigger { display: inline-flex; align-items: center; gap: 20px; min-width: 150px; justify-content: space-between; padding: 5px 10px; font: inherit; }
+.ztts-pane #ztts-prototype-layout-menu { position: fixed; inset: auto; margin: 0; padding: 4px; border: 1px solid var(--color-border, GrayText); border-radius: 6px; background: var(--color-background, Canvas); color: var(--fill-primary, CanvasText); box-shadow: 0 4px 16px #0003; }
+.ztts-pane #ztts-prototype-layout-menu button { display: block; width: 100%; padding: 7px 10px; margin: 0; border: 0; border-radius: 4px; background: transparent; color: inherit; text-align: start; font: inherit; }
+.ztts-pane #ztts-prototype-layout-menu button[aria-checked="true"], .ztts-pane #ztts-prototype-layout-menu button:hover { background: color-mix(in srgb, currentColor 12%, transparent); }

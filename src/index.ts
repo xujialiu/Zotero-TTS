@@ -2067,6 +2067,17 @@ async function startup({ id, version, rootURI }: StartupParams): Promise<void> {
         playerPrototype = createPlayerPrototype({
           uri: 'resource://zotero-tts-preview/player-prototype.html',
           exportResize: (target, callback) => { Components.utils.exportFunction(callback, Components.utils.waiveXrays(target), { defineAs: 'zttsResizePreview' }); },
+          exportFloating: (target, move) => {
+            const win = Components.utils.waiveXrays(target);
+            Components.utils.exportFunction(move, win, { defineAs: 'zttsMovePreview' });
+          },
+          exportLayout: (target, change) => { Components.utils.exportFunction(change, Components.utils.waiveXrays(target), { defineAs: 'zttsSwitchLayout' }); },
+          renderLayout: (target, layout) => {
+            const win = Components.utils.waiveXrays(target);
+            if (typeof win.zttsSetLayout !== 'function') return false;
+            Reflect.apply(win.zttsSetLayout, win, [layout]);
+            return true;
+          },
           dead: (value) => Components.utils.isDeadWrapper(value),
           error: (error) => Zotero.logError(error),
         });
@@ -3255,6 +3266,7 @@ Zotero.ZoteroTTS = {
     setEnabled: (value: boolean) => playerPrototype?.setEnabled(value),
     setHideNative: (value: boolean) => playerPrototype?.setHideNative(value),
     initSettings: (doc: Document) => playerPrototype?.initSettings(doc),
+    toggleSettingsMenu: (doc: Document) => playerPrototype?.toggleSettingsMenu(doc),
   },
   startup,
   shutdown,
