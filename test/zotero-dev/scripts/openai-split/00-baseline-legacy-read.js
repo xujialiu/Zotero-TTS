@@ -1,15 +1,28 @@
-// Baseline for issue #113 (openai-split), run BEFORE the install: Zotero/
-// reader state, the debug store turned on, proof the installed build is
-// still pre-split (diagnostics.openaiSplit is undefined), and a byte-exact
-// read of every pref the migration will consume or this run will touch --
-// restored in 05-restore-item5.js, readAloud.memory and
-// reader.readAloudVoices before webdav.autoUploadSettings LAST. Never
-// returns openai.apiKey, openai.headers or openai.baseURL as text: length
-// only. Applies the run's own state once the snapshot is safely captured:
-// readAloud.volume muted to 0, webdav.autoUploadSettings off (it was on).
-// params: none. state: baseline (snapshot object).
+// Baseline for issue #113 (openai-split) RE-RUN (2026-09-16, verifying fix
+// 7f7d953): this profile is ALREADY migrated -- the first run's install plus
+// the main session's manual recovery after the bug -- so this run's job is
+// to prove the fix's gate does NOT re-run the migration on a second in-place
+// install, not to watch a fresh migration happen. Captures, before ANY
+// install this run: Zotero/reader state, the debug store turned on, the
+// CURRENTLY INSTALLED (still-buggy, commit 3c40365) build's own
+// diagnostics.openaiSplit() reading (report/legacyPrefs/sections, baseURL
+// masked to a length before it ever leaves the sandbox read) as the "known
+// good" snapshot the two new installs are diffed against, whether
+// `staleDefaults` exists on that output at all (it should NOT: only the
+// fixed build adds it, and the version string alone cannot tell the two
+// 1.12.12-beta builds apart), and hasUserValue + length/value for the nine
+// legacy `openai.*` fields (independent of the diagnostic, for a
+// cross-check once the new build is in). Never returns openai.apiKey/
+// headers/baseURL, or any new section's apiKey/headers/baseURL, as text:
+// length only. Applies the run's own state once the snapshot is safely
+// captured: readAloud.volume -> 0, webdav.autoUploadSettings -> false (it
+// was on).
+// params: none. state: baseline, preInstall (small; every LATER script in
+// this kit re-reads its own diagnostics call fresh rather than depending on
+// this surviving a separate start() call -- the first run found
+// state.snapshot, a larger object, did not survive that way).
 (async () => {
-  const out = { step: 'baseline-legacy-read' };
+  const out = { step: 'baseline-legacy-read-rerun' };
   const S = Zotero.ZoteroTTSRun.state;
   const PREFIX = 'extensions.zotero.zotero-tts.';
   function readPref(fullName) {
@@ -53,14 +66,38 @@
     S.debugStoringBefore = out.debugStoringBefore;
     Zotero.Debug.setStore(true);
 
-    // Proves the currently-installed plugin predates the split (issue
-    // #113): the new diagnostic does not exist yet.
-    out.openaiSplitDiagnosticBefore = typeof Zotero.ZoteroTTS?.diagnostics?.openaiSplit;
-    out.providerTiersLabelsBefore = null;
+    // The CURRENTLY installed build predates the fix but already has
+    // diagnostics.openaiSplit() (commit 3c40365 added it) -- 'function'
+    // here, not 'undefined' as a truly pre-split build would show. What
+    // distinguishes the two same-version 1.12.12-beta builds is
+    // `staleDefaults`, which only 7f7d953 adds.
+    out.openaiSplitDiagnosticTypeBefore = typeof Zotero.ZoteroTTS?.diagnostics?.openaiSplit;
+    out.preInstall = null;
     try {
-      const pt = JSON.parse(await Zotero.ZoteroTTS.diagnostics.providerTiers());
-      out.providerTiersLabelsBefore = pt.labels;
-    } catch (e) { out.providerTiersLabelsBeforeError = String(e); }
+      const raw = JSON.parse(await Zotero.ZoteroTTS.diagnostics.openaiSplit());
+      const sections = {};
+      for (const [id, fields] of Object.entries(raw.sections || {})) {
+        sections[id] = { ...fields };
+        if ('baseURL' in sections[id]) {
+          // The pre-fix build's diagnostic returns baseURL raw (a string);
+          // the fixed build (7f7d953) masks it to a length (a number) at
+          // the source, same as apiKey/headers always were -- handle both
+          // shapes so this script stays correct once this build is gone.
+          const b = sections[id].baseURL;
+          sections[id].baseURLLength = typeof b === 'number' ? b : String(b || '').length;
+          delete sections[id].baseURL;
+        }
+      }
+      out.preInstall = {
+        feature: raw.feature,
+        report: raw.report,
+        legacyPrefs: raw.legacyPrefs,
+        hasStaleDefaultsKey: 'staleDefaults' in raw,
+        staleDefaults: raw.staleDefaults ?? null,
+        sections,
+      };
+    } catch (e) { out.preInstallError = String(e); }
+
     try {
       out.positionBefore = JSON.parse(await Zotero.ZoteroTTS.diagnostics.position());
     } catch (e) { out.positionBeforeError = String(e); }
@@ -72,65 +109,34 @@
       readAloudMemory: readPref(PREFIX + 'readAloud.memory'),
       readerReadAloudVoices: readPref('extensions.zotero.reader.readAloudVoices'),
       favoriteVoices: readPref(PREFIX + 'readAloud.favoriteVoices'),
-      legacy: {
-        enabled: readPref(PREFIX + 'openai.enabled'),
-        server: readPref(PREFIX + 'openai.server'),
-        model: readPref(PREFIX + 'openai.model'),
-        voices: readPref(PREFIX + 'openai.voices'),
-      },
+      mimoEnabled: readPref(PREFIX + 'mimo.enabled'),
+      compatibleEnabled: readPref(PREFIX + 'compatible.enabled'),
+      openaiOfficialEnabled: readPref(PREFIX + 'openai-official.enabled'),
     };
     out.baseline = baseline;
 
-    // apiKey / headers / baseURL: length only, never the text.
-    const apiKeyPref = readPref(PREFIX + 'openai.apiKey');
-    const headersPref = readPref(PREFIX + 'openai.headers');
-    const baseURLPref = readPref(PREFIX + 'openai.baseURL');
-    out.legacyLengths = {
-      apiKeyLength: String(apiKeyPref.value || '').length,
-      apiKeyHasUserValue: apiKeyPref.hasUserValue,
-      headersLength: String(headersPref.value || '').length,
-      headersHasUserValue: headersPref.hasUserValue,
-      baseURLLength: String(baseURLPref.value || '').length,
-      baseURLHasUserValue: baseURLPref.hasUserValue,
+    // Legacy openai.* fields: hasUserValue for all nine (must be false on an
+    // already-migrated profile) and length only for the three that may hold
+    // a secret or an address.
+    const SECRET_OR_ADDRESS = new Set(['apiKey', 'headers', 'baseURL']);
+    out.legacyFields = {};
+    for (const f of ['enabled', 'apiKey', 'baseURL', 'model', 'voice', 'voices', 'headers', 'server', 'presetValues']) {
+      const p = readPref(PREFIX + 'openai.' + f);
+      out.legacyFields[f] = SECRET_OR_ADDRESS.has(f)
+        ? { hasUserValue: p.hasUserValue, length: String(p.value || '').length }
+        : { hasUserValue: p.hasUserValue, value: p.value };
+    }
+
+    // The new sections' own secret/address fields, length/value only, for
+    // the record -- this is what "sections unchanged" is checked against.
+    out.currentSectionLengths = {
+      mimoApiKeyLength: String(readPref(PREFIX + 'mimo.apiKey').value || '').length,
+      mimoModel: readPref(PREFIX + 'mimo.model').value,
+      compatibleBaseURLLength: String(readPref(PREFIX + 'compatible.baseURL').value || '').length,
+      compatibleHeadersLength: String(readPref(PREFIX + 'compatible.headers').value || '').length,
+      compatibleModel: readPref(PREFIX + 'compatible.model').value,
+      openaiOfficialApiKeyLength: String(readPref(PREFIX + 'openai-official.apiKey').value || '').length,
     };
-
-    // presetValues: which of the four presets it remembers, never a field's value.
-    const presetPref = readPref(PREFIX + 'openai.presetValues');
-    out.presetKeys = { hasUserValue: presetPref.hasUserValue, length: String(presetPref.value || '').length, holds: [] };
-    try {
-      const parsed = JSON.parse(presetPref.value || '{}');
-      out.presetKeys.holds = ['openai', 'chatterbox', 'mimo', 'other'].filter((k) => parsed && typeof parsed === 'object' && parsed[k] && typeof parsed[k] === 'object');
-    } catch (e) { out.presetKeysParseError = String(e); }
-
-    // tierVoices keys, and any openai:: id, across reader.readAloudVoices.
-    out.tierVoicesKeys = [];
-    out.openaiVoiceIdsIn = { readerReadAloudVoices: [], readAloudMemory: false, favoriteVoices: 0 };
-    try {
-      const rav = JSON.parse(baseline.readerReadAloudVoices.value || '{}');
-      const tierKeySet = new Set();
-      for (const lang of Object.keys(rav)) {
-        const entry = rav[lang];
-        if (!entry || typeof entry !== 'object') continue;
-        if (typeof entry.voice === 'string' && entry.voice.startsWith('openai::')) out.openaiVoiceIdsIn.readerReadAloudVoices.push(lang + ':voice');
-        const tv = entry.tierVoices;
-        if (tv && typeof tv === 'object') {
-          for (const [tier, id] of Object.entries(tv)) {
-            tierKeySet.add(tier);
-            if (tier === 'openai' || (typeof id === 'string' && id.startsWith('openai::'))) out.openaiVoiceIdsIn.readerReadAloudVoices.push(lang + ':tierVoices.' + tier);
-          }
-        }
-      }
-      out.tierVoicesKeys = [...tierKeySet].sort();
-    } catch (e) { out.tierVoicesParseError = String(e); }
-    try {
-      const mem = JSON.parse(baseline.readAloudMemory.value || '{}');
-      out.openaiVoiceIdsIn.readAloudMemory = !!(mem && mem.voice && typeof mem.voice.id === 'string' && mem.voice.id.startsWith('openai::'));
-    } catch (e) { out.memoryParseError = String(e); }
-    try {
-      const favText = String(baseline.favoriteVoices.value || '');
-      const favs = favText ? favText.split(',').map((s) => s.trim()).filter(Boolean) : [];
-      out.openaiVoiceIdsIn.favoriteVoices = favs.filter((id) => id.startsWith('openai::')).length;
-    } catch (e) { out.favoritesParseError = String(e); }
 
     // Apply the run's own state now that the snapshot is safely captured.
     writePref(baseline.volume.key, baseline.volume.type, 0);
@@ -144,7 +150,7 @@
     out.stack = e && e.stack ? String(e.stack).split('\n').slice(0, 4).join(' | ') : null;
   }
   S.baseline = out.baseline || null;
-  S.snapshot = out;
+  S.preInstall = out.preInstall || null;
   if (out.error) throw new Error(out.error);
   return JSON.stringify(out, null, 1);
 })();

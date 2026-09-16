@@ -125,10 +125,13 @@ first run (`scripts/openai-split/README.md`).
    and no `CF-Access-Client-Id`; the Chatterbox request carries the two
    `CF-Access-*` headers and no `Authorization` (the debug store, or a
    fetch wrapper in the script).
-5. **Restore.** Disable both (no player open); the three switches back to
-   what item 1 found (all off here); the fixture closed; the volume and the
-   memory restored as the baseline says. The migrated values stay: they are
-   this profile's settings now.
+5. **Restore.** The fixture closed and erased first, then Disable both
+   (no player open); the three switches back to what item 1 found (all
+   off here); the volume and the memory restored as the baseline says,
+   and `reader.readAloudVoices` put back byte for byte from the pre-run
+   read — Zotero's own `_persistCurrentVoice` rewrites its `mul` entry at
+   every voice pick of item 4 (1397 → 1465 characters on the 2026-09-16
+   run). The migrated values stay: they are this profile's settings now.
 
 What only unit tests cover: the conversion of a backup file and of a
 shared settings file from before the split (`test/core/openai-split.test.ts`,
