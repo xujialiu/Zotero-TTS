@@ -1,7 +1,7 @@
 {
   "manifest_version": 2,
   "name": "Zotero-TTS",
-  "version": "1.12.11-beta5",
+  "version": "1.12.11",
   "author": "Xujia Liu",
   "description": "Text-to-speech for Zotero 10: more voices, word and sentence highlighting in your colors, keyboard shortcuts, settings backup and reading-position sync",
   "icons": {
