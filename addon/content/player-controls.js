@@ -10,7 +10,7 @@ const escapeHTML = value => String(value).replace(/[&<>"']/g, char => ({ '&': '&
 const choices = key => state[key === 'provider' ? 'providers' : key === 'locale' ? 'locales' : 'voices'];
 const selectedLabel = key => choices(key).find(option => option.value === state[key])?.label || text(key);
 function send(action, value) { window.zttsCommand?.(action, value); }
-function notifyHeight() { window.zttsResizePreview?.(popover ? 460 : variant === 'B' ? 252 : 34); }
+function notifyHeight() { window.zttsResizePreview?.(popover ? 460 : variant === 'B' ? 192 : 34); }
 function closePopover(resize = true) {
   anchor?.setAttribute('aria-expanded', 'false'); popover?.remove();
   popover = null; anchor = null; refreshPopover = null;
@@ -116,7 +116,7 @@ function openPicker(button, key) {
         heart.onclick = () => send('favorite', value.value); row.append(heart);
       }
       const option = document.createElement('button'); option.className = 'option' + (state[key] === value.value ? ' chosen' : '');
-      option.textContent = value.label; option.onclick = () => { closePopover(); send(key, value.value); button.focus({ preventScroll: true }); };
+      option.textContent = value.label; option.title = value.label; option.onclick = () => { closePopover(); send(key, value.value); button.focus({ preventScroll: true }); };
       row.append(option); list.append(row);
     }
     if (!values.length) { const empty = document.createElement('div'); empty.className = 'empty'; empty.textContent = text('empty'); list.append(empty); }

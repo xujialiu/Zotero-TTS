@@ -108,7 +108,7 @@ export function createPluginPlayer(deps: {
     if (visible && layout === 'top') entry.style.textContent += '\n#split-view { top: 75px !important; }';
     entry.frame.style.cssText = 'position:fixed;z-index:10000;border:0;background:transparent;color-scheme:light;';
     if (layout === 'A') entry.frame.style.cssText += 'left:0;bottom:0;width:100%;height:34px;';
-    if (layout === 'B') entry.frame.style.cssText += 'left:10px;top:51px;width:min(300px,95vw);height:252px;';
+    if (layout === 'B') entry.frame.style.cssText += 'left:10px;top:51px;width:min(300px,95vw);height:192px;';
     if (layout === 'top') entry.frame.style.cssText += 'left:0;top:41px;width:100%;height:34px;';
     const background = doc.defaultView?.getComputedStyle(doc.querySelector('.toolbar') ?? doc.body).backgroundColor ?? '';
     const channels = background.match(/[\d.]+/g)?.slice(0, 3).map(Number) ?? [255, 255, 255];
@@ -180,7 +180,7 @@ export function createPluginPlayer(deps: {
             const box = frame.getBoundingClientRect();
             entries.get(doc)!.moved = true;
             frame.style.left = Math.max(0, Math.min(win.innerWidth - box.width, box.left + dx)) + 'px';
-            frame.style.top = Math.max(0, Math.min(win.innerHeight - 252, box.top + dy)) + 'px';
+            frame.style.top = Math.max(0, Math.min(win.innerHeight - 192, box.top + dy)) + 'px';
           });
           deps.exportLayout(frame.contentWindow, changeLayout);
           unlistenKeys?.();

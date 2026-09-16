@@ -514,3 +514,5 @@ then) and is in the git history before that day.
 - Verified live, issue #116: silent drops on both close paths, the chain stops, and Kokoro is too fast to catch a late result (issue #116)
 
 - Player label and combo corrections: native labels, light-dismiss-safe toggle, aligned controls
+
+- Real player verified, compact menus prepared: trusted voice handoff and exact preference restoration
