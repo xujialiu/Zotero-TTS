@@ -522,3 +522,9 @@ then) and is in the git history before that day.
 - A detached document still has a live wrapper: null-window guards and independent cleanup
 
 - Player verification closed: real controls and handoff, compact UI, fresh resources, clean teardown
+
+- Player A/M reflects effective following (issue #117)
+
+### [2026-09-17](NOTES_2026-09-17.md)
+
+- Player following passed after waiting for the selected iframe (issue #117)

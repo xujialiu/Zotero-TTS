@@ -498,3 +498,50 @@ it('pause cancels a queued PDF restoration and still allows explicit paused retu
     expect(f.follow).toHaveBeenCalledOnce(); expect(f.follow.mock.calls[0][4]).toBe(true);
   } finally { f.controller.dispose(); }
 });
+
+
+describe('PDF player A/M state', () => {
+  it('tracks manual protection, disappearance, reentry, pause and later recovery', () => {
+    vi.useFakeTimers(); let visible = true;
+    const f = fixture({ keepFollowingWhileVisible: () => true, captureVisibility: () => () => visible });
+    try {
+      f.start();
+      expect(f.controller.automatic(f.view)).toBe(true);
+      f.view.setReadAloudState({ ...f.state(), paused: true });
+      expect(f.controller.automatic(f.view)).toBe(true);
+      f.container.emit('wheel', { deltaY: 50 }); vi.runAllTimers();
+      expect(f.controller.automatic(f.view)).toBe(false);
+      visible = false; f.container.emit('scroll'); vi.runAllTimers();
+      visible = true; f.container.emit('scroll'); vi.runAllTimers();
+      expect(f.controller.automatic(f.view)).toBe(false);
+      f.view.setReadAloudState(f.state());
+      expect(f.controller.automatic(f.view)).toBe(true);
+      f.container.emit('wheel', { deltaY: 50 }); vi.runAllTimers();
+      f.view.setReadAloudState(f.state(2)); vi.runAllTimers();
+      expect(f.controller.automatic(f.view)).toBe(true);
+    } finally { f.controller.dispose(); vi.useRealTimers(); }
+  });
+  it('makes explicit manual mode persistent until return or resume and local to the reader', () => {
+    vi.useFakeTimers();
+    const f = fixture({ keepFollowingWhileVisible: () => true, captureVisibility: () => () => true });
+    try {
+      f.start();
+      f.container.emit('wheel', { deltaY: 50 });
+      const otherView = new f.View();
+      const otherReader = { _window: f.win, _internalReader: { _primaryView: otherView } };
+      f.controller.attach(otherReader, otherView); otherView.setReadAloudState(f.state());
+      f.controller.manual(f.reader);
+      f.follow.mockClear(); f.view.setReadAloudState(f.state(2)); vi.runAllTimers();
+      expect(f.controller.automatic(f.view)).toBe(false);
+      expect(f.controller.automatic(otherView)).toBe(true);
+      expect(f.follow).not.toHaveBeenCalled();
+      f.view.setReadAloudState({ ...f.state(2), paused: true });
+      f.view.lockPositionToReadAloud(); f.view.setReadAloudState({ ...f.state(2), paused: true });
+      expect(f.controller.automatic(f.view)).toBe(true);
+      expect(f.view._readAloudState.paused).toBe(true);
+      f.controller.manual(f.reader);
+      f.view.setReadAloudState(f.state(2));
+      expect(f.controller.automatic(f.view)).toBe(true);
+    } finally { f.controller.dispose(); vi.useRealTimers(); }
+  });
+});

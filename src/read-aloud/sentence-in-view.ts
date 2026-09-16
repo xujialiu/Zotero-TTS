@@ -309,6 +309,8 @@ export interface SentenceInViewDeps {
 
 export interface SentenceInView {
   refresh(): void;
+  automatic(reader: any): boolean | null;
+  manual(reader: any): void;
   /** Patch the reader's PDF views; true once they are. Repeat calls are cheap no-ops, so this may be called on every Read Aloud event. */
   attach(reader: unknown): boolean;
   /** What this module sees in a reader, as plain data, for `Zotero.ZoteroTTS.diagnostics.sentenceInView()`. */
@@ -519,6 +521,8 @@ export function createSentenceInView(deps: SentenceInViewDeps): SentenceInView {
   return {
     attach,
     refresh: () => controller.refresh(),
+    automatic: (reader: any) => controller.automatic(reader?._internalReader?._lastView ?? reader?._internalReader?._primaryView),
+    manual: (reader: any) => controller.manual(reader),
     inspect,
     patchCounts: () => controller.patchCounts(),
     dispose: () => controller.dispose(),

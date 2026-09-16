@@ -9,7 +9,7 @@
 | `02-entry-layouts.js` | Player nodes, icon open/close, real manager activation, layouts and geometry | one frame/style/icon; no prototype nodes; real state survives A/top/B switches and close | fixture ids in state |
 | `03-controls.js` | Provider/locale/voice rows, speed/gain, pause/resume, bounded real synthesis, invalid choice | rows match the manager; selected ids and shared memory move; speed and gain apply; invalid choices show an error | fixture ids in state |
 | `04-settings-favorites.js` | Settings pane picker, favorites both directions, favorites-only guard, focus/search | settings mirrors player prefs; hearts update shared state/browser; guarded edit is visible; search focus does not start reading | fixture ids in state |
-| `05-following.js` | PDF and EPUB automatic/manual following and return-to-spoken | M pauses following while highlights remain; A resumes; Return remains available; both document kinds are exercised | fixture ids in state |
+| `(moved)` | Player A/M following, manual recovery and shortcut following | Run the dedicated [`player-following`](../player-following/README.md) kit for issue #117; the former global-pref assertion was retired | fixture ids in state |
 | `06-errors-lifecycle.js` | Retry/error path, disabled-player fallback, reinstall lifecycle and cleanup | invalid/stale actions are visible; disabled mode restores native controls without playback mutation; no duplicate nodes | fixture ids in state |
 | `07-cleanup.js` | Reader close, fixture erase, exact pref/user-state restore, logs/errors and position rows | fixtures gone; player closed; original values/user flags restored with memory last; new errors identified by timestamp | fixture ids in state |
 | `08-voice-switch-followup.js` | Trusted Fish playback followed by one explicit second-voice handoff | running clock, target selected, memory/controller moved, committed voice-switch diagnostics; fixture-only cleanup | `root`, `fixturesDir`, `runId` |
@@ -29,6 +29,10 @@ Before you start:
   voice memory, and reader voice memory in cleanup; `readAloud.memory` is last.
 
 Limits:
+
+- The former `05-following.js` used the retired global
+  `readAloud.autoScrollEnabled` oracle and has been moved out. Issue #117
+  following results and shortcuts live in the dedicated kit above.
 
 - AudioContext state/clock and synthesis are recorded separately. A suspended
   clock or missing sink makes natural listening progression NOT TESTABLE, while

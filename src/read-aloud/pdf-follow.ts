@@ -389,6 +389,17 @@ export function createPdfFollow(deps: Deps) {
   return {
     attach,
     refresh() { for (const r of records.values()) run(r); },
+    /** Cheap state only: player polling must not measure document geometry. */
+    automatic(view: any): boolean | null {
+      const r = recordOf(waive(view));
+      return r ? r.following && !r.manual.active && !r.manual.suspended : null;
+    },
+    manual(reader: any): void {
+      for (const r of records.values()) if (r.reader === reader && !dead(r.view)) {
+        // A deliberate M selection also cancels pending visibility recovery.
+        r.manual.cancel(); disengage(r, 'player');
+      }
+    },
     inspect(view: any): Record<string, unknown> {
       const r = recordOf(waive(view));
       return r ? { owned: true, following: r.following, paused: r.paused, sentenceProtected: r.manual.sentenceProtected, interacting: r.manual.interacting, visibilityPaused: r.manual.suspended, keepFollowingWhileVisible: deps.keepFollowingWhileVisible?.() !== false, pending: r.pending, reason: r.reason, visible: visible(r) } : { owned: false };

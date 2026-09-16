@@ -186,14 +186,22 @@ const playerController = createPlayerController({
   togglePaused: togglePlayerPaused,
   rememberSpeed: (speed) => readAloudMemory?.learnSpeed(speed),
   follow: (reader) => { readAloudShortcuts?.returnToSpoken(reader); },
+  automatic: (reader) => sentenceInView?.automatic(reader) ?? domFollowing?.automatic(reader) ??
+    (reader?._internalReader?._lastView ?? reader?._internalReader?._primaryView)?._readAloud?.positionLocked !== false,
+  manual: (reader) => {
+    sentenceInView?.manual(reader);
+    domFollowing?.manual(reader);
+    // Snapshot/Reading Mode views retain Zotero's native following.
+    if (sentenceInView?.automatic(reader) == null && domFollowing?.automatic(reader) == null) {
+      const internal = reader?._internalReader;
+      for (const view of [internal?._primaryView, internal?._secondaryView]) view?._readAloud?.setPositionLocked(false);
+    }
+  },
   anyReading: () => playerStop.open().length > 0,
   message: playerMessage,
 });
 function togglePlayerPaused(reader: any): void {
-  const internal = reader?._internalReader;
-  if (prefs.get(PREF_PREFIX + 'readAloud.usePluginPlayer') !== false && prefs.get(PREF_PREFIX + 'readAloud.autoScrollEnabled') === false) {
-    internal?._readAloudManager?.togglePaused();
-  } else internal?.toggleReadAloudPaused();
+  reader?._internalReader?.toggleReadAloudPaused();
 }
 function playerStrings(): Record<string, string> {
   return {
@@ -1664,7 +1672,6 @@ function stopHighlightLevels(): void {
 function startSentenceInView(): void {
   stopSentenceInView();
   const deps: SentenceInViewDeps = {
-    enabled: () => prefs.get(PREF_PREFIX + 'readAloud.usePluginPlayer') === false || prefs.get(PREF_PREFIX + 'readAloud.autoScrollEnabled') !== false,
     resuming: (reader) => followResumeGuard?.resuming(reader) ?? false,
     mode: () => autoScrollMode(prefs.get(PREF_PREFIX + 'readAloud.autoScrollMode')),
     keepFollowingWhileVisible: () => prefs.get(PREF_PREFIX + 'readAloud.keepFollowingWhileVisible') !== false,
@@ -2157,7 +2164,7 @@ async function startup({ id, version, rootURI }: StartupParams): Promise<void> {
             Reflect.apply(win.zttsUpdate, win, [json]); return true;
           },
           watchSettings: (changed) => {
-            const names = ['readAloud.usePluginPlayer', 'readAloud.playerLayout', 'readAloud.autoScrollEnabled'];
+            const names = ['readAloud.usePluginPlayer', 'readAloud.playerLayout'];
             const tokens = names.map(name => Zotero.Prefs.registerObserver('zotero-tts.' + name, () => { changed(); sentenceInView?.refresh(); domFollowing?.refresh(); }));
             return () => { for (const token of tokens) Zotero.Prefs.unregisterObserver(token); };
           },

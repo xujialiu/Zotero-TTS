@@ -371,11 +371,15 @@ describe('navigation', () => {
     expect(manager.skipBack).toHaveBeenCalledWith('paragraph');
   });
 
-  it('works while paused: the highlight moves without playing', () => {
-    const { shortcuts, manager, resolve } = setup();
+  it('works while paused: the new position is pushed after locking without playing', () => {
+    const { shortcuts, manager, resolve, lockPosition, emitState, forgetViewState, togglePaused } = setup();
     manager.paused = true;
     expect(shortcuts.handleKeyDown(right(), resolve)).toBe(true);
     expect(manager.skipAhead).toHaveBeenCalledWith('sentence');
+    expect(emitState).toHaveBeenCalled();
+    expect(forgetViewState).toHaveBeenCalled();
+    expect(lockPosition.mock.invocationCallOrder[0]).toBeLessThan(emitState.mock.invocationCallOrder[0]);
+    expect(togglePaused).not.toHaveBeenCalled();
   });
 
   // The arrows page and scroll the reader; they are only borrowed while something is being read

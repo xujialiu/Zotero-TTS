@@ -299,11 +299,9 @@ export function createReadAloudShortcuts(deps: ReadAloudShortcutsDeps): ReadAlou
     } catch (e) {
       log(e);
     }
-    try {
-      deps.lockPosition?.(reader);
-    } catch (e) {
-      log(e);
-    }
+    // A paused skip emits its new segment before the lock is restored.
+    // Push again through the explicit-return path so it locates immediately.
+    returnToSpoken(reader);
     return true;
   }
 

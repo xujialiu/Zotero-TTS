@@ -243,3 +243,35 @@ describe('EPUB manual sentence placement and pause (#107)', () => {
     } finally { f.module.dispose(); }
   });
 });
+
+
+describe('EPUB player A/M state', () => {
+  it.each(['scrolled', 'paginated'])('tracks manual protection and explicit recovery in %s flow', flow => {
+    vi.useFakeTimers(); const f = fixture(); f.view.flowMode = flow; f.deps.keepFollowingWhileVisible = () => true;
+    try {
+      f.module.attach(f.reader); f.push(f.range('a', 100, 150));
+      expect(f.module.automatic(f.reader)).toBe(true);
+      f.helper.setState({ ...f.helper.state, paused: true });
+      expect(f.module.automatic(f.reader)).toBe(true);
+      f.view.navigateToNextPage(); vi.runAllTimers();
+      expect(f.module.automatic(f.reader)).toBe(false);
+      f.helper.setState({ ...f.helper.state, paused: false });
+      expect(f.module.automatic(f.reader)).toBe(true);
+      f.view.navigateToNextPage(); vi.runAllTimers();
+      f.range('a', -50, 0); f.win.dispatchEvent(new Event('scroll')); vi.runAllTimers();
+      f.range('a', 100, 150); f.win.dispatchEvent(new Event('scroll')); vi.runAllTimers();
+      expect(f.module.automatic(f.reader)).toBe(false);
+      f.push(f.range('b', 100, 150)); vi.runAllTimers();
+      expect(f.module.automatic(f.reader)).toBe(true);
+      f.view.navigateToNextPage(); f.module.manual(f.reader);
+      f.push(f.range('c', 100, 150)); vi.runAllTimers();
+      expect(f.module.automatic(f.reader)).toBe(false);
+      f.helper.setState({ ...f.helper.state, paused: true });
+      f.view.lockPositionToReadAloud(); f.helper.setState({ ...f.helper.state });
+      expect(f.module.automatic(f.reader)).toBe(true);
+      expect(f.helper.state.paused).toBe(true);
+      f.module.manual(f.reader); f.helper.setState({ ...f.helper.state, paused: false });
+      expect(f.module.automatic(f.reader)).toBe(true);
+    } finally { f.module.dispose(); vi.useRealTimers(); }
+  });
+});

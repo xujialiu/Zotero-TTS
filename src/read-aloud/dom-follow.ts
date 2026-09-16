@@ -283,6 +283,17 @@ export function createDOMFollow(deps: SentenceInViewDeps) {
   return {
     attach,
     refresh() { for (const r of records.values()) if (!dead(r.view)) attempt(r); },
+    /** Pause does not change intent; current-sentence protection does. */
+    automatic(reader: any): boolean | null {
+      const view = waive(reader?._internalReader?._lastView ?? reader?._internalReader?._primaryView);
+      const r = dead(view) ? undefined : records.get(view);
+      return r ? r.following && !r.manual.active && !r.manual.suspended : null;
+    },
+    manual(reader: any): void {
+      for (const r of records.values()) if (r.reader === reader && !dead(r.view)) {
+        r.manual.cancel(); disengage(r, 'player');
+      }
+    },
     inspect(reader: any): Record<string, unknown> {
       const view = waive(reader?._internalReader?._lastView ?? reader?._internalReader?._primaryView);
       const r = records.get(view);

@@ -43,10 +43,8 @@ Retain exact preference values and user-value flags; restore memory last.
   browser update. Change it in Settings; the player updates. Restore the
   list. With favorites-only active and a reading session open, editing
   favorites is refused visibly rather than silently changing the catalog.
-- On PDF and EPUB, M disables automatic following through sentence changes
-  and pause/resume while retaining highlights. A resumes following. An
-  explicit Return to spoken command still works in M. Preserve the user's
-  existing sentence/outside style.
+- Follow the [A/M state case](player-following.md) for PDF/EPUB status,
+  document-local mode selection, manual navigation and explicit recovery.
 
 ## 4. Errors and cleanup
 

@@ -183,9 +183,14 @@ for every document you have listened to.
 - **Provider, language, voice, speed and volume** use the same choices as
   the voice browser and keyboard shortcuts. Hearts on the left mark the
   same favorites as Settings.
-- **A / M** switches automatic scrolling on or off. In manual mode the
-  highlight continues while the page stays where you put it. Automatic mode
-  follows the scrolling style chosen under Reading.
+- **A / M** shows whether this document is following the narration.
+  Scrolling by hand shows **M**, even while the current sentence remains
+  visible. A later visible sentence restores **A** when following resumes.
+- **Click A to stay in manual mode** through later sentences. Click **M**,
+  press **Shift+Enter**, skip a sentence or paragraph, or resume playback
+  to return to the spoken position and restore **A**. Pausing alone keeps
+  A/M unchanged; returning or skipping while paused does not start playback.
+  Other documents keep their own following state.
 - **Theme and controls** follow the reader's appearance. Loading and
   playback errors appear in the player; an error can be opened for details
   and a retry.

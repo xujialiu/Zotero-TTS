@@ -14,13 +14,17 @@ function fixture() {
   };
   const reader = { _internalReader: { _readAloudManager: manager, _state: { readAloudState: { popupOpen: false } } } };
   const start = vi.fn(), close = vi.fn(), togglePaused = vi.fn(), rememberSpeed = vi.fn(), follow = vi.fn();
+  const following = new Map<unknown, boolean>();
+  const automatic = (reader: unknown) => following.get(reader) ?? true;
+  const manual = vi.fn((reader: unknown) => { following.set(reader, false); });
+  follow.mockImplementation((reader: unknown) => { following.set(reader, true); });
   const controller = createPlayerController({
     prefs: { get: key => values.get(key), set: (key, value) => { values.set(key, value); } },
     labels: () => ({ fish: 'Fish Audio' }), clone: (_reader, value) => value,
-    start, close, togglePaused, rememberSpeed, follow, anyReading: () => manager.active,
+    start, close, togglePaused, rememberSpeed, follow, automatic, manual, anyReading: () => manager.active,
     message: key => key,
   });
-  return { values, manager, reader, controller, start, close, togglePaused, rememberSpeed, follow };
+  return { values, manager, reader, controller, start, close, togglePaused, rememberSpeed, follow, following, manual };
 }
 
 describe('player controller', () => {
@@ -66,13 +70,28 @@ describe('player controller', () => {
     f.values.set(PREF_PREFIX + 'readAloud.favoritesOnly', true); f.manager.active = true;
     await expect(f.controller.command(f.reader, 'favorite', 'fish::one')).rejects.toThrow();
   });
-  it('persists manual mode separately from the sentence/outside follow style', async () => {
+  it('reports the current reader follow state even when the old global preference is enabled', () => {
     const f = fixture();
-    await f.controller.command(f.reader, 'automatic', false);
-    expect(f.values.get(PREF_PREFIX + 'readAloud.autoScrollEnabled')).toBe(false);
+    f.values.set(PREF_PREFIX + 'readAloud.autoScrollEnabled', true);
+    f.following.set(f.reader, false);
     expect(f.controller.snapshot(f.reader).automatic).toBe(false);
+    f.following.set(f.reader, true);
+    expect(f.controller.snapshot(f.reader).automatic).toBe(true);
+  });
+  it('changes only this reader and restores following without starting paused playback', async () => {
+    const f = fixture();
+    const other = { ...f.reader };
+    f.manager.active = true;
+    await f.controller.command(f.reader, 'automatic', false);
+    expect(f.manual).toHaveBeenCalledWith(f.reader);
+    expect(f.values.has(PREF_PREFIX + 'readAloud.autoScrollEnabled')).toBe(false);
+    expect(f.controller.snapshot(f.reader).automatic).toBe(false);
+    expect(f.controller.snapshot(other).automatic).toBe(true);
     await f.controller.command(f.reader, 'automatic', true);
     expect(f.follow).toHaveBeenLastCalledWith(f.reader);
+    expect(f.controller.snapshot(f.reader).automatic).toBe(true);
+    expect(f.togglePaused).not.toHaveBeenCalled();
+    expect(f.start).not.toHaveBeenCalled();
   });
   it('clones language options into the reader realm and validates provider and locale choices', async () => {
     const f = fixture();

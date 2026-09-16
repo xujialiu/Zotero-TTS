@@ -20,6 +20,8 @@ export interface PlayerControllerDeps {
   togglePaused(reader: any): void;
   rememberSpeed(speed: number): void;
   follow(reader: any): void;
+  automatic(reader: any): boolean;
+  manual(reader: any): void;
   anyReading(): boolean;
   message(key: string): string;
 }
@@ -63,7 +65,7 @@ export function createPlayerController(deps: PlayerControllerDeps) {
       active: !!m?.active, playing: !!m?.active && !m?.paused, buffering: !!m?.buffering,
       provider: String(m?.selectedTier ?? ''), locale, voice: String(m?.selectedVoiceID ?? ''),
       speed: Number(m?.speed) || 1, volume: clampVolume(deps.prefs.get(VOLUME_PREF)),
-      automatic: pref('autoScrollEnabled') !== false, providers, locales,
+      automatic: !!m && deps.automatic(reader), providers, locales,
       voices: voicesOf(m?.voicesForLanguage), favorites: parseFavoriteVoices(pref('favoriteVoices')),
       error: m?.error ? deps.message(m.error === 'quota-exceeded' ? 'ztts-player-quota-error' : 'ztts-player-playback-error') : null,
     };
@@ -105,8 +107,8 @@ export function createPlayerController(deps: PlayerControllerDeps) {
       case 'volume': deps.prefs.set(VOLUME_PREF, Math.round(number(0, 100))); return;
       case 'automatic':
         if (typeof value !== 'boolean') throw new Error(deps.message('ztts-player-invalid-value'));
-        write('autoScrollEnabled', value);
         if (value) deps.follow(reader);
+        else deps.manual(reader);
         return;
       case 'favorite': {
         const voice = requireChoice(voicesOf(m.allVoices));
