@@ -1036,6 +1036,19 @@ describe('prefetch', () => {
     expect(synthesize).toHaveBeenCalledTimes(1);
   });
 
+  it('stops the chain once the reader is gone, warming nothing for a document nobody is listening to (issue #116)', async () => {
+    let live = true;
+    const synthesize = vi.fn(async (text: string) => {
+      if (text === LONG_A) live = false;
+      return { audio: new Blob([text]) };
+    });
+    const { d, debug } = prefetchDeps(synthesize, [LONG_A, LONG_B]);
+    await createRemoteInterface({ ...d, isReaderLive: () => live }).getAudio({ text: 'Now playing sentence.' }, voice);
+    await flush();
+    expect(synthesize.mock.calls.map((c) => c[0])).toEqual(['Now playing sentence.', LONG_A]);
+    expect(debug.mock.calls.map((c) => c[0])).toContainEqual(expect.stringContaining('reader is gone'));
+  });
+
   it('synthesizes each sentence once however many callers ask (Zotero prefetches concurrently)', async () => {
     let release!: () => void;
     const gate = new Promise<void>((r) => (release = r));

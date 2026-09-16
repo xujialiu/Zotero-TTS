@@ -174,7 +174,11 @@ why it was needed. Include volume restoration in the cleanup evidence.
    `NS_ERROR_FILE_UNRECOGNIZED_PATH` when a fixture is erased) is not a
    finding. A burst of `can't access dead object` at an in-place upgrade
    was issue #5, fixed in 1.8.3: from that build on it is a regression —
-   report it with its timestamp and count. `Zotero.getErrors()` is a ring
+   report it with its timestamp and count. An entry of ours reading
+   `line: 0` is a `Zotero.logError`'d error whose bundle line sits in the
+   console message's `columnNumber`: read `Services.console.getMessageArray()`
+   (`QueryInterface(Ci.nsIScriptError)`, `timeStamp` dates it; issue #116).
+   `Zotero.getErrors()` is a ring
    (26 entries through five runs while its contents rotated) and
    `zotero_clear_logs` does not clear it: find a run's new errors by
    content and timestamp, never by length, and take the debug store

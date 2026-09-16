@@ -101,6 +101,13 @@ export type RemoteInterfaceDeps = {
    * into the reader's segment list, so it lives with the Zotero glue.
    */
   getUpcomingTexts?(text: string, count: number): string[];
+  /**
+   * Whether the reader this interface serves still has its window. Asked
+   * before every step of the prefetch chain: a tab closed mid-chain ends
+   * it, so no audio is synthesized for a document nobody is listening to
+   * (issue #116). Absent means live.
+   */
+  isReaderLive?(): boolean;
   /** Receives the raw error before it is collapsed to a Zotero error string. */
   log?(e: unknown): void;
   /** One line per synthesized segment, for the debug output: which provider, how many word timestamps. */
@@ -375,13 +382,16 @@ export function createRemoteInterface(deps: RemoteInterfaceDeps): RemoteInterfac
    * point of a count above three (verified live: the joined chain produced
    * zero cache hits). One chain at a time; a chain started by a later
    * segment picks up where this one ends. Failures are logged and end the
-   * chain — playback will surface the error when it gets there.
+   * chain — playback will surface the error when it gets there. A reader
+   * whose window is gone ends it too, before the next request goes out
+   * (issue #116): no audio for a document nobody is listening to.
    */
   let warming = false;
   function prefetchAfter(providerId: ProviderId, voiceId: string, text: string, strip: boolean, locale?: string, pairs?: string): void {
     const cfg = deps.getPrefetch?.();
     const cache = deps.cache?.();
     if (!cfg?.enabled || cfg.count < 1 || !cache || warming) return;
+    if (deps.isReaderLive?.() === false) return;
     const texts = (deps.getUpcomingTexts?.(text, cfg.count) ?? []).filter(
       (t) => typeof t === 'string' && t.trim().length > TINY_SEGMENT_CHARS,
     );
@@ -390,6 +400,10 @@ export function createRemoteInterface(deps: RemoteInterfaceDeps): RemoteInterfac
     void (async () => {
       try {
         for (const original of texts) {
+          if (deps.isReaderLive?.() === false) {
+            deps.debug?.(`prefetch: ${providerId}: stopped, the reader is gone`);
+            break;
+          }
           const t = prepareSpeechText(original, strip, pairs).text;
           if (!t.trim()) continue;
           const key = cacheKeyFor(providerId, voiceId, t, hintFor(providerId, t, locale));

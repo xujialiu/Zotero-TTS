@@ -88,6 +88,7 @@ opens a fixture ends with item 3.26's teardown ([playback](cases/playback.md)).
 - [3e. Open the player expanded (issue #81)](cases/player-expanded.md)
 - [3g. Enclosing brackets (issues #94, #96, #101)](cases/angle-brackets.md)
 - [3j. A sentence across Zotero's paragraph break, read as one (issue #104, 1.12.8)](cases/paragraph-parts.md)
+- [3k. Audio that arrives after its tab closed is dropped (issue #116, 1.12.11)](cases/late-audio.md)
 - [4b. The volume (issue #62)](cases/volume.md)
 
 ### The highlight and following
