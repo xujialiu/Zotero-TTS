@@ -518,3 +518,5 @@ then) and is in the git history before that day.
 - Real player verified, compact menus prepared: trusted voice handoff and exact preference restoration
 
 - Cached child styles clipped the compact floating panel: per-instance resource URLs
+
+- A detached document still has a live wrapper: null-window guards and independent cleanup

@@ -1,6 +1,12 @@
 import type { PlayerSnapshot } from '../read-aloud/player-controller';
 import { PREF_PREFIX, type PrefsBackend } from '../core/settings';
 
+/** Gecko can detach defaultView without marking the document wrapper dead. */
+export function isPlayerDocumentLive(doc: { readonly defaultView?: { closed?: boolean } | null } | null, dead: (value: unknown) => boolean): boolean {
+  try { return !!doc && !dead(doc) && !!doc.defaultView && !dead(doc.defaultView) && !doc.defaultView.closed; }
+  catch { return false; }
+}
+
 /** Own player UI, driven by a narrow adapter to the reader engine. */
 export function createPluginPlayer(deps: {
   uri: string;
@@ -24,6 +30,7 @@ export function createPluginPlayer(deps: {
   const readLayout = () => { const value = deps.prefs.get(PREF_PREFIX + 'readAloud.playerLayout'); return value === 'B' || value === 'top' ? value : 'A'; };
   let layout = readLayout();
   let enabled = deps.prefs.get(PREF_PREFIX + 'readAloud.usePluginPlayer') !== false;
+  const live = (doc: Document) => isPlayerDocumentLive(doc, deps.dead);
   const settingsDocuments = new Set<Document>();
   function updateSettingsLayout(doc: Document): void {
     const select = doc.getElementById('ztts-player-layout') as HTMLSelectElement | null;
@@ -45,14 +52,14 @@ export function createPluginPlayer(deps: {
     deps.prefs.set(PREF_PREFIX + 'readAloud.playerLayout', value);
     refresh();
     for (const doc of settingsDocuments) {
-      if (deps.dead(doc) || doc.defaultView?.closed) { settingsDocuments.delete(doc); continue; }
+      if (!live(doc)) { settingsDocuments.delete(doc); continue; }
       updateSettingsLayout(doc);
     }
   }
   const entries = new Map<Document, { frame: HTMLIFrameElement; style: HTMLStyleElement; button: HTMLButtonElement; open: boolean; reader: any; nativeOpened: boolean; lastSnapshot: string; actionError: string | null; openedAt: number; moved: boolean; listener: (event: MessageEvent) => void; resize: () => void; connect: () => void; cleanup: () => void }>();
   function syncAppearance(doc: Document): void {
     const entry = entries.get(doc);
-    if (!entry || deps.dead(doc)) return;
+    if (!entry || !live(doc)) return;
     if (layout === 'A' || layout === 'top') {
       const rect = doc.querySelector('#split-view')?.getBoundingClientRect();
       if (rect) {
@@ -94,6 +101,7 @@ export function createPluginPlayer(deps: {
     }
   }
   function paint(doc: Document): void {
+    if (!live(doc)) return;
     const entry = entries.get(doc)!;
     entry.moved = false;
     const visible = enabled && entry.open;
@@ -122,9 +130,9 @@ export function createPluginPlayer(deps: {
   }
   function attach(reader: any): void {
     try {
-      for (const doc of entries.keys()) if (deps.dead(doc)) entries.delete(doc);
+      for (const doc of entries.keys()) if (!live(doc)) detach(doc);
       const doc = reader?._iframeWindow?.document as Document | undefined;
-      if (!doc?.body) return;
+      if (!doc?.body || !live(doc)) return;
       if (entries.has(doc)) { entries.get(doc)!.connect(); return; }
       // Recover nodes left by an interrupted prototype hot-upgrade.
       for (const stale of doc.querySelectorAll('#ztts-player-prototype, #ztts-player-prototype-layout, #ztts-player-toolbar-slot, #ztts-player-frame, #ztts-player-style, #ztts-player-toggle')) stale.remove();
@@ -197,7 +205,7 @@ export function createPluginPlayer(deps: {
         clearTimeout(connectionTimer);
         let attempts = 0;
         const tryConnect = () => {
-          if (deps.dead(doc)) return;
+          if (!live(doc)) { detach(doc); return; }
           try {
             if (frame.contentDocument?.querySelector('.player')) { loaded(); return; }
             if (++attempts < 100) connectionTimer = setTimeout(tryConnect, 50);
@@ -217,10 +225,11 @@ export function createPluginPlayer(deps: {
       };
       button.addEventListener('click', toggle);
       entries.set(doc, { frame, style, button, open: false, reader, nativeOpened: deps.snapshot(reader).opened, lastSnapshot: '', actionError: null, openedAt: 0, moved: false, listener, resize, connect, cleanup: () => {
-        unlistenKeys?.();
-        button.removeEventListener('click', toggle);
         clearTimeout(connectionTimer);
-        geometry.disconnect(); changes.disconnect(); scheme.removeEventListener('change', resize);
+        for (const cleanup of [() => unlistenKeys?.(), () => button.removeEventListener('click', toggle),
+          () => geometry.disconnect(), () => changes.disconnect(), () => scheme.removeEventListener('change', resize)]) {
+          try { cleanup(); } catch (error) { if (live(doc)) deps.error(error); }
+        }
       } });
       doc.head.append(style);
       doc.body.append(frame);
@@ -231,21 +240,21 @@ export function createPluginPlayer(deps: {
   }
   function refresh(): void {
     for (const doc of entries.keys()) {
-      if (deps.dead(doc)) { entries.delete(doc); continue; }
+      if (!live(doc)) { detach(doc); continue; }
       try { paint(doc); } catch (error) { deps.error(error); }
     }
   }
   async function act(doc: Document, action: string, value?: unknown): Promise<void> {
     const entry = entries.get(doc);
-    if (!entry || !enabled || deps.dead(doc)) return;
+    if (!entry || !enabled || !live(doc)) return;
     entry.actionError = null;
     try { await deps.command(entry.reader, action, value); }
-    catch (error) { entry.actionError = error instanceof Error ? error.message : String(error); deps.notice(entry.reader, entry.actionError); deps.error(error); }
-    if (!deps.dead(doc)) publish(doc);
+    catch (error) { if (!live(doc)) return; entry.actionError = error instanceof Error ? error.message : String(error); deps.notice(entry.reader, entry.actionError); deps.error(error); }
+    if (live(doc)) publish(doc);
   }
   function publish(doc: Document): void {
     const entry = entries.get(doc);
-    if (!entry || deps.dead(doc)) return;
+    if (!entry || !live(doc)) return;
     const state = deps.snapshot(entry.reader);
     if (state.opened !== entry.nativeOpened) {
       entry.nativeOpened = state.opened;
@@ -261,7 +270,7 @@ export function createPluginPlayer(deps: {
   function tick(): void {
     if (disposed) return;
     for (const [doc, entry] of entries) {
-      if (deps.dead(doc)) { try { entry.cleanup(); } catch {} entries.delete(doc); continue; }
+      if (!live(doc)) { detach(doc); continue; }
       try { publish(doc); } catch (error) { deps.error(error); }
     }
     timer = setTimeout(tick, 250);
@@ -270,16 +279,29 @@ export function createPluginPlayer(deps: {
   const unwatch = deps.watchSettings(() => {
     const nextLayout = readLayout(), nextEnabled = deps.prefs.get(PREF_PREFIX + 'readAloud.usePluginPlayer') !== false;
     if (nextLayout !== layout || nextEnabled !== enabled) { layout = nextLayout; enabled = nextEnabled; refresh(); }
-    for (const doc of settingsDocuments) if (!deps.dead(doc) && !doc.defaultView?.closed) {
+    for (const doc of settingsDocuments) {
+      if (!live(doc)) { settingsDocuments.delete(doc); continue; }
       updateSettingsLayout(doc);
       const toggle = doc.getElementById('ztts-player-enabled') as HTMLInputElement | null;
       if (toggle) toggle.checked = enabled;
     }
   });
+  function detach(doc: Document): void {
+    const entry = entries.get(doc);
+    if (!entry) return;
+    entries.delete(doc);
+    const report = live(doc);
+    for (const cleanup of [entry.cleanup,
+      () => doc.defaultView?.removeEventListener('message', entry.listener),
+      () => doc.defaultView?.removeEventListener('resize', entry.resize),
+      () => entry.button.remove(), () => entry.frame.remove(), () => entry.style.remove()]) {
+      try { cleanup(); } catch (error) { if (report) deps.error(error); }
+    }
+  }
   return {
     attach,
     inspect() {
-      return { enabled, layout, resource: deps.uri, readers: [...entries].filter(([doc]) => !deps.dead(doc)).map(([doc, entry]) => ({
+      return { enabled, layout, resource: deps.uri, readers: [...entries].filter(([doc]) => live(doc)).map(([doc, entry]) => ({
         open: entry.open, ready: !!entry.frame.contentDocument?.querySelector('.player'),
         frames: doc.querySelectorAll('#ztts-player-frame').length, actionError: entry.actionError,
         state: deps.snapshot(entry.reader),
@@ -293,6 +315,7 @@ export function createPluginPlayer(deps: {
       refresh();
     },
     prepareSettingsMenu(doc: Document) {
+      if (!live(doc)) return;
       const button = doc.getElementById('ztts-player-layout-trigger')!;
       const menu = doc.getElementById('ztts-player-layout-menu')!;
       updateSettingsLayout(doc);
@@ -302,6 +325,7 @@ export function createPluginPlayer(deps: {
       menu.style.minWidth = rect.width + 'px';
     },
     initSettings(doc: Document) {
+      for (const held of settingsDocuments) if (!live(held)) settingsDocuments.delete(held);
       settingsDocuments.add(doc);
       const select = doc.getElementById('ztts-player-layout') as HTMLSelectElement | null;
       const toggle = doc.getElementById('ztts-player-enabled') as HTMLInputElement | null;
@@ -311,11 +335,7 @@ export function createPluginPlayer(deps: {
     },
     dispose() {
       disposed = true; clearTimeout(timer); unwatch();
-      for (const [doc, entry] of entries) {
-        if (deps.dead(doc)) continue;
-        try { entry.cleanup(); doc.defaultView?.removeEventListener('message', entry.listener); doc.defaultView?.removeEventListener('resize', entry.resize); entry.button.remove(); entry.frame.remove(); entry.style.remove(); }
-        catch (error) { deps.error(error); }
-      }
+      for (const doc of entries.keys()) detach(doc);
       entries.clear();
       settingsDocuments.clear();
     },
