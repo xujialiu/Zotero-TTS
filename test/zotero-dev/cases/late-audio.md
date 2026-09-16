@@ -28,10 +28,18 @@ stopped, the reader is gone` line per chain ended.
 
 Run the baseline first. Fixtures: `fixture-a.pdf` and `fixture-b.pdf` as
 standalone attachments, erased in calls of their own. The plugin's volume
-at 0 for the whole case; `readAloud.memory` pointed at a listed **free**
-voice of a plugin provider whose synthesis takes about a second or more
-(Kokoro on the h200 is ~1 s; MiMo several, but paid per request — say
-which was used and why). `play()` is called on the fixtures only, never
+at 0 for the whole case; `readAloud.memory` pointed at a listed voice of
+a plugin provider slow enough for a request to be in flight at the close.
+**Kokoro on the h200 is too fast** (measured 2026-09-16: `getAudio`
+answered in under 300 ms even for a 132-character segment on a cold
+cache, five attempts caught nothing) — use Xiaomi MiMo, whose
+chat-completions synthesis takes seconds and caught a drop on the first
+try, at four short paid reads for items 1 and 3. `m.active` turning true
+means the audio has already resolved, not that the request just went
+out, so the catch window is the provider's live speed, not the nominal
+delay. The audio cache is keyed by text and voice and outlives a fixture
+re-import; an in-place reinstall of the same xpi is the way to a cold
+cache, and it resets `lateResults`. `play()` is called on the fixtures only, never
 on the owner's document. Nothing here is audible by design; the check is
 the diagnostic, the debug store and the console. Read `lateResults`
 before every item and report the rise, never the absolute: the counter is
@@ -64,7 +72,9 @@ come from the design and are corrected from the run.
    then close the tab as in item 1. Expected: exactly one `prefetch:
    <provider>: stopped, the reader is gone` line, no `ready ahead of
    playback` line after it, `dropped` up by the requests Zotero itself
-   had in flight (1–3). If the chain had finished before the close, NOT
+   had in flight, when it had any — on a fast server it has none and
+   `dropped` stays put (0 on Kokoro, 2026-09-16); the stop line is the
+   claim. If the chain had finished before the close, NOT
    TESTABLE with the reason and the retry taken.
 
 ### 3
@@ -87,14 +97,18 @@ come from the design and are corrected from the run.
 ### 5
 
 5. **Playback itself is untouched.** After item 1, open a fixture again
-   and read two sentences: the manager's `_currentIndex` advances, the
+   and `play()`: the manager reads `active: true, paused: false`, the
    `<provider>: … chars` synthesis lines and the `ready ahead of playback`
    lines appear as before, `dropped` unchanged while the tab lives.
+   `_currentIndex` does not advance under the bridge — a script-started
+   `AudioContext` stays suspended (baseline.md) — so the advance itself
+   takes a trusted Shift+Space, or an ear.
 
 **State**: the plugin's volume (snapshot and restore, user-value state
 included), `readAloud.memory` (byte-identical restore, the last write),
 `extensions.zotero.reader.readAloudVoices` (a fixture rewrites its `en`
 entry — snapshot and rebuild), `zotero-tts.prefetch` if raised, the
 fixture items. **Budget**: a handful of short readings on the chosen
-provider; on Kokoro nothing is metered. **Human-only**: nothing — the
-feature's whole effect is the absence of console lines.
+provider; on Kokoro nothing is metered, MiMo is paid per request.
+**Human-only**: whether audio still plays after the change (item 5's
+advance); the feature's own effect is the absence of console lines.

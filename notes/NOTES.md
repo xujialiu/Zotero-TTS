@@ -509,3 +509,4 @@ then) and is in the git history before that day.
 - The split ran twice: Gecko keeps a gone prefs.js's defaults, and the recovery (issue #113)
 - The re-run passes, and three things seen on the way (issue #113)
 - A result that lands after its reader window is gone: the four dead-object lines, and Zotero.logError's column (issue #116)
+- Verified live, issue #116: silent drops on both close paths, the chain stops, and Kokoro is too fast to catch a late result (issue #116)
