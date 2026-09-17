@@ -6,6 +6,7 @@ let variant = new URLSearchParams(location.search).get('variant') || 'top';
 let popover = null, anchor = null, refreshPopover = null;
 const $ = selector => document.querySelector(selector);
 const text = key => strings[key] || ({ play: 'Play', pause: 'Pause', provider: 'Provider', locale: 'Locale', voice: 'Voice', speed: 'Speed', volume: 'Volume', layout: 'Layout', options: 'Options', previousParagraph: 'Skip to Previous Paragraph', previousSentence: 'Skip to Previous Sentence', nextSentence: 'Skip to Next Sentence', nextParagraph: 'Skip to Next Paragraph', automatic: 'Automatic scroll', manual: 'Manual scroll', bottom: 'Bottom bar', floating: 'Floating panel', top: 'Top bar', search: 'Search', empty: 'No matches', loading: 'Loading voices…', 'no-voices': 'No voices available', favorite: 'Favorite', unfavorite: 'Unfavorite', retry: 'Retry', buffering: 'Buffering…' }[key] || key);
+const formatSpeed = value => Number(value).toFixed(2) + '×';
 const escapeHTML = value => String(value).replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
 const choices = key => state[key === 'provider' ? 'providers' : key === 'locale' ? 'locales' : 'voices'];
 const selectedLabel = key => choices(key).find(option => option.value === state[key])?.label || text(key);
@@ -28,7 +29,7 @@ function render() {
     <div class="identity"><button class="options-toggle" type="button" aria-controls="player-choices">${nativeOptions}</button><span class="grip" aria-hidden="true">Zotero-TTS ⠿</span>${variant === 'B' ? layoutControl : ''}</div>
     ${variant === 'B' ? `<div class="transport">${skipControl('previousParagraph')}${skipControl('previousSentence')}${playControl}${skipControl('nextSentence')}${skipControl('nextParagraph')}</div>` : playControl}
     <div class="voice-group" id="player-choices">${field('provider')}${field('locale')}${field('voice')}</div>
-    <div class="controls"><button class="adjust" data-adjust="speed" aria-haspopup="dialog"></button><button class="adjust" data-adjust="volume" aria-haspopup="dialog"></button><button class="adjust mode"></button><button class="status-button" hidden>!</button>${variant === 'B' ? '' : layoutControl}</div>
+    <div class="controls"><button class="adjust" data-adjust="speed" aria-haspopup="dialog">${speedIcon}<span class="adjust-value"></span></button><button class="adjust" data-adjust="volume" aria-haspopup="dialog">${volumeIcon}<span class="adjust-value"></span></button><button class="adjust mode"></button><button class="status-button" hidden>!</button>${variant === 'B' ? '' : layoutControl}</div>
   </section>`;
   document.querySelectorAll('[data-pick]').forEach(button => { button.onclick = () => openPicker(button, button.dataset.pick); });
   document.querySelectorAll('[data-adjust]').forEach(button => { button.onclick = () => openRange(button, button.dataset.adjust); });
@@ -72,10 +73,13 @@ function updateControls() {
     button.setAttribute('aria-label', button.title);
     button.disabled = choices(key).length === 0;
   }
-  $('[data-adjust="speed"]').textContent = state.speed + '×';
-  $('[data-adjust="speed"]').title = text('speed');
-  $('[data-adjust="volume"]').textContent = `${text('volume')} ${state.volume}%`;
-  $('[data-adjust="volume"]').title = text('volume');
+  for (const key of ['speed', 'volume']) {
+    const button = $(`[data-adjust="${key}"]`);
+    const value = key === 'speed' ? formatSpeed(state.speed) : `${state.volume}%`;
+    button.querySelector('.adjust-value').textContent = value;
+    button.title = text(key);
+    button.setAttribute('aria-label', `${text(key)}: ${value}`);
+  }
   const mode = $('.mode'); mode.textContent = state.automatic ? 'A' : 'M';
   mode.classList.toggle('automatic', state.automatic); mode.title = text(state.automatic ? 'automatic' : 'manual');
   mode.setAttribute('aria-label', mode.title); mode.setAttribute('aria-pressed', String(state.automatic));
@@ -168,11 +172,12 @@ function openRange(button, key) {
   const speed = key === 'speed';
   popover.innerHTML = `<div class="range-title"><span>${escapeHTML(text(key))}</span><strong></strong></div><input type="range" min="${speed ? .5 : 0}" max="${speed ? 3 : 100}" step="${speed ? .05 : 1}"><div class="presets"></div>`;
   const input = popover.querySelector('input'); input.setAttribute('aria-label', text(key));
-  const strong = popover.querySelector('strong'); const unit = speed ? '×' : '%';
-  const update = value => { input.value = value; strong.textContent = value + unit; };
+  const strong = popover.querySelector('strong');
+  const format = value => speed ? formatSpeed(value) : value + '%';
+  const update = value => { input.value = value; strong.textContent = format(value); };
   input.oninput = () => { update(input.value); send(key, Number(input.value)); };
   for (const value of speed ? [.5, 1, 1.5, 2, 2.5, 3] : [0, 25, 50, 80, 100]) {
-    const preset = document.createElement('button'); preset.textContent = value + unit;
+    const preset = document.createElement('button'); preset.textContent = format(value);
     preset.onclick = () => { update(value); send(key, value); }; popover.querySelector('.presets').append(preset);
   }
   refreshPopover = () => update(state[key]); update(state[key]); place(); input.focus({ preventScroll: true });

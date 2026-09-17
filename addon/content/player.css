@@ -20,6 +20,8 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--preview-acc
 .play svg { display: block; }
 .play[data-buffering="true"] { opacity: .55; }
 .adjust { flex-shrink: 0; padding: 3px 6px; height: 26px; white-space: nowrap; }
+.adjust[data-adjust] { display: inline-flex; align-items: center; gap: 4px; }
+.adjust[data-adjust] svg { display: block; flex-shrink: 0; color: var(--preview-icon, #777); }
 .mode { min-width: 27px; width: 27px; }
 .mode.automatic { background: color-mix(in srgb, var(--preview-accent, #356dc2) 24%, transparent); }
 .layout-menu { display: grid; place-items: center; width: 28px; min-width: 28px; height: 28px; padding: 4px; margin-left: auto; color: var(--preview-icon, #777); }
