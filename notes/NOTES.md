@@ -557,3 +557,5 @@ then) and is in the git history before that day.
 - Layout rendering reports its completed dimensions (issue #124)
 - Floating transitions pass with real frame geometry (issue #124)
 - A/M sits between speed and volume (issue #124)
+- EPUB resize deliberately blurs the reading view (issue #124)
+- Centered mode and resize masking verified (issue #124)
