@@ -555,3 +555,4 @@ then) and is in the git history before that day.
 
 - An expanded layout transition reports the old bar height (issue #124)
 - Layout rendering reports its completed dimensions (issue #124)
+- Floating transitions pass with real frame geometry (issue #124)

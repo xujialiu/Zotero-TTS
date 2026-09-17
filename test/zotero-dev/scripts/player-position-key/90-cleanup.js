@@ -10,7 +10,11 @@ return (async () => {
   }
   for (let i = 0; i < 180; i++) { let present = false; for (const reader of Zotero.Reader?._readers || []) if (ids.includes(reader?.itemID)) present = true; if (!present) break; await sleep(50); }
   for (const id of ids) { try { const item = Zotero.Items.get(id); if (item) { await item.eraseTx(); erased.push({ id, erased: !Zotero.Items.get(id) }); } } catch (e) { errors.push('erase ' + id + ': ' + String(e)); } }
-  const snapshots = state.positionShortcut?.fullSnapshot || {};
+  const snapshots = { ...(state.positionShortcut?.fullSnapshot || {}) };
+  // Baseline is captured before the shared setup mutes output. It is
+  // authoritative for overlapping prefs; fullSnapshot may also carry the
+  // shortcut-only prefs from the position-key recorder scripts.
+  for (const name of Object.keys(state.baseline?.prefs || {})) snapshots[name] = state.baseline.prefs[name];
   const write = (name, saved) => {
     if (!saved?.user) { if (p.prefHasUserValue(name)) p.clearUserPref(name); return; }
     if (saved.type === PT.PREF_STRING) p.setStringPref(name, String(saved.value));
