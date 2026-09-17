@@ -24,7 +24,8 @@ const layoutControl = `<button class="adjust layout-menu" aria-haspopup="dialog"
 const playControl = '<button class="play" type="button"></button>';
 const skipControl = action => `<button class="skip" data-navigate="${action}" type="button">${nativeNavigation[action]}</button>`;
 function render() {
-  closePopover();
+  // The outgoing DOM still has the previous layout's dimensions.
+  closePopover(false);
   $('#player-root').innerHTML = `<section class="player ${variant === 'B' ? 'layout-B' : 'layout-A'} ${variant === 'top' ? 'layout-top' : ''}" aria-label="Zotero-TTS">
     <div class="identity"><button class="options-toggle" type="button" aria-controls="player-choices">${nativeOptions}</button><span class="grip" aria-hidden="true">Zotero-TTS ⠿</span>${variant === 'B' ? layoutControl : ''}</div>
     ${variant === 'B' ? `<div class="transport">${skipControl('previousParagraph')}${skipControl('previousSentence')}${playControl}${skipControl('nextSentence')}${skipControl('nextParagraph')}</div>` : playControl}
@@ -41,6 +42,7 @@ function render() {
   $('.status-button').onclick = () => openStatus($('.status-button'));
   if (variant === 'B') makeDraggable($('.grip'));
   updateControls();
+  notifyHeight();
 }
 function updateControls() {
   const play = $('.play');

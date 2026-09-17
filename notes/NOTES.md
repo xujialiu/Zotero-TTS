@@ -550,3 +550,8 @@ then) and is in the git history before that day.
 - Player position and held speed keys share existing settings (issue #122)
 
 - Position and held speed shortcuts verified live (issue #122)
+
+### [2026-09-18](NOTES_2026-09-18.md)
+
+- An expanded layout transition reports the old bar height (issue #124)
+- Layout rendering reports its completed dimensions (issue #124)

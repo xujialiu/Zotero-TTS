@@ -39,3 +39,26 @@ Close/erase fixtures, restore exact named preference values and user flags,
 restore selected owner tab and check new relevant errors/duplicate nodes.
 Playback listening quality and perceived movement remain human observations;
 state identity, actual geometry and event consumption are machine checks.
+
+## 4. Floating content fits after switching (issue #124)
+
+- On both disposable PDF and EPUB readers, use trusted Shift+P through
+  top → A → B → top with Options expanded, then with Options collapsed.
+  Repeat the expanded A → B transition three times. Without an open menu,
+  B's iframe and panel heights are both 202px expanded or 108px collapsed;
+  docked frames are 34px. Inspect actual rectangles, not only data-layout.
+  The transport, voice choices when expanded, and bottom controls must fit
+  within the floating frame. Manager/controller, voice, speed, position,
+  active segment and paused state remain unchanged by each switch.
+- Replay the isolated child-renderer regression against installed resources:
+  every height notification during expanded A/top → B describes the new
+  floating DOM, with no stale 34px report. The final frame/content heights
+  match immediately and after an unchanged state snapshot.
+- In B, toggle Options both ways, open/close the voice and layout menus,
+  and switch layouts with a menu open. Menus remain usable and close on
+  switching; closing them restores the matching panel/frame height with
+  no clipping or leftover vertical inset. Exercise the manual layout menu
+  as well as the shortcut. Retain new executed scripts in this case's kit.
+- The regression is a rendered-geometry check in Gecko. Unit tests cannot
+  replace it because the local suite has no layout engine; subjective
+  animation smoothness remains a human observation.
