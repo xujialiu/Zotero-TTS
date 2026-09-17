@@ -23,6 +23,13 @@ Do not start or resume owner playback.
   a setting change alone does not override a user's current toggle.
 - Bottom/top bars have no four skip controls or visible Options button.
   Their provider/language/voice rows remain visible.
+- All three layouts order the controls Speed, A/M, Volume. In floating,
+  A/M's horizontal center equals the panel's center (within 1 CSS px),
+  both expanded and collapsed, for speed 0.50/1.25/3.00 and volume
+  0/40/100. Values and a visible status button do not move the center or
+  overlap the controls. Docked bars retain their normal flow rather than
+  centering A/M across the entire bar. Speed/volume menus and mode activation
+  remain usable after the reorder (issue #124 follow-up).
 
 ## 2. Menu placement and search
 

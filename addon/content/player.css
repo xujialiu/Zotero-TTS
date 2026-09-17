@@ -34,7 +34,10 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--preview-acc
 .layout-B .voice-group { display: flex; flex-direction: column; justify-content: center; gap: 4px; }
 .layout-B .field, .layout-B .field.voice { flex: 0 0 auto; width: 100%; }
 .layout-B .picker { height: 26px; }
-.layout-B .controls { display: flex; align-items: center; justify-content: center; gap: 6px; }
+.layout-B .controls { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) 27px minmax(0, 1fr); align-items: center; gap: 6px; padding-inline: 20px; }
+.layout-B .controls [data-adjust="speed"] { justify-self: end; }
+.layout-B .controls [data-adjust="volume"] { justify-self: start; }
+.layout-B .controls .status-button { position: absolute; right: 0; width: 20px; }
 .popover { position: fixed; z-index: 10; width: 285px; max-height: 290px; overflow: auto; padding: 4px; background: var(--preview-bg, #fafafa); color: var(--preview-fg, #303137); border: 1px solid var(--preview-border, #ddd); border-radius: 6px; box-shadow: 0 9px 30px #0003; }
 .popover input[type="search"] { width: 100%; padding: 4px 6px; margin-bottom: 4px; background: var(--preview-control-bg, #fff); border: 1px solid var(--preview-control-border, #ddd); border-radius: 4px; }
 .option-row { display: flex; align-items: center; }

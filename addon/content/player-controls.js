@@ -30,7 +30,7 @@ function render() {
     <div class="identity"><button class="options-toggle" type="button" aria-controls="player-choices">${nativeOptions}</button><span class="grip" aria-hidden="true">Zotero-TTS ⠿</span>${variant === 'B' ? layoutControl : ''}</div>
     ${variant === 'B' ? `<div class="transport">${skipControl('previousParagraph')}${skipControl('previousSentence')}${playControl}${skipControl('nextSentence')}${skipControl('nextParagraph')}</div>` : playControl}
     <div class="voice-group" id="player-choices">${field('provider')}${field('locale')}${field('voice')}</div>
-    <div class="controls"><button class="adjust" data-adjust="speed" aria-haspopup="dialog">${speedIcon}<span class="adjust-value"></span></button><button class="adjust" data-adjust="volume" aria-haspopup="dialog">${volumeIcon}<span class="adjust-value"></span></button><button class="adjust mode"></button><button class="status-button" hidden>!</button>${variant === 'B' ? '' : layoutControl}</div>
+    <div class="controls"><button class="adjust" data-adjust="speed" aria-haspopup="dialog">${speedIcon}<span class="adjust-value"></span></button><button class="adjust mode"></button><button class="adjust" data-adjust="volume" aria-haspopup="dialog">${volumeIcon}<span class="adjust-value"></span></button><button class="status-button" hidden>!</button>${variant === 'B' ? '' : layoutControl}</div>
   </section>`;
   document.querySelectorAll('[data-pick]').forEach(button => { button.onclick = () => openPicker(button, button.dataset.pick); });
   document.querySelectorAll('[data-adjust]').forEach(button => { button.onclick = () => openRange(button, button.dataset.adjust); });
