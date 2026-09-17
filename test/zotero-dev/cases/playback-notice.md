@@ -1,4 +1,4 @@
-[Checklist index](../README.md)
+[Checklist index](../README.md) · [Scripts](../scripts/playback-notice/README.md)
 
 # 3l. Playback preparation notice (issue #120)
 

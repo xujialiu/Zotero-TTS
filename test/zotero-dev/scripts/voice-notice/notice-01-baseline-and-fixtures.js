@@ -58,7 +58,7 @@ return (async () => {
     Services.prefs.setBoolPref(full(id + '.enabled'), false);
   }
   if (!Zotero.Debug.storing) Zotero.Debug.setStore(true);
-  const fixtureDir = String(p.fixturesDir || '').replace(/\//g, '\\');
+  const fixtureDir = String(p.fixturesDir || '');
   const specs = [
     { kind: 'pdf', file: PathUtils.join(fixtureDir, 'fixture-a.pdf') },
     { kind: 'epub', file: PathUtils.join(fixtureDir, 'return-key', 'return-key.epub') },

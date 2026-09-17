@@ -541,3 +541,4 @@ then) and is in the git history before that day.
 - Testing defaults to a taskbar-minimized window
 
 - Playback preparation ends at source start, not buffering completion (issue #120)
+- Playback notice timing verified with running and suspended output (issue #120)
