@@ -1018,6 +1018,7 @@ function startReadAloudShortcuts(pluginID: string): void {
     getBindings: () => loadSettings(prefs).shortcuts,
     prefs,
     getManager: readAloudManager,
+    isPluginPlayerOpen: (reader) => pluginPlayer?.isOpen(reader) ?? false,
     preferredLanguages,
     // A speed the pref cannot carry goes to the memory (issue #59)
     rememberSpeed: (speed) => readAloudMemory?.learnSpeed(speed),

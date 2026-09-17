@@ -345,6 +345,13 @@ export function createPluginPlayer(deps: {
         state: deps.snapshot(entry.reader),
       })) };
     },
+    isOpen(reader: unknown): boolean {
+      if (!enabled) return false;
+      for (const [doc, entry] of entries) {
+        if (entry.reader === reader && live(doc)) return entry.open;
+      }
+      return false;
+    },
     setLayout: changeLayout,
     setEnabled(value: boolean) {
       enabled = value;

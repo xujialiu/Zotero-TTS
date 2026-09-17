@@ -96,6 +96,7 @@ opens a fixture ends with item 3.26's teardown ([playback](cases/playback.md)).
 
 ### The highlight and following
 
+- [Player position shortcut (issue #122)](cases/player-position-key.md)
 - [Player menus, floating controls and speed steps (issue #118)](cases/player-controls.md)
 - [Player A/M follows the current document (issue #117)](cases/player-following.md)
 - [The highlight and its colors](cases/highlight.md) — 3.5, 5.5

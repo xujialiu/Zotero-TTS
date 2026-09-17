@@ -659,3 +659,10 @@ ztts-player-next-paragraph = Skip to Next Paragraph
 
 ztts-playback-preparing = Preparing…
 ztts-playback-failed = Unable to prepare audio. Try playing again.
+
+ztts-action-player-position = Player position
+ztts-key-player-position =
+    .value = Player position
+ztts-help-key-player-position =
+    .value = ?
+    .help = Cycle Top bar → Bottom bar → Floating panel while the plugin player is open. All players share the position, and it is remembered after restart.

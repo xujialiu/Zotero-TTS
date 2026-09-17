@@ -243,6 +243,7 @@ export const DEFAULTS: Settings = {
     returnToSpoken: 'Shift+Enter',
     // The player's Options panel; taken only while the player is on screen
     toggleOptions: 'Shift+O',
+    cyclePlayerLayout: 'Shift+P',
     // Every player in every window; taken only while one is open somewhere (issue #71)
     stopReading: 'Shift+S',
     // Zotero's own highlight level, word on / off (issue #67); taken on any
@@ -389,6 +390,7 @@ export function loadSettings(prefs: PrefsBackend): Settings {
       startFromSelection: str(prefs, 'shortcuts.startFromSelection', DEFAULTS.shortcuts.startFromSelection),
       returnToSpoken: str(prefs, 'shortcuts.returnToSpoken', DEFAULTS.shortcuts.returnToSpoken),
       toggleOptions: str(prefs, 'shortcuts.toggleOptions', DEFAULTS.shortcuts.toggleOptions),
+      cyclePlayerLayout: str(prefs, 'shortcuts.cyclePlayerLayout', DEFAULTS.shortcuts.cyclePlayerLayout),
       stopReading: str(prefs, 'shortcuts.stopReading', DEFAULTS.shortcuts.stopReading),
       toggleWordHighlight: str(prefs, 'shortcuts.toggleWordHighlight', DEFAULTS.shortcuts.toggleWordHighlight),
       toggleAutoScroll: str(prefs, 'shortcuts.toggleAutoScroll', DEFAULTS.shortcuts.toggleAutoScroll),

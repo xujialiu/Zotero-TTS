@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { HIGHLIGHT_SWITCH_PREFS } from '../../src/core/highlight-level';
 import { READ_ALOUD_VOICES_PREF } from '../../src/core/read-aloud-speed';
 import { VOLUME_PREF } from '../../src/core/read-aloud-volume';
-import type { PrefsBackend } from '../../src/core/settings';
+import { PREF_PREFIX, type PrefsBackend } from '../../src/core/settings';
 import {
   createReadAloudShortcuts,
   deepActiveElement,
@@ -71,6 +71,7 @@ const BINDINGS = {
   startFromSelection: 'Shift+Space',
   returnToSpoken: 'Shift+Enter',
   toggleOptions: 'Shift+O',
+  cyclePlayerLayout: 'Shift+P',
   stopReading: 'Shift+S',
   toggleWordHighlight: 'Shift+W',
   toggleAutoScroll: 'Shift+A',
@@ -300,12 +301,14 @@ describe('handleKeyDown', () => {
     expect(manager.setSpeed).not.toHaveBeenCalled();
   });
 
-  it('swallows key auto-repeat without re-applying the action', () => {
+  it('repeats speed increases while the key is held', () => {
     const { shortcuts, manager, resolve } = setup();
     const event = keyEvent({ key: 'C', code: 'KeyC', repeat: true });
     expect(shortcuts.handleKeyDown(event, resolve)).toBe(true);
     expect(event.preventDefault).toHaveBeenCalled();
-    expect(manager.setSpeed).not.toHaveBeenCalled();
+    expect(manager.speed).toBe(1.05);
+    shortcuts.handleKeyDown(keyEvent({ repeat: true }), resolve);
+    expect(manager.speed).toBe(1.1);
   });
 
   it('skips events another listener already consumed', () => {
@@ -1280,5 +1283,86 @@ describe('deepActiveElement', () => {
   it('returns null without a focused element', () => {
     expect(deepActiveElement({ activeElement: null })).toBeNull();
     expect(deepActiveElement(null)).toBeNull();
+  });
+});
+
+describe('player position shortcut', () => {
+  it('cycles and saves top, bottom, floating, top while the plugin player is open', () => {
+    const isPluginPlayerOpen = vi.fn(() => true);
+    const { shortcuts, prefs, resolve, reader } = setup({ isPluginPlayerOpen });
+    const press = () => shortcuts.handleKeyDown(keyEvent({ key: 'P', code: 'KeyP' }), resolve);
+    expect(press()).toBe(true);
+    expect(prefs.get(PREF_PREFIX + 'readAloud.playerLayout')).toBe('A');
+    press();
+    expect(prefs.get(PREF_PREFIX + 'readAloud.playerLayout')).toBe('B');
+    press();
+    expect(prefs.get(PREF_PREFIX + 'readAloud.playerLayout')).toBe('top');
+    expect(isPluginPlayerOpen).toHaveBeenCalledWith(reader);
+  });
+});
+
+describe('held speed actions', () => {
+  it('repeats rebound speed keys and stops applying speed at the bounds', () => {
+    const { shortcuts, manager, resolve } = setup({ getBindings: () => ({ ...BINDINGS, speedUp: 'Alt+U', speedDown: 'Alt+D' }) });
+    const up = () => keyEvent({ key: 'u', code: 'KeyU', shiftKey: false, altKey: true, repeat: true });
+    const down = () => keyEvent({ key: 'd', code: 'KeyD', shiftKey: false, altKey: true, repeat: true });
+    expect(shortcuts.handleKeyDown(keyEvent({ repeat: true }), resolve)).toBe(false);
+    manager.speed = 2.95;
+    shortcuts.handleKeyDown(up(), resolve);
+    shortcuts.handleKeyDown(up(), resolve);
+    expect(manager.speed).toBe(3);
+    expect(manager.setSpeed).toHaveBeenCalledTimes(1);
+    manager.setSpeed.mockClear();
+    manager.speed = 0.55;
+    shortcuts.handleKeyDown(down(), resolve);
+    shortcuts.handleKeyDown(down(), resolve);
+    expect(manager.speed).toBe(0.5);
+    expect(manager.setSpeed).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not repeat reset or change speed while typing', () => {
+    const { shortcuts, manager, resolve } = setup();
+    shortcuts.handleKeyDown(keyEvent({ key: 'Z', code: 'KeyZ', repeat: true }), resolve);
+    for (const code of ['KeyC', 'KeyX']) {
+      shortcuts.handleKeyDown(keyEvent({ key: code.slice(3), code, repeat: true, target: { tagName: 'INPUT', type: 'text' } }), resolve);
+    }
+    expect(manager.setSpeed).not.toHaveBeenCalled();
+  });
+});
+
+describe('player position key guards and customization', () => {
+  it('leaves the key alone when the plugin player is closed, disabled or unavailable', () => {
+    for (const isPluginPlayerOpen of [undefined, () => false]) {
+      const { shortcuts, prefs, resolve } = setup({ isPluginPlayerOpen });
+      const event = keyEvent({ key: 'P', code: 'KeyP' });
+      expect(shortcuts.handleKeyDown(event, resolve)).toBe(false);
+      expect(event.preventDefault).not.toHaveBeenCalled();
+      expect(prefs.get(PREF_PREFIX + 'readAloud.playerLayout')).toBeUndefined();
+    }
+  });
+
+  it('keeps layout unchanged during typing, repeat, extra modifiers and missing reader', () => {
+    const { shortcuts, prefs, resolve } = setup({ isPluginPlayerOpen: () => true });
+    const event = (over: Partial<ShortcutKeyEvent>) => keyEvent({ key: 'P', code: 'KeyP', ...over });
+    expect(shortcuts.handleKeyDown(event({ repeat: true }), resolve)).toBe(true);
+    expect(shortcuts.handleKeyDown(event({ target: { tagName: 'TEXTAREA' } }), resolve)).toBe(false);
+    expect(shortcuts.handleKeyDown(event({ ctrlKey: true }), resolve)).toBe(false);
+    expect(shortcuts.handleKeyDown(event({}), () => null)).toBe(false);
+    expect(prefs.get(PREF_PREFIX + 'readAloud.playerLayout')).toBeUndefined();
+  });
+
+  it('works while paused, follows manual choices and reads rebound or cleared keys immediately', () => {
+    let binding = 'Alt+P';
+    const { shortcuts, prefs, manager, resolve } = setup({ isPluginPlayerOpen: () => true, getBindings: () => ({ ...BINDINGS, cyclePlayerLayout: binding }) });
+    manager.paused = true;
+    prefs.set(PREF_PREFIX + 'readAloud.playerLayout', 'A');
+    expect(shortcuts.handleKeyDown(keyEvent({ key: 'P', code: 'KeyP' }), resolve)).toBe(false);
+    const key = () => keyEvent({ key: 'p', code: 'KeyP', shiftKey: false, altKey: true });
+    expect(shortcuts.handleKeyDown(key(), resolve)).toBe(true);
+    expect(prefs.get(PREF_PREFIX + 'readAloud.playerLayout')).toBe('B');
+    binding = '';
+    expect(shortcuts.handleKeyDown(key(), resolve)).toBe(false);
+    expect(manager.paused).toBe(true);
+    expect(manager.setSpeed).not.toHaveBeenCalled();
   });
 });

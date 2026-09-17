@@ -31,7 +31,7 @@ export type PositionAction = 'startFromSelection' | 'returnToSpoken';
  * reader, so the routing to the speaking or selected reader does not
  * apply to it.
  */
-export type PlayerAction = 'toggleOptions' | 'stopReading';
+export type PlayerAction = 'toggleOptions' | 'cyclePlayerLayout' | 'stopReading';
 
 export type ShortcutAction = SpeedAction | VolumeAction | NavigationAction | PositionAction | PlayerAction | HighlightAction | 'toggleAutoScroll' | 'previousVoice' | 'nextVoice';
 
@@ -39,7 +39,7 @@ export const NAVIGATION_ACTIONS: readonly NavigationAction[] = ['previousSentenc
 
 export const POSITION_ACTIONS: readonly PositionAction[] = ['startFromSelection', 'returnToSpoken'];
 
-export const PLAYER_ACTIONS: readonly PlayerAction[] = ['toggleOptions', 'stopReading'];
+export const PLAYER_ACTIONS: readonly PlayerAction[] = ['toggleOptions', 'cyclePlayerLayout', 'stopReading'];
 
 export const SHORTCUT_ACTIONS: readonly ShortcutAction[] = [
   ...SPEED_ACTIONS,

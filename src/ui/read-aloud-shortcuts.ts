@@ -1,7 +1,7 @@
 import { readHighlightLevels, toggleWord, writeHighlightLevels, type HighlightLevels, type WordTiming } from '../core/highlight-level';
 import { nextSpeed, persistSpeed, readPersistedSpeed, type SpeedAction } from '../core/read-aloud-speed';
 import { clampVolume, nextVolume, VOLUME_PREF, type VolumeAction } from '../core/read-aloud-volume';
-import { autoScrollMode, PREF_PREFIX, type AutoScrollMode, type PrefsBackend } from '../core/settings';
+import { autoScrollMode, playerLayout, setPlayerLayout, PREF_PREFIX, type AutoScrollMode, type PrefsBackend } from '../core/settings';
 import {
   isHighlightAction,
   isNavigationAction,
@@ -149,6 +149,8 @@ export interface ReadAloudShortcutsDeps {
    * never leaves Zotero's React component.
    */
   findOptionsButton?(reader: unknown): { click(): void } | null;
+  /** Whether the plugin player is displayed on this reader, including while paused. */
+  isPluginPlayerOpen?(reader: unknown): boolean;
   /**
    * Whether a Read Aloud player is open in any tab of any window
    * (read-aloud/player-stop.ts `open()`, issue #71). The stop key is taken
@@ -245,6 +247,8 @@ export function createReadAloudShortcuts(deps: ReadAloudShortcutsDeps): ReadAlou
     const preferred = deps.preferredLanguages?.() ?? [];
     const current = lang && typeof manager?.speed === 'number' ? manager.speed : readPersistedSpeed(deps.prefs, lang, preferred);
     const next = nextSpeed(current, action);
+    // A held key at the limit must not keep restarting the same segment.
+    if (next === current && action !== 'speedReset') return next;
 
     // Let Zotero persist only while it is playing. Its persistence path
     // (reader._setReadAloudVoice) re-syncs and activates an idle manager
@@ -506,17 +510,21 @@ export function createReadAloudShortcuts(deps: ReadAloudShortcutsDeps): ReadAlou
     if (action === 'startFromSelection' && !canSmartPlay(reader)) return false;
     if (action === 'returnToSpoken' && !canReturnToSpoken(reader)) return false;
     if (action === 'toggleOptions' && !optionsButton(reader)) return false;
+    if (action === 'cyclePlayerLayout' && !deps.isPluginPlayerOpen?.(reader)) return false;
     if ((action === 'previousVoice' || action === 'nextVoice') && !managerOf(reader)?.active) return false;
     event.preventDefault();
     event.stopPropagation();
-    // Holding the key down would restart the current segment on every auto-repeat
-    if (event.repeat) return true;
+    // Only speed stepping repeats at the system keyboard rate.
+    if (event.repeat && action !== 'speedUp' && action !== 'speedDown') return true;
     if (isNavigationAction(action)) navigate(reader, action);
     else if (isVolumeAction(action)) adjustVolume(reader, action);
     else if (action === 'startFromSelection') smartPlay(reader);
     else if (action === 'returnToSpoken') returnToSpoken(reader);
     else if (action === 'toggleOptions') toggleOptions(reader);
-    else if (isHighlightAction(action)) toggleWordHighlight(reader);
+    else if (action === 'cyclePlayerLayout') {
+      const current = playerLayout(deps.prefs);
+      setPlayerLayout(deps.prefs, current === 'top' ? 'A' : current === 'A' ? 'B' : 'top');
+    } else if (isHighlightAction(action)) toggleWordHighlight(reader);
     else if (action === 'toggleAutoScroll') toggleAutoScroll(reader);
     else if (action === 'previousVoice' || action === 'nextVoice') deps.switchVoice?.(reader, action === 'previousVoice' ? -1 : 1);
     else adjust(reader, action);

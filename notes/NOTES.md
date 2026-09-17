@@ -546,3 +546,5 @@ then) and is in the git history before that day.
 - Settings changes protect the affected reading sessions (issue #121)
 
 - Selective reading protection verified in Zotero (issue #121)
+
+- Player position and held speed keys share existing settings (issue #122)

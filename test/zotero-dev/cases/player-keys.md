@@ -17,6 +17,19 @@ Items 4.1–4.3, 4.5 and 4.6 of the checklist, under their original numbers.
    Shift+Z to 1 (the toast reads `1.0×`; increments retain two decimals); the popup's own
    `setSpeed(1.7, true)` restores.
 
+- **Held speed keys (issue #122).** Send an initial trusted Shift+C and
+  repeated keydowns without keyup: 1 → 1.05 → 1.10 → 1.15. Shift+X
+  steps down by 0.05 on every repeat. Record repeat flags and actual
+  manager speeds. At 3 and 0.5, further repeats leave speed unchanged
+  and do not call setSpeed again. Rebind Faster/Slower and repeat the check;
+  the original keys fall through. Reset, skips and Options still act once.
+- Check the visible reader and the plugin player frame, playing and paused;
+  repeats keep a paused session paused. A focused text/search input accepts
+  typing without adjusting speed. Restore all bindings and speed memory.
+- A synthetic repeat event can isolate the handler but is reported separately
+  from a trusted held-key sequence. Subjective audio quality at rapid speed
+  changes and the physical keyboard's repeat delay remain human observations.
+
 ### 4.2
 
 2. **Skips.** ArrowRight/ArrowLeft ±1 segment, Shift+Arrow to the
