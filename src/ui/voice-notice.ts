@@ -1,6 +1,7 @@
 import type { VoiceNotice } from '../read-aloud/voice-switch';
 import type { PlaybackNotice } from '../read-aloud/playback-notice';
 import { showToast, type ToastDocument } from './speed-toast';
+import { positionNotice } from './notice-position';
 
 export const VOICE_NOTICE_ID = 'ztts-voice-notice';
 export const PLAYBACK_NOTICE_ID = 'ztts-playback-notice';
@@ -43,8 +44,10 @@ export function createVoiceNotices(deps: {
       if (!doc) return;
       s.dismiss = showToast(doc, text, undefined, null, id);
       const el = doc.getElementById(id);
-      el.style.bottom = '108px';
       el.style.transition = 'none';
+      const dismiss = s.dismiss;
+      const stopPositioning = positionNotice(doc, el);
+      s.dismiss = () => { stopPositioning(); dismiss(); };
       s.shown = shown;
     }
     if (!s.voice && s.playback === 'idle') readers.delete(reader);
