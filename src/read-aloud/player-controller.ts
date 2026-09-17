@@ -1,3 +1,4 @@
+import type { FlatSettings } from '../core/settings-backup';
 import { NAVIGATION_ACTIONS, type NavigationAction } from '../core/shortcut-actions';
 import { PREF_PREFIX, type PrefsBackend } from '../core/settings';
 import { VOLUME_PREF, clampVolume } from '../core/read-aloud-volume';
@@ -25,6 +26,7 @@ export interface PlayerControllerDeps {
   automatic(reader: any): boolean;
   manual(reader: any): void;
   anyReading(): boolean;
+  affectedTabs?(changes: FlatSettings): string[];
   message(key: string): string;
 }
 
@@ -121,8 +123,11 @@ export function createPlayerController(deps: PlayerControllerDeps) {
         return;
       case 'favorite': {
         const voice = requireChoice(voicesOf(m.allVoices));
-        if (pref('favoritesOnly') === true && deps.anyReading()) throw new Error(deps.message('ztts-player-favorite-guard'));
-        write('favoriteVoices', serializeFavoriteVoices(toggleFavoriteVoice(state.favorites, voice)));
+        const next = serializeFavoriteVoices(toggleFavoriteVoice(state.favorites, voice));
+        const affected = deps.affectedTabs ? deps.affectedTabs({ 'readAloud.favoriteVoices': next }).length > 0
+          : pref('favoritesOnly') === true && deps.anyReading();
+        if (affected) throw new Error(deps.message('ztts-player-favorite-guard'));
+        write('favoriteVoices', next);
         return;
       }
       case 'retry':

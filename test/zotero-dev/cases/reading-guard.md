@@ -1,100 +1,43 @@
 [Checklist index](../README.md) · [Scripts](../scripts/reading-guard/README.md)
 
-## The reading guard (issues #11, #71, #80)
+## The reading guard (issues #11, #71, #80, #121)
 
-Item 3.9 of the checklist, under its original number.
+Item 3.9 retains its original number. Issue #121 replaces the blanket
+stop-and-continue question with a refusal only for affected reading sessions.
 
 ### 3.9
 
-9. **The reading guard** (issues #11, #71). `diagnostics.players()` →
-   per reader `{itemID, open, popupOpen, active, paused, popupInDom}`;
-   `open` is `popupOpen || active` (paused counts, and so does a popup
-   that has not started), and `paused` is `null` while `open` is false,
-   since a manager that never ran reads `paused: true`. No player open:
-   every reader `open`, `popupOpen`, `active`, `popupInDom` false. A
-   session in tab A (script-started and mute is fine — the guard reads
-   flags, not audio): `open: true, popupOpen: true, active: true,
-   paused: true, popupInDom: true`. The popup goes up before the manager
-   activates (~10 ms against ~1 s on a first open), and both count.
-   Each of the five refusals — a provider's Enable/Disable
-   (`#ztts-enable-<id>`), *Offer only favorite voices*
-   (`#ztts-favorites-only`), a ♥ while only favorites are offered, a
-   restore from a file or from WebDAV — opens `#ztts-notice`, an
-   `html:dialog` of the pane's own document, within ~10 ms of the
-   click: children `[style, div, div, div]`, the title strip
-   `Zotero-TTS`, `⚠️`, a bold lead `Read Aloud is open in a tab:` — or
-   `… in N tabs:` — one `  • <item title>` line per tab, a blank line,
-   then `Stopping it there lets this change through; each tab keeps its
-   place, and Read Aloud picks up there when you start it again. Or
-   close the player in that tab yourself, then try again.` (`those
-   tabs` in the plural). The last div holds exactly two buttons,
-   `["Stop reading and continue", "Cancel"]`, and
-   `document.activeElement` is Cancel.
-   **The buttons' box** (issue #80). Zotero's
-   `chrome://zotero/skin/preferences.css` caps every button of the
-   settings window at `max-height: 25px` on macOS, and its type selector
-   carries no `@namespace`, so it reaches an `html:button` too. Per
-   button, `getBoundingClientRect()` against a `Range` over its contents
-   (`selectNodeContents`; `off` = label-box center − button-box center,
-   positive is low): at the pane's 13 px font a border box of
-   **23.33 px** — inside the cap, which therefore never binds —
-   `clientHeight` **19** and `scrollHeight` **19** (nothing overflows),
-   computed `max-height` still `25px` and `appearance` still `auto`, and
-   the label at gapTop **2.67**, gapBottom **4.67**, **off −1.00 px**,
-   which is where the window's own native buttons sit (Zotero's *Test
-   connection*: −0.50). The old `padding: 5px 14px` asked for 31.33 px,
-   was clamped to 25, and drew the label at **+2.17**. By eye, on a
-   screenshot of the button row: the macOS **rounded pill**, not the
-   square bevel the theme falls back to above 25 px, and no descender
-   clipped — the `p` of *Stop*, the `g` of *reading*.
-   **The centering holds when the cap does bind.** On the live dialog
-   `btn.style.paddingBlock = '5px'` takes the natural height back to
-   31.33 px and the cap clamps it: computed `height` **25px**, gapTop
-   **3.5**, gapBottom **5.5**, **off −1.00**, `clientHeight` and
-   `scrollHeight` 21. That is the flex centering doing the work — inert,
-   it would give the old 6.67 / 2.33 / **+2.17**, Gecko leaving an
-   overflowing button's content at the top of its content box.
-   `btn.style.paddingBlock = ''` returns every number to the paragraph
-   above. This is the check that a larger Zotero UI font, where the line
-   alone outgrows the cap, is still centered.
-   **Cancel** — the button, a trusted Enter on it, or a trusted Escape
-   (`keydown()` 0: Gecko's own dialog cancel): the dialog leaves the DOM
-   within ~150 ms, the pref is unchanged, the unbound checkbox snaps
-   back to the pref, a provider button keeps its label and its result
-   line, `players()` is unchanged.
-   **Stop reading and continue**: within ~200 ms the dialog goes, every
-   open player closes — `open`/`popupOpen`/`active` false for each — and
-   the setting is written in the same turn, no second click. The write
-   is the row's own: `favoritesOnly` flips, a ♥ appends to
-   `readAloud.favoriteVoices` and the glyph repaints, `<id>.enabled`
-   flips and the button's label with it. With nothing open, none of the
-   five asks anything: no dialog, the write goes straight through.
-   `diagnostics.players(true)` runs that same `stopAll()`: `before` the
-   open ones, `stopped` their itemIDs, `after` sampled at once —
-   `popupInDom` **still true**, the element leaves on React's next
-   render — and `later` at +1 s with `popupInDom` false.
-   On a provider the guard asks **twice**: before the click's write, and
-   again after a connection check that passed (Local's takes ~700 ms;
-   another provider's may take 15 s). Open a session while the check
-   runs — the click and `toggleReadAloudPopup(true)` in one script, no
-   await between them — and the second dialog appears when the check
-   lands. Stop there **keeps the check**: the result line still reads
-   `Connected. N voices available. …` and the pref is written; Cancel
-   there clears the line and drops the outcome.
-   Unit-tested, not driven live (`test/ui/reading-guard.test.ts`,
-   `test/read-aloud/player-stop.test.ts`): the two restores (a file
-   picker and an OS confirm need a human), the `confirmEx` fallback
-   where `showModal` is unavailable, and a player that refuses to close
-   (the change stays refused, the OK-only notice names what is left).
-   Reopening a stopped tab's player restores Zotero's saved place — one
-   segment before where the manager stood, on a PDF, and on a
-   never-played session that compounds one per close/reopen cycle
-   (measured 2026-09-08: 4 → 3 → 2 → 1 → 0, the stored rect moving with
-   it). That is the resume path, the same on the headphone button, not
-   the guard — item 5.3's ground.
-   **State**: Stop closes every open player in the profile, the user's
-   own included — run it with none of theirs open, or with their
-   consent; a script-reopened player is mute, so nothing restores them
-   but the headphone button. A fixture session on an `en` document
-   rewrites `reader.readAloudVoices` (`en.voice`, `en.tierVoices.local`):
-   snapshot it before and rebuild it after.
+Use the baseline, two disposable fixture readers, and configured providers.
+Keep automatic settings sync and backup off during temporary preference edits.
+Restore their switches last. Never print keys or raw settings snapshots.
+
+| Check | Expected result |
+| --- | --- |
+| Startup | `diagnostics.startup()` has no failed steps, including `live voice choices`. |
+| Unused provider | While a fixture reads with provider A, disable and re-enable unused provider B through the settings pane. No refusal; A's selected voice, controller and playback position remain unchanged. The player's choices remove/add B without closing the player. |
+| Used provider | Disable A through the pane. The OK-only notice names the affected fixture, the pref stays true, and the session continues. No stop-and-continue action is offered. |
+| Background and paused | A second fixture paused on B protects B even when its tab is unselected. A change unrelated to both sessions is allowed. `diagnostics.readingImpact(changes)` names exactly the affected titles. |
+| Favorites filter | With each current voice marked, enable favorites-only: allowed. Mark/unmark another voice: allowed. Unmark a current voice, or enable the filter over an unmarked current voice: refused without any pref or playback change. Exercise both the settings browser and plugin player. |
+| Continuous audio | Use a long sentence and running audio output. Across an allowed list refresh, the controller and current voice object remain identical, playback time advances, and that sentence receives no new synthesis request. `diagnostics.liveVoiceList()` shows `applied` increasing. A muted or suspended clock alone does not prove continuity. |
+| Prepared voice handoff | Start a switch to another voice, then change an unrelated provider/list entry while preparation is pending. Both original and target voices remain protected; the handoff finishes normally, without cancellation from the list refresh. |
+| Failed discovery | Omit the playing provider's voices using a bounded fixture transport stub. Refresh choices. The current voice remains listed, controller unchanged, no fallback or new synthesis; `retained` increases. Restore the stub in the same script. |
+| Restore | A harmless complete restore succeeds; one affecting any current voice/configuration is refused as a whole, including unrelated keys in that file. File picker/native confirmation paths are unit-tested, not driven through blocking native prompts. |
+| Background sync | Feed newer settings for used provider A, unused provider B, and an unrelated shortcut through a controlled sync transport. Only A is deferred; B and the shortcut apply. Closing A's player (without closing its tab) triggers the deferred apply. Pausing does not release it. Keep fixture transport data separate from the owner's real WebDAV data. |
+| Closed player | Close a fixture player, change its provider/list settings, and reopen it. The old cached list cannot start a removed voice; fresh choices and the normal remembered-voice resolution apply. |
+| Teardown | Close fixtures, restore exact pref values and user-value presence, stop temporary transports, and read new plugin errors. No dead-object burst or stale list application. Leave Zotero minimized. |
+
+`diagnostics.readingImpact()` reports session titles, protected voice IDs and
+provider names; it does not return configuration values. A handoff protects
+both voices. A player whose initial list is still loading is conservatively
+protected until its voice is known.
+
+`diagnostics.liveVoiceList()` reports per reader `applied`, `loading`,
+`retained`, and `revision`. `retained` counts protected voices absent from a
+fresh listing that were kept from the current session. This is recovery from
+discovery failure, not permission to remove a current voice through settings.
+
+Unit tests cover delayed and stale list results, shutdown during discovery,
+restore atomicity, combined favorites changes, and a failed provider check
+that returns after a reading session starts. Live checks cover compartment
+access, native choices, real playback continuity, and the actual UI refusals.
+Subjective sound quality and moving highlight alignment remain human-only.

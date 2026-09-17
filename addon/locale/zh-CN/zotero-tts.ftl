@@ -597,7 +597,7 @@ ztts-player-unavailable-choice = 此声音或语言已不可用，请选择其�
 ztts-player-invalid-value = 不支持所选值。
 ztts-player-playback-error = 播放失败，请检查语音服务连接后重试。
 ztts-player-quota-error = 语音服务已达到使用限制或余额不足。
-ztts-player-favorite-guard = 仅显示收藏声音时，请先停止朗读再更改收藏。
+ztts-player-favorite-guard = 此更改会移除正在使用的语音。请先关闭受影响标签页的播放器，再进行更改。
 
 ztts-player-options = 选项
 ztts-player-previous-paragraph = 上一段

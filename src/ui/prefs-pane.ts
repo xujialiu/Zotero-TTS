@@ -1,3 +1,4 @@
+import type { FlatSettings } from '../core/settings-backup';
 import { initBracketRows } from './bracket-rows';
 import type { ProviderId, TTSProvider } from '../core/providers/types';
 import { LOCAL_ENGINES } from '../core/providers/local/registry';
@@ -342,7 +343,7 @@ const playerStop = createPlayerStop<any>({ readers: () => Zotero.Reader._readers
  * parent where there is one — for the reading guard's message
  * (ui/reading-guard.ts).
  */
-function readingTabTitle(reader: any): string {
+export function readingTabTitle(reader: any): string {
   try {
     const item = Zotero.Items.get(reader.itemID);
     const named = item?.parentItem ?? item;
@@ -466,6 +467,7 @@ async function adoptSystemVoices(prefs: PrefsBackend, deps: ProviderDeps, hooks:
 
 /** What the pane needs from the plugin's running state (src/index.ts hands it over). */
 export interface PaneHooks {
+  affectedTabs?(changes: FlatSettings): string[];
   /** memory-sync's spreadVoice (read-aloud/memory-sync.ts): a default picked in the browser reaches every tab that is reading. */
   spreadVoice?(choice: VoiceChoice | null): void;
   /**
@@ -533,13 +535,10 @@ export function onPaneLoad(doc: Document, hooks: PaneHooks = {}): void {
   });
 
   const win = doc.defaultView;
-  // Adding a voice — a favorite while only favorites are offered, a provider
-  // switched on — is refused while a tab is reading: its popup would not
-  // list the voice until Read Aloud reopens there (ui/reading-guard.ts),
-  // unless the user has the dialog stop the reading (issue #71). The
-  // dialogs are the pane's own document's: the OS prompt draws a white
-  // ring around a dark dialog on Windows (reading-guard.ts showPaneNotice)
+  // The shared impact check names only the affected sessions. The notice
+  // belongs to this pane, so it follows the pane's theme on every platform.
   const readingGuard = {
+    affectedTabs: hooks.affectedTabs,
     readingTabs: () => playerStop.open().map(readingTabTitle),
     warn: (message: string) => showPaneNotice(doc, message, (text) => Services.prompt.alert(win, 'Zotero-TTS', text)),
     askToStop: (message: string) =>

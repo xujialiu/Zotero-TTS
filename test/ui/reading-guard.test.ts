@@ -36,6 +36,20 @@ describe('stopReadingMessage', () => {
 });
 
 describe('refuseWhileReading', () => {
+  it('allows an unaffected proposal and refuses an affected one without stopping reading', async () => {
+    const warn = vi.fn();
+    const stopReading = vi.fn();
+    const deps = { readingTabs: () => ['Paper'], warn, stopReading,
+      askToStop: vi.fn(async () => true),
+      affectedTabs: (changes: Record<string, unknown>) => changes['azure.enabled'] === false ? ['Paper'] : [],
+    };
+    expect(await refuseWhileReading(deps, { 'local.enabled': false })).toBe(false);
+    expect(warn).not.toHaveBeenCalled();
+    expect(await refuseWhileReading(deps, { 'azure.enabled': false })).toBe(true);
+    expect(warn).toHaveBeenCalledWith(readingTabsMessage(['Paper']));
+    expect(stopReading).not.toHaveBeenCalled();
+    expect(deps.askToStop).not.toHaveBeenCalled();
+  });
   it('is silent and lets the action through while nothing is reading', async () => {
     const warn = vi.fn();
     const askToStop = vi.fn(async () => true);

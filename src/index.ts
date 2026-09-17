@@ -1,3 +1,6 @@
+import { createLiveVoiceList } from './read-aloud/live-voice-list';
+import { createReadingImpact } from './read-aloud/settings-impact';
+import type { FlatSettings } from './core/settings-backup';
 import { createPluginPlayer } from './ui/player';
 import { createPlayerController } from './read-aloud/player-controller';
 import { createTextSettings } from './read-aloud/text-settings';
@@ -20,6 +23,7 @@ import { machineId } from './core/machine-id';
 import { createSettingsSyncTransport, type SettingsSyncApplied, type SettingsSyncTransport } from './core/settings-sync-transport';
 import {
   heldSections,
+  editsPlayerList,
   parseSharedSettings,
   readSyncState,
   SHARED_SETTINGS_FILENAME,
@@ -74,7 +78,7 @@ import {
   createRemoteInterface,
   type NativeRemoteInterface,
 } from './read-aloud/remote-interface';
-import { defaultMachineName, onPaneLoad, registerPrefsPane, runConnectionCheck, unregisterPrefsPane, zoteroVoiceService } from './ui/prefs-pane';
+import { readingTabTitle, defaultMachineName, onPaneLoad, registerPrefsPane, runConnectionCheck, unregisterPrefsPane, zoteroVoiceService } from './ui/prefs-pane';
 import {
   createReadAloudShortcuts,
   deepActiveElement,
@@ -179,6 +183,14 @@ let textSettings: ReturnType<typeof createTextSettings> | null = null;
 let volumeObserver: unknown = null;
 
 const prefs = createZoteroPrefs();
+let liveVoiceList: ReturnType<typeof createLiveVoiceList> | null = null;
+let liveListObservers: unknown[] = [];
+const readingImpact = createReadingImpact({
+  values: () => flattenSettings(loadSettings(prefs)),
+  readers: () => Zotero.Reader._readers ?? [],
+  pending: reader => voiceSwitcher?.protectedVoices(reader) ?? [],
+  title: readingTabTitle,
+});
 const playerController = createPlayerController({
   prefs, labels: () => providerTierLabels(loadSettings(prefs)),
   clone: (reader, value) => Components.utils.cloneInto(value, reader._iframeWindow),
@@ -203,6 +215,7 @@ const playerController = createPlayerController({
     }
   },
   anyReading: () => playerStop.open().length > 0,
+  affectedTabs: readingImpact.affectedTabs,
   message: playerMessage,
 });
 function togglePlayerPaused(reader: any): void {
@@ -464,7 +477,7 @@ function buildReaderInterface(reader: any, targetWindow: any, native: () => unkn
         onVoicesRequested: () => {
           readAloudMemory?.attach(reader);
           // A popup open begins here: what it has to say about a substitute voice starts afresh
-          readAloudMemory?.opening(reader);
+          if (!reader?._internalReader?._readAloudManager?.active) readAloudMemory?.opening(reader);
           // The popup is open, so the document is rendered and its views exist
           highlightStyling?.attach(reader);
           // The same views: the PDF one's follow is taken over here (issue #83)
@@ -493,6 +506,7 @@ function buildReaderInterface(reader: any, targetWindow: any, native: () => unkn
           pauses?.attach(reader);
           volumeControl?.attach(reader);
           unchangedVoice?.attach(reader);
+          liveVoiceList?.attach(reader);
           playerVoiceList?.attach(reader);
           voiceSwitcher?.attach(reader);
           playbackNotice?.attach(reader);
@@ -500,7 +514,7 @@ function buildReaderInterface(reader: any, targetWindow: any, native: () => unkn
         },
         // The list this reader is about to receive: the remembered voice is
         // planned against it before Zotero resolves from it (issue #35)
-        onVoicesListed: (voices) => readAloudMemory?.reconcile(reader, voices),
+        onVoicesListed: (voices) => readAloudMemory?.reconcile(reader, voices, !!reader?._internalReader?._readAloudManager?.active),
         listCatalog,
         getFavoriteVoices: () => {
           const s = loadSettings(prefs);
@@ -721,6 +735,7 @@ function watchReader(reader: any): void {
   pauses?.attach(reader);
   volumeControl?.attach(reader);
   unchangedVoice?.attach(reader);
+  liveVoiceList?.attach(reader);
   playerVoiceList?.attach(reader);
   voiceSwitcher?.attach(reader);
   playbackNotice?.attach(reader);
@@ -855,7 +870,7 @@ function hookTabClose(reader: any): void {
       tabCloseHooks.delete(tab);
       try { playerExpanded?.detach(reader); } catch (error) { Zotero.logError(error); }
       try { playbackNotice?.detach(reader); voiceNotices?.clear(reader); } catch (error) { Zotero.logError(error); }
-      try { voiceSwitcher?.detach(reader); } catch (error) { Zotero.logError(error); }
+      try { voiceSwitcher?.detach(reader); liveVoiceList?.detach(reader); } catch (error) { Zotero.logError(error); }
       try { followResumeGuard?.detach(reader); } catch (error) { Zotero.logError(error); }
       trace(`tab.onClose fired ${String(tabID)}`);
       try {
@@ -929,7 +944,7 @@ function hookPositionCapture(reader: any): void {
       positionCaptureHooks.delete(reader);
       try { playerExpanded?.detach(reader); } catch (error) { Zotero.logError(error); }
       try { playbackNotice?.detach(reader); voiceNotices?.clear(reader); } catch (error) { Zotero.logError(error); }
-      try { voiceSwitcher?.detach(reader); } catch (error) { Zotero.logError(error); }
+      try { voiceSwitcher?.detach(reader); liveVoiceList?.detach(reader); } catch (error) { Zotero.logError(error); }
       try { followResumeGuard?.detach(reader); } catch (error) { Zotero.logError(error); }
       trace(`reader.uninit fired item ${String(reader?.itemID)}`);
       try {
@@ -1494,6 +1509,7 @@ function startSettingsSync(): void {
     write: (key, value) => prefs.set(PREF_PREFIX + key, value),
     // Any open player, paused included: the list-editing settings wait for it
     readingTabs: () => playerStop.open().map((reader: any) => String(safe(() => reader?.itemID) ?? 'reader')),
+    affectedTabs: readingImpact.affectedTabs,
     // The check Enable and a restore run, headless (ui/prefs-pane.ts, issue #21)
     checkProvider: (id) => runConnectionCheck(prefs, id, providerDeps()),
     onSynced: (report) => {
@@ -2035,6 +2051,45 @@ function startPlaybackNotice(): void {
   for (const reader of Zotero.Reader._readers ?? []) playbackNotice.attach(reader);
 }
 
+function startLiveVoiceList(): void {
+  stopLiveVoiceList();
+  const lists = createLiveVoiceList({
+    readers: () => Zotero.Reader._readers ?? [],
+    stage: reader => Components.utils.cloneInto({}, reader._iframeWindow),
+    tierOf: id => pluginVoiceTier(id, providerNaming(loadSettings(prefs)).localEngine),
+    protectedVoices: readingImpact.protectedVoices,
+    ended: () => settingsSyncTransport?.poke('player-close'),
+    exportFunction: (fn, target) => Components.utils.exportFunction(fn, target),
+    waiveXrays: waived,
+    promise: (reader, job) => new reader._iframeWindow.Promise((resolve: () => void, reject: (e: unknown) => void) => job.then(resolve, reject)),
+    isDead: value => Components.utils.isDeadWrapper(value),
+    error: e => Zotero.logError(e),
+  });
+  liveVoiceList = lists;
+  for (const reader of Zotero.Reader._readers ?? []) lists.attach(reader);
+  let queued = false;
+  for (const key of Object.keys(flattenSettings(loadSettings(prefs))).filter(editsPlayerList)) {
+    liveListObservers.push(Zotero.Prefs.registerObserver('zotero-tts.' + key, () => {
+      const settings = flattenSettings(loadSettings(prefs));
+      if (key === 'readAloud.favoriteVoices' && settings['readAloud.favoritesOnly'] !== true) return;
+      const section = key.slice(0, key.indexOf('.'));
+      if (!key.startsWith('readAloud.') && !key.endsWith('.enabled') && settings[section + '.enabled'] !== true) return;
+      lists.invalidate();
+      if (queued) return;
+      queued = true;
+      void Promise.resolve().then(async () => {
+        queued = false;
+        if (liveVoiceList === lists) await lists.refresh();
+      }).catch(e => Zotero.logError(e));
+    }));
+  }
+}
+function stopLiveVoiceList(): void {
+  for (const token of liveListObservers.splice(0)) Zotero.Prefs.unregisterObserver(token);
+  liveVoiceList?.dispose();
+  liveVoiceList = null;
+}
+
 function startUnchangedVoice(): void {
   stopUnchangedVoice();
   unchangedVoice = createUnchangedVoice({
@@ -2224,6 +2279,7 @@ async function startup({ id, version, rootURI }: StartupParams): Promise<void> {
       ['sentence and paragraph pauses', startPauses],
       ['Read Aloud volume', startVolume],
       ['the voice kept through a list reload', startUnchangedVoice],
+      ['live voice choices', startLiveVoiceList],
       ['speech text settings', startTextSettings],
       ['prepared voice switching', startVoiceSwitcher],
       ['playback preparation notice', startPlaybackNotice],
@@ -2271,6 +2327,7 @@ async function shutdown(reason?: number): Promise<void> {
   playbackNotice = null;
   voiceSwitcher?.dispose();
   voiceSwitcher = null;
+  stopLiveVoiceList();
   voiceNotices?.dispose();
   voiceNotices = null;
   playerVoiceList?.dispose();
@@ -2630,6 +2687,8 @@ const diagnostics = {
    * in the log, is what proves the hook ran.
    */
   textSettings: () => JSON.stringify((Zotero.Reader._readers ?? []).map((r: any) => textSettings?.inspect(r) ?? null), null, 1),
+  liveVoiceList: () => JSON.stringify((Zotero.Reader._readers ?? []).map((r: any) => liveVoiceList?.inspect(r) ?? null)),
+  readingImpact: (changes: FlatSettings | string = {}) => JSON.stringify({ sessions: readingImpact.sessions(), affected: readingImpact.affectedTabs(typeof changes === 'string' ? JSON.parse(changes) : changes) }),
   unchangedVoice: () => JSON.stringify((Zotero.Reader._readers ?? []).map((r: any) => unchangedVoice?.inspect(r) ?? null), null, 1),
   playerVoiceList: () => JSON.stringify((Zotero.Reader._readers ?? []).map((r: any) => playerVoiceList?.inspect(r) ?? null), null, 1),
   /**
@@ -3399,6 +3458,7 @@ Zotero.ZoteroTTS = {
     onPaneLoad: (doc: Document) => {
       pluginPlayer?.initSettings(doc);
       return onPaneLoad(doc, {
+        affectedTabs: readingImpact.affectedTabs,
         spreadVoice: (choice) => readAloudMemory?.spreadVoice(choice),
         // A rewrite of Zotero's voices pref that is not a pick must not be learned as one
         applySilently: (fn) => (readAloudMemory ? readAloudMemory.applySilently(fn) : fn()),

@@ -1,3 +1,4 @@
+import { affectedReading } from '../../src/read-aloud/settings-impact';
 import { describe, expect, it } from 'vitest';
 import { DEFAULTS, type SwitchId } from '../../src/core/settings';
 import { flattenSettings, type SettingValue } from '../../src/core/settings-backup';
@@ -382,5 +383,53 @@ describe('createSettingsSyncTransport', () => {
     expect(h.timers).toEqual([]);
     expect(h.unregistered).toHaveLength(SYNCABLE_KEYS.length);
     expect(h.transport.stats()).toMatchObject({ watching: 0, pendingChange: false });
+  });
+});
+
+
+describe('settings sync during reading', () => {
+  it('defers a failed provider check if playback starts while the check is pending', async () => {
+    let reading = false, checks = 0;
+    const h = harness({ state: { stamps: {}, held: {}, seeded: true }, values: { 'azure.enabled': true },
+      remote: file(item({ key: 'azure.apiKey', value: 'new' })),
+      over: { checkProvider: async () => { if (++checks === 1) reading = true; return { ok: false, message: 'Unavailable' }; } },
+    });
+    h.deps.affectedTabs = changes => affectedReading(h.store, changes, reading ? [{ title: 'Paper', voices: [{ id: 'azure::ava', provider: 'azure' }] }] : []);
+    h.transport.poke('test'); await settle();
+    expect(h.store['azure.enabled']).toBe(true);
+    reading = false;
+    h.transport.poke('player-close'); await settle();
+    expect(h.store['azure.enabled']).toBe(false);
+  });
+  it('evaluates the favorites filter and marks together before applying either', async () => {
+    const h = harness({ state: { stamps: {}, held: {}, seeded: true },
+      values: { 'readAloud.favoritesOnly': true, 'readAloud.favoriteVoices': '["azure::ava"]' },
+      remote: file(item({ key: 'readAloud.favoritesOnly', value: false }), item({ key: 'readAloud.favoriteVoices', value: '[]' })),
+    });
+    h.deps.affectedTabs = changes => affectedReading(h.store, changes, [{ title: 'Paper', voices: [{ id: 'azure::ava', provider: 'azure' }] }]);
+    h.transport.poke('test'); await settle();
+    expect(h.store['readAloud.favoritesOnly']).toBe(false);
+    expect(h.store['readAloud.favoriteVoices']).toBe('[]');
+    expect(h.transport.stats().deferred).toBe(0);
+  });
+  it('applies unused-provider changes and defers only changes affecting a paused session', async () => {
+    let reading = true;
+    const h = harness({ state: { stamps: {}, held: {}, seeded: true },
+      values: { 'azure.enabled': true }, remote: file(
+        item({ key: 'azure.apiKey', value: 'new' }),
+        item({ key: 'fish.apiKey', value: 'unused' }),
+        item({ key: 'shortcuts.speedUp', value: 'Ctrl+K' }),
+      ),
+    });
+    h.deps.readingTabs = () => reading ? ['Paper'] : [];
+    h.deps.affectedTabs = changes => affectedReading(h.store, changes, reading ? [{ title: 'Paper', voices: [{ id: 'azure::ava', provider: 'azure' }] }] : []);
+    h.transport.poke('test'); await settle();
+    expect(h.store['azure.apiKey']).toBe('');
+    expect(h.store['fish.apiKey']).toBe('unused');
+    expect(h.store['shortcuts.speedUp']).toBe('Ctrl+K');
+    expect(h.transport.stats().deferred).toBe(1);
+    reading = false;
+    h.transport.poke('player-close'); await settle();
+    expect(h.store['azure.apiKey']).toBe('new');
   });
 });

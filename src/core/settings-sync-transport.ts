@@ -29,10 +29,9 @@ import { WebDAVError } from './webdav';
  * is never overwritten by the sync's own bookkeeping.
  *
  * Applying is silent but never invisible: `onSynced` tells the pane after
- * every completed sync, and the stats say what the last one did. While a tab reads, the settings
- * that edit the player's list (a provider section, the favorites pair —
- * ui/reading-guard.ts) wait for the next poke after the reading stops; the
- * rest applies at once. A provider section with an adopted setting is
+ * every completed sync, and the stats say what the last one did. Changes affecting an open reading session wait for its end; unrelated
+ * changes apply at once. Provider sections and the favorites pair are
+ * evaluated together to avoid applying only half of a related change. A provider section with an adopted setting is
  * checked afterwards, as Enable and a restore check it (#21): one that
  * fails is switched off **on this machine only** — its switch's stamp set to
  * the file's, or dropped when the file has none, so the flip is never
@@ -77,6 +76,7 @@ export interface SettingsSyncDeps {
   write(key: string, value: SettingValue): void;
   /** The titles of the tabs a player is open in; non-empty defers the settings that edit the player's list. */
   readingTabs(): string[];
+  affectedTabs?(changes: FlatSettings): string[];
   /** The connection check of one provider, or of one of Zotero's tier switches (issue #111), headless and bounded (ui/prefs-pane.ts); rejects are read as failures. */
   checkProvider(id: SwitchId): Promise<{ ok: boolean; message: string }>;
   /** After every completed sync (skipped ones excepted): what changed on this machine, or null when nothing did — the pane's status line and redraw. */
@@ -158,6 +158,7 @@ export function createSettingsSyncTransport(deps: SettingsSyncDeps): SettingsSyn
   let remoteItems: number | null = null;
   let adoptedCount: number | null = null;
   let deferredCount: number | null = null;
+  const pendingChecks = new Set<SwitchId>();
   let pushedCount: number | null = null;
   let uploadedFlag: boolean | null = null;
   let lastApplied: SettingsSyncApplied | null = null;
@@ -297,18 +298,29 @@ export function createSettingsSyncTransport(deps: SettingsSyncDeps): SettingsSyn
 
       const plan = mergeSharedSettings({ values, stamps: state.stamps, machine: deps.machine() }, remote);
 
-      // Apply: the list-editing settings wait while a tab reads, the rest go at once
+      // Apply unrelated groups now; defer only groups affecting a current session.
       const applied: string[] = [];
       const from = new Set<string>();
       let deferred = 0;
       const stamps: Record<string, number> = { ...plan.restamp };
       if (!pushOnly) {
         const reading = plan.adopt.length > 0 && deps.readingTabs().length > 0;
+        const groups = new Map<string, SharedItem[]>();
         for (const item of plan.adopt) {
-          if (reading && editsPlayerList(item.key)) {
-            deferred++;
-            continue;
-          }
+          const group = item.key === 'readAloud.favoritesOnly' || item.key === 'readAloud.favoriteVoices'
+            ? 'favorites' : editsPlayerList(item.key) ? sectionOf(item.key) : item.key;
+          const items = groups.get(group) ?? [];
+          items.push(item); groups.set(group, items);
+        }
+        const blocked = new Set<string>();
+        for (const items of groups.values()) {
+          const proposal = Object.fromEntries(items.map(item => [item.key, item.value]));
+          const affected = deps.affectedTabs ? deps.affectedTabs(proposal).length > 0
+            : reading && items.some(item => editsPlayerList(item.key));
+          if (affected) for (const item of items) blocked.add(item.key);
+        }
+        for (const item of plan.adopt) {
+          if (blocked.has(item.key)) { deferred++; continue; }
           try {
             silently(() => deps.write(item.key, item.value));
           } catch (e) {
@@ -331,10 +343,10 @@ export function createSettingsSyncTransport(deps: SettingsSyncDeps): SettingsSyn
       // one that fails here goes off here, and only here
       const held: Record<string, string> = {};
       const flipped: string[] = [];
-      if (!pushOnly && applied.length) {
+      if (!pushOnly && (applied.length || pendingChecks.size)) {
         const after = deps.values();
         const toCheck: SwitchId[] = [];
-        for (const section of new Set(applied.map(sectionOf))) {
+        for (const section of new Set([...applied.map(sectionOf), ...pendingChecks])) {
           if (!isSwitchId(section, providerIds)) continue;
           const enabledKey = `${section}.enabled`;
           let on = after[enabledKey] === true;
@@ -348,6 +360,10 @@ export function createSettingsSyncTransport(deps: SettingsSyncDeps): SettingsSyn
               reportGated(e);
             }
           }
+          if (on && deps.affectedTabs?.({ [enabledKey]: false }).length) {
+            pendingChecks.add(section); deferred++; continue;
+          }
+          pendingChecks.delete(section);
           if (on) toCheck.push(section);
         }
         const outcomes = await Promise.all(toCheck.map(async (id) => ({ id, outcome: await safeCheck(id) })));
@@ -358,6 +374,9 @@ export function createSettingsSyncTransport(deps: SettingsSyncDeps): SettingsSyn
               delete s.held[id];
             });
             continue;
+          }
+          if (deps.affectedTabs?.({ [enabledKey]: false }).length) {
+            pendingChecks.add(id); deferred++; continue;
           }
           try {
             silently(() => deps.write(enabledKey, false));

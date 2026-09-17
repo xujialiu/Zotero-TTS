@@ -88,7 +88,7 @@ export function initVoiceListSwitches(
     const refuse = () => {
       if (box) box.checked = value(row);
     };
-    if (await refuseWhileReading(deps)) return refuse();
+    if (await refuseWhileReading(deps, { [row.pref]: wanted })) return refuse();
     if (wanted && row.pref === FAVORITES_ONLY_PREF) {
       const name = deps.unmarkedDefault?.();
       if (name) {

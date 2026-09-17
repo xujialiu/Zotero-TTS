@@ -15,13 +15,9 @@ import { refuseWhileReading, type ReadingGuardDeps } from './reading-guard';
  * connection writes its own; a failed check leaves the provider off, with
  * the message.
  *
- * **Both** directions are refused while a tab is reading (ui/reading-guard.ts):
- * an open popup lists its voices until Read Aloud reopens there, so enabling
- * would leave the new voices out of that tab and disabling would leave the
- * gone ones in it — either way two tabs listing different things, which is
- * what issue #11 is about. Enabling asks twice, before the connection check
- * and again before the write: the check may take a quarter of a minute, and
- * it is the write that has to be safe.
+ * A switch is checked against all current reading sessions (#121). An
+ * unused provider may change; the provider of a playing or paused voice
+ * stays available. Enabling checks again after its asynchronous probe.
  *
  * Test connection stays: while a provider is off it probes without
  * committing — and fills the Model suggestions, which has to happen while
@@ -122,7 +118,7 @@ export function initProviderRows(
   async function onToggle(id: SwitchId): Promise<void> {
     if (busy.has(id)) return;
     if (enabled(id)) {
-      if (await refuseWhileReading(deps)) return;
+      if (await refuseWhileReading(deps, { [`${id}.enabled`]: false })) return;
       deps.prefs.set(pref(id), false);
       deps.onSwitched?.(id, false);
       paint(id);
@@ -131,7 +127,7 @@ export function initProviderRows(
       deps.onVoicesChanged();
       return;
     }
-    if (await refuseWhileReading(deps)) return;
+    if (await refuseWhileReading(deps, { [`${id}.enabled`]: true })) return;
     hold(id);
     elements(id).toggle?.setAttribute('label', t('ztts-switch-checking'));
     say(id, t('ztts-switch-checking'));
@@ -140,8 +136,8 @@ export function initProviderRows(
     // check has had a quarter of a minute in which a player could open.
     // Refused, the outcome is dropped with it: the dialog is what the user
     // is told, and "Connected…" beside a switch that stayed Enable would
-    // read as if it held. Stop (issue #71) keeps it, and the write follows
-    const refused = outcome.ok && (await refuseWhileReading(deps));
+    // read as if it held. An allowed proposal keeps it and the write follows
+    const refused = outcome.ok && (await refuseWhileReading(deps, { [`${id}.enabled`]: true }));
     say(id, refused ? '' : outcome.message);
     if (outcome.ok && !refused) {
       deps.prefs.set(pref(id), true);
@@ -189,7 +185,8 @@ export function initProviderRows(
    * frozen. Returns one sentence for the restore's message line.
    */
   async function verifyEnabled(): Promise<string> {
-    const wanted = SWITCH_IDS.filter((id) => enabled(id) && !busy.has(id));
+    const inUse = (id: SwitchId) => !!deps.affectedTabs?.({ [`${id}.enabled`]: false }).length;
+    const wanted = SWITCH_IDS.filter((id) => enabled(id) && !busy.has(id) && !inUse(id));
     if (!wanted.length) return '';
     for (const id of wanted) {
       hold(id);
@@ -200,7 +197,7 @@ export function initProviderRows(
     await Promise.all(
       wanted.map(async (id) => {
         const outcome = await run(id);
-        if (!outcome.ok) {
+        if (!outcome.ok && !inUse(id)) {
           deps.prefs.set(pref(id), false);
           deps.onSwitched?.(id, false);
           turnedOff.push(id);

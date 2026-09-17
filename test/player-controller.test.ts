@@ -1,3 +1,6 @@
+import { affectedReading } from '../src/read-aloud/settings-impact';
+import { loadSettings } from '../src/core/settings';
+import { flattenSettings } from '../src/core/settings-backup';
 import { describe, expect, it, vi } from 'vitest';
 import { createPlayerController } from '../src/read-aloud/player-controller';
 import { PREF_PREFIX } from '../src/core/settings';
@@ -18,7 +21,9 @@ function fixture() {
   const automatic = (reader: unknown) => following.get(reader) ?? true;
   const manual = vi.fn((reader: unknown) => { following.set(reader, false); });
   follow.mockImplementation((reader: unknown) => { following.set(reader, true); });
+  const prefs = { get: (key: string) => values.get(key), set: (key: string, value: unknown) => { values.set(key, value); } };
   const controller = createPlayerController({
+    affectedTabs: changes => affectedReading(flattenSettings(loadSettings(prefs)), changes, manager.active ? [{ title: 'Paper', voices: [{ id: manager.selectedVoiceID, provider: 'fish' }] }] : []),
     prefs: { get: key => values.get(key), set: (key, value) => { values.set(key, value); } },
     labels: () => ({ fish: 'Fish Audio' }), clone: (_reader, value) => value,
     start, close, togglePaused, rememberSpeed, follow, navigate, automatic, manual, anyReading: () => manager.active,
@@ -28,6 +33,16 @@ function fixture() {
 }
 
 describe('player controller', () => {
+  it('can favorite another voice during filtered playback without removing the playing voice', async () => {
+    const f = fixture();
+    f.manager.active = true;
+    f.values.set(PREF_PREFIX + 'readAloud.favoritesOnly', true);
+    f.values.set(PREF_PREFIX + 'readAloud.favoriteVoices', '["fish::one"]');
+    f.manager.allVoices.push({ id: 'fish::two', name: 'Two', tier: 'fish' });
+    await f.controller.command(f.reader, 'favorite', 'fish::two');
+    expect(JSON.parse(String(f.values.get(PREF_PREFIX + 'readAloud.favoriteVoices')))).toEqual(['fish::one', 'fish::two']);
+    await expect(f.controller.command(f.reader, 'favorite', 'fish::one')).rejects.toThrow();
+  });
   it('uses the native label getter instead of exposing an encoded voice id', () => {
     const f = fixture();
     Object.assign(f.manager.voicesForLanguage[0], { name: undefined, label: 'Abel — Warm US male (EN)' });

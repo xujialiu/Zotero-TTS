@@ -32,6 +32,7 @@ export interface VoiceSwitcher {
   /** The memory layer supplies its native cross-language restore as the final selection. */
   defer(reader: unknown, voiceID: string, selection: () => void): boolean;
   inspect(reader: unknown): Report | null;
+  protectedVoices(reader: unknown): string[];
   dispose(): void;
 }
 
@@ -519,6 +520,7 @@ export function createVoiceSwitcher(deps: VoiceSwitcherDeps): VoiceSwitcher {
       const voice = playerVoices<any>(manager.allVoices).find(v => v.id === voiceID);
       return voice ? begin(reader, voice, selection) : false;
     },
+    protectedVoices(reader) { const p = pending.get(reader); return p ? [p.originalVoice, String(p.target.id)] : []; },
     inspect(reader) { return reader && typeof reader === 'object' ? reports.get(reader) ?? null : null; },
     dispose() {
       for (const cancel of [...starting.values()]) cancel();

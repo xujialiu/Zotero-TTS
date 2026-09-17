@@ -130,7 +130,7 @@ export function initBackupRows(doc: RowsDocument, deps: BackupRowsDeps): void {
       }
       // Asked here, not before the file dialog: it is the write that has
       // to be safe, and the dialog is the user's only feedback
-      if (await refuseWhileReading(deps)) {
+      if (await refuseWhileReading(deps, parsed.settings)) {
         message('');
         return;
       }

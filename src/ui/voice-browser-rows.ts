@@ -1,3 +1,4 @@
+import type { FlatSettings } from '../core/settings-backup';
 import { t } from '../core/l10n';
 import { MULTILINGUAL, type ProviderId, type VoiceListNotice } from '../core/providers/types';
 import { clampSpeed, readPersistedSpeed } from '../core/read-aloud-speed';
@@ -190,6 +191,7 @@ export interface VoiceBrowserDeps {
    * so marking is refused while there are any. Omitted means never refused.
    */
   readingTabs?(): string[];
+  affectedTabs?(changes: FlatSettings): string[];
   /** Tells the user why the marking was refused — a dialog. */
   warn?(message: string): void;
   /** Puts the guard's question — stop Read Aloud there and go on? — and answers it (ui/reading-guard.ts, issue #71). */
@@ -629,15 +631,11 @@ export function initVoiceBrowserRows(
    * labels are repainted, since which of them can be picked just changed.
    */
   async function onHeart(voice: BrowserVoice, button: any): Promise<void> {
-    // Only favorites are offered, so either direction edits the popup's
-    // list — marking adds a voice, unmarking takes one out, and unmarking
-    // the last one listed puts every voice back — which a tab that is
-    // reading would not see until Read Aloud reopens there. Refused while
-    // any tab is, unless the user stops it (ui/reading-guard.ts, issues
-    // #11 and #71); the favorites are read after the question, not before
-    if (favoritesOnly() && (await refuseWhileReading(deps))) return;
+    // Evaluate the proposed list before writing it; unrelated favorites
+    // may change while every current and prepared voice stays available.
     const favorites = readFavorites();
     const next = toggleFavoriteVoice(favorites, voice.encoded);
+    if (favoritesOnly() && (await refuseWhileReading(deps, { 'readAloud.favoriteVoices': serializeFavoriteVoices(next) }))) return;
     deps.prefs.set(FAVORITES_PREF, serializeFavoriteVoices(next));
     paintHeart(button, next.includes(voice.encoded));
     if (!favoritesOnly()) return;

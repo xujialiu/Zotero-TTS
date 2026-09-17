@@ -1,3 +1,6 @@
+import { affectedReading } from '../../src/read-aloud/settings-impact';
+import { flattenSettings } from '../../src/core/settings-backup';
+import { loadSettings } from '../../src/core/settings';
 import { describe, expect, it, vi } from 'vitest';
 import { PREF_PREFIX, type PrefsBackend } from '../../src/core/settings';
 import { BACKUP_FILENAME, BACKUP_FORMAT, createBackup, parseBackup, serializeBackup } from '../../src/core/settings-backup';
@@ -37,6 +40,7 @@ function setup(
     savePath?: string | null;
     confirm?: boolean;
     reading?: string[];
+    protectAzure?: boolean;
     /** The reading guard's question and its Stop (issue #71); absent, the guard only refuses. */
     askToStop?: (message: string) => Promise<boolean>;
     stopReading?: () => string[];
@@ -61,6 +65,8 @@ function setup(
     confirm: vi.fn(() => options.confirm ?? true),
     onRestored: vi.fn(),
     readingTabs: vi.fn(() => options.reading ?? []),
+    ...(options.protectAzure ? { affectedTabs: (changes: Record<string, string | number | boolean>) => affectedReading(flattenSettings(loadSettings(prefs)), changes,
+      [{ title: 'Paper', voices: [{ id: 'azure::ava', provider: 'azure' }] }]) } : {}),
     warn: vi.fn((_message: string) => {}),
     ...(options.askToStop ? { askToStop: vi.fn(options.askToStop) } : {}),
     ...(options.stopReading ? { stopReading: vi.fn(options.stopReading) } : {}),
@@ -112,6 +118,16 @@ describe('Backup settings', () => {
 });
 
 describe('Restore settings', () => {
+  it('allows a harmless complete restore but refuses every write when any restored setting affects reading', async () => {
+    for (const region of ['eastasia', 'westeurope']) {
+      const initial = { [PREF_PREFIX + 'azure.region']: 'eastasia', [PREF_PREFIX + 'shortcuts.speedUp']: 'Shift+X' };
+      const file = serializeBackup(createBackup(fakePrefs({ ...initial, [PREF_PREFIX + 'azure.region']: region, [PREF_PREFIX + 'shortcuts.speedUp']: 'Ctrl+K' })));
+      const t = setup({ file, prefs: initial, reading: ['Paper'], protectAzure: true });
+      await t.el('ztts-restore').fire('command');
+      expect(t.prefs.store[PREF_PREFIX + 'azure.region']).toBe('eastasia');
+      expect(t.prefs.store[PREF_PREFIX + 'shortcuts.speedUp']).toBe(region === 'eastasia' ? 'Ctrl+K' : 'Shift+X');
+    }
+  });
   const file = serializeBackup(
     createBackup(fakePrefs({ [PREF_PREFIX + 'azure.region']: 'westeurope', [PREF_PREFIX + 'shortcuts.speedUp']: 'Ctrl+K' })),
   );

@@ -649,7 +649,7 @@ ztts-player-unavailable-choice = This voice or language is no longer available. 
 ztts-player-invalid-value = The selected value is not supported.
 ztts-player-playback-error = Playback failed. Check your provider connection and try again.
 ztts-player-quota-error = The provider has reached its limit or has insufficient credits.
-ztts-player-favorite-guard = Stop reading before changing favorites while only favorites are offered.
+ztts-player-favorite-guard = This change would remove a voice in use. Close the player in the affected tabs before changing it.
 
 ztts-player-options = Options
 ztts-player-previous-paragraph = Skip to Previous Paragraph

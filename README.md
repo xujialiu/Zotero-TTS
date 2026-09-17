@@ -319,16 +319,18 @@ provider (or Zotero's Standard / Premium), language, voice.
   Premium included, and to the samples; a change lands on the sentence
   being spoken, in every open tab. `Shift+↑` / `Shift+↓` move the same
   number while Read Aloud is open.
-- While Read Aloud is open in some tab, every setting that changes what the
-  player lists first names those tabs and offers to stop the reading there:
-  - **Stop reading and continue** closes their players and applies the
-    change at once. Each tab keeps its place — Read Aloud picks up there
-    when you start it again.
-  - **Cancel** leaves everything as it was; close the player in those tabs
-    yourself, then try again.
-  - *The settings:* switching a provider on or off, *Offer only favorite
-    voices*, a favorite marked or unmarked while only favorites are
-    offered, and restoring a settings backup from a file or from WebDAV.
+- **Changes during reading** — settings that leave every current reading
+  session unaffected can be changed immediately. A change affecting a
+  session is refused and names its tab. Close the affected player, then
+  try again; paused and background tabs count too. Playback is never
+  stopped automatically.
+- **Voice lists** update without interrupting or replaying the current
+  sentence. A voice in use cannot be removed from the list or have its
+  provider disabled or reconfigured during that reading session.
+- **Restore and sync** — a settings backup is restored completely or
+  refused completely if it would affect reading. Background settings sync
+  applies unaffected changes and holds affected changes until those
+  reading sessions end.
 
 </details>
 

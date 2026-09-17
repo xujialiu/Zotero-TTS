@@ -195,7 +195,7 @@ export interface ReadAloudMemorySync {
    * staged for the resolution Zotero runs once the list lands. Nothing is
    * restored here: the manager's own list is still the previous open's.
    */
-  reconcile(reader: unknown, voices: ListedVoices): void;
+  reconcile(reader: unknown, voices: ListedVoices, preserveCurrent?: boolean): void;
   /** Whether this reader's last sync started with a substitute: the voice that was not offered and the one put in its place (null: Zotero's own choice); null when the remembered voice was offered. */
   substitution(reader: unknown): Substitution | null;
   /**
@@ -629,12 +629,13 @@ export function createReadAloudMemorySync(deps: ReadAloudMemoryDeps): ReadAloudM
     deps.debug?.(`staged Zotero's entry for the dropdown's ${lane}: voice ${voiceOfEntry(entry)}`);
   }
 
-  function reconcile(reader: any, voices: ListedVoices): void {
+  function reconcile(reader: any, voices: ListedVoices, preserveCurrent = false): void {
     const internal = reader?._internalReader;
     if (!internal || !internal._readAloudManager) return;
     try {
       attach(reader);
       published.set(internal, voices.published);
+      if (preserveCurrent) return;
       const result = apply(internal, voices.offered);
       if (result.changed && result.lane !== null) stage(reader, internal, result.lane);
     } catch (e) {

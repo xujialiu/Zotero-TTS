@@ -1357,6 +1357,18 @@ describe('the remembered voice is not in the list', () => {
   // never restored against the list of the previous open, which is what is
   // still in `allVoices` at that moment.
   describe('reconcile: the list that is about to land', () => {
+    it('keeps an active choice and its shared memory when refreshed discovery omits that voice', () => {
+      const z = fakeZotero(prefs, puck), t = withDeps(z);
+      const sync = createReadAloudMemorySync(t.deps);
+      const r = fakeReader('en', z, { voices: [puckVoice, STANDARD], selectedVoiceID: PUCK });
+      sync.attach(r.reader);
+      const before = JSON.stringify(z.voices());
+      sync.reconcile(r.reader, { offered: [STANDARD, AVA], published: [STANDARD, AVA] }, true);
+      expect(JSON.stringify(z.voices())).toBe(before);
+      expect(r.manager.selectedVoiceID).toBe(PUCK);
+      expect(r.log).toEqual([]);
+      expect(t.announce).not.toHaveBeenCalled();
+    });
     // Issue #35's trace: the language known, the list still loading
     it('stages the manager for the resolution Zotero runs once the list lands, without a restore of its own', () => {
       const z = fakeZotero(prefs, puck);

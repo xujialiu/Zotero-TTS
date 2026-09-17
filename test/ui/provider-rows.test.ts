@@ -1,3 +1,6 @@
+import { affectedReading } from '../../src/read-aloud/settings-impact';
+import { flattenSettings } from '../../src/core/settings-backup';
+import { loadSettings } from '../../src/core/settings';
 import { describe, expect, it, vi } from 'vitest';
 import { PREF_PREFIX, SWITCH_IDS, type PrefsBackend, type SwitchId } from '../../src/core/settings';
 import { initProviderRows, providerRowIds, type CheckOutcome } from '../../src/ui/provider-rows';
@@ -58,6 +61,7 @@ function setup(
   options: {
     prefs?: Record<string, unknown>;
     reading?: string[];
+    protectedProvider?: string;
     check?: (id: SwitchId) => Promise<CheckOutcome>;
     /** The reading guard's question and its Stop (issue #71); absent, the guard only refuses. */
     askToStop?: (message: string) => Promise<boolean>;
@@ -89,6 +93,8 @@ function setup(
     onUnlocked,
     readingTabs: () => options.reading ?? [],
     warn,
+    ...(options.protectedProvider ? { affectedTabs: (changes: Record<string, string | number | boolean>) => affectedReading(flattenSettings(loadSettings(prefs)), changes,
+      [{ title: 'Paper', voices: [{ id: options.protectedProvider + '::voice', provider: options.protectedProvider! }] }]) } : {}),
     ...(options.askToStop ? { askToStop: options.askToStop } : {}),
     ...(options.stopReading ? { stopReading: options.stopReading } : {}),
   });
@@ -110,6 +116,25 @@ function setup(
 }
 
 describe('initProviderRows', () => {
+  it('never rechecks an in-use provider after restore or disables one that starts during its check', async () => {
+    const pending = deferred<CheckOutcome>();
+    const options = { protectedProvider: 'azure', prefs: { [enabledPref('azure')]: true, [enabledPref('local')]: true }, check: () => pending.promise };
+    const t = setup(options);
+    const job = t.rows.verifyEnabled();
+    expect(t.check).not.toHaveBeenCalledWith('azure');
+    options.protectedProvider = 'local';
+    pending.resolve(REFUSED); await job;
+    expect(t.of('local').enabled()).toBe(true);
+    expect(t.of('azure').enabled()).toBe(true);
+  });
+  it('changes an unused provider while protecting the one used by the reading session', async () => {
+    const t = setup({ reading: ['Paper'], protectedProvider: 'azure', prefs: { [enabledPref('azure')]: true, [enabledPref('local')]: true } });
+    await t.of('local').toggle.fire('command');
+    expect(t.of('local').enabled()).toBe(false);
+    await t.of('azure').toggle.fire('command');
+    expect(t.of('azure').enabled()).toBe(true);
+    expect(t.warn).toHaveBeenCalledTimes(1);
+  });
   it('paints every switch from its pref on load: off is "Enable" with the fields open, on is "Disable" with them locked', () => {
     const t = setup({ prefs: { [enabledPref('azure')]: true } });
     expect(t.of('openai-official').label()).toBe('Enable');
