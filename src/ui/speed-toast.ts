@@ -47,31 +47,38 @@ const DEFAULT_TIMER: ToastTimer = {
   clear: (handle) => clearTimeout(handle as ReturnType<typeof setTimeout>),
 };
 
-const hideTimers = new WeakMap<object, unknown>();
+const dismissals = new WeakMap<object, Map<string, () => void>>();
 
-/** A short overlay message. `showSpeedToast` is this with the speed formatted. */
-export function showToast(doc: ToastDocument, text: string, timer: ToastTimer = DEFAULT_TIMER, durationMs = 900): void {
-  let el = doc.getElementById(SPEED_TOAST_ID);
+/** An overlay; null duration stays until its returned, ownership-safe dismissal. */
+export function showToast(doc: ToastDocument, text: string, timer: ToastTimer = DEFAULT_TIMER,
+  durationMs: number | null = 900, id = SPEED_TOAST_ID): () => void {
+  let slots = dismissals.get(doc);
+  if (!slots) { slots = new Map(); dismissals.set(doc, slots); }
+  slots.get(id)?.();
+  let el = doc.getElementById(id);
   if (!el) {
     // Explicit XHTML namespace: the chrome window is XUL/XHTML mixed and a bare createElement there is not reliably HTML
     el = doc.createElementNS(XHTML, 'div');
-    el.id = SPEED_TOAST_ID;
+    el.id = id;
     el.style.cssText = STYLE;
     (doc.body ?? doc.documentElement).appendChild(el);
   }
   el.textContent = text;
   el.style.opacity = '1';
-  if (hideTimers.has(doc)) timer.clear(hideTimers.get(doc));
-  hideTimers.set(
-    doc,
-    timer.set(() => {
-      try { el.style.opacity = '0'; }
-      catch (error) {
-        // The reader may close while its voice-change notice is visible.
-        if (!String(error).includes("can't access dead object")) throw error;
-      }
-    }, durationMs),
-  );
+  let handle: unknown;
+  const dismiss = () => {
+    if (slots.get(id) !== dismiss) return;
+    slots.delete(id);
+    if (handle !== undefined) timer.clear(handle);
+    try { el.style.opacity = '0'; }
+    catch (error) {
+      // The reader may close while its voice-change notice is visible.
+      if (!String(error).includes("can't access dead object")) throw error;
+    }
+  };
+  slots.set(id, dismiss);
+  if (durationMs !== null) handle = timer.set(dismiss, durationMs);
+  return dismiss;
 }
 
 export function showSpeedToast(doc: ToastDocument, speed: number, timer: ToastTimer = DEFAULT_TIMER, durationMs = 900): void {
@@ -79,5 +86,6 @@ export function showSpeedToast(doc: ToastDocument, speed: number, timer: ToastTi
 }
 
 export function removeSpeedToast(doc: ToastDocument): void {
+  dismissals.get(doc)?.get(SPEED_TOAST_ID)?.();
   doc.getElementById(SPEED_TOAST_ID)?.remove();
 }

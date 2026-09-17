@@ -86,6 +86,7 @@ import {
 import { findOptionsButton, hasPlayer, isOptionsPanelOpen } from './ui/player-options';
 import { createPlayerExpanded } from './read-aloud/player-expanded';
 import { removeSpeedToast, showSpeedToast, showToast, SPEED_TOAST_ID } from './ui/speed-toast';
+import { createVoiceNotices } from './ui/voice-notice';
 import { browserVoices, createSamplePlayer, defaultVoiceRows, groupVoicesByTier, languageNameOf, listBrowserVoices, startingSpeed, statusLine } from './ui/voice-browser-rows';
 import { silentWav } from './core/silence';
 import { withTimeout } from './core/timeout';
@@ -168,6 +169,7 @@ let pauses: Pauses | null = null;
 /** How loud Read Aloud plays, for every voice (read-aloud/volume.ts, issue #62), and the pref observer that moves every open chain. */
 let volumeControl: VolumeControl | null = null;
 let voiceSwitcher: VoiceSwitcher | null = null;
+let voiceNotices: ReturnType<typeof createVoiceNotices> | null = null;
 let playerVoiceList: ReturnType<typeof createPlayerVoiceList> | null = null;
 /** A voice list landing on the voice already playing keeps the controller (read-aloud/unchanged-voice.ts, issue #75). */
 let unchangedVoice: UnchangedVoice | null = null;
@@ -1988,6 +1990,12 @@ function stopVolume(): void {
 
 function startVoiceSwitcher(): void {
   voiceSwitcher?.dispose();
+  voiceNotices?.dispose();
+  voiceNotices = createVoiceNotices({
+    document: toastDoc,
+    message: (kind, voice) => kind === 'preparing' ? t('ztts-voice-preparing', { voice })
+      : kind === 'failed' ? t('ztts-voice-failed', { voice }) : t('ztts-voice-unavailable'),
+  });
   playerVoiceList?.dispose();
   playerVoiceList = createPlayerVoiceList({
     exportFunction: (fn, target) => Components.utils.exportFunction(fn, target),
@@ -2003,14 +2011,7 @@ function startVoiceSwitcher(): void {
     isDead: value => Components.utils.isDeadWrapper(value),
     error: error => Zotero.logError(error),
     debug: message => Zotero.debug(`[zotero-tts] ${message}`),
-    notice: (reader, kind, voice) => {
-      const doc = toastDoc(reader);
-      if (!doc) return;
-      const message = kind === 'preparing' ? t('ztts-voice-preparing', { voice })
-        : kind === 'selected' ? t('ztts-voice-selected', { voice })
-          : kind === 'failed' ? t('ztts-voice-failed', { voice }) : t('ztts-voice-unavailable');
-      showToast(doc, message, undefined, ANNOUNCEMENT_TOAST_MS);
-    },
+    notice: (reader, kind, voice) => voiceNotices?.notice(reader, kind, voice),
   });
   for (const reader of Zotero.Reader._readers ?? []) voiceSwitcher.attach(reader);
 }
@@ -2248,6 +2249,8 @@ async function shutdown(reason?: number): Promise<void> {
   stopReadAloudShortcuts();
   voiceSwitcher?.dispose();
   voiceSwitcher = null;
+  voiceNotices?.dispose();
+  voiceNotices = null;
   playerVoiceList?.dispose();
   playerVoiceList = null;
   stopPlayerExpanded();

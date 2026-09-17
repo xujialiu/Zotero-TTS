@@ -76,6 +76,7 @@ opens a fixture ends with item 3.26's teardown ([playback](cases/playback.md)).
 - [A PDF's raw /Lang tag](cases/raw-lang-tag.md) — 3.12–3.14
 - [1d. Regional picks stay selected in PDF and EPUB (issue #91, beta6)](cases/regional-picks.md)
 - [4a. Previous and next voice (issue #95)](cases/voice-switch.md)
+- [4c. Voice-switch notice lifetime (issue #119)](cases/voice-notice.md)
 
 ### Reading
 

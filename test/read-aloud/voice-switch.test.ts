@@ -88,6 +88,60 @@ function setup(timings = true) {
 beforeEach(() => vi.useFakeTimers());
 afterEach(() => { for (const dispose of listCleanup.splice(0)) dispose(); vi.useRealTimers(); });
 describe('prepared native voice handoff', () => {
+  it('keeps a paused sentence-fallback notice until the new sentence actually starts', async () => {
+    const f = setup(false); f.manager.pause(); f.switcher.step(f.reader, 1);
+    f.fetched.resolve({ duration: 4 }); await vi.advanceTimersByTimeAsync(6_000);
+    expect(f.notice).toHaveBeenLastCalledWith(f.reader, 'preparing', 'B');
+    f.manager.play(); await vi.advanceTimersByTimeAsync(0);
+    expect(f.plays.map(p => p.id)).toEqual(['a']);
+    expect(f.notice).toHaveBeenLastCalledWith(f.reader, 'preparing', 'B');
+    f.old._position = 1; f.old._speakInternal();
+    expect(f.notice).toHaveBeenLastCalledWith(f.reader, 'preparing', 'B');
+    await vi.advanceTimersByTimeAsync(0);
+    expect(f.notice).toHaveBeenLastCalledWith(f.reader, 'selected', 'B');
+    f.switcher.dispose();
+  });
+  it('keeps the latest notice when a replaced voice starts after controller adoption', async () => {
+    const f = setup(); f.switcher.step(f.reader, 1);
+    f.fetched.resolve({ duration: 4 }); await vi.advanceTimersByTimeAsync(200);
+    f.old._sourceNode.onended!();
+    f.switcher.step(f.reader, 1);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(f.notice).toHaveBeenLastCalledWith(f.reader, 'preparing', 'C');
+    f.switcher.dispose();
+  });
+  it('clears the notice when stopped between adoption and playback', async () => {
+    const f = setup(); f.switcher.step(f.reader, 1);
+    f.fetched.resolve({ duration: 4 }); await vi.advanceTimersByTimeAsync(200);
+    f.old._sourceNode.onended!();
+    f.manager.active = false; f.manager._controller.destroy();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(f.notice).toHaveBeenLastCalledWith(f.reader, 'cancelled', 'B');
+    expect(f.plays).toEqual([]); f.switcher.dispose();
+  });
+  it('dismisses paused preparation only when Play can use the new voice immediately', async () => {
+    const f = setup(); f.manager.pause(); f.switcher.step(f.reader, 1);
+    await vi.advanceTimersByTimeAsync(6_000);
+    expect(f.notice).toHaveBeenLastCalledWith(f.reader, 'preparing', 'B');
+    f.fetched.resolve({ duration: 4 }); await vi.advanceTimersByTimeAsync(50);
+    expect(f.plays).toEqual([]);
+    expect(f.notice).toHaveBeenLastCalledWith(f.reader, 'ready', 'B');
+    f.manager.play(); await vi.advanceTimersByTimeAsync(0);
+    expect(f.plays.map(p => p.id)).toEqual(['b']); f.switcher.dispose();
+  });
+  it('keeps the preparing notice through controller adoption until target playback starts', async () => {
+    const f = setup(); f.switcher.step(f.reader, 1);
+    await vi.advanceTimersByTimeAsync(6_000);
+    expect(f.notice).toHaveBeenLastCalledWith(f.reader, 'preparing', 'B');
+    f.fetched.resolve({ duration: 4 }); await vi.advanceTimersByTimeAsync(0);
+    f.old._sourceNode.onended!();
+    expect(f.plays).toEqual([]);
+    expect(f.notice).toHaveBeenLastCalledWith(f.reader, 'preparing', 'B');
+    await vi.advanceTimersByTimeAsync(0);
+    expect(f.plays.map(p => p.id)).toEqual(['b']);
+    expect(f.notice).toHaveBeenLastCalledWith(f.reader, 'selected', 'B');
+    f.switcher.dispose();
+  });
   it.each([-1, 1] as const)('keeps regional selection and wrap inside US voices (%s)', direction => {
     const f = setup(); f.manager.paused = true;
     f.voices[0].language = 'en-US'; f.voices[1].language = 'en'; f.voices[2].language = 'en-US';

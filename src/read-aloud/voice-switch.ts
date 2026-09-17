@@ -2,7 +2,7 @@ import { adjacentVoice, playerVoices, inspectWordHandoff, pausedWordHandoff } fr
 import { withTimeout } from '../core/timeout';
 import type { AnyFn } from './proto-patches';
 
-export type VoiceNotice = 'preparing' | 'selected' | 'failed' | 'unavailable';
+export type VoiceNotice = 'preparing' | 'ready' | 'cancelled' | 'selected' | 'failed' | 'unavailable';
 export interface VoiceSwitcherDeps {
   exportFunction?(fn: AnyFn, target: object): AnyFn;
   waiveXrays?<T>(value: T): T;
@@ -15,12 +15,12 @@ export interface VoiceSwitcherDeps {
 type Boundary = { kind: 'word' | 'sentence'; index: number; offset: number; charStart: number; from: string; to: string };
 type AudioReady = { index: number; elapsedMs: number; playingIndex: number; progress: number; oldTimings: number; newTimings: number };
 type Report = { controlsAttached: boolean; pending: string | null; stage: string; prepared: number[]; last: Boundary | null;
-  wordDecision: string | null; audioReady: AudioReady[] };
+  wordDecision: string | null; audioReady: AudioReady[]; notice?: VoiceNotice };
 type Pending = {
   reader: any; manager: any; old: any; target: any; segments: any; catalog: any; prepared: any;
   originalVoice: string; rate: number; selection: () => void; ready: Set<number>;
   loading: boolean; missed: number; started: number; undo: (() => void)[];
-  abort?: AbortController; deadline: number; resumePending?: boolean; sentenceOnlyIndex?: number;
+  abort?: AbortController; deadline: number; resumePending?: boolean; sentenceOnlyIndex?: number; noticeReady?: boolean;
   timer?: ReturnType<typeof setTimeout>; disarm?: () => void; armedNode?: any;
 };
 export interface VoiceSwitcher {
@@ -48,6 +48,7 @@ const HANDOFF_TIMEOUT = 120_000;
  */
 export function createVoiceSwitcher(deps: VoiceSwitcherDeps): VoiceSwitcher {
   const pending = new Map<any, Pending>();
+  const starting = new Map<unknown, () => void>();
   const reports = new WeakMap<object, Report>();
   const attached = new Map<any, { manager: any; undo: (() => void)[] }>();
   const previewing = new Set<unknown>();
@@ -58,6 +59,7 @@ export function createVoiceSwitcher(deps: VoiceSwitcherDeps): VoiceSwitcher {
   const managerOf = (reader: any) => waive(reader?._internalReader?._readAloudManager);
   function report(p: Pending): Report { return reports.get(p.reader)!; }
   function notice(reader: unknown, kind: VoiceNotice, label: string) {
+    if (reader && typeof reader === 'object' && reports.has(reader)) reports.get(reader)!.notice = kind;
     try { deps.notice(reader, kind, label); } catch (e) { deps.error(e); }
   }
   const label = (voice: any) => String(voice?.label ?? voice?.id ?? '');
@@ -134,9 +136,11 @@ export function createVoiceSwitcher(deps: VoiceSwitcherDeps): VoiceSwitcher {
   }
 
   function detach(reader: unknown) {
+    starting.get(reader)?.();
     const p = pending.get(reader); if (p) cancel(p);
     const entry = attached.get(reader);
     if (!entry) return;
+    notice(reader, 'cancelled', '');
     for (const undo of entry.undo.reverse()) { try { undo(); } catch (e) { deps.error(e); } }
     attached.delete(reader);
     if (reader && typeof reader === 'object' && reports.has(reader)) reports.get(reader)!.controlsAttached = false;
@@ -169,6 +173,7 @@ export function createVoiceSwitcher(deps: VoiceSwitcherDeps): VoiceSwitcher {
   function cancel(p: Pending) {
     if (pending.get(p.reader) !== p) return;
     report(p).stage = 'cancelled'; cleanup(p);
+    notice(p.reader, 'cancelled', label(p.target));
   }
   function fail(p: Pending, error: unknown) {
     if (pending.get(p.reader) !== p) return;
@@ -189,6 +194,19 @@ export function createVoiceSwitcher(deps: VoiceSwitcherDeps): VoiceSwitcher {
     const last: Boundary = { kind, index, offset, charStart, from: p.originalVoice, to: String(p.target.id) };
     cleanup(p, true);
     let restoreFactory: (() => void) | undefined, restorePlay: (() => void) | undefined;
+    let restoreDestroy: (() => void) | undefined, timer: ReturnType<typeof setTimeout> | undefined;
+    let sourceStarted = false;
+    const finish = (result: 'selected' | 'cancelled' | 'failed') => {
+      if (starting.get(p.reader) !== cancelStart) return;
+      starting.delete(p.reader);
+      if (timer !== undefined) clearTimeout(timer);
+      restorePlay?.(); restorePlay = undefined;
+      restoreDestroy?.(); restoreDestroy = undefined;
+      if (result !== 'selected') report(p).stage = result;
+      notice(p.reader, result, label(p.target));
+    };
+    const cancelStart = () => finish('cancelled');
+    starting.set(p.reader, cancelStart);
     try {
       // Native _createController wires its own listeners and copies pause/speed.
       // Its first _speakInternal sees the already decoded buffer in the native cache.
@@ -197,20 +215,43 @@ export function createVoiceSwitcher(deps: VoiceSwitcherDeps): VoiceSwitcher {
       p.manager._activeTimestampIndex = null;
       const play = prepared._playAudioBuffer;
       restorePlay = shadow(prepared, '_playAudioBuffer', function (this: any, ...args: any[]) {
-        restorePlay?.(); restorePlay = undefined;
         if (prepared._position === index && prepared._segments === p.segments) args[1] = offset;
-        return Reflect.apply(play, this, args);
+        try {
+          const result = Reflect.apply(play, this, args);
+          restorePlay?.(); restorePlay = undefined;
+          // Native _playAudioBuffer calls source.start synchronously. Adoption
+          // alone is earlier than playback because _speakInternal awaits audio.
+          sourceStarted = true;
+          if (prepared._audioContext?.state === 'running') finish('selected');
+          return result;
+        } catch (error) { finish('failed'); deps.error(error); throw error; }
+      });
+      const destroy = prepared.destroy;
+      restoreDestroy = shadow(prepared, 'destroy', function (this: any, ...args: any[]) {
+        cancelStart(); return Reflect.apply(destroy, this, args);
       });
       restoreFactory = shadow(p.target, 'getController', () => prepared);
       select(p.selection);
       if (p.manager._controller !== prepared) throw new Error('Zotero-TTS: prepared voice controller was not adopted');
       report(p).stage = 'committed'; report(p).last = last;
       deps.debug?.(`voice handoff ${kind}: ${last.from} -> ${last.to}, segment ${index}, char ${charStart}, offset ${offset}`);
-      notice(p.reader, 'selected', label(p.target));
+      const checkStart = () => {
+        if (starting.get(p.reader) !== cancelStart) return;
+        if (deps.isDead?.(p.manager) || deps.isDead?.(prepared) || !p.manager.active
+          || p.manager._controller !== prepared || prepared._destroyed) { cancelStart(); return; }
+        if (sourceStarted && prepared._isPlaying && prepared._audioContext?.state === 'running') {
+          finish('selected'); return;
+        }
+        if (Date.now() > p.deadline) {
+          finish('failed'); deps.error(new Error('Zotero-TTS: the new voice did not start')); return;
+        }
+        timer = setTimeout(checkStart, 25);
+      };
+      checkStart();
     } catch (e) {
-      restorePlay?.();
+      finish('failed');
       if (p.manager._controller !== prepared) prepared.destroy();
-      report(p).stage = 'failed'; deps.error(e); notice(p.reader, 'failed', label(p.target));
+      report(p).stage = 'failed'; deps.error(e);
     } finally { restoreFactory?.(); }
   }
 
@@ -270,15 +311,30 @@ export function createVoiceSwitcher(deps: VoiceSwitcherDeps): VoiceSwitcher {
     return true;
   }
 
+  function pausedBoundary(p: Pending) {
+    const index = Number(p.old._position);
+    if (!valid(p) || !p.manager.paused || !p.ready.has(index)
+      || p.old._currentIndex !== index) return null;
+    const times = p.old._currentTimestamps;
+    const progress = Number(p.old._currentPlaybackTime);
+    return pausedWordHandoff(String(p.segments[index]?.text ?? ''), times,
+      p.prepared._segmentTimestamps.get(index), progress,
+      Number(p.old._currentBuffer?.duration), Number(p.prepared._audioBuffers.get(index)?.duration));
+  }
+
+  function updatePausedNotice(p: Pending) {
+    if (!valid(p) || !p.manager.paused) return;
+    const ready = !!pausedBoundary(p);
+    if (ready === !!p.noticeReady) return;
+    p.noticeReady = ready;
+    notice(p.reader, ready ? 'ready' : 'preparing', label(p.target));
+  }
+
   function resumePrepared(p: Pending) {
     const index = Number(p.old._position);
     if (!valid(p) || !p.manager.paused || !p.ready.has(index)
-      || p.old._currentIndex !== index || p.prepared._audioContext?.state !== 'running') return;
-    const times = p.old._currentTimestamps;
-    const progress = Number(p.old._currentPlaybackTime);
-    const boundary = pausedWordHandoff(String(p.segments[index]?.text ?? ''), times,
-      p.prepared._segmentTimestamps.get(index), progress,
-      Number(p.old._currentBuffer?.duration), Number(p.prepared._audioBuffers.get(index)?.duration));
+      || p.prepared._audioContext?.state !== 'running') return;
+    const boundary = pausedBoundary(p);
     // Never jump over an unaligned word to reach a later usable cut.
     if (!boundary) { p.sentenceOnlyIndex = index; return; }
     report(p).wordDecision = 'paused-word-boundary';
@@ -315,6 +371,7 @@ export function createVoiceSwitcher(deps: VoiceSwitcherDeps): VoiceSwitcher {
       // Audio is available now: schedule the first safe word boundary without
       // waiting for the next polling tick (or another sentence request).
       armWord(p);
+      updatePausedNotice(p);
     } catch (e) { fail(p, e); }
     finally { p.loading = false; }
   }
@@ -322,6 +379,7 @@ export function createVoiceSwitcher(deps: VoiceSwitcherDeps): VoiceSwitcher {
   function poll(p: Pending) {
     try {
       if (!valid(p)) { cancel(p); return; }
+      updatePausedNotice(p);
       if (p.manager.paused) p.deadline = Date.now() + HANDOFF_TIMEOUT;
       if (Date.now() > p.deadline) { fail(p, new Error('Zotero-TTS: no prepared handoff boundary was reached')); return; }
       if (!p.prepared) {
@@ -349,6 +407,7 @@ export function createVoiceSwitcher(deps: VoiceSwitcherDeps): VoiceSwitcher {
   }
 
   function begin(reader: any, target: any, selection: () => void): boolean {
+    starting.get(reader)?.();
     const manager = managerOf(reader);
     const existing = pending.get(reader);
     if (existing && existing.target.id === target.id) { existing.selection = selection; return true; }
@@ -376,7 +435,9 @@ export function createVoiceSwitcher(deps: VoiceSwitcherDeps): VoiceSwitcher {
       if (typeof pause === 'function') p.undo.push(shadow(manager, 'pause', function (this: unknown, ...args: unknown[]) {
         p.resumePending = false;
         p.disarm?.(); p.disarm = undefined; p.armedNode = undefined;
-        return Reflect.apply(pause, this, args);
+        const result = Reflect.apply(pause, this, args);
+        updatePausedNotice(p);
+        return result;
       }));
       if (typeof manager.play === 'function') {
         const play = manager.play;
@@ -460,6 +521,7 @@ export function createVoiceSwitcher(deps: VoiceSwitcherDeps): VoiceSwitcher {
     },
     inspect(reader) { return reader && typeof reader === 'object' ? reports.get(reader) ?? null : null; },
     dispose() {
+      for (const cancel of [...starting.values()]) cancel();
       for (const p of [...pending.values()]) cancel(p);
       for (const reader of [...attached.keys()]) detach(reader);
     },

@@ -551,7 +551,6 @@ ztts-help-key-voice =
 ztts-action-previous-voice = 上一个声音
 ztts-action-next-voice = 下一个声音
 ztts-voice-preparing = 正在准备声音：{ $voice }
-ztts-voice-selected = 声音：{ $voice }
 ztts-voice-failed = 无法切换到 { $voice }。已保留原来的声音，请重试。
 ztts-voice-unavailable = 声音列表尚未就绪。请打开播放器后重试。
 ztts-auto-scroll-toast-sentence = 自动滚动：每句居中

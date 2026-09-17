@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { removeSpeedToast, showSpeedToast, showToast, SPEED_TOAST_ID } from '../../src/ui/speed-toast';
+import { createVoiceNotices, VOICE_NOTICE_ID } from '../../src/ui/voice-notice';
 
 function fakeDoc() {
   const children: any[] = [];
@@ -97,6 +98,22 @@ describe('removeSpeedToast', () => {
 });
 
 describe('showToast', () => {
+  it('does not let an obsolete dismissal hide a newer notice', () => {
+    const doc = fakeDoc(), timer = fakeTimer();
+    const first = showToast(doc, 'B', timer, null);
+    showToast(doc, 'C', timer, null);
+    first();
+    expect(doc.children[0].textContent).toBe('C');
+    expect(doc.children[0].style.opacity).toBe('1');
+  });
+  it('keeps a persistent notice visible until its owner dismisses it', () => {
+    const doc = fakeDoc(), timer = fakeTimer();
+    const dismiss = showToast(doc, 'Preparing B', timer, null);
+    expect(timer.set).not.toHaveBeenCalled();
+    expect(doc.children[0].style.opacity).toBe('1');
+    dismiss();
+    expect(doc.children[0].style.opacity).toBe('0');
+  });
   it('does not throw when the reader closes before a voice notice hides', () => {
     const doc = fakeDoc(), timer = fakeTimer();
     showToast(doc, 'Preparing voice: B', timer);
@@ -122,5 +139,42 @@ describe('showToast', () => {
     showToast(doc, 'No saved position');
     expect(doc.children).toHaveLength(1);
     expect(doc.getElementById(SPEED_TOAST_ID).textContent).toBe('No saved position');
+  });
+});
+
+describe('voice notices', () => {
+  it('survives a long preparation and unrelated speed toasts, then disappears immediately', () => {
+    vi.useFakeTimers();
+    try {
+      const doc = fakeDoc(), reader = {};
+      const notices = createVoiceNotices({ document: () => doc, message: (kind, voice) => `${kind}: ${voice}` });
+      notices.notice(reader, 'preparing', 'B');
+      showSpeedToast(doc, 2);
+      vi.advanceTimersByTime(6000);
+      expect(doc.getElementById(VOICE_NOTICE_ID).style.opacity).toBe('1');
+      expect(doc.getElementById(SPEED_TOAST_ID).style.opacity).toBe('0');
+      notices.notice(reader, 'selected', 'B');
+      expect(doc.getElementById(VOICE_NOTICE_ID).style.opacity).toBe('0');
+      expect(doc.getElementById(VOICE_NOTICE_ID).style.transition).toBe('none');
+      notices.dispose();
+    } finally { vi.useRealTimers(); }
+  });
+  it.each(['ready', 'cancelled'] as const)('clears the original document on %s even after a tab switch', kind => {
+    const first = fakeDoc(), second = fakeDoc(), reader = {};
+    let doc = first;
+    const notices = createVoiceNotices({ document: () => doc, message: () => 'Preparing' });
+    notices.notice(reader, 'preparing', 'B'); doc = second;
+    notices.notice(reader, kind, 'B');
+    expect(first.children[0].style.opacity).toBe('0');
+    expect(second.children).toHaveLength(0);
+  });
+  it('replaces a pending notice with a timed failure and cleans up on disposal', () => {
+    const doc = fakeDoc(), reader = {};
+    const notices = createVoiceNotices({ document: () => doc, message: kind => kind });
+    notices.notice(reader, 'preparing', 'B');
+    notices.notice(reader, 'failed', 'B');
+    expect(doc.getElementById(VOICE_NOTICE_ID).textContent).toBe('failed');
+    notices.dispose();
+    expect(doc.getElementById(VOICE_NOTICE_ID).style.opacity).toBe('0');
   });
 });

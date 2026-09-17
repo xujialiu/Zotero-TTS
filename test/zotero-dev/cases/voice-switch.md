@@ -91,8 +91,8 @@ Do not count that guarded scenario as an ordinary supported Zotero state.
 8. **Cleanup.** No pending request, retained preparatory controller,
    injected method, fixture or changed preference remains. Preserve the
    exact verified XPI hash. Record errors and distinguish unrelated errors.
-   Close a fixture while its voice notice is visible, then wait beyond the
-   five-second hide timer. No dead-object console error may come from it.
+   Close a fixture while its persistent voice notice is visible. No notice
+   or dead-object console error may remain (see case 4c, issue #119).
 9. **Popup, locale and mode parity (#108).** In both PDF and EPUB fixtures,
    drive native `selectVoice`, `setLanguage` with `persist: true`, and
    `selectTier` through the plugin's attached methods. Include an actual

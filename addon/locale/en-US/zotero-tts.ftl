@@ -603,7 +603,6 @@ ztts-help-key-voice =
 ztts-action-previous-voice = Previous voice
 ztts-action-next-voice = Next voice
 ztts-voice-preparing = Preparing voice: { $voice }
-ztts-voice-selected = Voice: { $voice }
 ztts-voice-failed = Could not switch to { $voice }. The previous voice is kept. Please try again.
 ztts-voice-unavailable = The voice list is not ready. Open the player and try again.
 ztts-auto-scroll-toast-sentence = Auto-scroll: center each sentence

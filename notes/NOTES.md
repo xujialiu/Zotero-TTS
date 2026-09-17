@@ -534,3 +534,5 @@ then) and is in the git history before that day.
 - A saved layout equal to the retained default is not a user value (issue #118)
 
 - Floating controls verified with frame and scroll evidence (issue #118)
+
+- Voice notices follow paused readiness and native source start (issue #119)
