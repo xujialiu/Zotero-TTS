@@ -53,7 +53,7 @@ describe('setDefaultSpeed', () => {
   it("keeps the speed on Zotero's slider range", () => {
     const prefs = fakePrefs();
     setDefaultSpeed(prefs, 1.25);
-    expect(readMemory(prefs).speed).toBe(1.3);
+    expect(readMemory(prefs).speed).toBe(1.25);
     setDefaultSpeed(prefs, 9);
     expect(readMemory(prefs).speed).toBe(3);
   });

@@ -1,6 +1,6 @@
 return (async () => {
   const run = Zotero.ZoteroTTSRun, state = run.state, params = run.params || {};
-  const fixtureDir = String(params.fixturesDir || '').replace(/\//g, '\\');
+  const fixtureDir = Zotero.isWin ? String(params.fixturesDir || '').replace(/\//g, '\\') : String(params.fixturesDir || '');
   if (!fixtureDir) throw new Error('fixturesDir is missing');
   const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
   const wait = async (test, ms = 20000) => { const end = Date.now() + ms; while (Date.now() < end) { const value = test(); if (value) return value; await sleep(100); } return test(); };
