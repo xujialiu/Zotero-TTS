@@ -10,11 +10,11 @@ Items 4.1–4.3, 4.5 and 4.6 of the checklist, under their original numbers.
 
 ### 4.1
 
-1. **Speed keys.** Shift+C: `manager.speed` +0.5, the toast `N×` in the
+1. **Speed keys.** Shift+C: `manager.speed` +0.05, the toast `N×` in the
    visible document for ~900 ms, memory `speed`, every language entry's
    `speed`, the log `spread read-aloud speed N to M reader(s)`, the idle
    tab's manager takes the speed without persisting. Shift+X back;
-   Shift+Z to 1 (the toast reads `1.0×`: `toFixed(1)`); the popup's own
+   Shift+Z to 1 (the toast reads `1.0×`; increments retain two decimals); the popup's own
    `setSpeed(1.7, true)` restores.
 
 ### 4.2

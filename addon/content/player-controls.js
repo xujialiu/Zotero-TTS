@@ -166,7 +166,7 @@ function openPicker(button, key) {
 function openRange(button, key) {
   if (!createPopover(button, text(key))) return;
   const speed = key === 'speed';
-  popover.innerHTML = `<div class="range-title"><span>${escapeHTML(text(key))}</span><strong></strong></div><input type="range" min="${speed ? .5 : 0}" max="${speed ? 3 : 100}" step="${speed ? .5 : 1}"><div class="presets"></div>`;
+  popover.innerHTML = `<div class="range-title"><span>${escapeHTML(text(key))}</span><strong></strong></div><input type="range" min="${speed ? .5 : 0}" max="${speed ? 3 : 100}" step="${speed ? .05 : 1}"><div class="presets"></div>`;
   const input = popover.querySelector('input'); input.setAttribute('aria-label', text(key));
   const strong = popover.querySelector('strong'); const unit = speed ? '×' : '%';
   const update = value => { input.value = value; strong.textContent = value + unit; };

@@ -193,7 +193,7 @@ for every document you have listened to.
   Language and voice search boxes stay visible while choices scroll in all
   three layouts.
 - **Speed controls** in the player, Settings and keyboard shortcuts change
-  by 0.5×, within the existing 0.5×–3× range.
+  by 0.05×, within the existing 0.5×–3× range.
 - **A / M** shows whether this document is following the narration.
   Scrolling by hand shows **M**, even while the current sentence remains
   visible. A later visible sentence restores **A** when following resumes.

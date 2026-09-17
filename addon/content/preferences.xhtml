@@ -343,12 +343,12 @@
            (ui/bold-labels.ts). -->
       <checkbox id="ztts-favorites-only" data-l10n-id="ztts-favorites-only" data-l10n-attrs="bold"/>
     </hbox>
-    <!-- The Read Aloud popup's own speed slider (0.5–3.0 by 0.5): the samples
+    <!-- The Read Aloud speed slider (0.5–3.0 by 0.05): the samples
          play at this speed, and releasing it makes it the speed Read Aloud
          starts with (read-aloud/default-speed.ts) -->
     <hbox align="center">
       <label data-l10n-id="ztts-voices-speed" control="ztts-voices-speed"/>
-      <html:input type="range" id="ztts-voices-speed" min="0.5" max="3" step="0.5" style="width: 14em; margin: 0 6px;"/>
+      <html:input type="range" id="ztts-voices-speed" min="0.5" max="3" step="0.05" style="width: 14em; margin: 0 6px;"/>
       <html:span id="ztts-voices-speed-value" style="min-width: 3em;">1.0×</html:span>
     </hbox>
     <!-- How loud Read Aloud plays, for every voice in the player and the

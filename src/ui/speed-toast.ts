@@ -82,7 +82,7 @@ export function showToast(doc: ToastDocument, text: string, timer: ToastTimer = 
 }
 
 export function showSpeedToast(doc: ToastDocument, speed: number, timer: ToastTimer = DEFAULT_TIMER, durationMs = 900): void {
-  showToast(doc, `${speed.toFixed(1)}×`, timer, durationMs);
+  showToast(doc, `${speed.toFixed(2).replace(/0$/, '')}×`, timer, durationMs);
 }
 
 export function removeSpeedToast(doc: ToastDocument): void {

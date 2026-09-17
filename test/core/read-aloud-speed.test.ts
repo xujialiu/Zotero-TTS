@@ -27,11 +27,11 @@ const pref = READ_ALOUD_VOICES_PREF;
 const stored = (prefs: { store: Record<string, unknown> }) => JSON.parse(prefs.store[pref] as string);
 
 describe('nextSpeed', () => {
-  it('steps by 0.5 without silently rounding an existing speed to a new grid', () => {
-    expect(nextSpeed(1, 'speedUp')).toBe(1.5);
-    expect(nextSpeed(1.2, 'speedUp')).toBe(1.7);
-    expect(nextSpeed(1.7, 'speedDown')).toBe(1.2);
-    expect(nextSpeed(0.7, 'speedDown')).toBe(0.5);
+  it('steps by 0.05 without silently rounding an existing speed to a new grid', () => {
+    expect(nextSpeed(1, 'speedUp')).toBe(1.05);
+    expect(nextSpeed(1.2, 'speedUp')).toBe(1.25);
+    expect(nextSpeed(1.7, 'speedDown')).toBe(1.65);
+    expect(nextSpeed(0.7, 'speedDown')).toBe(0.65);
   });
 
   it('resets to 1', () => {
@@ -46,15 +46,15 @@ describe('nextSpeed', () => {
   });
 
   it('treats a missing or invalid current speed as 1', () => {
-    expect(nextSpeed(NaN, 'speedUp')).toBe(1.5);
-    expect(nextSpeed(0, 'speedDown')).toBe(0.5);
-    expect(nextSpeed(-5, 'speedUp')).toBe(1.5);
+    expect(nextSpeed(NaN, 'speedUp')).toBe(1.05);
+    expect(nextSpeed(0, 'speedDown')).toBe(0.95);
+    expect(nextSpeed(-5, 'speedUp')).toBe(1.05);
   });
 });
 
 describe('clampSpeed', () => {
-  it("keeps a value on Zotero's slider: one decimal, within its range", () => {
-    expect(clampSpeed(1.25)).toBe(1.3);
+  it("keeps a value on the slider: two decimals, within its range", () => {
+    expect(clampSpeed(1.25)).toBe(1.25);
     expect(clampSpeed(1.2000000000000002)).toBe(1.2);
     expect(clampSpeed(9)).toBe(SPEED_MAX);
     expect(clampSpeed(0)).toBe(SPEED_MIN);

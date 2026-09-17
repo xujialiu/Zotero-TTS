@@ -24,6 +24,7 @@ Before you start:
 
 Limits:
 
+- The owner corrected the speed step to 0.05x after these runs and waived testing. Scripts `05` and `06` retain their executed 0.5x assertions; update them to the current case before the next authorized verification. The recorded beta3 results do not verify the corrected step.
 - Natural audio progression and perceived listening quality are reported from the fixture AudioContext separately; a suspended clock at `0` is NOT TESTABLE for natural listening.
 - The first-frame traces are rectangle evidence sampled immediately and across resize settling; smooth motion itself is not claimed. A host resize ignored by Zotero is recorded as NOT TESTABLE.
 - Fixture setup uses a direct segment seed only to choose a middle starting point; every navigation assertion clicks the real floating button and records the resulting source position.

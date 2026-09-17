@@ -169,17 +169,17 @@ describe('handleKeyDown', () => {
     const { shortcuts, manager, reader, showToast, resolve } = setup();
     const event = keyEvent({ key: 'C', code: 'KeyC' });
     expect(shortcuts.handleKeyDown(event, resolve)).toBe(true);
-    expect(manager.setSpeed).toHaveBeenCalledWith(1.5, true);
+    expect(manager.setSpeed).toHaveBeenCalledWith(1.05, true);
     expect(event.preventDefault).toHaveBeenCalled();
     expect(event.stopPropagation).toHaveBeenCalled();
-    expect(showToast).toHaveBeenCalledWith(reader, 1.5);
+    expect(showToast).toHaveBeenCalledWith(reader, 1.05);
   });
 
   it("steps from the manager's live speed, not from the pref", () => {
     const { shortcuts, manager, resolve } = setup();
     manager.speed = 2;
     shortcuts.handleKeyDown(keyEvent({ key: 'X', code: 'KeyX' }), resolve);
-    expect(manager.setSpeed).toHaveBeenCalledWith(1.5, true);
+    expect(manager.setSpeed).toHaveBeenCalledWith(1.95, true);
   });
 
   it('resets to 1', () => {
@@ -193,8 +193,8 @@ describe('handleKeyDown', () => {
     const { shortcuts, manager, prefs, resolve } = setup();
     manager.selectedVoiceID = null;
     shortcuts.handleKeyDown(keyEvent({ key: 'C', code: 'KeyC' }), resolve);
-    expect(manager.setSpeed).toHaveBeenCalledWith(1.5, false);
-    expect(voicesPref(prefs)).toEqual({ en: { speed: 1.5 } });
+    expect(manager.setSpeed).toHaveBeenCalledWith(1.05, false);
+    expect(voicesPref(prefs)).toEqual({ en: { speed: 1.05 } });
   });
 
   // Zotero's persistence path (reader._setReadAloudVoice) re-syncs and
@@ -204,8 +204,8 @@ describe('handleKeyDown', () => {
     const { shortcuts, manager, prefs, resolve } = setup();
     manager.active = false;
     shortcuts.handleKeyDown(keyEvent({ key: 'C', code: 'KeyC' }), resolve);
-    expect(manager.setSpeed).toHaveBeenCalledWith(1.5, false);
-    expect(voicesPref(prefs)).toEqual({ en: { speed: 1.5 } });
+    expect(manager.setSpeed).toHaveBeenCalledWith(1.05, false);
+    expect(voicesPref(prefs)).toEqual({ en: { speed: 1.05 } });
   });
 
   // Until the manager has learned its language it has never been synced from
@@ -217,8 +217,8 @@ describe('handleKeyDown', () => {
     manager.speed = 1;
     prefs.set(READ_ALOUD_VOICES_PREF, JSON.stringify({ en: { speed: 1.5 } }));
     shortcuts.handleKeyDown(keyEvent({ key: 'C', code: 'KeyC' }), resolve);
-    expect(manager.setSpeed).toHaveBeenCalledWith(2, false);
-    expect(voicesPref(prefs)).toEqual({ en: { speed: 2 } });
+    expect(manager.setSpeed).toHaveBeenCalledWith(1.55, false);
+    expect(voicesPref(prefs)).toEqual({ en: { speed: 1.55 } });
   });
 
   // An idle manager on a tag no key resolves — an EPUB declaring en_US, a PDF
@@ -236,9 +236,9 @@ describe('handleKeyDown', () => {
     manager.speed = 1;
     prefs.set(READ_ALOUD_VOICES_PREF, JSON.stringify({ en: { speed: 1.7 } }));
     shortcuts.handleKeyDown(keyEvent({ key: 'C', code: 'KeyC' }), resolve);
-    expect(manager.setSpeed).toHaveBeenCalledWith(1.5, false);
+    expect(manager.setSpeed).toHaveBeenCalledWith(1.05, false);
     expect(voicesPref(prefs)).toEqual({ en: { speed: 1.7 } });
-    expect(rememberSpeed).toHaveBeenCalledWith(1.5);
+    expect(rememberSpeed).toHaveBeenCalledWith(1.05);
     expect(preferredLanguages).toHaveBeenCalled();
   });
 
@@ -248,16 +248,16 @@ describe('handleKeyDown', () => {
     const { shortcuts, prefs, rememberSpeed, showToast, reader, resolve } = setup({ getManager: () => null });
     expect(shortcuts.handleKeyDown(keyEvent({ key: 'C', code: 'KeyC' }), resolve)).toBe(true);
     expect(prefs.store[READ_ALOUD_VOICES_PREF]).toBeUndefined();
-    expect(rememberSpeed).toHaveBeenCalledWith(1.5);
-    expect(showToast).toHaveBeenCalledWith(reader, 1.5);
+    expect(rememberSpeed).toHaveBeenCalledWith(1.05);
+    expect(showToast).toHaveBeenCalledWith(reader, 1.05);
   });
 
   it('falls back to the pref alone when the reader has no manager', () => {
     const { shortcuts, prefs, reader, showToast, rememberSpeed, resolve } = setup({ getManager: () => null });
     prefs.set(READ_ALOUD_VOICES_PREF, JSON.stringify({ en: { speed: 1.5 } }));
     expect(shortcuts.handleKeyDown(keyEvent({ key: 'C', code: 'KeyC' }), resolve)).toBe(true);
-    expect(voicesPref(prefs)).toEqual({ en: { speed: 2 } });
-    expect(showToast).toHaveBeenCalledWith(reader, 2);
+    expect(voicesPref(prefs)).toEqual({ en: { speed: 1.55 } });
+    expect(showToast).toHaveBeenCalledWith(reader, 1.55);
     // The pref carried it: memory-sync's observer learns it from there
     expect(rememberSpeed).not.toHaveBeenCalled();
   });
@@ -271,7 +271,7 @@ describe('handleKeyDown', () => {
     expect(shortcuts.handleKeyDown(keyEvent({ key: 'C', code: 'KeyC' }), resolve)).toBe(true);
     // No entry to carry it: the memory gets the speed
     expect(prefs.store[READ_ALOUD_VOICES_PREF]).toBeUndefined();
-    expect(rememberSpeed).toHaveBeenCalledWith(1.5);
+    expect(rememberSpeed).toHaveBeenCalledWith(1.05);
     expect(log).toHaveBeenCalled();
   });
 
@@ -324,8 +324,8 @@ describe('handleKeyDown', () => {
     const event = keyEvent({ key: 'C', code: 'KeyC' });
     expect(shortcuts.handleKeyDown(event, resolve)).toBe(true);
     expect(log).toHaveBeenCalledWith(expect.any(Error));
-    expect(voicesPref(prefs)).toEqual({ en: { speed: 1.5 } });
-    expect(showToast).toHaveBeenCalledWith(expect.anything(), 1.5);
+    expect(voicesPref(prefs)).toEqual({ en: { speed: 1.05 } });
+    expect(showToast).toHaveBeenCalledWith(expect.anything(), 1.05);
   });
 
   it('re-reads the bindings on every key so a settings change applies immediately', () => {
@@ -1194,7 +1194,7 @@ describe('listen', () => {
     const target = fakeTarget();
     shortcuts.listen(target, resolve);
     target.listeners.keydown[0].fn(keyEvent({ key: 'C', code: 'KeyC' }));
-    expect(manager.setSpeed).toHaveBeenCalledWith(1.5, true);
+    expect(manager.setSpeed).toHaveBeenCalledWith(1.05, true);
   });
 
   it('unlisten removes exactly the listener it added', () => {

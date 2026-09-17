@@ -1,12 +1,12 @@
 import type { PrefsBackend } from './settings';
 
 /**
- * Plugin playback controls and shortcuts use 0.5x steps within Zotero's
+ * Plugin playback controls and shortcuts use 0.05x steps within Zotero's
  * 0.5x-3.0x range. Existing remembered speeds retain their precision.
  */
 export const SPEED_MIN = 0.5;
 export const SPEED_MAX = 3;
-export const SPEED_STEP = 0.5;
+export const SPEED_STEP = 0.05;
 export const SPEED_DEFAULT = 1;
 
 export type SpeedAction = 'speedReset' | 'speedDown' | 'speedUp';
@@ -21,10 +21,10 @@ export const SPEED_ACTIONS: readonly SpeedAction[] = ['speedReset', 'speedDown',
  */
 export const READ_ALOUD_VOICES_PREF = 'extensions.zotero.reader.readAloudVoices';
 
-/** Preserve remembered speeds to one decimal within the range; nonfinite values read as 1. */
+/** Preserve remembered speeds to two decimals within the range; nonfinite values read as 1. */
 export function clampSpeed(value: number): number {
   if (!Number.isFinite(value)) return SPEED_DEFAULT;
-  return Math.min(SPEED_MAX, Math.max(SPEED_MIN, Math.round(value * 10) / 10));
+  return Math.min(SPEED_MAX, Math.max(SPEED_MIN, Math.round(value * 100) / 100));
 }
 
 export function nextSpeed(current: number, action: SpeedAction): number {

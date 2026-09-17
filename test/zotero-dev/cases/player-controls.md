@@ -55,8 +55,8 @@ Do not start or resume owner playback.
   and active-segment change with matching granularity. From M, each returns to
   the spoken position and A; paused clicks retain paused transport. No sample
   voice/player or manual-position substitute may stand in for the command.
-- Player and Settings sliders have step 0.5; faster/slower keys add/subtract
-  0.5x with bounds 0.5x-3x. Existing remembered non-grid speeds are not silently
+- Player and Settings sliders have step 0.05; faster/slower keys add/subtract
+  0.05x with bounds 0.5x-3x. Existing remembered non-grid speeds are not silently
   rewritten. Speed reset keeps its old behavior. Verify manager, label and
   stored speed as applicable, then restore exact prior preferences.
 - At least one bounded playing check confirms no restart/change of selected
