@@ -1,33 +1,81 @@
 import type { VoiceNotice } from '../read-aloud/voice-switch';
+import type { PlaybackNotice } from '../read-aloud/playback-notice';
 import { showToast, type ToastDocument } from './speed-toast';
 
 export const VOICE_NOTICE_ID = 'ztts-voice-notice';
+export const PLAYBACK_NOTICE_ID = 'ztts-playback-notice';
 
-/** A switch owns its notice independently of short speed/status toasts. */
+type PendingVoice = { kind: 'preparing' | 'failed' | 'unavailable'; label: string };
+interface Notices {
+  voice: PendingVoice | null;
+  playback: PlaybackNotice;
+  shown: string;
+  dismiss?: () => void;
+  voiceTimer?: ReturnType<typeof setTimeout>;
+  playbackTimer?: ReturnType<typeof setTimeout>;
+}
+
+/** Voice switching takes priority over ordinary playback preparation. Both
+ * retain independent lifetimes, separate from short speed/status toasts. */
 export function createVoiceNotices(deps: {
   document(reader: unknown): ToastDocument | null;
   message(kind: VoiceNotice, voice: string): string;
+  playbackMessage?(kind: Exclude<PlaybackNotice, 'idle'>): string;
 }) {
-  const visible = new Map<unknown, () => void>();
+  const readers = new Map<unknown, Notices>();
+  function state(reader: unknown) {
+    let s = readers.get(reader);
+    if (!s) { s = { voice: null, playback: 'idle', shown: '' }; readers.set(reader, s); }
+    return s;
+  }
+  function render(reader: unknown, s: Notices) {
+    const text = s.voice ? deps.message(s.voice.kind, s.voice.label)
+      : s.playback !== 'idle' ? deps.playbackMessage?.(s.playback) : undefined;
+    const id = s.voice ? VOICE_NOTICE_ID : PLAYBACK_NOTICE_ID;
+    const shown = text ? `${id}:${text}` : '';
+    if (s.shown === shown) {
+      if (!s.voice && s.playback === 'idle') readers.delete(reader);
+      return;
+    }
+    s.dismiss?.(); s.dismiss = undefined; s.shown = '';
+    if (text) {
+      const doc = deps.document(reader);
+      if (!doc) return;
+      s.dismiss = showToast(doc, text, undefined, null, id);
+      const el = doc.getElementById(id);
+      el.style.bottom = '108px';
+      el.style.transition = 'none';
+      s.shown = shown;
+    }
+    if (!s.voice && s.playback === 'idle') readers.delete(reader);
+  }
   function clear(reader: unknown) {
-    visible.get(reader)?.();
-    visible.delete(reader);
+    const s = readers.get(reader);
+    if (!s) return;
+    clearTimeout(s.voiceTimer); clearTimeout(s.playbackTimer);
+    s.dismiss?.(); readers.delete(reader);
   }
   return {
     notice(reader: unknown, kind: VoiceNotice, voice: string) {
-      clear(reader);
-      if (kind === 'ready' || kind === 'selected' || kind === 'cancelled') return;
-      const doc = deps.document(reader);
-      if (!doc) return;
-      const dismiss = showToast(doc, deps.message(kind, voice), undefined,
-        kind === 'preparing' ? null : 5000, VOICE_NOTICE_ID);
-      const el = doc.getElementById(VOICE_NOTICE_ID);
-      el.style.bottom = '108px';
-      el.style.transition = 'none';
-      visible.set(reader, dismiss);
+      const s = state(reader);
+      clearTimeout(s.voiceTimer); s.voiceTimer = undefined;
+      s.voice = kind === 'preparing' || kind === 'failed' || kind === 'unavailable'
+        ? { kind, label: voice } : null;
+      if (s.voice && kind !== 'preparing') s.voiceTimer = setTimeout(() => {
+        s.voice = null; s.voiceTimer = undefined; render(reader, s);
+      }, 5000);
+      render(reader, s);
     },
-    dispose() {
-      for (const reader of visible.keys()) clear(reader);
+    playback(reader: unknown, kind: PlaybackNotice) {
+      const s = state(reader);
+      clearTimeout(s.playbackTimer); s.playbackTimer = undefined;
+      s.playback = kind;
+      if (kind === 'failed') s.playbackTimer = setTimeout(() => {
+        s.playback = 'idle'; s.playbackTimer = undefined; render(reader, s);
+      }, 5000);
+      render(reader, s);
     },
+    clear,
+    dispose() { for (const reader of readers.keys()) clear(reader); },
   };
 }

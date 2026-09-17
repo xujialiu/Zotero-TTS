@@ -178,3 +178,38 @@ describe('voice notices', () => {
     expect(doc.getElementById(VOICE_NOTICE_ID).style.opacity).toBe('0');
   });
 });
+
+describe('ordinary playback and voice-switch notice priority', () => {
+  it('keeps one switching notice while playback waits and then starts the old voice', () => {
+    const doc = fakeDoc(), reader = {};
+    const notices = createVoiceNotices({ document: () => doc,
+      message: (kind, voice) => `${kind}:${voice}`, playbackMessage: kind => kind });
+    notices.playback(reader, 'preparing');
+    expect(doc.getElementById('ztts-playback-notice').style.opacity).toBe('1');
+    notices.notice(reader, 'preparing', 'B');
+    expect(doc.getElementById('ztts-playback-notice').style.opacity).toBe('0');
+    expect(doc.getElementById(VOICE_NOTICE_ID).textContent).toBe('preparing:B');
+    notices.playback(reader, 'idle');
+    expect(doc.getElementById(VOICE_NOTICE_ID).style.opacity).toBe('1');
+    notices.notice(reader, 'selected', 'B');
+    expect(doc.getElementById(VOICE_NOTICE_ID).style.opacity).toBe('0');
+    notices.dispose();
+  });
+  it('restores an ongoing playback wait after a switch is cancelled and expires failures', () => {
+    vi.useFakeTimers();
+    try {
+      const doc = fakeDoc(), reader = {};
+      const notices = createVoiceNotices({ document: () => doc,
+        message: (kind, voice) => `${kind}:${voice}`, playbackMessage: kind => kind });
+      notices.notice(reader, 'preparing', 'B'); notices.playback(reader, 'preparing');
+      expect(doc.getElementById('ztts-playback-notice')).toBeNull();
+      notices.notice(reader, 'cancelled', 'B');
+      expect(doc.getElementById('ztts-playback-notice').style.opacity).toBe('1');
+      notices.playback(reader, 'failed');
+      expect(doc.getElementById('ztts-playback-notice').textContent).toBe('failed');
+      vi.advanceTimersByTime(5000);
+      expect(doc.getElementById('ztts-playback-notice').style.opacity).toBe('0');
+      notices.dispose(); expect(vi.getTimerCount()).toBe(0);
+    } finally { vi.useRealTimers(); }
+  });
+});

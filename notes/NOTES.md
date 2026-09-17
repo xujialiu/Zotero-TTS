@@ -539,3 +539,5 @@ then) and is in the git history before that day.
 
 - Voice notice source timing verified in both formats (issue #119)
 - Testing defaults to a taskbar-minimized window
+
+- Playback preparation ends at source start, not buffering completion (issue #120)

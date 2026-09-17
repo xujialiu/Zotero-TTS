@@ -241,6 +241,11 @@ doing:
   same sentence — or from the selection, if you made one while it was
   paused.
 
+- **Waiting for playback** shows “Preparing…” until audio starts, including
+  when resuming or moving to another sentence. Fast starts and configured
+  sentence pauses do not flash a notice. A voice-switching notice takes
+  priority while a new voice is being prepared.
+
 **`Shift+S` stops Read Aloud everywhere** — every tab's player closes at
 once, a short message says how many, and each tab keeps its place for the
 next time. While no player is open the key keeps its usual meaning.

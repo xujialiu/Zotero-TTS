@@ -604,3 +604,6 @@ ztts-player-previous-paragraph = 上一段
 ztts-player-previous-sentence = 上一句
 ztts-player-next-sentence = 下一句
 ztts-player-next-paragraph = 下一段
+
+ztts-playback-preparing = 正在准备…
+ztts-playback-failed = 无法准备音频，请重试播放。

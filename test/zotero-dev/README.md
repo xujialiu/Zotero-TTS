@@ -81,6 +81,7 @@ opens a fixture ends with item 3.26's teardown ([playback](cases/playback.md)).
 ### Reading
 
 - [Playback on a fixture](cases/playback.md) — 3.4, 3.26
+- [3l. Playback preparation notice (issue #120)](cases/playback-notice.md)
 - [Invisible text and empty audio](cases/silent-segments.md) — 3.6, 3.7
 - [Prefetch and cache](cases/prefetch-cache.md) — 3.8
 - [The reading guard](cases/reading-guard.md) — 3.9

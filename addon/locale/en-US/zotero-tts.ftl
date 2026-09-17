@@ -656,3 +656,6 @@ ztts-player-previous-paragraph = Skip to Previous Paragraph
 ztts-player-previous-sentence = Skip to Previous Sentence
 ztts-player-next-sentence = Skip to Next Sentence
 ztts-player-next-paragraph = Skip to Next Paragraph
+
+ztts-playback-preparing = Preparing…
+ztts-playback-failed = Unable to prepare audio. Try playing again.

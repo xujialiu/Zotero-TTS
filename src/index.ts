@@ -87,6 +87,7 @@ import { findOptionsButton, hasPlayer, isOptionsPanelOpen } from './ui/player-op
 import { createPlayerExpanded } from './read-aloud/player-expanded';
 import { removeSpeedToast, showSpeedToast, showToast, SPEED_TOAST_ID } from './ui/speed-toast';
 import { createVoiceNotices } from './ui/voice-notice';
+import { createPlaybackNotice } from './read-aloud/playback-notice';
 import { browserVoices, createSamplePlayer, defaultVoiceRows, groupVoicesByTier, languageNameOf, listBrowserVoices, startingSpeed, statusLine } from './ui/voice-browser-rows';
 import { silentWav } from './core/silence';
 import { withTimeout } from './core/timeout';
@@ -170,6 +171,7 @@ let pauses: Pauses | null = null;
 let volumeControl: VolumeControl | null = null;
 let voiceSwitcher: VoiceSwitcher | null = null;
 let voiceNotices: ReturnType<typeof createVoiceNotices> | null = null;
+let playbackNotice: ReturnType<typeof createPlaybackNotice> | null = null;
 let playerVoiceList: ReturnType<typeof createPlayerVoiceList> | null = null;
 /** A voice list landing on the voice already playing keeps the controller (read-aloud/unchanged-voice.ts, issue #75). */
 let unchangedVoice: UnchangedVoice | null = null;
@@ -493,6 +495,7 @@ function buildReaderInterface(reader: any, targetWindow: any, native: () => unkn
           unchangedVoice?.attach(reader);
           playerVoiceList?.attach(reader);
           voiceSwitcher?.attach(reader);
+          playbackNotice?.attach(reader);
           textSettings?.attach(reader);
         },
         // The list this reader is about to receive: the remembered voice is
@@ -720,6 +723,7 @@ function watchReader(reader: any): void {
   unchangedVoice?.attach(reader);
   playerVoiceList?.attach(reader);
   voiceSwitcher?.attach(reader);
+  playbackNotice?.attach(reader);
   textSettings?.attach(reader);
   const iframe = reader._iframeWindow;
   if (iframe) {
@@ -850,6 +854,7 @@ function hookTabClose(reader: any): void {
     const wrapper = function zttsTabCloseCapture(this: unknown) {
       tabCloseHooks.delete(tab);
       try { playerExpanded?.detach(reader); } catch (error) { Zotero.logError(error); }
+      try { playbackNotice?.detach(reader); voiceNotices?.clear(reader); } catch (error) { Zotero.logError(error); }
       try { voiceSwitcher?.detach(reader); } catch (error) { Zotero.logError(error); }
       try { followResumeGuard?.detach(reader); } catch (error) { Zotero.logError(error); }
       trace(`tab.onClose fired ${String(tabID)}`);
@@ -923,6 +928,7 @@ function hookPositionCapture(reader: any): void {
     const wrapper = function zttsUninitCapture(this: unknown, ...args: unknown[]) {
       positionCaptureHooks.delete(reader);
       try { playerExpanded?.detach(reader); } catch (error) { Zotero.logError(error); }
+      try { playbackNotice?.detach(reader); voiceNotices?.clear(reader); } catch (error) { Zotero.logError(error); }
       try { voiceSwitcher?.detach(reader); } catch (error) { Zotero.logError(error); }
       try { followResumeGuard?.detach(reader); } catch (error) { Zotero.logError(error); }
       trace(`reader.uninit fired item ${String(reader?.itemID)}`);
@@ -1993,6 +1999,7 @@ function startVoiceSwitcher(): void {
   voiceNotices?.dispose();
   voiceNotices = createVoiceNotices({
     document: toastDoc,
+    playbackMessage: kind => kind === 'preparing' ? t('ztts-playback-preparing') : t('ztts-playback-failed'),
     message: (kind, voice) => kind === 'preparing' ? t('ztts-voice-preparing', { voice })
       : kind === 'failed' ? t('ztts-voice-failed', { voice }) : t('ztts-voice-unavailable'),
   });
@@ -2014,6 +2021,18 @@ function startVoiceSwitcher(): void {
     notice: (reader, kind, voice) => voiceNotices?.notice(reader, kind, voice),
   });
   for (const reader of Zotero.Reader._readers ?? []) voiceSwitcher.attach(reader);
+}
+
+function startPlaybackNotice(): void {
+  playbackNotice?.dispose();
+  playbackNotice = createPlaybackNotice({
+    exportFunction: (fn, target) => Components.utils.exportFunction(fn, target),
+    waiveXrays: value => Components.utils.waiveXrays(value),
+    isDead: value => Components.utils.isDeadWrapper(value),
+    error: error => Zotero.logError(error),
+    notice: (reader, kind) => voiceNotices?.playback(reader, kind),
+  });
+  for (const reader of Zotero.Reader._readers ?? []) playbackNotice.attach(reader);
 }
 
 function startUnchangedVoice(): void {
@@ -2207,6 +2226,7 @@ async function startup({ id, version, rootURI }: StartupParams): Promise<void> {
       ['the voice kept through a list reload', startUnchangedVoice],
       ['speech text settings', startTextSettings],
       ['prepared voice switching', startVoiceSwitcher],
+      ['playback preparation notice', startPlaybackNotice],
       ['Read Aloud hook', startHijack],
       ['Read Aloud shortcuts', () => startReadAloudShortcuts(id)],
     ],
@@ -2247,6 +2267,8 @@ async function shutdown(reason?: number): Promise<void> {
   uninstallHijack?.();
   uninstallHijack = null;
   stopReadAloudShortcuts();
+  playbackNotice?.dispose();
+  playbackNotice = null;
   voiceSwitcher?.dispose();
   voiceSwitcher = null;
   voiceNotices?.dispose();
@@ -2497,6 +2519,7 @@ const diagnostics = {
    * "…" (blocks a and b)` debug line per join.
    */
   skippedLines: () => JSON.stringify((Zotero.Reader._readers ?? []).map((r: any) => skippedLines?.inspect(r) ?? null), null, 1),
+  playbackNotice: () => JSON.stringify({ feature: 'playback-preparation-notice', readers: (Zotero.Reader._readers ?? []).map((reader: any) => ({ itemID: reader.itemID, ...playbackNotice?.inspect(reader) })) }, null, 1),
   systemVoices: () => JSON.stringify((Zotero.Reader._readers ?? []).map((r: any) => systemVoiceHiding?.inspect(r) ?? null), null, 1),
   /**
    * One entry per provider in the player's first dropdown (issue #110,
