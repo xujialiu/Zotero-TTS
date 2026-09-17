@@ -465,8 +465,9 @@ before the issue is written.
   at once. What comes back is evidence — the issue, the fix and
   the commit stay in the main session.
 - **The tester may close the owner's player** (settled 2026-09-16): a
-  paused Read Aloud player left open blocks provider switches through
-  the reading guard; when a check needs the switch, the tester closes
+  paused Read Aloud player left open blocks changes affecting its voice
+  through the reading guard (issue #121); when a check needs such a
+  change, the tester closes
   the player itself with the popup toggle, notes the tab, says so in the
   report and never reopens it — the owner is not asked first. Mirrored
   in `agents/zotero-tester.md`.
@@ -664,7 +665,7 @@ src/read-aloud/     the Read Aloud integration: index (intercepts Zotero.Reader.
 src/ui/             prefs pane (prefs-pane, shortcut-rows, backup-rows, webdav-rows,
                     server-preset-rows, highlight-rows, shortcut-recorder, voice-browser-rows,
                     voice-list-switches: the two unbound checkboxes that edit the player's list,
-                    reading-guard: nothing edits that list while a tab reads, help-tips: the ?
+                    reading-guard: changes affecting current reading are refused, help-tips: the ?
                     icons' tooltips, opened at once), read-aloud-shortcuts, speed-toast,
                     zotero-highlight-menu: Zotero's own Highlight current greyed with a hint
 src/index.ts        bootstrap wiring; with core/settings.createZoteroPrefs and ui/prefs-pane the

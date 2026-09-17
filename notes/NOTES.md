@@ -544,3 +544,5 @@ then) and is in the git history before that day.
 - Playback notice timing verified with running and suspended output (issue #120)
 
 - Settings changes protect the affected reading sessions (issue #121)
+
+- Selective reading protection verified in Zotero (issue #121)

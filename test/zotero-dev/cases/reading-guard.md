@@ -41,3 +41,6 @@ restore atomicity, combined favorites changes, and a failed provider check
 that returns after a reading session starts. Live checks cover compartment
 access, native choices, real playback continuity, and the actual UI refusals.
 Subjective sound quality and moving highlight alignment remain human-only.
+
+Verified on 1.12.12-beta6 (candidate 163fc22): [observed values and
+limits](https://github.com/xujialiu/Zotero-TTS/issues/121#issuecomment-5713289694).

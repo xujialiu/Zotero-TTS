@@ -61,7 +61,7 @@ MEMORY.md wins and the main session brings this section back in line.
 - **One driver at a time.** Never run while another agent drives Zotero.
   A Read Aloud player the owner left open, even paused, is normal: it is
   never pressed or repositioned, and when a check needs it gone — the
-  reading guard refuses provider switches while any tab reads — you
+  reading guard refuses changes affecting that session (issue #121) — you
   close it yourself (settled 2026-09-16) with
   `reader._internalReader.toggleReadAloudPopup(false)`, after noting the
   tab and that it was paused, and you say so in the report; you never
@@ -276,7 +276,7 @@ in place of `kit`; nothing of a research run goes under
   Cloudflare Access service token in a transcript) — so name the prefs you
   read and map the secret ones to their length inside the script.
 - Read Aloud sessions belong to the user. A session that is `active`
-  (paused counts) blocks provider switches by design — that refusal is a
+  (paused counts) blocks changes affecting its voice by design — that refusal is a
   behavior to verify where a case says so. Where a check needs the
   switch, close the session yourself (settled 2026-09-16), only with
   `reader._internalReader.toggleReadAloudPopup(false)` — never a bare

@@ -44,8 +44,9 @@ top-bar default, also run [the player-controls case](player-controls.md).
 
 - Toggle a heart in the player; the shared favorite pref and an open voice
   browser update. Change it in Settings; the player updates. Restore the
-  list. With favorites-only active and a reading session open, editing
-  favorites is refused visibly rather than silently changing the catalog.
+  list. With favorites-only active, removing a voice used by any reading
+  session is refused visibly; changes to unrelated favorites succeed
+  without interrupting playback ([reading guard](reading-guard.md), #121).
 - Follow the [A/M state case](player-following.md) for PDF/EPUB status,
   document-local mode selection, manual navigation and explicit recovery.
 

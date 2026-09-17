@@ -16,10 +16,10 @@ the switch had been turned on again by hand, which re-seeded and put the
 profile's keys back into the shared file. The file's raw items are
 `{ key, value, ts, by }`; a crafted item is `by: "tester"`, `ts` a little
 ahead of `Date.now()` when it should come down, behind this machine's
-stamp (`webdav.syncState`) when it should not. Any open Read Aloud player
-in any tab, paused included, defers every provider-section item
-([synced settings wait while a tab reads](settings-sync-while-reading.md)),
-and item 6.17's recovery needs no player open anywhere. Item 3.19 covers
+stamp (`webdav.syncState`) when it should not. Changes affecting an open
+reading session, paused included, wait for that session to end; unrelated
+changes apply immediately (#121,
+[synced settings during reading](settings-sync-while-reading.md)). Item 3.19 covers
 the positions line beside the settings one.
 
 Items 3.19, 6.11–6.15 and 6.17–6.19 of the checklist, under their original
