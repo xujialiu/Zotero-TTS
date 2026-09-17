@@ -548,3 +548,5 @@ then) and is in the git history before that day.
 - Selective reading protection verified in Zotero (issue #121)
 
 - Player position and held speed keys share existing settings (issue #122)
+
+- Position and held speed shortcuts verified live (issue #122)

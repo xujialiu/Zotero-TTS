@@ -1,6 +1,6 @@
 # Player position shortcut (issue #122)
 
-[Checklist index](../README.md)
+[Checklist index](../README.md) · [Scripts](../scripts/player-position-key/README.md)
 
 Run the baseline first. Use disposable PDF and EPUB fixtures and muted
 output; preserve preferences and user-value flags, restore memory last.
