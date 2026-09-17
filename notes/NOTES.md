@@ -536,3 +536,6 @@ then) and is in the git history before that day.
 - Floating controls verified with frame and scroll evidence (issue #118)
 
 - Voice notices follow paused readiness and native source start (issue #119)
+
+- Voice notice source timing verified in both formats (issue #119)
+- Testing defaults to a taskbar-minimized window

@@ -118,6 +118,38 @@ MEMORY.md wins and the main session brings this section back in line.
 
 ## How to drive
 
+**Minimize by default** (2026-09-17): keep the whole Zotero window minimized
+to the taskbar (`windowState === 2` on the current desktop platform) while
+running checks that do not need a rendered or focused window. This means
+window minimization, not document zoom or an unselected reader tab. Snapshot
+the host's bounds, normal/maximized state and selected tab before changing
+them; a minimized host can still keep the fixture tab selected.
+
+Start bridge-only work minimized: startup/state diagnostics, preference reads,
+provider requests and other checks whose expected result is independent of
+rendering or input focus. Verify each check's actual completion; a successful
+bridge call alone does not prove that audio, rendering or a timer progressed.
+
+Restore the window only for the step that needs it: page initialization,
+geometry, physical scrolling, highlight placement, player/menu layout,
+animation frames, screenshots, hover/tooltips or trusted input. Focus it when
+the check needs OS focus or user activation. Wait for the selected fixture's
+iframe, pages and geometry to be ready; the host's `document.hidden` alone
+does not establish readiness. If a check unexpectedly stalls minimized,
+compare the same bounded check after restoring the window before calling it
+a product failure. Record any newly established foreground requirement.
+When minimized/hidden behavior is itself the subject, keep that test condition.
+
+Minimize again as soon as the foreground-dependent step finishes, including
+on failure. Restore changed bounds, normal/maximized geometry and selected
+tab during cleanup, then leave Zotero minimized even if the run began in the
+foreground; this is the owner's explicit exception to leaving window state
+as found. Avoid activating Zotero merely to collect results. Report which
+steps required a restored/focused window, why, and the final minimized state.
+Minimized state/transport evidence is not evidence of visible movement,
+rendered highlights or subjective listening quality. Topic-specific limits
+are in `zotero-tester-driving.md` sections 3-6 and the case being run.
+
 **Mute by default** (2026-09-12): unless a check requires audible output or
 a nonzero volume, set Zotero-TTS's `readAloud.volume` to `0` before any
 action that can start playback, including opening the player and playing
@@ -236,7 +268,8 @@ in place of `kit`; nothing of a research run goes under
   states, voice choices, and other temporary settings afterward. This permits
   the intended provider checks; it does not make accidental paid fallback a
   successful test.
-- Leave the user's Zotero as found. Read a pref before changing it and
+- Leave the user's Zotero as found, except for the final minimized window
+  state required under "Minimize by default". Read a pref before changing it and
   restore it in a `finally` of the same script. A bulk read is where a key
   leaks — a baseline snapshot of "all our prefs", a `zotero_search_prefs`,
   an inspect of the settings object (2026-09-05: a baseline dump put a live
