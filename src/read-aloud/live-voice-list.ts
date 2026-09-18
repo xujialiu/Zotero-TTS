@@ -7,7 +7,8 @@ interface LiveVoiceListDeps {
   /** A plain object in the reader compartment. Native loadVoices only needs
    * _options and its two completion callbacks (reader.js:82310-82322). */
   stage(reader: any): any;
-  tierOf(id: string): string | null;
+  /** Opens a reader of a plugin voice id's tier, once per walk and never per voice (provider-tiers.ts, issue #125). */
+  voiceTiers(): (id: string) => string | null;
   protectedVoices(reader: any): readonly string[];
   ended?(): void;
   exportFunction?(fn: AnyFn, target: object): AnyFn;
@@ -40,9 +41,11 @@ export function createLiveVoiceList(deps: LiveVoiceListDeps) {
         () => new Error('Zotero-TTS: voice list refresh timed out'));
       if (disposed || revision !== entry.revision || deps.isDead?.(m) || !isPlayerOpen(entry.reader)) return;
       const list = stage._allVoices;
+      // Once for the walk, never per voice (issue #125)
+      const tierOf = deps.voiceTiers();
       // Walk native arrays by index; their callbacks cannot enter the sandbox.
       for (let i = list.length - 1; i >= 0; i--) {
-        const voice = list[i], tier = deps.tierOf(String(voice.id));
+        const voice = list[i], tier = tierOf(String(voice.id));
         if (tier && voice.impl) voice.impl.tier = tier;
         else if (!tier && voice.tier === 'local') Reflect.apply(list.splice, list, [i, 1]);
       }

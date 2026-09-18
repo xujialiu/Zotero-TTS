@@ -1822,8 +1822,13 @@ function stopSystemVoiceHiding(): void {
 function startProviderTiers(): void {
   stopProviderTiers();
   providerTiers = createProviderTiers({
-    // Read per call: the engine and the server preset can change in the pane
-    tierOf: (id) => pluginVoiceTier(id, providerNaming(loadSettings(prefs)).localEngine),
+    // Read per walk, not per voice: the engine and the server preset can
+    // change in the pane, but loadSettings reads every preference, and the
+    // walk behind the dropdown runs on every scroll frame (issue #125)
+    voiceTiers: () => {
+      const { localEngine } = providerNaming(loadSettings(prefs));
+      return (id) => pluginVoiceTier(id, localEngine);
+    },
     labels: () => providerTierLabels(loadSettings(prefs)),
     // The plugin's default voice, the second step of the stranded rule
     defaultVoice: () => readMemory(prefs).voice?.id ?? null,
@@ -2057,7 +2062,10 @@ function startLiveVoiceList(): void {
   const lists = createLiveVoiceList({
     readers: () => Zotero.Reader._readers ?? [],
     stage: reader => Components.utils.cloneInto({}, reader._iframeWindow),
-    tierOf: id => pluginVoiceTier(id, providerNaming(loadSettings(prefs)).localEngine),
+    voiceTiers: () => {
+      const { localEngine } = providerNaming(loadSettings(prefs));
+      return id => pluginVoiceTier(id, localEngine);
+    },
     protectedVoices: readingImpact.protectedVoices,
     ended: () => settingsSyncTransport?.poke('player-close'),
     exportFunction: (fn, target) => Components.utils.exportFunction(fn, target),

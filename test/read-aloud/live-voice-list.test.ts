@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createLiveVoiceList } from '../../src/read-aloud/live-voice-list';
 
-function fixture() {
+function fixture(overrides: Partial<Parameters<typeof createLiveVoiceList>[0]> = {}) {
   const playing = { id: 'azure::ava', tier: 'azure', segmentGranularity: 'sentence' };
   let listed: any[] = [{ ...playing }, { id: 'local::bella', tier: 'local', impl: { tier: 'local' } }];
   const requests: Array<() => void> = [];
@@ -20,8 +20,8 @@ function fixture() {
   const reader = { _internalReader: { _readAloudManager: manager, _state: { readAloudState: { popupOpen: true } } } };
   const error = vi.fn(), ended = vi.fn();
   const lists = createLiveVoiceList({ readers: () => [reader], stage: () => ({}),
-    tierOf: (id: string) => id.startsWith('local::') ? 'kokoro' : id.startsWith('azure::') ? 'azure' : null,
-    protectedVoices: () => [manager._voice.id, manager.selectedVoiceID], error, ended });
+    voiceTiers: () => (id: string) => id.startsWith('local::') ? 'kokoro' : id.startsWith('azure::') ? 'azure' : null,
+    protectedVoices: () => [manager._voice.id, manager.selectedVoiceID], error, ended, ...overrides });
   lists.attach(reader);
   return { manager, reader, lists, playing, resolveVoice, requests, error, ended, setListed: (voices: any[]) => { listed = voices; } };
 }
@@ -38,6 +38,26 @@ describe('live player voice choices', () => {
     expect(f.manager._allVoices).toBe(catalog);
     expect(f.resolveVoice).not.toHaveBeenCalled();
     expect(f.lists.inspect(f.reader)?.applied).toBe(1);
+  });
+  it('reads the engine’s name once per refresh, not once per voice (#125)', async () => {
+    let walks = 0;
+    let lookups = 0;
+    const f = fixture({
+      voiceTiers: () => {
+        walks += 1;
+        return (id: string) => {
+          lookups += 1;
+          return id.startsWith('local::') ? 'kokoro' : null;
+        };
+      },
+    });
+    // The module keeps this array and appends the retained voice to it, so
+    // the expected count is held here rather than read back off the list.
+    const discovered = 30;
+    f.setListed(Array.from({ length: discovered }, (_, i) => ({ id: `local::v${i}`, tier: 'local', impl: { tier: 'local' } })));
+    const job = f.lists.refresh(); f.requests.shift()!(); await job;
+    expect(walks).toBe(1);
+    expect(lookups).toBe(discovered);
   });
   it('ignores stale results and results delivered after the player closes or the plugin stops', async () => {
     for (const end of ['invalidate', 'close', 'dispose']) {

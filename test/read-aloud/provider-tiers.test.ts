@@ -88,7 +88,7 @@ function makeReader(voices: unknown[], state: { selectedTier?: string | null; pe
 function make(overrides: Partial<ProviderTiersDeps> = {}) {
   const error = vi.fn();
   const tiers = createProviderTiers({
-    tierOf: (id) => pluginVoiceTier(id, 'Kokoro'),
+    voiceTiers: () => (id) => pluginVoiceTier(id, 'Kokoro'),
     labels: () => LABELS,
     defaultVoice: () => null,
     error,
@@ -239,7 +239,7 @@ describe('createProviderTiers: the re-tag in front of _resolveVoice', () => {
     let engine = 'Kokoro';
     const bella = remote('local::af_bella');
     const { manager, reader } = makeReader([bella]);
-    const { tiers } = make({ tierOf: (id) => pluginVoiceTier(id, engine) });
+    const { tiers } = make({ voiceTiers: () => (id) => pluginVoiceTier(id, engine) });
     tiers.attach(reader);
     manager._resolveVoice();
     manager._resolveVoice();
@@ -247,6 +247,35 @@ describe('createProviderTiers: the re-tag in front of _resolveVoice', () => {
     engine = 'Piper';
     manager._resolveVoice();
     expect(bella.tier).toBe('piper');
+  });
+
+  it('reads the engine’s name once per walk, not once per voice (#125)', () => {
+    const voices = Array.from({ length: 40 }, (_, i) => remote(`local::v${i}`));
+    const { manager, reader, React } = makeReader(voices);
+    let walks = 0;
+    let lookups = 0;
+    const { tiers } = make({
+      voiceTiers: () => {
+        walks += 1;
+        return (id) => {
+          lookups += 1;
+          return pluginVoiceTier(id, 'Kokoro');
+        };
+      },
+    });
+    tiers.attach(reader);
+
+    // The walk behind _resolveVoice: one read of the settings, one lookup per voice
+    manager._resolveVoice();
+    expect(walks).toBe(1);
+    expect(lookups).toBe(voices.length);
+
+    // And one render of the dropdown is one more walk, not one more per voice.
+    // With the player open Zotero re-renders it on every scroll frame, so a
+    // settings read per voice here is what made scrolling 13 fps (#125).
+    React.createElement(Select, tierProps(zoteroThree()));
+    expect(walks).toBe(2);
+    expect(lookups).toBe(voices.length * 2);
   });
 
   it('moves a selected tier no voice carries any more, before Zotero resolves', () => {

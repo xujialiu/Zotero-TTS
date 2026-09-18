@@ -174,8 +174,18 @@ export function strandedTarget(args: {
 }
 
 export interface ProviderTiersDeps {
-  /** The tier key of a plugin voice id (voice-catalog.ts pluginVoiceTier with the local engine's name), read afresh: the engine can change in the pane. Null for a Zotero voice id. */
-  tierOf(id: string): string | null;
+  /**
+   * Opens a reader of a plugin voice id's tier (voice-catalog.ts
+   * pluginVoiceTier with the local engine's name); null for a Zotero voice
+   * id. Called once at the start of each walk, not once per voice: the
+   * engine's name costs a whole settings read, the dropdown is rebuilt on
+   * every scroll frame while the player is open, and a read per voice over
+   * this library's 1,819 voices blocked the main thread 83 ms a frame —
+   * scrolling at 13 fps against 114 with the player closed (issue #125).
+   * The engine and the server preset can still change in the pane; the next
+   * walk opens a reader that sees them.
+   */
+  voiceTiers(): (id: string) => string | null;
   /** The entry names by tier key — every provider's, and Zotero's two for the stranded rule's order — in the app's language, read afresh. */
   labels(): Record<string, string>;
   /** The plugin's default voice id (readAloud.memory), null when none: the second step of the stranded rule. */
@@ -318,11 +328,13 @@ export function createProviderTiers(deps: ProviderTiersDeps): ProviderTiers {
     let changed = 0;
     const all = manager?._allVoices;
     const length = all && typeof all.length === 'number' ? all.length : 0;
+    // Once for the walk, never per voice (issue #125)
+    const tierOf = deps.voiceTiers();
     for (let i = 0; i < length; i++) {
       const v = all[i];
       if (!v || typeof v !== 'object') continue;
       const id = typeof v.id === 'string' ? v.id : '';
-      const own = id ? deps.tierOf(id) : null;
+      const own = id ? tierOf(id) : null;
       if (own && write) {
         const impl = v.impl;
         if (impl && typeof impl === 'object' && impl.tier !== own) {

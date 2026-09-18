@@ -559,3 +559,4 @@ then) and is in the git history before that day.
 - A/M sits between speed and volume (issue #124)
 - EPUB resize deliberately blurs the reading view (issue #124)
 - Centered mode and resize masking verified (issue #124)
+- Anything on the player's render path runs at frame rate (issue #125)
