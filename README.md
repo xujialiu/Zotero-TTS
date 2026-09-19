@@ -25,7 +25,7 @@ two more, each behind a switch of its own. It
 is built for the way its author reads —
 [why, and where it is going](docs/PHILOSOPHY.md).
 
-- 🗣️ **More voices in the Read Aloud player**, one entry per provider — Azure Speech, Cloudflare Workers AI, Speechify, Fish Audio, a [Kokoro-FastAPI](https://github.com/remsky/Kokoro-FastAPI) or a [Fish Speech](https://github.com/fishaudio/fish-speech) server on your machine, OpenAI, Xiaomi MiMo or any OpenAI-compatible server — with Zotero's own Standard and Premium beside them, each behind a switch. [→ Providers](#providers)
+- 🗣️ **More voices in the Read Aloud player**, one entry per provider — Fish Audio (free, and the one to start with), Azure Speech, Cloudflare Workers AI, Speechify, a [Kokoro-FastAPI](https://github.com/remsky/Kokoro-FastAPI) or a [Fish Speech](https://github.com/fishaudio/fish-speech) server on your machine, OpenAI, Xiaomi MiMo or any OpenAI-compatible server — with Zotero's own Standard and Premium beside them, each behind a switch. [→ Providers](#providers)
 - 🎛️ **A player in three layouts** — a bottom bar, a top bar below the toolbar, or a floating panel. Change layout without interrupting playback. [→ Player](#player)
 - 🔖 **Resume where you stopped** — close a document, open it again later, press `Shift+Space`, and Read Aloud starts at the sentence you left off on. [→ Resume where you stopped](#resume-where-you-stopped)
 - 📄 **The whole sentence on screen** — while a PDF is read, a sentence that runs past the bottom of the window, onto the next page or into the next column is scrolled into view instead of left cut, and `Shift+Enter` brings it back the same way. [→ Reading](#reading)
@@ -43,11 +43,24 @@ is built for the way its author reads —
 
 1. Download `zotero-tts.xpi` from the [latest release](https://github.com/xujialiu/Zotero-TTS/releases/latest) — in Firefox, right-click → *Save Link As…*
 2. **Tools → Plugins → ⚙ → Install Plugin From File…**, then restart Zotero.
-3. Enable a provider in **Edit → Settings → Zotero-TTS**, then pick it in the player's first dropdown — **Kokoro**, **Azure** — and one of its voices, `af_bella`, `Ava Multilingual`.
+3. Enable a provider in **Edit → Settings → Zotero-TTS** — **Fish Audio** first, if you are not sure ([why](#providers)) — then pick it in the player's first dropdown and one of its voices.
 
 <p align="center"><img src="assets/popup.png" width="640" alt="The Read Aloud player with a provider chosen in its first dropdown"></p>
 
 ## Providers
+
+**Start with Fish Audio.** Of everything below, it is the one to try first:
+
+- **Free.** Its free model reads as much as you like, with nothing to pay
+  and no balance to keep on the account.
+- **A key without a credit card.** Sign up at
+  [fish.audio](https://fish.audio), create the key, paste it in — no card,
+  no billing details.
+- **83 languages**, with word-by-word highlighting.
+- **The best-sounding voices here** — Fish Audio's own, the ones its users
+  published, and any you clone from a recording of your own.
+
+[→ Setting it up](tutorials/fish-audio.md)
 
 | Provider | What you need | Cost | Highlighting |
 |---|---|---|---|

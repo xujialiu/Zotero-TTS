@@ -1,4 +1,4 @@
-<!-- translated-from: README.md sha256:e0d22f1c9047 -->
+<!-- translated-from: README.md sha256:6fee2b25281c -->
 <p align="center"><img src="assets/icon.png" width="80" alt="Zotero-TTS 图标"></p>
 <h1 align="center">Zotero-TTS</h1>
 
@@ -22,7 +22,7 @@
 
 Zotero-TTS 为 Zotero 10 增加了语音和播放器：每个服务商都是播放器第一个下拉框里的一个条目，而 Zotero 自己的标准和高级是另外两个，各自都有自己的开关。它按作者自己的阅读习惯来做——[为什么这样做、往哪里去](docs/PHILOSOPHY.zh.md)。
 
-- 🗣️ **朗读播放器里更多语音**，每个服务商都是一个条目——Azure Speech、Cloudflare Workers AI、Speechify、Fish Audio、装在你机器上的 [Kokoro-FastAPI](https://github.com/remsky/Kokoro-FastAPI) 或 [Fish Speech](https://github.com/fishaudio/fish-speech) 服务器、OpenAI、Xiaomi MiMo 或任何 OpenAI 兼容服务器——旁边是 Zotero 自己的标准和高级，各自都有一个开关。[→ 服务商](#服务商)
+- 🗣️ **朗读播放器里更多语音**，每个服务商都是一个条目——Fish Audio（免费，最值得先试）、Azure Speech、Cloudflare Workers AI、Speechify、装在你机器上的 [Kokoro-FastAPI](https://github.com/remsky/Kokoro-FastAPI) 或 [Fish Speech](https://github.com/fishaudio/fish-speech) 服务器、OpenAI、Xiaomi MiMo 或任何 OpenAI 兼容服务器——旁边是 Zotero 自己的标准和高级，各自都有一个开关。[→ 服务商](#服务商)
 - 🎛️ **三种布局的播放器**——底部栏、工具栏下方的顶部栏，或悬浮面板。更改布局不会中断朗读。[→ 播放器](#播放器)
 - 🔖 **从上次停下的地方接着读**——关掉文档，过些天再打开，按 `Shift+Space`，朗读就从你上次停下的那一句开始。[→ 从上次停下的地方接着读](#从上次停下的地方接着读)
 - 📄 **整句都在屏幕内**——读 PDF 时，一句话如果超出窗口底部、延伸到下一页或下一栏，会被滚动到可见范围内，而不是被截断在外，`Shift+Enter` 也能用同样的方式把它带回来。[→ 朗读](#朗读)
@@ -40,11 +40,20 @@ Zotero-TTS 为 Zotero 10 增加了语音和播放器：每个服务商都是播�
 
 1. 到[最新发行版](https://github.com/xujialiu/Zotero-TTS/releases/latest)下载 `zotero-tts.xpi`——Firefox 里右键 → *链接另存为…*
 2. **工具 → 插件 → ⚙ → Install Plugin From File…**（插件窗口没有中文），然后重启 Zotero。
-3. 到**编辑 → 设置 → Zotero-TTS** 里启用一个服务商，再在播放器第一个下拉框里选它——**Kokoro**、**Azure**——以及它的一个语音，`af_bella`、`Ava Multilingual`。
+3. 到**编辑 → 设置 → Zotero-TTS** 里启用一个服务商——拿不准就先启用 **Fish Audio**（[为什么](#服务商)）——再在播放器第一个下拉框里选它和它的一个语音。
 
 <p align="center"><img src="assets/popup.png" width="640" alt="朗读播放器，第一个下拉框里选中了一个服务商"></p>
 
 ## 服务商
+
+**先从 Fish Audio 开始。**下面这些里，它是最值得先试的一个：
+
+- **免费。**它的免费模型想读多少读多少，不花钱，账户上也不用留余额。
+- **拿密钥不用信用卡。**到 [fish.audio](https://fish.audio) 注册、创建密钥、粘贴进来就行——不用信用卡，也不用填账单信息。
+- **83 种语言**，而且是逐词高亮。
+- **语音是这里面最好听的**——Fish Audio 官方的、它的用户发布的，还有你自己用录音克隆的。
+
+[→ 怎么设置](tutorials/fish-audio.zh.md)
 
 | 服务商 | 需要什么 | 费用 | 高亮 |
 |---|---|---|---|
