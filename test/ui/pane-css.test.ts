@@ -55,27 +55,31 @@ describe('the pane stylesheet and the platforms (issue #56)', () => {
   it('spaces a button after a button, and a ? after a button, on macOS', () => {
     const pair = buttonRules.find((r) => /button\s*\+\s*button/.test(r.selector));
     expect(pair?.declarations).toMatch(/margin-inline-start:\s*8px/);
-    const help = buttonRules.find((r) => /button\s*\+\s*label\.ztts-help/.test(r.selector));
+    const help = buttonRules.find((r) => /button[^+]*\+\s*label\.ztts-help/.test(r.selector));
     expect(help?.declarations).toMatch(/margin-inline-start:\s*5px/);
   });
 
-  it('scopes every button spacing rule by the macOS class on the pane root, under no at-rule', () => {
-    const spacing = buttonRules.filter((r) => /margin-inline/.test(r.declarations));
+  // The spacing rules are the adjacency ones — what a button leaves for
+  // what follows it — and those are the ones that would land on top of the
+  // toolkit's own margins anywhere but macOS
+  it('scopes every adjacency rule by the macOS class on the pane root', () => {
+    const spacing = buttonRules.filter((r) => /\+/.test(r.selector));
     expect(spacing.length).toBeGreaterThan(0);
     for (const rule of spacing) {
       expect(rule.selector, rule.selector).toMatch(/^\.ztts-pane\.ztts-mac\b/);
-      expect(rule.conditions, rule.selector).toEqual([]);
     }
   });
 
-  // A button rule that is not about that spacing is drawn the same on every
-  // platform — the eye beside a secret field is one — and must add no inline
-  // margin of its own, which elsewhere would land on top of the toolkit's
-  it('adds no inline margin outside the macOS rules', () => {
-    for (const rule of buttonRules.filter((r) => !/^\.ztts-pane\.ztts-mac\b/.test(r.selector))) {
-      expect(rule.declarations, rule.selector).not.toMatch(/margin-inline/);
-      expect(rule.conditions, rule.selector).toEqual([]);
-    }
+  // The eye inside a secret field is drawn the same on every platform, and
+  // the 5px a macOS row leaves after a XUL button is not for it: that rule
+  // would move the ? off the column on macOS alone
+  it('leaves the eye out of the macOS gap after a button', () => {
+    const help = buttonRules.find((r) => /button[^+]*\+\s*label\.ztts-help/.test(r.selector));
+    expect(help?.selector).toMatch(/button:not\(\.ztts-reveal\)/);
+  });
+
+  it('puts no button rule under an at-rule', () => {
+    for (const rule of buttonRules) expect(rule.conditions, rule.selector).toEqual([]);
   });
 
   it('uses no -moz- media feature anywhere: inert in a plugin sheet', () => {

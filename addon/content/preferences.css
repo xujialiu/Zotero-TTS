@@ -34,8 +34,16 @@
    the weight of presence of the ? beside it. The sizing is written out
    because Zotero's preferences.css styles every `button` in the window,
    whatever namespace it is in: a XUL button's minimum height would make
-   this one 25 px tall (issue #80). The gap before it is the field's own
-   end margin; the ? after it keeps its own. */
+   this one 25 px tall (issue #80).
+
+   It sits inside the field, at its right end, where Gecko drew its own —
+   an element cannot be a child of an input, so the button follows the
+   field in the markup and is pulled back over it: its own width, plus the
+   4 px it leaves before the border, plus the field's 5 px end margin. The
+   same 9 px is given back after it, so the whole control advances the row
+   by nothing and the ? stands exactly where it does on a row without one.
+   The field reserves the room in its end padding, so no dot ever runs
+   under the eye. */
 .ztts-pane button.ztts-reveal {
   box-sizing: border-box;
   width: 1.4em;
@@ -43,12 +51,21 @@
   height: 1.4em;
   min-height: 0;
   padding: 0;
-  margin: 0;
+  margin-inline: calc(-1.4em - 9px) 9px;
+  margin-block: 0;
   border: 0;
   appearance: none;
+  position: relative;
   background: var(--fill-secondary, currentColor);
   mask: url('icons/eye.svg') center / 1.15em no-repeat;
   opacity: 0.6;
+}
+
+/* The room the eye stands in, inside the box: the value stops before it,
+   as it did while Gecko drew the button into the field's own layout. The
+   field is border-box at 20em, so the column is unmoved. */
+.ztts-pane input.ztts-secret {
+  padding-inline-end: calc(1.4em + 8px);
 }
 
 .ztts-pane button.ztts-reveal[aria-pressed="true"] {
@@ -132,7 +149,7 @@ label.ztts-help[value]:hover {
   margin-inline-start: 8px;
 }
 
-.ztts-pane.ztts-mac hbox > button + label.ztts-help[value] {
+.ztts-pane.ztts-mac hbox > button:not(.ztts-reveal) + label.ztts-help[value] {
   margin-inline-start: 5px;
 }
 

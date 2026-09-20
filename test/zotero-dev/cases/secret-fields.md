@@ -53,11 +53,23 @@ changes a pref: the diagnostic reports lengths, never values.
    (item 1.6's commit point), and the field must come back
    `revealed: false` with the eye greyed — a value uncovered for editing
    never stays bare behind the lock (issue #19). Restore the switch.
+   Only a real click does this: `paint()` runs at the pane's construction,
+   inside the Enable / Disable / Test handlers and from a settings
+   restore's `onRestored`, and no observer watches a provider's `.enabled`
+   pref, so writing that pref by hand moves nothing (measured
+   2026-09-20). Pick a provider whose check costs nothing — the Local
+   engine runs no synthesis probe.
 
 ### 5
 
 5. **By eye, a human only.** The dots read as they did when Gecko drew
-   them; the eye sits between the field and the `?`, on the row's centre
-   line, and takes the window's text color in both themes; an empty Extra
+   them; the eye stands **inside** the field, at its right end, where
+   Gecko drew its own, on the row's centre line, and takes the window's
+   text color in both themes; no dot runs under it; the `?` after the
+   field stands where it does on a row that has no eye; an empty Extra
    headers field still shows its `Name: value; Name: value` hint; the
    eye is greyed, and does nothing, on a locked section.
+   `zotero_screenshot` with `target: "window"` and the settings window's
+   id captures the pane; `target: "element"` resolves its selector
+   against the main window only, so an element of the pane goes through
+   the kit's `drawSnapshot` script.
