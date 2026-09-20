@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <title>Zotero-TTS</title>
+  <defs>
+    <linearGradient id="headphones" x1="26" y1="18" x2="240" y2="233" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#d51f32"/>
+      <stop offset="1" stop-color="#cc1931"/>
+    </linearGradient>
+    <linearGradient id="wave" x1="92" y1="132" x2="173" y2="223" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#ffc000"/>
+      <stop offset="1" stop-color="#ffb500"/>
+    </linearGradient>
+  </defs>
+  <g fill="url(#headphones)" stroke="#af1727" stroke-width="1">
+    <path d="M26 146V125a107 107 0 0 1 214 0v21h-24v-21a83 83 0 0 0-166 0v21Z"/>
+    <rect x="19" y="130" width="68" height="103" rx="28"/>
+    <rect x="178" y="130" width="69" height="103" rx="28"/>
+  </g>
+  <g fill="url(#wave)" stroke="#cc8d00" stroke-width="1">
+    <rect x="92" y="156" width="24" height="52" rx="12"/>
+    <rect x="120" y="132" width="26" height="91" rx="13"/>
+    <rect x="149" y="156" width="24" height="52" rx="12"/>
+  </g>
+</svg>
