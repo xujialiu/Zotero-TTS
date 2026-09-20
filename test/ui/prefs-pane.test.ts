@@ -5,7 +5,7 @@ import { engineLabel, rankModelsForSpeech, registerPrefsPane, testConnection, un
 
 describe('engineLabel', () => {
   it('names the configured engine from the registry, falling back to the id', () => {
-    expect(engineLabel('kokoro')).toBe('Kokoro-FastAPI');
+    expect(engineLabel('kokoro')).toBe('Kokoro FastAPI');
     expect(engineLabel('piper')).toBe('piper');
   });
 });

@@ -34,9 +34,9 @@ const shown = (children: Child[]) =>
 describe('renderSectionHeading', () => {
   it('writes the name, then the site’s host in parentheses as a zotero-text-link that opens its address', () => {
     const heading = fakeHeading();
-    renderSectionHeading(fakeDoc(), heading, 'Kokoro-FastAPI', { host: 'github.com/remsky/Kokoro-FastAPI', url: 'https://github.com/remsky/Kokoro-FastAPI' });
+    renderSectionHeading(fakeDoc(), heading, 'Kokoro FastAPI', { host: 'github.com/remsky/Kokoro-FastAPI', url: 'https://github.com/remsky/Kokoro-FastAPI' });
     expect(shown(heading.children)).toEqual([
-      { text: 'Kokoro-FastAPI (' },
+      { text: 'Kokoro FastAPI (' },
       { tag: 'label', is: 'zotero-text-link', href: 'https://github.com/remsky/Kokoro-FastAPI', text: 'github.com/remsky/Kokoro-FastAPI' },
       { text: ')' },
     ]);

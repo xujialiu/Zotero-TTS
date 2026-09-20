@@ -1,6 +1,6 @@
 /**
  * A provider section's heading with its site in parentheses (issue #112):
- * `Kokoro-FastAPI (github.com/remsky/Kokoro-FastAPI)`, the host a
+ * `Kokoro FastAPI (github.com/remsky/Kokoro-FastAPI)`, the host a
  * zotero-text-link that opens the address in the browser. The sections
  * whose name is fixed carry the same shape in preferences.xhtml; this
  * renders the one heading the pane fills at load, the local engine's,

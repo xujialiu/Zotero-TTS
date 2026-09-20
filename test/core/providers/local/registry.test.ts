@@ -7,7 +7,7 @@ describe('local engine registry', () => {
   });
 
   it('looks an engine up by id', () => {
-    expect(getLocalEngine('kokoro')?.label).toBe('Kokoro-FastAPI');
+    expect(getLocalEngine('kokoro')?.label).toBe('Kokoro FastAPI');
   });
 
   it('returns undefined for an unknown engine rather than throwing', () => {

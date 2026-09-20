@@ -214,7 +214,7 @@ function createKokoroProvider(rawBaseURL: string, deps: LocalEngineDeps): TTSPro
 
 export const kokoroAdapter = {
   id: 'kokoro',
-  label: 'Kokoro-FastAPI',
+  label: 'Kokoro FastAPI',
   voiceName: 'Kokoro',
   site: { host: 'github.com/remsky/Kokoro-FastAPI', url: 'https://github.com/remsky/Kokoro-FastAPI' },
   defaultBaseURL: 'http://localhost:8880',
