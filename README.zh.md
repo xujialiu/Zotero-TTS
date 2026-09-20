@@ -1,4 +1,4 @@
-<!-- translated-from: README.md sha256:6fee2b25281c -->
+<!-- translated-from: README.md sha256:e01a089a03e0 -->
 <p align="center"><img src="assets/icon.png" width="80" alt="Zotero-TTS 图标"></p>
 <h1 align="center">Zotero-TTS</h1>
 
@@ -81,7 +81,8 @@ Zotero-TTS 为 Zotero 10 增加了语音和播放器：每个服务商都是播�
 - **Zotero 自己的标准和高级**在 **Zotero** 这一节里各有一个开关，一开始都是开着的。关掉一档，它就从播放器第一个下拉框、语音浏览器和语言列表里消失；Zotero 记住的语音不会丢，重新打开就回来。**启用**会检查已登录，且 Zotero 在这一档列出了语音；**测试连接**会报告语音和剩余额度。
 - **测试连接**只探测，不改变任何开关。
 - 服务商开着时，这一节的字段是锁住的——要改先按**停用**。
-- API 密钥、网关请求头和 WebDAV 密码都是掩码显示的。它们和其他插件设置一样，以明文存在 Zotero 的首选项里，也会进入设置备份文件。
+- **密钥、网关请求头和 WebDAV 密码**用圆点遮住。字段旁边的眼睛可以露出内容，方便查看、选中和复制；服务商开着时，它自己的这些字段一律遮住。
+- **存放位置**：和其他插件设置一样，以明文存在 Zotero 的首选项里，也会进入设置备份文件。
 
 <details>
 <summary><b>OpenAI、Xiaomi MiMo 和 OpenAI Compatible：各项怎么填</b></summary>

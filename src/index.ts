@@ -2489,6 +2489,66 @@ const diagnostics = {
    * open with the pane loaded, the pane's data-l10n-id elements that
    * Fluent left blank and the ? icons left without their ? — both empty.
    */
+  /**
+   * The settings pane's secret fields, while the settings window is open
+   * with the pane loaded (issue #19): each one by the tail of its pref,
+   * never by its value — the length alone. `type` is the whole of why
+   * this exists: Gecko allows no copy and no cut out of a password
+   * editor, revealed or not, so the fields are ordinary text boxes and
+   * `textSecurity` is what the stylesheet actually draws over them.
+   * `eye` is the control ui/secret-rows.ts puts after each field, greyed
+   * out while the provider is on. `probeCopy` selects a field's value for
+   * the length of one reading to ask Gecko's own editor whether a copy
+   * would be allowed, and puts the selection and the focus back.
+   */
+  secrets: (probeCopy = false) => {
+    let win: any = null;
+    try {
+      win = Services.wm.getMostRecentWindow('zotero:pref');
+    } catch {
+      win = null;
+    }
+    const pane = win?.document?.querySelector('.ztts-pane') ?? null;
+    if (!pane) return JSON.stringify({ pane: 'not open', fields: [] });
+    const active = win.document.activeElement;
+    const fields = Array.from(pane.querySelectorAll('input.ztts-secret')) as any[];
+    const report = fields.map((input) => {
+      const next = input.nextElementSibling;
+      const eye = next?.getAttribute?.('class') === 'ztts-reveal' ? next : null;
+      const row: Record<string, unknown> = {
+        pref: String(input.getAttribute('preference') ?? '').replace(/^extensions\.zotero\.zotero-tts\./, ''),
+        // 'text', never 'password': a password box cannot be copied out of
+        type: input.type,
+        length: String(input.value ?? '').length,
+        revealed: input.getAttribute('data-revealed') === 'true',
+        // 'disc' while covered, 'none' while revealed
+        textSecurity: safe(() => win.getComputedStyle(input).webkitTextSecurity) ?? null,
+        eye: eye ? { disabled: !!eye.disabled, pressed: eye.getAttribute('aria-pressed'), label: eye.getAttribute('aria-label') } : null,
+      };
+      if (probeCopy) {
+        row.canCopy = safe(() => {
+          const start = input.selectionStart;
+          const end = input.selectionEnd;
+          input.focus();
+          input.select();
+          const can = input.editor?.canCopy?.() ?? null;
+          try {
+            input.setSelectionRange(start ?? 0, end ?? 0);
+          } catch {
+            // A field that cannot hold a selection needs nothing put back
+          }
+          return can;
+        });
+      }
+      return row;
+    });
+    try {
+      active?.focus?.();
+    } catch {
+      // The element the focus was on is gone; nothing to restore it to
+    }
+    return JSON.stringify({ pane: 'open', fields: report }, null, 1);
+  },
   l10n: () => {
     const probe = 'ztts-no-such-message';
     // The window itself, not through safe(): that copies through JSON

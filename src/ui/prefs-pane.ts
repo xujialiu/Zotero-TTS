@@ -22,6 +22,7 @@ import { createZoteroVoiceService, type ZoteroVoiceService } from '../read-aloud
 import { initShortcutRows } from './shortcut-rows';
 import { initBackupRows, type BackupFileIO } from './backup-rows';
 import { initHelpTips } from './help-tips';
+import { initSecretRows, type SecretRowsDocument } from './secret-rows';
 import { markPlatform } from './platform-class';
 import { initBoldLabels } from './bold-labels';
 import { initAboutRows } from './about-rows';
@@ -509,6 +510,9 @@ export function onPaneLoad(doc: Document, hooks: PaneHooks = {}): void {
   const shortcutRows = initShortcutRows(doc, prefs, Zotero.isMac ? 'Cmd' : Zotero.isWin ? 'Win' : 'Super');
   // The ? icons: their text opens at once, not after Zotero's tooltip delay (ui/help-tips.ts)
   initHelpTips(doc);
+  // The eye after each key, gateway header line and the WebDAV password
+  // (ui/secret-rows.ts): the markup masks them, this uncovers them
+  initSecretRows(doc as unknown as SecretRowsDocument);
   // A checkbox's `bold` run: the label attribute is plain text (ui/bold-labels.ts)
   initBoldLabels(doc);
   // The About section at the foot of the pane (ui/about-rows.ts):

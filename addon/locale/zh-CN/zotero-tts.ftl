@@ -104,6 +104,10 @@ ztts-zotero-tier-empty = Zotero 没有列出{ $tier }语音。
 ztts-zotero-tier-ok = 已登录：{ $tier }语音 { $count } 个，剩余额度 { $credits }。
 ztts-zotero-tier-ok-no-credits = 已登录：{ $tier }语音 { $count } 个。
 
+# 密钥、网关请求头、WebDAV 密码后面的眼睛：露出内容，便于查看、选中和复制，再点收起。服务启用后变灰，内容一律遮住。
+ztts-secret-show = 显示内容
+ztts-secret-hide = 隐藏内容
+
 ztts-switch-enable = 启用
 ztts-switch-disable = 停用
 ztts-switch-checking = 正在检查…

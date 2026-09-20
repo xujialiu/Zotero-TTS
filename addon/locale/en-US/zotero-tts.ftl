@@ -111,6 +111,12 @@ ztts-zotero-tier-empty = Zotero lists no { $tier } voices.
 ztts-zotero-tier-ok = Signed in: { $count } { $tier } voices, { $credits } credits remaining.
 ztts-zotero-tier-ok-no-credits = Signed in: { $count } { $tier } voices.
 
+# The eye after a key, a gateway header line or the WebDAV password: it
+# uncovers the value so it can be read, selected and copied, and covers it
+# again. A provider that is on greys it out — its secrets stay covered.
+ztts-secret-show = Show the value
+ztts-secret-hide = Hide the value
+
 ztts-switch-enable = Enable
 ztts-switch-disable = Disable
 ztts-switch-checking = Checking…

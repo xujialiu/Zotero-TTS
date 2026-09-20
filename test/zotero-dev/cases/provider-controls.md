@@ -8,10 +8,10 @@ Items 1.3, 1.5 and 1.6 of the checklist, under their original numbers.
 
 ### 1.3
 
-3. **Locked sections, masked fields.** Every enabled provider: inputs
-   `disabled`, button `Disable`; the three API keys, the Cloudflare token,
-   both Extra headers and the WebDAV password `type="password"` (issue
-   #19); report `type`, `disabled` and `value.length`, never a value.
+3. **Locked sections.** Every enabled provider: inputs `disabled`,
+   button `Disable`; report `disabled` and `value.length`, never a value.
+   The fields whose value is a secret, and the eye that uncovers them,
+   are [secret-fields](secret-fields.md).
 
 ### 1.5
 

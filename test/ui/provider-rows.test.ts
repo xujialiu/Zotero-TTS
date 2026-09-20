@@ -4,6 +4,7 @@ import { loadSettings } from '../../src/core/settings';
 import { describe, expect, it, vi } from 'vitest';
 import { PREF_PREFIX, SWITCH_IDS, type PrefsBackend, type SwitchId } from '../../src/core/settings';
 import { initProviderRows, providerRowIds, type CheckOutcome } from '../../src/ui/provider-rows';
+import { REVEAL_CLASS, REVEALED_ATTRIBUTE } from '../../src/ui/secret-rows';
 
 function fakePrefs(initial: Record<string, unknown> = {}): PrefsBackend & { store: Record<string, unknown> } {
   const store = { ...initial };
@@ -12,15 +13,22 @@ function fakePrefs(initial: Record<string, unknown> = {}): PrefsBackend & { stor
 
 class FakeElement {
   disabled = false;
-  /** A password input's, as Gecko exposes it; a menulist has neither. */
+  /** An input's; a menulist has none. */
   type?: string;
-  revealPassword?: boolean;
+  /** The eye ui/secret-rows.ts puts after a secret field; the lock reaches it through this. */
+  nextElementSibling: FakeElement | null = null;
   attrs = new Map<string, string>();
   /** A description's text: the message line is one (issue #31). */
   textContent = '';
   listeners = new Map<string, Array<() => unknown>>();
   setAttribute(k: string, v: string) {
     this.attrs.set(k, String(v));
+  }
+  getAttribute(k: string) {
+    return this.attrs.get(k) ?? null;
+  }
+  removeAttribute(k: string) {
+    this.attrs.delete(k);
   }
   addEventListener(type: string, fn: () => unknown) {
     if (!this.listeners.has(type)) this.listeners.set(type, []);
@@ -75,9 +83,14 @@ function setup(
     els.set(ids.toggle, new FakeElement());
     els.set(ids.test, new FakeElement());
     els.set(ids.result, new FakeElement());
+    // A secret field as the markup has it — an ordinary text box the
+    // stylesheet covers — with the eye ui/secret-rows.ts puts after it
     const secret = new FakeElement();
-    secret.type = 'password';
-    secret.revealPassword = false;
+    secret.type = 'text';
+    secret.setAttribute('class', 'ztts-secret');
+    const eye = new FakeElement();
+    eye.setAttribute('class', REVEAL_CLASS);
+    secret.nextElementSibling = eye;
     sections.set(ids.section, new FakeSection([new FakeElement(), secret]));
   }
   const doc = { getElementById: (id: string) => els.get(id) ?? sections.get(id) ?? null };
@@ -108,7 +121,7 @@ function setup(
       /** The fields' disabled flags: all true while the provider is on. */
       locked: () => sections.get(ids.section)!.fields.map((f) => f.disabled),
       /** The section's masked field, revealed or not. */
-      secret: () => sections.get(ids.section)!.fields.find((f) => f.type === 'password')!,
+      secret: () => sections.get(ids.section)!.fields.find((f) => f.getAttribute('class') === 'ztts-secret')!,
       enabled: () => prefs.store[enabledPref(id)],
     };
   };
@@ -364,38 +377,41 @@ describe('initProviderRows', () => {
     expect(t.onVoicesChanged).not.toHaveBeenCalled();
   });
 
-  // A masked field the user revealed with its own reveal button stays
-  // revealed once the section is locked, and that button is inert on a
-  // disabled input — so nothing could put it back. Enabling hides it (issue #19).
-  it('hides a revealed secret when the section locks', async () => {
+  // A field the user uncovered to edit it would stay in the clear once the
+  // section is locked, with its eye greyed out and nothing able to cover it
+  // again. Enabling covers it (issue #19).
+  it('covers a revealed secret when the section locks', async () => {
     const t = setup();
     const secret = t.of('local').secret();
-    secret.revealPassword = true;
+    secret.setAttribute(REVEALED_ATTRIBUTE, 'true');
     await t.of('local').toggle.fire('command');
     expect(t.of('local').enabled()).toBe(true);
     expect(secret.disabled).toBe(true);
-    expect(secret.revealPassword).toBe(false);
+    expect(secret.getAttribute(REVEALED_ATTRIBUTE)).toBeNull();
+    expect(secret.nextElementSibling!.disabled).toBe(true);
   });
 
-  it('hides it on refresh too, as after a settings restore turns a provider on', () => {
+  it('covers it on refresh too, as after a settings restore turns a provider on', () => {
     const t = setup();
     const secret = t.of('local').secret();
-    secret.revealPassword = true;
+    secret.setAttribute(REVEALED_ATTRIBUTE, 'true');
     t.prefs.set(enabledPref('local'), true);
     t.rows.refresh();
-    expect(secret.revealPassword).toBe(false);
+    expect(secret.getAttribute(REVEALED_ATTRIBUTE)).toBeNull();
+    expect(secret.nextElementSibling!.disabled).toBe(true);
   });
 
   // Unlocked is the state you are in because you are editing the field:
-  // its own reveal button works there, and nothing here interferes
+  // the eye works there, and nothing here interferes
   it('leaves a revealed secret alone while the section is unlocked', async () => {
     const t = setup({ prefs: { [enabledPref('local')]: true } });
     const secret = t.of('local').secret();
     await t.of('local').toggle.fire('command');
     expect(t.of('local').enabled()).toBe(false);
-    secret.revealPassword = true;
+    secret.setAttribute(REVEALED_ATTRIBUTE, 'true');
     t.rows.refresh();
-    expect(secret.revealPassword).toBe(true);
+    expect(secret.getAttribute(REVEALED_ATTRIBUTE)).toBe('true');
+    expect(secret.nextElementSibling!.disabled).toBe(false);
   });
 
   // A restore writes the four switches straight to the prefs, so an enabled

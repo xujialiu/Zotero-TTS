@@ -560,3 +560,8 @@ then) and is in the git history before that day.
 - EPUB resize deliberately blurs the reading view (issue #124)
 - Centered mode and resize masking verified (issue #124)
 - Anything on the player's render path runs at frame rate (issue #125)
+
+### [2026-09-20](NOTES_2026-09-20.md)
+
+- Gecko allows no copy out of a password field, revealed or not (issue #19)
+- The screenshot bridge reaches the main window only

@@ -1,6 +1,7 @@
 import { t } from '../core/l10n';
 import { PREF_PREFIX, SWITCH_IDS, type PrefsBackend, type SwitchId } from '../core/settings';
 import { refuseWhileReading, type ReadingGuardDeps } from './reading-guard';
+import { isSecretField, setSecretLocked } from './secret-rows';
 
 /**
  * The switch of each provider section, and of Zotero's two tiers (issue
@@ -89,11 +90,11 @@ export function initProviderRows(
     if (test) test.disabled = false;
     for (const field of fields(id)) {
       field.disabled = on;
-      // A masked field the user revealed with its own reveal button stays
-      // revealed once it is disabled, and that button is inert on a disabled
-      // input — nothing could put it back (issue #19). So locking the section
-      // hides it: while a provider is on, its secrets cannot be read at all.
-      if (on && field.type === 'password' && 'revealPassword' in field) field.revealPassword = false;
+      // A secret the user uncovered to edit it would stay in the clear behind
+      // the lock, with its eye greyed out and nothing able to cover it again
+      // (issue #19). So locking covers it: while a provider is on, its
+      // secrets cannot be read at all.
+      if (isSecretField(field)) setSecretLocked(field, on);
     }
     if (!on) deps.onUnlocked?.(id);
   }

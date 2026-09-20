@@ -50,7 +50,7 @@
     <label><html:h2>Azure (<label is="zotero-text-link" href="https://portal.azure.com">portal.azure.com</label>)</html:h2></label>
     <hbox align="center">
       <label data-l10n-id="ztts-field-api-key" class="ztts-field-label"/>
-      <html:input type="password" preference="extensions.zotero.zotero-tts.azure.apiKey"/>
+      <html:input type="text" class="ztts-secret" preference="extensions.zotero.zotero-tts.azure.apiKey"/>
     </hbox>
     <hbox align="center">
       <label data-l10n-id="ztts-field-region" class="ztts-field-label"/>
@@ -75,7 +75,7 @@
     </hbox>
     <hbox align="center">
       <label data-l10n-id="ztts-field-api-token" class="ztts-field-label"/>
-      <html:input type="password" preference="extensions.zotero.zotero-tts.cloudflare.apiToken"/>
+      <html:input type="text" class="ztts-secret" preference="extensions.zotero.zotero-tts.cloudflare.apiToken"/>
       <label class="ztts-help" value="?" data-l10n-id="ztts-help-cloudflare" data-l10n-attrs="help"/>
     </hbox>
     <hbox align="center">
@@ -93,7 +93,7 @@
     <label><html:h2>Fish Audio (<label is="zotero-text-link" href="https://fish.audio">fish.audio</label>)</html:h2></label>
     <hbox align="center">
       <label data-l10n-id="ztts-field-api-key" class="ztts-field-label"/>
-      <html:input type="password" preference="extensions.zotero.zotero-tts.fish.apiKey"/>
+      <html:input type="text" class="ztts-secret" preference="extensions.zotero.zotero-tts.fish.apiKey"/>
       <label class="ztts-help" value="?" data-l10n-id="ztts-help-fish" data-l10n-attrs="help"/>
     </hbox>
     <hbox align="center">
@@ -143,7 +143,7 @@
          reason: a gateway's token, or the server's own api key as a bearer. -->
     <hbox align="center">
       <label data-l10n-id="ztts-field-extra-headers" class="ztts-field-label"/>
-      <html:input type="password" placeholder="Name: value; Name: value" preference="extensions.zotero.zotero-tts.fishspeech.headers"/>
+      <html:input type="text" class="ztts-secret" placeholder="Name: value; Name: value" preference="extensions.zotero.zotero-tts.fishspeech.headers"/>
       <label class="ztts-help" value="?" data-l10n-id="ztts-help-extra-headers" data-l10n-attrs="help"/>
     </hbox>
     <hbox align="center">
@@ -167,7 +167,7 @@
          Access service token. -->
     <hbox align="center">
       <label data-l10n-id="ztts-field-extra-headers" class="ztts-field-label"/>
-      <html:input type="password" placeholder="Name: value; Name: value" preference="extensions.zotero.zotero-tts.local.headers"/>
+      <html:input type="text" class="ztts-secret" placeholder="Name: value; Name: value" preference="extensions.zotero.zotero-tts.local.headers"/>
       <label class="ztts-help" value="?" data-l10n-id="ztts-help-extra-headers" data-l10n-attrs="help"/>
     </hbox>
     <hbox align="center">
@@ -184,7 +184,7 @@
     <label><html:h2>OpenAI (<label is="zotero-text-link" href="https://platform.openai.com">platform.openai.com</label>)</html:h2></label>
     <hbox align="center">
       <label data-l10n-id="ztts-field-api-key" class="ztts-field-label"/>
-      <html:input type="password" preference="extensions.zotero.zotero-tts.openai-official.apiKey"/>
+      <html:input type="text" class="ztts-secret" preference="extensions.zotero.zotero-tts.openai-official.apiKey"/>
       <label class="ztts-help" value="?" data-l10n-id="ztts-help-openai" data-l10n-attrs="help"/>
     </hbox>
     <!-- Free text: Test connection fills the datalist with the account's model list. -->
@@ -212,7 +212,7 @@
     </hbox>
     <hbox align="center">
       <label data-l10n-id="ztts-field-api-key" class="ztts-field-label"/>
-      <html:input type="password" preference="extensions.zotero.zotero-tts.compatible.apiKey"/>
+      <html:input type="text" class="ztts-secret" preference="extensions.zotero.zotero-tts.compatible.apiKey"/>
     </hbox>
     <!-- Free text: any OpenAI-compatible server names its models as it
          likes. Test connection fills the datalist with the server's list. -->
@@ -234,7 +234,7 @@
          placeholder is the format, the same in every language. -->
     <hbox align="center">
       <label data-l10n-id="ztts-field-extra-headers" class="ztts-field-label"/>
-      <html:input type="password" placeholder="Name: value; Name: value" preference="extensions.zotero.zotero-tts.compatible.headers"/>
+      <html:input type="text" class="ztts-secret" placeholder="Name: value; Name: value" preference="extensions.zotero.zotero-tts.compatible.headers"/>
       <label class="ztts-help" value="?" data-l10n-id="ztts-help-extra-headers" data-l10n-attrs="help"/>
     </hbox>
     <hbox align="center">
@@ -251,7 +251,7 @@
     <label><html:h2>Speechify (<label is="zotero-text-link" href="https://platform.speechify.ai">platform.speechify.ai</label>)</html:h2></label>
     <hbox align="center">
       <label data-l10n-id="ztts-field-api-key" class="ztts-field-label"/>
-      <html:input type="password" preference="extensions.zotero.zotero-tts.speechify.apiKey"/>
+      <html:input type="text" class="ztts-secret" preference="extensions.zotero.zotero-tts.speechify.apiKey"/>
       <label class="ztts-help" value="?" data-l10n-id="ztts-help-speechify" data-l10n-attrs="help"/>
     </hbox>
     <hbox align="center">
@@ -293,7 +293,7 @@
     <label><html:h2>Xiaomi MiMo (<label is="zotero-text-link" href="https://platform.xiaomimimo.com">platform.xiaomimimo.com</label>)</html:h2></label>
     <hbox align="center">
       <label data-l10n-id="ztts-field-api-key" class="ztts-field-label"/>
-      <html:input type="password" preference="extensions.zotero.zotero-tts.mimo.apiKey"/>
+      <html:input type="text" class="ztts-secret" preference="extensions.zotero.zotero-tts.mimo.apiKey"/>
       <label class="ztts-help" value="?" data-l10n-id="ztts-help-mimo" data-l10n-attrs="help"/>
     </hbox>
     <hbox align="center">
@@ -646,7 +646,7 @@
     </hbox>
     <hbox align="center">
       <label data-l10n-id="ztts-field-password" class="ztts-field-label"/>
-      <html:input type="password" preference="extensions.zotero.zotero-tts.webdav.password"/>
+      <html:input type="text" class="ztts-secret" preference="extensions.zotero.zotero-tts.webdav.password"/>
     </hbox>
     <hbox align="center">
       <button id="ztts-webdav-test" data-l10n-id="ztts-test-connection"/>

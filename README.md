@@ -108,9 +108,11 @@ while their switches are on, sorted by name.
   voices and the credits left.
 - **Test connection** probes without switching anything on.
 - While a provider is on its fields are locked — **Disable** to edit them.
-- API keys, gateway headers and the WebDAV password are masked. Like every
-  plugin setting they are stored in Zotero's preferences in plain text, and
-  they go into the settings backup file.
+- **Keys, gateway headers and the WebDAV password** are covered by dots.
+  The eye beside a field uncovers it, so the value can be read, selected
+  and copied; a provider that is on keeps its own covered.
+- **Where they are kept**: like every plugin setting, in Zotero's
+  preferences in plain text, and in the settings backup file.
 
 <details>
 <summary><b>OpenAI, Xiaomi MiMo and OpenAI Compatible: how to fill the settings in</b></summary>

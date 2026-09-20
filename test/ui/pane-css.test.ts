@@ -59,10 +59,21 @@ describe('the pane stylesheet and the platforms (issue #56)', () => {
     expect(help?.declarations).toMatch(/margin-inline-start:\s*5px/);
   });
 
-  it('scopes every button rule by the macOS class on the pane root, under no at-rule', () => {
-    expect(buttonRules.length).toBeGreaterThan(0);
-    for (const rule of buttonRules) {
+  it('scopes every button spacing rule by the macOS class on the pane root, under no at-rule', () => {
+    const spacing = buttonRules.filter((r) => /margin-inline/.test(r.declarations));
+    expect(spacing.length).toBeGreaterThan(0);
+    for (const rule of spacing) {
       expect(rule.selector, rule.selector).toMatch(/^\.ztts-pane\.ztts-mac\b/);
+      expect(rule.conditions, rule.selector).toEqual([]);
+    }
+  });
+
+  // A button rule that is not about that spacing is drawn the same on every
+  // platform — the eye beside a secret field is one — and must add no inline
+  // margin of its own, which elsewhere would land on top of the toolkit's
+  it('adds no inline margin outside the macOS rules', () => {
+    for (const rule of buttonRules.filter((r) => !/^\.ztts-pane\.ztts-mac\b/.test(r.selector))) {
+      expect(rule.declarations, rule.selector).not.toMatch(/margin-inline/);
       expect(rule.conditions, rule.selector).toEqual([]);
     }
   });
