@@ -136,6 +136,25 @@ describe('createSharedTransport', () => {
     h.tick(SHARED_SYNC_RETRY_MS);
   });
 
+  it('reports an erroring run as its own numbers, not the last good run\'s', async () => {
+    const h = harness();
+    h.setRemote(FIXTURE);
+    h.setLocal([item({ id: ID_C, stamp: { at: 5, device: 'desk' } })]);
+    await h.transport.flush('pause');
+    expect(h.transport.stats()).toMatchObject({ lastOutcome: 'ok', uploaded: true, adopted: 1, remoteItems: 2, carried: 1, dropped: 0 });
+    const took = h.transport.stats().lastAdoption;
+    expect(took).toEqual({ at: 0, count: 1 });
+    h.setRemote(JSON.stringify({ format: SHARED_POSITIONS_FORMAT, version: 2, items: [] }));
+    await h.transport.flush('resume');
+    expect(h.transport.stats()).toMatchObject({ lastOutcome: 'error', uploaded: false, adopted: 0, remoteItems: null, carried: null, dropped: null, lastAdoption: took });
+    // A later run that takes nothing (the store already holds everything the
+    // file does) resets the per-run count and keeps the durable record
+    h.setRemote(h.uploads[0].text);
+    h.setAdopt(false);
+    await h.transport.flush('reader-open');
+    expect(h.transport.stats()).toMatchObject({ lastOutcome: 'ok', uploaded: false, adopted: 0, lastAdoption: took });
+  });
+
   it('awaits prepare once, and a failed prepare does not stop the sync', async () => {
     let prepared = 0;
     const h = harness({

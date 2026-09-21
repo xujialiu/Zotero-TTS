@@ -1518,8 +1518,18 @@ async function deriveSharedFromNative(reader: any): Promise<void> {
   if (!internal || typeof internal._loadSDT !== 'function') return;
   const sdt = await internal._loadSDT();
   if (!sdt?.mapper || !sdt.structure) return;
+  // `_sdt.mapper` arrives behind an Xray wrapper — unlike `_internalReader`
+  // and `_readAloudManager` — and an Xray of a class instance shows its own
+  // data properties and none of its prototype's methods: measured live
+  // 2026-09-21 (notes, 18:25), `typeof sdt.mapper.sourceToSDTPosition` is
+  // "undefined" until the wrapper is waived. The structure is plain data and
+  // reads fine either way; `blockAtRef` walks it unwaived elsewhere.
+  const mapper = waived(sdt.mapper);
+  if (typeof mapper?.sourceToSDTPosition !== 'function') {
+    throw new Error('zotero-tts: _sdt.mapper.sourceToSDTPosition is not reachable, waived or not');
+  }
   const win = reader?._iframeWindow;
-  const sdtPosition = sdt.mapper.sourceToSDTPosition(win ? Components.utils.cloneInto(entry.pos, win) : entry.pos);
+  const sdtPosition = mapper.sourceToSDTPosition(win ? Components.utils.cloneInto(entry.pos, win) : entry.pos);
   let start = copyIntegers(sdtPosition?.start);
   let end = copyIntegers(sdtPosition?.end);
   if (!start || !end) return;

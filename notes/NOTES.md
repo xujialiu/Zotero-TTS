@@ -574,3 +574,4 @@ then) and is in the git history before that day.
 - An element CFI from upstream epub.js names the same block in the SDT mapper, measured on four books (issue #126)
 - The hooks the Positions File rides on, and what is read where (issue #126)
 - The player's play resumes through toggleReadAloudPaused, and a jump un-pauses by itself (issue #126)
+- `_sdt.mapper` is an Xray wrapper in the sandbox; `_internalReader` and `_readAloudManager` are not (issue #126)

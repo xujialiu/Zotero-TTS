@@ -62,6 +62,13 @@ export interface SharedTransportDeps {
   onSynced?(): void;
 }
 
+/**
+ * The last completed run's numbers — a skipped run leaves them, an erroring
+ * run reports `uploaded` false, `adopted` 0 and the rest null. `adopted` is
+ * per run; `lastAdoption` is the durable record of the last run that took
+ * something, as `documents.adopted` in document-positions.ts counts the
+ * session's.
+ */
 export interface SharedTransportStats {
   syncs: number;
   lastOutcome: 'ok' | 'skipped' | 'error' | null;
@@ -202,6 +209,13 @@ export function createSharedTransport(deps: SharedTransportDeps): SharedTranspor
       lastOutcome = 'error';
       lastError = String(e);
       lastFailureAt = deps.now();
+      // This run's numbers, not the last good run's: nothing went up and
+      // nothing was taken; what the file held is unknown
+      uploadedFlag = false;
+      adoptedCount = 0;
+      remoteItems = null;
+      carried = null;
+      dropped = null;
       reportGated(e);
       notify();
     }

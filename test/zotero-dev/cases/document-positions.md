@@ -65,7 +65,10 @@ the first Read Aloud. Diagnostics: `Zotero.ZoteroTTS.diagnostics.positionSync()`
    log shows `shared position sync (resume)` before `resumed from the
    shared position of iPhone-test: exact`, and the player's segment is
    that second sentence — not the paragraph's first, which is what the
-   bare locator would have given.
+   bare locator would have given. `transport.adopted` is per run: a later
+   sync that takes nothing resets it to 0, while `documents.adopted` (the
+   session's count) and `transport.lastAdoption` (when and how many, last
+   time anything was taken) keep it (observed 2026-09-21).
 
 ### 6
 
@@ -90,15 +93,20 @@ the first Read Aloud. Diagnostics: `Zotero.ZoteroTTS.diagnostics.positionSync()`
    tab → within a few seconds `shared.documents.items` rises by one and,
    after the next sync, the file's item for it carries `stamp.at` equal to
    the row's `ts` (compare with `position().readers[i].stored` timing or
-   the row), with `anchor.exact` the sentence the row named.
+   the row), with `anchor.exact` the sentence the row named. No error line
+   from `deriveSharedFromNative` in the log (2026-09-21's beta5 threw
+   `sdt.mapper.sourceToSDTPosition is not a function` here: the mapper is
+   an Xray wrapper, waived since beta6).
 
 ### 9
 
 9. **A newer version is left alone.** Replace the file with
    `{"format":"xujialiu-positions","version":2,"items":[]}`: the next sync
    → `shared.transport.lastOutcome` `error`, `lastError` naming `version
-   2`, `uploaded` false; the plugin's own positions file keeps syncing
-   (`transport.lastOutcome` `ok`). Restore the file afterwards.
+   2`, `uploaded` false and `adopted` 0 by construction (an erroring run
+   reports its own numbers; `remoteItems`, `carried`, `dropped` null);
+   the plugin's own positions file keeps syncing (`transport.lastOutcome`
+   `ok`). Restore the file afterwards.
 
 ### 11
 
