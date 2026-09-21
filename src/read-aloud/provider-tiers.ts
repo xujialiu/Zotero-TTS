@@ -47,6 +47,17 @@
  *   Its `onChange` stays Zotero's own `manager.selectTier(value)`. Every
  *   React render rebuilds the element, which is why the list is made here
  *   and never injected into the rendered DOM.
+ * - Signed out of Zotero, `TierSelect` lists `local` alone and draws its
+ *   "Log in to access Zotero Voices." row instead of the select (38839,
+ *   38855), so the provider entries had nowhere to go (issue #130). The
+ *   same wrapper meets `TierSelect`'s own element, known by its props — a
+ *   boolean `loggedIn`, the manager's `tiers` Set, `onChange` and
+ *   `onLogIn`; the popup's element carries the last two but no `tiers` —
+ *   and while the manager lists any of the plugin's voices hands it
+ *   `loggedIn: true`: the select is drawn and the rewrite above fills it,
+ *   Zotero's two dropping out since they carry no voices signed out
+ *   (remote-interface.ts signedIn). With none of the plugin's voices,
+ *   Zotero's row stays.
  *
  * - Each provider's own last voice per language is Zotero's per-tier memory
  *   (`tierVoices`), which `selectTier` reads from `_persistedVoices`
@@ -213,6 +224,8 @@ export interface ProviderTiersReport {
   tierMemoryHook: boolean;
   /** The option list last handed to the tier select in this tab; null before its first render. */
   options: TierOption[] | null;
+  /** Whether the tier select's last render was handed signed in by this module, signed out of Zotero (issue #130); null before its first render. */
+  loginRowReplaced: boolean | null;
   /** The tiers that have voices on the manager's list right now, in list order — what the dropdown lists. */
   tiers: string[];
   selectedTier: string | null;
@@ -233,17 +246,17 @@ export interface ProviderTiers {
   dispose(): void;
 }
 
-const EMPTY_REPORT: ProviderTiersReport = { resolveShadow: false, createElementWrapped: false, tierMemoryHook: false, options: null, tiers: [], selectedTier: null, lastMove: null, retagged: {} };
+const EMPTY_REPORT: ProviderTiersReport = { resolveShadow: false, createElementWrapped: false, tierMemoryHook: false, options: null, loginRowReplaced: null, tiers: [], selectedTier: null, lastMove: null, retagged: {} };
 
 export function createProviderTiers(deps: ProviderTiersDeps): ProviderTiers {
   const patches = createProtoPatches({ exportFunction: deps.exportFunction, isDead: deps.isDead, error: deps.error });
   const waive = (value: unknown): any => (deps.waiveXrays ? deps.waiveXrays(value) : value);
-  /** Per manager (waived): the list last handed to the dropdown and the last stranded move. */
-  const state = new WeakMap<object, { options: TierOption[] | null; lastMove: TierMove | null }>();
+  /** Per manager (waived): the list last handed to the dropdown, whether its last render was handed signed in, and the last stranded move. */
+  const state = new WeakMap<object, { options: TierOption[] | null; loginRowReplaced: boolean | null; lastMove: TierMove | null }>();
   const stateOf = (manager: object) => {
     let record = state.get(manager);
     if (!record) {
-      record = { options: null, lastMove: null };
+      record = { options: null, loginRowReplaced: null, lastMove: null };
       state.set(manager, record);
     }
     return record;
@@ -411,10 +424,29 @@ export function createProviderTiers(deps: ProviderTiersDeps): ProviderTiers {
     return out;
   }
 
+  /**
+   * `TierSelect`'s own element, by its props: while Zotero says signed out
+   * and the manager lists any of the plugin's voices — counted whatever tier
+   * they carry, the re-tag's or still `local` — it is told signed in, so it
+   * draws its select rather than the log-in row (issue #130). True when the
+   * props were its.
+   */
+  function signIn(reader: any, props: any): boolean {
+    const tiers = props.tiers;
+    if (typeof props.loggedIn !== 'boolean' || !tiers || typeof tiers.has !== 'function' || typeof props.onChange !== 'function' || typeof props.onLogIn !== 'function') return false;
+    const manager = managerOf(reader);
+    if (!manager) return true;
+    const replaced = !props.loggedIn && Object.keys(scan(manager, false).retagged).length > 0;
+    if (replaced) props.loggedIn = true;
+    stateOf(manager).loginRowReplaced = replaced;
+    return true;
+  }
+
   /** The tier select's props, and no other element's: `options` replaced by the provider list, cloned into the reader's window. */
   function rewrite(reader: any, rawProps: unknown): void {
     if (!rawProps || typeof rawProps !== 'object') return;
     const props = waive(rawProps);
+    if (signIn(reader, props)) return;
     const options = props.options;
     if (!isTierOptionList(options) || typeof props.onChange !== 'function') return;
     const manager = managerOf(reader);
@@ -478,6 +510,7 @@ export function createProviderTiers(deps: ProviderTiersDeps): ProviderTiers {
         createElementWrapped: !!React && patches.has(React, 'createElement'),
         tierMemoryHook: !!manager && memoryHooks.some((h) => h.manager === manager),
         options: record?.options ?? null,
+        loginRowReplaced: record?.loginRowReplaced ?? null,
         tiers: [...tiers],
         selectedTier: typeof manager?._selectedTier === 'string' ? manager._selectedTier : null,
         lastMove: record?.lastMove ?? null,

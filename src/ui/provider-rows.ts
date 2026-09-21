@@ -24,6 +24,11 @@ import { isSecretField, setSecretLocked } from './secret-rows';
  * committing — and fills the Model suggestions, which has to happen while
  * the fields are editable — while on it is the retry after a server came
  * back, listing the voices again when it passes.
+ *
+ * A switch that cannot go on yet — Zotero's two tiers while no Zotero
+ * account is signed in (issue #130) — has its Enable greyed and the reason
+ * on its line; one already on can still be switched off. The answer is
+ * asked at every paint, so refresh() follows a sign-in.
  */
 
 export interface CheckOutcome {
@@ -46,6 +51,8 @@ export interface ProviderRowsDeps extends ReadingGuardDeps {
   onSwitched?(id: SwitchId, on: boolean): void;
   /** The section's fields were just unlocked: the preset rows gray out theirs again (ui/server-preset-rows.ts). Omitted where there are none. */
   onUnlocked?(id: SwitchId): void;
+  /** Why the switch cannot go on right now, or null when it can. Absent, every switch can. */
+  blocked?(id: SwitchId): string | null;
 }
 
 /** The section's elements: the groupbox holding the fields, the switch, Test connection, and the line both write to. */
@@ -80,14 +87,30 @@ export function initProviderRows(
     if (line) line.textContent = text;
   };
   const fields = (id: SwitchId): any[] => Array.from(elements(id).section?.querySelectorAll?.(FIELDS_SELECTOR) ?? []);
+  /** The reason each blocked switch shows on its line, so it can leave once it no longer holds. */
+  const shown = new Map<SwitchId, string>();
+  const blocked = (id: SwitchId): string | null => deps.blocked?.(id) ?? null;
 
-  /** The switch and the fields as the pref says: on is "Disable" with the fields locked, off is "Enable" with them open for editing. */
+  /**
+   * The switch and the fields as the pref says: on is "Disable" with the
+   * fields locked, off is "Enable" with them open for editing — greyed
+   * while the switch cannot go on, with the reason on its line.
+   */
   function paint(id: SwitchId): void {
-    const { toggle, test } = elements(id);
+    const { toggle, test, result } = elements(id);
     const on = enabled(id);
+    const reason = blocked(id);
     toggle?.setAttribute('label', on ? t('ztts-switch-disable') : t('ztts-switch-enable'));
-    if (toggle) toggle.disabled = false;
+    if (toggle) toggle.disabled = !on && reason !== null;
     if (test) test.disabled = false;
+    if (reason !== null) {
+      say(id, reason);
+      shown.set(id, reason);
+    } else if (shown.has(id)) {
+      // Only the reason leaves: a line written since it was shown stays
+      if (result?.textContent === shown.get(id)) say(id, '');
+      shown.delete(id);
+    }
     for (const field of fields(id)) {
       field.disabled = on;
       // A secret the user uncovered to edit it would stay in the clear behind
@@ -122,10 +145,16 @@ export function initProviderRows(
       if (await refuseWhileReading(deps, { [`${id}.enabled`]: false })) return;
       deps.prefs.set(pref(id), false);
       deps.onSwitched?.(id, false);
-      paint(id);
-      // The last check's "Connected…" beside an Enable button would read as if it still held
+      // The last check's "Connected…" beside an Enable button would read as
+      // if it still held; cleared first, so a reason Enable is greyed for stands
       say(id, '');
+      paint(id);
       deps.onVoicesChanged();
+      return;
+    }
+    // Greyed, so only a command sent past the button lands here
+    if (blocked(id) !== null) {
+      paint(id);
       return;
     }
     if (await refuseWhileReading(deps, { [`${id}.enabled`]: true })) return;

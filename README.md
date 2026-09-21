@@ -89,6 +89,8 @@ while their switches are on, sorted by name.
 - **A provider with nothing to offer** — switched off, its server down,
   no favorite of its own while only favorites are offered — is not
   listed until it has voices again.
+- **Without a Zotero account** every other provider still works; only
+  Zotero Standard and Zotero Premium are left out, as in Zotero itself.
 - **When the entry you are on stops offering voices**, the player moves
   to the provider of the remembered voice, else of the default voice,
   else to the first entry.
@@ -103,8 +105,9 @@ while their switches are on, sorted by name.
   **Zotero** section, both on to begin with. Switch one off and that tier
   leaves the player's first dropdown, the voice browser and the language
   list; nothing Zotero remembers is lost, and switching it back on brings
-  its last voice back. Enable checks that a Zotero account is signed in
-  and that Zotero lists voices in that tier; Test connection reports the
+  its last voice back. They need a Zotero account: signed out, their
+  Enable is greyed, with the reason beside it; signed in, Enable checks
+  that Zotero lists voices in that tier, and Test connection reports the
   voices and the credits left.
 - **Test connection** probes without switching anything on.
 - While a provider is on its fields are locked — **Disable** to edit them.

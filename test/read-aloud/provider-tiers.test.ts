@@ -474,6 +474,62 @@ describe('createProviderTiers: the first dropdown', () => {
   });
 });
 
+describe('createProviderTiers: Zotero’s original player signed out (#130)', () => {
+  const TierSelect = function TierSelect() {};
+  /** TierSelect's props as the popup builds them (reader.js:38638-38644). */
+  const selectProps = (loggedIn: boolean, tiers: string[]) => ({ loggedIn, value: 'fish', tiers: new Set(tiers), onChange: () => {}, onLogIn: () => {} });
+
+  it('tells the tier select it is signed in while the plugin lists voices, so it draws its dropdown instead of the log-in row', () => {
+    const { manager, reader, React, create } = makeReader([remote('fish::a'), new OSVoice('David')]);
+    const { tiers, error } = make();
+    tiers.attach(reader);
+    manager._resolveVoice();
+    const props = selectProps(false, ['fish', 'local']);
+    React.createElement(TierSelect, props);
+    expect(props.loggedIn).toBe(true);
+    expect(create.mock.calls[0][1]).toBe(props);
+    expect(tiers.inspect(reader)).toMatchObject({ loginRowReplaced: true });
+    expect(error).not.toHaveBeenCalled();
+  });
+
+  it('counts the plugin’s voices before the re-tag has run, under local', () => {
+    const { reader, React } = makeReader([remote('local::af_bella')]);
+    const { tiers } = make();
+    tiers.attach(reader);
+    const props = selectProps(false, ['local']);
+    React.createElement(TierSelect, props);
+    expect(props.loggedIn).toBe(true);
+  });
+
+  it('keeps Zotero’s log-in row when the plugin lists no voice, and leaves a signed-in select alone', () => {
+    const { manager, reader, React } = makeReader([new OSVoice('David')]);
+    const { tiers } = make();
+    tiers.attach(reader);
+    manager._resolveVoice();
+    const out = selectProps(false, ['local']);
+    React.createElement(TierSelect, out);
+    expect(out.loggedIn).toBe(false);
+    expect(tiers.inspect(reader)).toMatchObject({ loginRowReplaced: false });
+    const signedIn = makeReader([remote('fish::a')]);
+    tiers.attach(signedIn.reader);
+    const props = selectProps(true, ['fish']);
+    signedIn.React.createElement(TierSelect, props);
+    expect(props.loggedIn).toBe(true);
+    expect(tiers.inspect(signedIn.reader)).toMatchObject({ loginRowReplaced: false });
+  });
+
+  it('leaves the popup’s own props alone: they carry loggedIn and onLogIn but no tiers', () => {
+    const { manager, reader, React } = makeReader([remote('fish::a')]);
+    const { tiers } = make();
+    tiers.attach(reader);
+    manager._resolveVoice();
+    const popup = { manager: {}, title: 'Paper', loggedIn: false, onLogIn: () => {}, onPurchaseCredits: () => {}, onLockPosition: () => {} };
+    React.createElement(function ReadAloudPopup() {}, popup);
+    expect(popup.loggedIn).toBe(false);
+    expect(tiers.inspect(reader)).toMatchObject({ loginRowReplaced: null });
+  });
+});
+
 describe('createProviderTiers: dispose', () => {
   it('restores the prototype method and React.createElement', () => {
     const { manager, reader, React, log } = makeReader([remote('fish::a')], { selectedTier: 'azure' });
@@ -507,7 +563,7 @@ describe('createProviderTiers: dispose', () => {
 
   it('inspect answers for a reader it never saw', () => {
     const { tiers } = make();
-    expect(tiers.inspect({})).toEqual({ resolveShadow: false, createElementWrapped: false, tierMemoryHook: false, options: null, tiers: [], selectedTier: null, lastMove: null, retagged: {} });
+    expect(tiers.inspect({})).toEqual({ resolveShadow: false, createElementWrapped: false, tierMemoryHook: false, options: null, loginRowReplaced: null, tiers: [], selectedTier: null, lastMove: null, retagged: {} });
   });
 });
 

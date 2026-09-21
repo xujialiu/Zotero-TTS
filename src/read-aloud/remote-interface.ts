@@ -74,6 +74,15 @@ export type RemoteInterfaceDeps = {
    * fallback and the plugin's memory all see a list without them.
    */
   getHiddenTiers?(): readonly string[];
+  /**
+   * Whether a Zotero account is signed in, as Zotero tells this reader.
+   * Without one Zotero's own voices are not asked for at all — Zotero's
+   * player lists them only with an account (reader.js:84271), they cannot
+   * play without one, and every open would wait on Zotero's server for
+   * them — and the credit calls answer none (issue #130). Read per call;
+   * absent, or an answer that throws, counts as signed in.
+   */
+  signedIn?(): boolean;
   getProvider(provider: ProviderId): TTSProvider;
   cacheVersion(): string;
   /** Fixed for the active reading session; refreshed at the next activation. */
@@ -266,6 +275,16 @@ export function createRemoteInterface(deps: RemoteInterfaceDeps): RemoteInterfac
 
   type VoicesResult = Awaited<ReturnType<RemoteInterface['getVoices']>>;
 
+  /** Whether Zotero's own side may be asked (deps.signedIn); an answer that throws is logged and counts as yes. */
+  const zoteroSignedIn = (): boolean => {
+    try {
+      return deps.signedIn?.() ?? true;
+    } catch (e) {
+      log(e);
+      return true;
+    }
+  };
+
   /** The plugin's own catalog, bounded. Favorites are applied later, where Zotero's tiers are in view too. */
   async function ownCatalog(): Promise<{ catalog: PluginCatalog } | { error: string }> {
     const timeoutMs = deps.catalogTimeoutMs ?? DEFAULT_CATALOG_TIMEOUT_MS;
@@ -284,6 +303,10 @@ export function createRemoteInterface(deps: RemoteInterfaceDeps): RemoteInterfac
 
   /** Zotero's voices, or null when they are unavailable for any reason (logged). */
   async function nativeVoices(): Promise<VoicesResult | null> {
+    if (!zoteroSignedIn()) {
+      deps.debug?.("Zotero's own voices not asked for: no Zotero account is signed in");
+      return null;
+    }
     const iface = native();
     if (!iface) return null;
     const timeoutMs = deps.nativeTimeoutMs ?? DEFAULT_NATIVE_TIMEOUT_MS;
@@ -595,6 +618,7 @@ export function createRemoteInterface(deps: RemoteInterfaceDeps): RemoteInterfac
     },
 
     async getCreditsRemaining() {
+      if (!zoteroSignedIn()) return NO_CREDITS;
       const iface = native();
       if (!iface) return NO_CREDITS;
       try {
@@ -606,6 +630,7 @@ export function createRemoteInterface(deps: RemoteInterfaceDeps): RemoteInterfac
     },
 
     async resetCredits() {
+      if (!zoteroSignedIn()) return NO_CREDITS;
       const iface = native();
       if (!iface) return NO_CREDITS;
       try {

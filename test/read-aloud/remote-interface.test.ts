@@ -542,6 +542,45 @@ describe("alongside Zotero's own interface", () => {
     expect(plain.voices!.standard).toEqual([standardConfig]);
   });
 
+  // Zotero's player asks for its own voices only with an account signed in,
+  // and they cannot play without one; the plugin's need none (issue #130)
+  it('asks Zotero for nothing while no account is signed in: its tiers left out, the plugin’s voices listed, no credits', async () => {
+    const native = fakeNative();
+    const thunk = vi.fn(() => native);
+    const debug = vi.fn();
+    let signedIn = false;
+    const iface = createRemoteInterface({ ...deps(), native: thunk, signedIn: () => signedIn, debug });
+    const result = await iface.getVoices();
+    expect(result.error).toBeUndefined();
+    expect(result.voices!.standard).toBeUndefined();
+    expect(result.voices!.premium).toBeUndefined();
+    expect(result.voices!.local).toHaveLength(1);
+    expect(result.standardCreditsRemaining).toBeNull();
+    expect(result.premiumCreditsRemaining).toBeNull();
+    expect(await iface.getCreditsRemaining()).toEqual({ standardCreditsRemaining: null, premiumCreditsRemaining: null });
+    expect(await iface.resetCredits()).toEqual({ standardCreditsRemaining: null, premiumCreditsRemaining: null });
+    // Not even built: building it opens Zotero's audio cache
+    expect(thunk).not.toHaveBeenCalled();
+    expect(debug).toHaveBeenCalledWith(expect.stringContaining('no Zotero account'));
+    // Signed in again, asked per call: Zotero's side as before
+    signedIn = true;
+    const again = await iface.getVoices();
+    expect(again.voices!.standard).toEqual([standardConfig]);
+    expect(native.getVoices).toHaveBeenCalledTimes(1);
+  });
+
+  it('takes a sign-in answer that throws for signed in, and records it', async () => {
+    const native = fakeNative();
+    const { iface, log } = withNative(native, {
+      signedIn: () => {
+        throw new Error('dead reader');
+      },
+    });
+    const result = await iface.getVoices();
+    expect(result.voices!.standard).toEqual([standardConfig]);
+    expect(log).toHaveBeenCalledWith(expect.any(Error));
+  });
+
   it("keeps Zotero's tiers and credits and adds the plugin voices under local", async () => {
     const native = fakeNative();
     const result = await withNative(native).iface.getVoices();

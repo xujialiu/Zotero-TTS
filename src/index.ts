@@ -464,6 +464,17 @@ async function listCatalog(): Promise<CatalogEntry[]> {
 }
 
 /**
+ * Whether a Zotero account is signed in, as Zotero tells this reader: the
+ * `loggedIn` its player asks for Zotero's own voices by (xpcom/reader.js
+ * 270, kept current at 2879-2882), else Zotero's flag itself while the
+ * reader has none yet (issue #130).
+ */
+function readerSignedIn(reader: any): boolean {
+  const loggedIn = reader?._internalReader?._state?.loggedIn;
+  return typeof loggedIn === 'boolean' ? loggedIn : !!Zotero.Sync?.Runner?.enabled;
+}
+
+/**
  * The composite interface for one reader, wrapped for its window: what the
  * push hook hands Zotero when _open() asks, and what the redelivery walk
  * writes into a tab that was already open (issue #38). Stamped with this
@@ -533,6 +544,8 @@ function buildReaderInterface(reader: any, targetWindow: any, native: () => unkn
         },
         // Zotero's own tiers switched off in the pane leave the list here (issue #111)
         getHiddenTiers: () => hiddenZoteroTiers(loadSettings(prefs)),
+        // And while no Zotero account is signed in, Zotero is not asked for them (issue #130)
+        signedIn: () => readerSignedIn(reader),
         getPrefetch: () => {
           const s = loadSettings(prefs);
           return { enabled: s.prefetchEnabled, count: s.prefetch };
@@ -2447,6 +2460,8 @@ function startLiveVoiceList(): void {
       return id => pluginVoiceTier(id, localEngine);
     },
     protectedVoices: readingImpact.protectedVoices,
+    // The plugin's list is asked for whether or not Zotero is signed in (issue #130)
+    ownsInterface: reader => hijackPatched.has(reader),
     ended: () => settingsSyncTransport?.poke('player-close'),
     exportFunction: (fn, target) => Components.utils.exportFunction(fn, target),
     waiveXrays: waived,
@@ -3035,7 +3050,11 @@ const diagnostics = {
    * (from, to, and which step of the rule); and `retagged`, the plugin's
    * voices by the tier their objects carry — provider keys once the shadow
    * ran, `local` where it did not, which is the proof by mechanism.
-   * `labels` is the name map the dropdown draws from.
+   * `labels` is the name map the dropdown draws from. Signed out of Zotero
+   * (issue #130): `signedIn`, the reader's own flag, and
+   * `loginRowReplaced`, whether the tier select's last render was handed
+   * signed in so it drew the dropdown instead of Zotero's log-in row; null
+   * before its first render.
    */
   providerTiers: async () =>
     JSON.stringify(
@@ -3048,6 +3067,7 @@ const diagnostics = {
             const item = r?.itemID ? Zotero.Items.get(r.itemID) : null;
             return (item?.parentItem ?? item)?.getField('title') ?? null;
           }),
+          signedIn: safe(() => readerSignedIn(r)),
           ...(providerTiers?.inspect(r) ?? { resolveShadow: false, createElementWrapped: false, tierMemoryHook: false }),
         })),
       },
@@ -3132,6 +3152,14 @@ const diagnostics = {
    * in the log, is what proves the hook ran.
    */
   textSettings: () => JSON.stringify((Zotero.Reader._readers ?? []).map((r: any) => textSettings?.inspect(r) ?? null), null, 1),
+  /**
+   * The player's voice list rebuilt on the side (issue #121), per open
+   * reader, null for one not hooked: `applied`, `loading`, `retained` and
+   * `revision`, and the last load's `asked` — whether Zotero asked for its
+   * remote list, its sign-in flag — beside `remote`, whether it was loaded.
+   * `asked: false` with `remote: true` is the plugin's list asked for while
+   * Zotero says signed out (issue #130).
+   */
   liveVoiceList: () => JSON.stringify((Zotero.Reader._readers ?? []).map((r: any) => liveVoiceList?.inspect(r) ?? null)),
   readingImpact: (changes: FlatSettings | string = {}) => JSON.stringify({ sessions: readingImpact.sessions(), affected: readingImpact.affectedTabs(typeof changes === 'string' ? JSON.parse(changes) : changes) }),
   unchangedVoice: () => JSON.stringify((Zotero.Reader._readers ?? []).map((r: any) => unchangedVoice?.inspect(r) ?? null), null, 1),

@@ -9,7 +9,9 @@ dropdown, the voice browser's first column and the language dropdown — not
 greyed; nothing Zotero remembers is touched, and switching it back on
 brings the tier's last voice per language back. Enable checks first, as a
 provider's does: a Zotero sync account is signed in and the tier lists at
-least one voice; Test connection reports the voices and the credits. The
+least one voice; Test connection reports the voices and the credits.
+Without a signed-in account an off tier's Enable is greyed, the reason on
+its line, and follows a sign-in at once (issue #130, items 10-11). The
 two entries read `Zotero Standard` / `Zotero Premium` (zh-CN `Zotero 标准`
 / `Zotero 高级`) in the player and the browser. Mechanism: the composite
 remote interface drops a hidden tier's key from Zotero's own `getVoices`
@@ -123,10 +125,38 @@ values below were derived from `src/` and corrected by the first run
    on the surviving tab, the section's switches read as the prefs say, no
    new dead-object line.
 
+10. **Signed out, Enable is greyed (issue #130).** The settings pane
+    open, no player open. Disable Standard (item 3's way): a tier that is
+    on keeps a pressable Disable. Then, in chrome scope, keep
+    `Zotero.Sync.Data.Local.hasCredentials` and replace it with
+    `() => false` — an own property of that object, and what
+    `Zotero.Sync.Runner.enabled` reads — and fire
+    `Zotero.Notifier.trigger('modify', 'api-key', [])`, the notification
+    Zotero sends once a login is saved or removed → `ztts-enable-zotero-standard`
+    `disabled: true`, label `Enable`; `ztts-test-result-zotero-standard`
+    `Not signed in to a Zotero account: sign in under Settings → Sync.`
+    (zh-CN `未登录 Zotero 账户：请在 设置 → 同步 中登录。`);
+    `ztts-enable-zotero-premium` `disabled: false`, label `Disable`, the
+    same reason on its line; both `ztts-test-zotero-<tier>` `disabled:
+    false`. A `command` event dispatched at the greyed button → no
+    `Checking…`, the pref stays `false`. `diagnostics.zoteroTiers()` →
+    `signedIn: false`, both checks `{ ok: false, message: <the reason> }`.
+    The notification also reaches Zotero's reader, which sets every tab's
+    `loggedIn` from the same flag (`providerTiers()` `signedIn: false`
+    everywhere), and Zotero's streamer, which re-reads its key.
+11. **Signed in again, at once.** Put `hasCredentials` back (assign the
+    kept function) and fire the notification again → Standard's Enable
+    `disabled: false`, both result lines empty, every tab's `signedIn`
+    `true` again. Enable Standard (item 5's way): `Checking…`, then item
+    2's message and `Disable`.
+
 What it may touch: `zotero-tts.zotero-standard.enabled`,
 `zotero-tts.zotero-premium.enabled` (both back to `true`), the provider
 switches of item 7 (back to what they were, through Enable), the fixture
-tab and its popup, `readAloud.volume` (0 for the run, restored). Zotero's
+tab and its popup, `readAloud.volume` (0 for the run, restored); for
+items 10-11 only, `Zotero.Sync.Data.Local.hasCredentials` (the kept
+function assigned back) and two `api-key` notifications, which leave
+every tab's `loggedIn` as it was. Zotero's
 `reader.readAloudVoices` is read, never written by the kit: item 4's pick
 writes it through the player, as any pick does.
 
@@ -134,9 +164,9 @@ Only a human can judge: nothing here — every item is a diagnostic or a DOM
 read. Only a human can see whether the section's `?` tooltip and the two
 rows read well beside the other sections; a screenshot is enough.
 
-Not testable live on the owner's profile: the **not signed in** outcome
-(`Not signed in to a Zotero account: sign in under Edit → Settings →
-Sync.`) — `Zotero.Sync.Runner.enabled` is true there and signing out is not
-the kit's to do; `test/ui/zotero-tier-check.test.ts` covers it. A tier
-that Zotero lists no voices for cannot be provoked either; the same test
-covers the message.
+Not testable live on the owner's profile: a real sign-out, which is not
+the kit's to do — items 10-11 stand in for it by the flag
+`Zotero.Sync.Runner.enabled` reads, and `test/ui/zotero-tier-check.test.ts`
+and `test/ui/provider-rows.test.ts` cover the outcome and the greyed
+button. A tier that Zotero lists no voices for cannot be provoked either;
+the first of those tests covers the message.

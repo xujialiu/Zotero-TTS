@@ -127,10 +127,6 @@ security note is in [NOTES_2026-08-22.md](NOTES_2026-08-22.md). These remain:
    as "local server down" (since issue #55 the catalog aborts a listing
    that ran past its bound, but that rejection is discarded by the
    timeout race and never read).
-4. **A user not signed in to Zotero sync may see no plugin voices**
-   (2026-09-15, not verified): Zotero loads the remote voices only when
-   sync is enabled, and ours come through that interface. The evidence is
-   in [NOTES_2026-09-15.md](NOTES_2026-09-15.md).
 
 ---
 
@@ -579,3 +575,4 @@ then) and is in the git history before that day.
 ### [2026-09-22](NOTES_2026-09-22.md)
 
 - Brackets go wherever they enclose text; a `<…>` pair of two math signs stays (issue #127)
+- Zotero asks for its voice list only signed in, and every plugin voice rode that request (issue #130)

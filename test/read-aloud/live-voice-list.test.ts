@@ -5,13 +5,16 @@ function fixture(overrides: Partial<Parameters<typeof createLiveVoiceList>[0]> =
   const playing = { id: 'azure::ava', tier: 'azure', segmentGranularity: 'sentence' };
   let listed: any[] = [{ ...playing }, { id: 'local::bella', tier: 'local', impl: { tier: 'local' } }];
   const requests: Array<() => void> = [];
+  /** What each run of Zotero's loadVoices was asked: its remote list or not (reader.js:82310). */
+  const remote: boolean[] = [];
   const resolveVoice = vi.fn();
   const manager = {
     active: true, _voice: playing, selectedVoiceID: playing.id, _allVoices: [playing],
     _controller: { position: 7 }, _options: {}, _devMode: false,
     _resolveVoice: resolveVoice, _stateChanged: vi.fn(),
     deactivate() { this.active = false; },
-    async loadVoices() {
+    async loadVoices(loadRemote: boolean) {
+      remote.push(loadRemote);
       await new Promise<void>(resolve => requests.push(resolve));
       this._allVoices = listed;
       this._resolveVoice(); this._stateChanged();
@@ -21,9 +24,9 @@ function fixture(overrides: Partial<Parameters<typeof createLiveVoiceList>[0]> =
   const error = vi.fn(), ended = vi.fn();
   const lists = createLiveVoiceList({ readers: () => [reader], stage: () => ({}),
     voiceTiers: () => (id: string) => id.startsWith('local::') ? 'kokoro' : id.startsWith('azure::') ? 'azure' : null,
-    protectedVoices: () => [manager._voice.id, manager.selectedVoiceID], error, ended, ...overrides });
+    protectedVoices: () => [manager._voice.id, manager.selectedVoiceID], ownsInterface: () => true, error, ended, ...overrides });
   lists.attach(reader);
-  return { manager, reader, lists, playing, resolveVoice, requests, error, ended, setListed: (voices: any[]) => { listed = voices; } };
+  return { manager, reader, lists, playing, resolveVoice, requests, remote, error, ended, setListed: (voices: any[]) => { listed = voices; } };
 }
 
 describe('live player voice choices', () => {
@@ -38,6 +41,28 @@ describe('live player voice choices', () => {
     expect(f.manager._allVoices).toBe(catalog);
     expect(f.resolveVoice).not.toHaveBeenCalled();
     expect(f.lists.inspect(f.reader)?.applied).toBe(1);
+  });
+  // Zotero asks for its remote list only with an account signed in
+  // (reader.js:84271), and the plugin's voices all come through it (#130)
+  it('asks for the plugin’s list signed out too, when Zotero leaves its remote voices out', async () => {
+    const f = fixture();
+    const opened = f.manager.loadVoices(false);
+    f.requests.shift()!(); await opened;
+    expect(f.remote).toEqual([true]);
+    expect(f.lists.inspect(f.reader)).toMatchObject({ asked: false, remote: true });
+    // The same for a refresh after a settings change, from the reader's own flag
+    const refreshed = f.lists.refresh();
+    f.requests.shift()!(); await refreshed;
+    expect(f.remote).toEqual([true, true]);
+  });
+  it('keeps Zotero’s flag on a reader whose voices do not come through the plugin', async () => {
+    const f = fixture({ ownsInterface: () => false });
+    const opened = f.manager.loadVoices(false);
+    f.requests.shift()!(); await opened;
+    const signedIn = f.manager.loadVoices(true);
+    f.requests.shift()!(); await signedIn;
+    expect(f.remote).toEqual([false, true]);
+    expect(f.lists.inspect(f.reader)).toMatchObject({ asked: true, remote: true });
   });
   it('reads the engine’s name once per refresh, not once per voice (#125)', async () => {
     let walks = 0;

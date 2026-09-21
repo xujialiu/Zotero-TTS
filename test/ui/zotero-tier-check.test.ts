@@ -18,7 +18,7 @@ function deps(over: { signedIn?: boolean; voices?: ZoteroVoice[]; credits?: { st
 describe('checkZoteroTier', () => {
   it('fails without a signed-in Zotero account, before asking Zotero anything', async () => {
     const d = deps({ signedIn: false });
-    expect(await checkZoteroTier('standard', d)).toEqual({ ok: false, message: 'Not signed in to a Zotero account: sign in under Edit → Settings → Sync.' });
+    expect(await checkZoteroTier('standard', d)).toEqual({ ok: false, message: 'Not signed in to a Zotero account: sign in under Settings → Sync.' });
     expect(d.listVoices).not.toHaveBeenCalled();
     expect(d.credits).not.toHaveBeenCalled();
   });

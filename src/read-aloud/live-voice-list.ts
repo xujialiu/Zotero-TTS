@@ -10,6 +10,16 @@ interface LiveVoiceListDeps {
   /** Opens a reader of a plugin voice id's tier, once per walk and never per voice (provider-tiers.ts, issue #125). */
   voiceTiers(): (id: string) => string | null;
   protectedVoices(reader: any): readonly string[];
+  /**
+   * Whether the reader's voices come through the plugin's interface. Such a
+   * list is asked for signed out too: Zotero asks for its remote list only
+   * with a Zotero account signed in (`loadVoices(this._state.loggedIn)`,
+   * reader.js:84271), and every voice of the plugin's providers — none of
+   * which needs an account — travels in it (issue #130). The interface
+   * itself leaves Zotero's own voices out while signed out
+   * (remote-interface.ts signedIn). Any other reader keeps Zotero's flag.
+   */
+  ownsInterface(reader: any): boolean;
   ended?(): void;
   exportFunction?(fn: AnyFn, target: object): AnyFn;
   promise?(reader: any, job: Promise<void>): any;
@@ -22,16 +32,21 @@ interface LiveVoiceListDeps {
  * the active controller, voice, position, or persisted selection (#121). */
 export function createLiveVoiceList(deps: LiveVoiceListDeps) {
   type Entry = { reader: any; manager: any; original: AnyFn; own?: PropertyDescriptor; hook: AnyFn;
-    revision: number; applied: number; loading: number; retained: number; undoEnd?: () => void };
+    revision: number; applied: number; loading: number; retained: number; undoEnd?: () => void;
+    /** The last load: what Zotero asked for, and whether the remote list was loaded. */
+    asked: boolean | null; remote: boolean | null };
   const entries = new Map<any, Entry>();
   const waive = <T>(value: T): T => deps.waiveXrays ? deps.waiveXrays(value) : value;
   const exported = (fn: AnyFn, target: object) => deps.exportFunction ? deps.exportFunction(fn, target) : fn;
   let disposed = false;
 
-  async function load(entry: Entry, remote: boolean): Promise<void> {
+  async function load(entry: Entry, asked: boolean): Promise<void> {
     const revision = ++entry.revision;
     entry.loading++;
     try {
+      const remote = asked || deps.ownsInterface(entry.reader);
+      entry.asked = asked;
+      entry.remote = remote;
       const m = entry.manager;
       const stage = waive(deps.stage(entry.reader));
       stage._options = m._options;
@@ -83,9 +98,9 @@ export function createLiveVoiceList(deps: LiveVoiceListDeps) {
     if (typeof manager?.loadVoices !== 'function') return false;
     const original = manager.loadVoices;
     const entry: Entry = { reader, manager, original, own: Object.getOwnPropertyDescriptor(manager, 'loadVoices'),
-      hook: original, revision: 0, applied: 0, loading: 0, retained: 0 };
-    entry.hook = exported((remote: boolean) => {
-      const job = load(entry, remote);
+      hook: original, revision: 0, applied: 0, loading: 0, retained: 0, asked: null, remote: null };
+    entry.hook = exported((asked: boolean) => {
+      const job = load(entry, asked);
       return deps.promise ? deps.promise(reader, job) : job;
     }, manager);
     manager.loadVoices = entry.hook;
@@ -116,7 +131,7 @@ export function createLiveVoiceList(deps: LiveVoiceListDeps) {
   }
   function inspect(reader: any) {
     const entry = entries.get(reader);
-    return entry ? { applied: entry.applied, loading: entry.loading, retained: entry.retained, revision: entry.revision } : null;
+    return entry ? { applied: entry.applied, loading: entry.loading, retained: entry.retained, revision: entry.revision, asked: entry.asked, remote: entry.remote } : null;
   }
   function detach(reader: any) {
     const entry = entries.get(reader);

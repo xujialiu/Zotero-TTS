@@ -74,6 +74,8 @@ function setup(
     /** The reading guard's question and its Stop (issue #71); absent, the guard only refuses. */
     askToStop?: (message: string) => Promise<boolean>;
     stopReading?: () => string[];
+    /** Why a switch cannot go on right now (issue #130); absent, every switch can. */
+    blocked?: (id: SwitchId) => string | null;
   } = {},
 ) {
   const els = new Map<string, FakeElement>();
@@ -110,6 +112,7 @@ function setup(
       [{ title: 'Paper', voices: [{ id: options.protectedProvider + '::voice', provider: options.protectedProvider! }] }]) } : {}),
     ...(options.askToStop ? { askToStop: options.askToStop } : {}),
     ...(options.stopReading ? { stopReading: options.stopReading } : {}),
+    ...(options.blocked ? { blocked: options.blocked } : {}),
   });
   const of = (id: SwitchId) => {
     const ids = providerRowIds(id);
@@ -497,6 +500,66 @@ describe('initProviderRows', () => {
       expect(t.check).toHaveBeenCalledTimes(1);
       gate.resolve(CONNECTED);
       await testing;
+    });
+  });
+
+  describe('a switch that cannot go on yet: Zotero’s tiers without a Zotero account (issue #130)', () => {
+    const NOT_SIGNED_IN = 'Not signed in to a Zotero account: sign in under Settings → Sync.';
+    const zoteroOnly = (signedIn: () => boolean) => (id: SwitchId) => (id.startsWith('zotero-') && !signedIn() ? NOT_SIGNED_IN : null);
+
+    it('greys Enable and says why on its line, leaving Test connection and every other switch alone', () => {
+      const t = setup({ blocked: zoteroOnly(() => false) });
+      expect(t.of('zotero-standard').label()).toBe('Enable');
+      expect(t.of('zotero-standard').toggle.disabled).toBe(true);
+      expect(t.of('zotero-standard').result()).toBe(NOT_SIGNED_IN);
+      expect(t.of('zotero-standard').test.disabled).toBe(false);
+      expect(t.of('zotero-premium').toggle.disabled).toBe(true);
+      expect(t.of('azure').toggle.disabled).toBe(false);
+      expect(t.of('azure').result()).toBe('');
+    });
+
+    it('keeps Disable pressable on a tier already on, the reason beside it', async () => {
+      const t = setup({ prefs: { [enabledPref('zotero-standard')]: true }, blocked: zoteroOnly(() => false) });
+      expect(t.of('zotero-standard').label()).toBe('Disable');
+      expect(t.of('zotero-standard').toggle.disabled).toBe(false);
+      expect(t.of('zotero-standard').result()).toBe(NOT_SIGNED_IN);
+      await t.of('zotero-standard').toggle.fire('command');
+      expect(t.of('zotero-standard').enabled()).toBe(false);
+      expect(t.of('zotero-standard').toggle.disabled).toBe(true);
+      expect(t.of('zotero-standard').result()).toBe(NOT_SIGNED_IN);
+    });
+
+    it('refresh follows the answer: Enable pressable again and the reason gone once it no longer holds, and back when it holds again', () => {
+      let signedIn = false;
+      const t = setup({ blocked: zoteroOnly(() => signedIn) });
+      signedIn = true;
+      t.rows.refresh();
+      expect(t.of('zotero-standard').toggle.disabled).toBe(false);
+      expect(t.of('zotero-standard').result()).toBe('');
+      signedIn = false;
+      t.rows.refresh();
+      expect(t.of('zotero-standard').toggle.disabled).toBe(true);
+      expect(t.of('zotero-standard').result()).toBe(NOT_SIGNED_IN);
+    });
+
+    it('leaves a line that no longer shows the reason when the reason goes', async () => {
+      let signedIn = false;
+      const t = setup({ blocked: zoteroOnly(() => signedIn) });
+      signedIn = true;
+      t.rows.refresh();
+      await t.of('zotero-standard').test.fire('command');
+      expect(t.of('zotero-standard').result()).toBe(CONNECTED.message);
+      t.rows.refresh();
+      expect(t.of('zotero-standard').result()).toBe(CONNECTED.message);
+    });
+
+    it('a command that reaches a greyed Enable runs no check and writes nothing', async () => {
+      const t = setup({ blocked: zoteroOnly(() => false) });
+      await t.of('zotero-standard').toggle.fire('command');
+      await settled();
+      expect(t.check).not.toHaveBeenCalled();
+      expect(t.of('zotero-standard').enabled()).toBeUndefined();
+      expect(t.of('zotero-standard').toggle.disabled).toBe(true);
     });
   });
 

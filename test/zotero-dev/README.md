@@ -72,6 +72,7 @@ opens a fixture ends with item 3.26's teardown ([playback](cases/playback.md)).
 - [One regional list for the player and shortcuts (issue #106)](cases/player-voice-list.md)
 - [One entry per provider in the player's first dropdown (issue #110)](cases/provider-tiers.md)
 - [Zotero's Standard and Premium behind switches of their own (issue #111)](cases/zotero-tiers.md)
+- [The player without a Zotero account (issue #130)](cases/signed-out-voices.md)
 - [A voice list landing on the playing voice keeps the controller](cases/unchanged-voice.md) — 3.27
 - [The remembered voice](cases/remembered-voice.md) — 3.2, 3.11, 4.7
 - [A PDF's raw /Lang tag](cases/raw-lang-tag.md) — 3.12–3.14

@@ -693,7 +693,26 @@ export function onPaneLoad(doc: Document, hooks: PaneHooks = {}): void {
     onSwitched: (id, on) => {
       if (id === 'system' && on) void adoptSystemVoices(prefs, providerDeps(), hooks);
     },
+    // Zotero's own tiers need a Zotero account: without one their Enable is greyed (issue #130)
+    blocked: (id) => (isZoteroSwitch(id) && !Zotero.Sync?.Runner?.enabled ? t('ztts-zotero-not-signed-in') : null),
   });
+  // Signing in or out — in this very window's Sync pane, as often as not —
+  // moves those two buttons at once: the notification Zotero's reader
+  // follows for its own flag (xpcom/reader.js 2879-2882), sent once the
+  // login is saved or removed (xpcom/sync/syncLocal.js setAPIKey)
+  let accountObserver: string | null = null;
+  try {
+    accountObserver = Zotero.Notifier.registerObserver({ notify: () => providerRows.refresh() }, ['api-key'], 'zotero-tts-pane');
+  } catch (e) {
+    Zotero.logError(e);
+  }
+  win?.addEventListener(
+    'unload',
+    () => {
+      if (accountObserver !== null) Zotero.Notifier.unregisterObserver(accountObserver);
+    },
+    { once: true },
+  );
   // ProviderRows paints its fields once during construction; apply the
   // Manual voices source lock after that first paint too.
   fishVoiceSources.refresh();
