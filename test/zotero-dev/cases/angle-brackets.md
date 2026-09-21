@@ -98,7 +98,8 @@ original values in the workflow's order, with reading memory last.
     - `He cast [Fireball] at the wolf.` is sent as
       `He cast Fireball at the wolf.`; one returned range slices `Fireball`
       out of the original segment (`[9,17]`) with `end > start`, and every
-      range slices a word of the original. Debug:
+      range slices words of the original, no bracket (Fish may merge two
+      words into one range: `the wolf` on 2026-09-22). Debug:
       `bracket pairs: removed 2 bracket code unit(s) from 31 chars`.
     - `[Level Up] You gained 100 exp.` is sent as
       `Level Up You gained 100 exp.`; ranges slice `Level` (`[1,6]`) and
