@@ -576,3 +576,4 @@ then) and is in the git history before that day.
 
 - Brackets go wherever they enclose text; a `<…>` pair of two math signs stays (issue #127)
 - Zotero asks for its voice list only signed in, and every plugin voice rode that request (issue #130)
+- Verified live, issue #130: the tab's own flag proves the skip, and a tab open across a reinstall keeps the previous instance's `loadVoices` hook (issue #130)
