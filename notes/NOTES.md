@@ -575,3 +575,7 @@ then) and is in the git history before that day.
 - The hooks the Positions File rides on, and what is read where (issue #126)
 - The player's play resumes through toggleReadAloudPaused, and a jump un-pauses by itself (issue #126)
 - `_sdt.mapper` is an Xray wrapper in the sandbox; `_internalReader` and `_readAloudManager` are not (issue #126)
+
+### [2026-09-22](NOTES_2026-09-22.md)
+
+- Brackets go wherever they enclose text; a `<…>` pair of two math signs stays (issue #127)

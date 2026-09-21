@@ -27,10 +27,10 @@ describe('configurable bracket pairs', () => {
     ['<Hello> [World]', '<> []', 'Hello World'],
     ['[Hello]', '<>', '[Hello]'],
     ['【Hello】 (World)!', '() 【】', 'Hello World!'],
-    ['<[Hello]> [<World>]', '<> []', '[Hello] <World>'],
-    ['<Hello> and [World]', '<> []', '<Hello> and [World]'],
-    ['<Hello> [World', '<> []', '<Hello> [World'],
-    ['<[Hello>]', '<> []', '<[Hello>]'],
+    ['<[Hello]> [<World>]', '<> []', 'Hello World'],
+    ['<Hello> and [World]', '<> []', 'Hello and World'],
+    ['<Hello> [World', '<> []', 'Hello [World'],
+    ['<[Hello>]', '<> []', 'Hello'],
     ['<a < b>', '<> []', 'a < b'],
     ['😀Hello😁 [World]', '😀😁 []', 'Hello World'],
   ])('prepares %s', (input, pairs, expected) => {
@@ -94,5 +94,73 @@ describe('configurable bracket pairs', () => {
     if (id === 'native') expect(nativeAudio).toHaveBeenCalledWith({ text: 'Hello' }, { id });
     else { expect(synthesize).toHaveBeenCalledWith('Hello', expect.anything()); expect(synthesize).toHaveBeenCalledTimes(1); }
     expect(raw.timestamps[0].charStart).toBe(0);
+  });
+});
+
+describe('brackets inside a sentence (#127)', () => {
+  it.each([
+    ['He cast [Fireball] at the wolf.', 'He cast Fireball at the wolf.'],
+    ['[Level Up] You gained 100 exp.', 'Level Up You gained 100 exp.'],
+    ['[Skill: [Fireball]] now', 'Skill: Fireball now'],
+    ['as shown [12].', 'as shown 12.'],
+    ['Say [ hello ] now', 'Say  hello  now'],
+    ['You gained < 100 exp> today.', 'You gained  100 exp today.'],
+    ['<Warning: HP < 10%>', 'Warning: HP < 10%'],
+    ['<HP > 5>', 'HP > 5'],
+    ['[x < 5 and y > 3]', 'x < 5 and y > 3'],
+    ['他获得了<火球术>技能', '他获得了火球术技能'],
+    ['[A <B] C>', 'A B C'],
+    ['[A] B] C', 'A B] C'],
+    ['[A [B] C', '[A B C'],
+    ['List<String>', 'ListString'],
+  ])('removes the pairs in %s', (input, expected) => {
+    expect(prepareSpeechText(input, true).text).toBe(expected);
+    expect(prepareSpeechText(input, false).text).toBe(input);
+  });
+  it.each([
+    'If x < 5 and y > 3, stop.', 'aged < 65 years and BMI > 30', 'p<0.05 and BMI>30',
+    'x <= 5 and y >= 3', 'A <- B -> C', 'A <-> B', 'You have < 2/50 HP > left.',
+  ])('keeps < and > that read as math signs in %s', input => {
+    expect(prepareSpeechText(input, true)).toEqual({ text: input, removed: [] });
+  });
+  it('applies a custom list inside a sentence', () => {
+    expect(prepareSpeechText('He said (quietly) 【Hello】 now', true, '() 【】').text).toBe('He said quietly Hello now');
+  });
+  it('leaves a sentence with an opening symbol shared by two pairs as written', () => {
+    expect(prepareSpeechText('He cast <Fireball> now', true, '<> <]')).toEqual({ text: 'He cast <Fireball> now', removed: [] });
+  });
+  it('returns ascending positions that map every word back across crossing groups', () => {
+    const source = '[A <B] C>';
+    const prepared = prepareSpeechText(source, true);
+    expect(prepared).toEqual({ text: 'A B C', removed: [0, 3, 5, 8] });
+    const times = [0, 2, 4].map(charStart => ({ start: 0, end: 1, charStart, charEnd: charStart + 1 }));
+    expect(restoreSpeechOffsets(times, prepared.removed).map(t => source.slice(t.charStart, t.charEnd))).toEqual(['A', 'B', 'C']);
+  });
+  it.each(['openai-official::alloy', 'native'])('sends %s the bracketed words and maps them back', async id => {
+    const original = 'He cast [Fireball] at the wolf.';
+    const cleaned = 'He cast Fireball at the wolf.';
+    const words = ['He', 'cast', 'Fireball', 'at', 'the', 'wolf'];
+    let from = 0;
+    const timestamps = words.map((word, i) => {
+      const charStart = cleaned.indexOf(word, from);
+      from = charStart + word.length;
+      return { start: i, end: i + 0.5, charStart, charEnd: from };
+    });
+    const raw = { audio: new Blob(['audio']), timestamps };
+    const synthesize = vi.fn(async () => raw);
+    const nativeAudio = vi.fn(async () => raw);
+    const cache = new Map();
+    const remote = createRemoteInterface({
+      listCatalog: async () => [], getProvider: () => ({ id: 'openai-official', synthesize } as any),
+      getBracketPairs: () => '<> []', cacheVersion: () => 'v1',
+      cache: () => ({ match: async key => cache.get(key), put: async (key, value) => { cache.set(key, value); } }),
+      native: () => ({ getAudio: nativeAudio } as any),
+    });
+    const source = Object.freeze({ text: original });
+    const result = await remote.getAudio(source, { id });
+    expect((result.timestamps as any[]).map(t => original.slice(t.charStart, t.charEnd))).toEqual(words);
+    if (id === 'native') expect(nativeAudio).toHaveBeenCalledWith({ text: cleaned }, { id });
+    else expect(synthesize).toHaveBeenCalledWith(cleaned, expect.anything());
+    expect(source.text).toBe(original);
   });
 });

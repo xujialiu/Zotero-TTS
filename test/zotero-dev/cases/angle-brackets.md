@@ -1,6 +1,6 @@
 [Checklist index](../README.md) · [Scripts](../scripts/angle-brackets/README.md)
 
-## 3g. Enclosing brackets (issues #94, #96, #101)
+## 3g. Enclosing brackets (issues #94, #96, #101, #127)
 
 Run the [baseline](../baseline.md), then import
 `test/fixtures/angle-brackets/angle-brackets.epub` as a temporary standalone
@@ -59,8 +59,9 @@ original values in the workflow's order, with reading memory last.
    Confirm the native transport stub receives the same prepared text and
    maps ranges back without changing segment metadata. With the setting
    off at a new session, expect the full original string. Check
-   `“<A>”, <B>!` -> `“A”, B!`, `<<A>> <B>` -> `<A> B`, and unchanged
-   `<A> <B`, `<A>> <B>`, `<A> and <B>`, and `a < b > c`.
+   `“<A>”, <B>!` -> `“A”, B!`, `<<A>> <B>` -> `A B`, `<A> <B` -> `A <B`,
+   `<A>> <B>` -> `A> B`, `<A> and <B>` -> `A and B`, and unchanged
+   `a < b > c` (#127 changed every expectation here but the first and last).
    Use restored request probes without modifying user documents. If the
    fixture's segmenter does not produce the exact source, record that
    limitation and distinguish direct interface checks from playback.
@@ -82,15 +83,40 @@ original values in the workflow's order, with reading memory last.
    `【Hello】 (World)` -> `Hello World` with the corresponding configuration.
    Verify native metadata and offsets via the restored stub, real plugin
    word ranges, cache reuse, and prefetch with the custom list.
-   Mixed nesting `<[Hello]> [<World>]` retains `[Hello] <World>`;
-   malformed `<[Hello>]` remains unchanged. Multiple empty pairs skip
-   synthesis. Original document coordinates remain unchanged.
+   Mixed nesting `<[Hello]> [<World>]` becomes `Hello World` and crossing
+   `<[Hello>]` becomes `Hello`: every layer goes since #127. Multiple empty
+   pairs skip synthesis. Original document coordinates remain unchanged.
    `diagnostics.textSettings()` now includes `configuredPairs` and
    `effectivePairs`: editing a list while active/paused changes only the
    former; stopping and reactivating updates the latter. Restore the list's
    value and user-value flag along with the existing baseline preferences.
 
-Unit-only edge coverage includes nested pairs (one removal), punctuation
+10. **Brackets inside a sentence (#127).** The fixture's last four
+    paragraphs. The installed bundle contains `function isMathSign`. With the
+    default list, capture each outgoing Fish cloud request (free model) and
+    the word ranges the remote interface returns:
+    - `He cast [Fireball] at the wolf.` is sent as
+      `He cast Fireball at the wolf.`; one returned range slices `Fireball`
+      out of the original segment (`[9,17]`) with `end > start`, and every
+      range slices a word of the original. Debug:
+      `bracket pairs: removed 2 bracket code unit(s) from 31 chars`.
+    - `[Level Up] You gained 100 exp.` is sent as
+      `Level Up You gained 100 exp.`; ranges slice `Level` (`[1,6]`) and
+      `Up` (`[7,9]`).
+    - `You gained < 100 exp> today.` is sent as
+      `You gained  100 exp today.` (two spaces).
+    - `If x < 5 and y > 3, stop.` is sent as written, with no
+      `bracket pairs:` debug line.
+
+    Repeat the first through the cache: the same ranges, no second request.
+    The segments' own text and positions equal the baseline. With the
+    setting off at a new session, each sentence reaches synthesis as
+    written. Whether Fish is heard saying Fireball and Level Up is a human
+    check; the word ranges are the machine proof.
+
+Unit-only edge coverage includes nested and crossing pairs (every layer),
+the math-sign rule's edges (`p<0.05 and BMI>30`, `x <= 5 and y >= 3`,
+`A <-> B`, `<Warning: HP < 10%>`, `List<String>`), punctuation
 before and after the pair, fullwidth brackets, UTF-16 position mapping,
 immutable cached timestamps, and concurrent cache/prefetch behavior.
 Whether the resulting speech sounds natural and the moving highlight feels

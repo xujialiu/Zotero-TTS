@@ -25,12 +25,12 @@ describe('angle brackets at the speech boundary', () => {
   it.each([
     ['<Log in> <Register> <Play as guest>', 'Log in Register Play as guest'],
     ['<A><B>', 'AB'], ['“<A>”, <B>!', '“A”, B!'],
-    [' <A>\n<B> ', ' A\nB '], ['<<A>> <B>', '<A> B'],
-    ['<<A> <B>>', '<A> <B>'], ['<a < b> <C>', '<a < b> <C>'],
-    ['a < b > c', 'a < b > c'], ['<A> and <B>', '<A> and <B>'],
-    ['<A> <B', '<A> <B'], ['A> <B>', 'A> <B>'],
-    ['<A>> <B>', '<A>> <B>'], ['<A> <B>>', '<A> <B>>'],
-    ['<a < b> <', '<a < b> <'],
+    [' <A>\n<B> ', ' A\nB '], ['<<A>> <B>', 'A B'],
+    ['<<A> <B>>', 'A B'], ['<a < b> <C>', 'a < b C'],
+    ['a < b > c', 'a < b > c'], ['<A> and <B>', 'A and B'],
+    ['<A> <B', 'A <B'], ['A> <B>', 'A> B'],
+    ['<A>> <B>', 'A> B'], ['<A> <B>>', 'A B>'],
+    ['<a < b> <', 'a < b <'],
   ])('handles bracket groups in %s', (input, expected) => {
     expect(prepareSpeechText(input, true).text).toBe(expected);
     expect(prepareSpeechText(input, false)).toEqual({ text: input, removed: [] });
@@ -101,9 +101,9 @@ describe('angle brackets at the speech boundary', () => {
     expect(mapped.map(t => [t.start, t.end])).toEqual(words.map(t => [t.start, t.end]));
   });
   it.each([
-    ['<Hello world.>', 'Hello world.'], ['<<Hello>>', '<Hello>'], ['<a < b>', 'a < b'],
+    ['<Hello world.>', 'Hello world.'], ['<<Hello>>', 'Hello'], ['<a < b>', 'a < b'],
     ['Hello < world', 'Hello < world'], ['<Hello', '<Hello'], ['Hello>', 'Hello>'],
-    ['<Hello>.', 'Hello.'], [' <Hello> ', ' Hello '], ['“<Hello>!”', '“Hello!”'], ['Hello <world>.', 'Hello <world>.'], ['＜Hello＞', '＜Hello＞'],
+    ['<Hello>.', 'Hello.'], [' <Hello> ', ' Hello '], ['“<Hello>!”', '“Hello!”'], ['Hello <world>.', 'Hello world.'], ['＜Hello＞', '＜Hello＞'],
   ])('prepares %s as %s without mutating the segment', async (text, expected) => {
     const s = setup(); const segment = Object.freeze({ text });
     await createRemoteInterface(s.deps).getAudio(segment, voice);

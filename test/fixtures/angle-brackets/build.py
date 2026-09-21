@@ -1,4 +1,4 @@
-"""Build the small, offline EPUB used for issue #94's live checks."""
+"""Build the small, offline EPUB used for the bracket live checks (issues #94, #127)."""
 from pathlib import Path
 from zipfile import ZipFile, ZIP_STORED, ZIP_DEFLATED
 from html import escape
@@ -11,6 +11,10 @@ paragraphs = [
     '<Only the opening bracket stays intact.',
     '<>',
     '<The final sentence continues after the empty pair>.',
+    'He cast [Fireball] at the wolf.',
+    '[Level Up] You gained 100 exp.',
+    'You gained < 100 exp> today.',
+    'If x < 5 and y > 3, stop.',
 ]
 chapter = '''<?xml version="1.0" encoding="utf-8"?>
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><title>Angle bracket fixture</title></head>

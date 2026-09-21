@@ -382,12 +382,14 @@ provider (or Zotero's Standard / Premium), language, voice.
   begins, at 1× speed, shortened in step with the speed. On at 200 ms by
   default. Off, Zotero's own pause, the same at every speed.
 - *Remove enclosing brackets when reading* — on by default for every voice,
-  with `<> []` as the default pairs. `<Hello> [World].` is read as
-  `Hello World.`, keeping outside punctuation and spacing. Turn it off
-  to edit the pairs, separated by spaces, then check it to validate and
-  enable. Invalid input offers a choice to use the defaults or keep editing.
-  Ordinary words outside the groups keep the original text unchanged.
-  The document is unchanged. Stop and reopen Read Aloud after a change.
+  with `<> []` as the default pairs. A pair is removed wherever it encloses
+  text, and the words inside are read: `He cast [Fireball] at the wolf.` is
+  read as `He cast Fireball at the wolf.` A bracket without its partner
+  stays, and so do `<` and `>` written as comparisons, as in
+  `x < 5 and y > 3`. Turn it off to edit the pairs, separated by spaces,
+  then check it to validate and enable. Invalid input offers a choice to
+  use the defaults or keep editing. The document is unchanged. Stop and
+  reopen Read Aloud after a change.
 - *Prefetch upcoming sentences* — the ones ahead are synthesized while the
   current one plays, so playback never waits for the server. It needs the
   cache below, and keeps it switched on.

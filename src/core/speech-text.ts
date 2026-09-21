@@ -22,54 +22,59 @@ export function validateBracketPairs(value: string): BracketValidation {
   return { ok: true, pairs };
 }
 
-/** One pass preserves nested layers across different pair types and source offsets. */
+/**
+ * Remove every configured pair wherever it encloses text, keeping the text
+ * inside, every nesting layer included (issue #127: Fish takes a bracketed
+ * word inside a sentence as an instruction and never says it). A bracket
+ * without its partner stays. Positions are UTF-16 code units, ascending.
+ */
 export function prepareSpeechText(text: string, enabled: boolean, pairs = DEFAULT_BRACKET_PAIRS): { text: string; removed: number[] } {
   const unchanged = { text, removed: [] as number[] };
   if (!enabled) return unchanged;
   const parsed = validateBracketPairs(pairs);
   // Invalid externally restored settings must never cause guessed deletions.
   if (!parsed.ok) return unchanged;
-  const openings = new Map<string, string[]>();
-  const closings = new Set<string>();
-  for (const [a, b] of parsed.pairs) {
-    openings.set(a, [...(openings.get(a) ?? []), b]);
-    closings.add(b);
-  }
-  const outside = /^[\p{P}\p{S}\s]*$/u;
-  const stack: string[] = [];
+  const list = parsed.pairs;
+  const angle = (p: number) => list[p][0] === '<' && list[p][1] === '>';
+  // The unpaired opening brackets of each pair; sign marks a < that reads as math.
+  const pending = list.map((): Array<{ at: number; width: number; sign: boolean }> => []);
   const removed: number[] = [];
-  let open = 0, openWidth = 0, after = 0, index = 0;
-  let onlyAngles = true;
+  let index = 0;
   for (const char of text) {
-    const i = index;
+    const at = index;
     index += char.length;
-    const options = openings.get(char);
-    if ((options || closings.has(char)) && char !== '<' && char !== '>') onlyAngles = false;
-    if (stack.length && stack[stack.length - 1] === char) {
-      stack.pop();
-      if (!stack.length) {
-        for (let j = 0; j < openWidth; j++) removed.push(open + j);
-        for (let j = 0; j < char.length; j++) removed.push(i + j);
-        after = index;
+    // A closing bracket takes the nearest unpaired opening one of its own
+    // pair, whatever lies between, so crossing groups lose both pairs.
+    let pair = -1, slot = -1, keep = false;
+    for (let p = 0; p < list.length; p++) {
+      const open = pending[p];
+      if (list[p][1] !== char || !open.length) continue;
+      let s = open.length - 1, sign = false;
+      if (angle(p)) {
+        // A pair whose two signs both read as math is a comparison and stays
+        // (x < 5 and y > 3); a plain > falls back to a sign-like < (< 100 exp>).
+        sign = isMathSign(text, at);
+        s = lastSign(open, sign);
+        if (s < 0 && !sign) s = open.length - 1;
+        if (s < 0) continue;
       }
-    } else if (options) {
-      // Shared opening symbols are valid configuration, but ambiguous text is preserved.
-      if (options.length !== 1) return unchanged;
-      if (!stack.length) {
-        if (!outside.test(text.slice(after, i))) return unchanged;
-        open = i; openWidth = char.length;
-      }
-      stack.push(options[0]);
-    } else if (closings.has(char)) {
-      return unchanged;
+      if (pair < 0 || open[s].at > pending[pair][slot].at) { pair = p; slot = s; keep = sign; }
     }
+    if (pair >= 0) {
+      const [opening] = pending[pair].splice(slot, 1);
+      if (!keep) {
+        for (let j = 0; j < opening.width; j++) removed.push(opening.at + j);
+        for (let j = 0; j < char.length; j++) removed.push(at + j);
+      }
+      continue;
+    }
+    const opens = list.flatMap(([a], p) => (a === char ? [p] : []));
+    // Shared opening symbols are valid configuration, but ambiguous text is preserved.
+    if (opens.length > 1) return unchanged;
+    if (opens.length) pending[opens[0]].push({ at, width: char.length, sign: angle(opens[0]) && isMathSign(text, at) });
   }
-  if (stack.length) {
-    // Retain the explicitly supported #94 comparison wrapper, without widening it.
-    return onlyAngles && parsed.pairs.some(([a, b]) => a === '<' && b === '>')
-      ? prepareAngleText(text, true) : unchanged;
-  }
-  if (!removed.length || !outside.test(text.slice(after))) return unchanged;
+  if (!removed.length) return unchanged;
+  removed.sort((a, b) => a - b);
   const parts: string[] = [];
   let from = 0;
   for (const position of removed) {
@@ -80,48 +85,17 @@ export function prepareSpeechText(text: string, enabled: boolean, pairs = DEFAUL
   return { text: parts.join(''), removed };
 }
 
-/** Remove one outer layer per group, with only punctuation/spacing outside groups. */
-function prepareAngleText(text: string, enabled: boolean): { text: string; removed: number[] } {
-  const unchanged = { text, removed: [] as number[] };
-  if (!enabled) return unchanged;
-  const outside = /^[\p{P}\p{S}\s]*$/u;
-  const removed: number[] = [];
-  let depth = 0;
-  let open = -1;
-  let after = 0;
-  for (let i = 0; i < text.length; i++) {
-    if (text[i] === '<') {
-      if (depth === 0) {
-        if (!outside.test(text.slice(after, i))) return unchanged;
-        open = i;
-      }
-      depth++;
-    } else if (text[i] === '>') {
-      if (depth === 0) return unchanged;
-      if (--depth === 0) {
-        removed.push(open, i);
-        after = i + 1;
-      }
-    }
-  }
-  if (depth !== 0) {
-    // Preserve #94's single wrapper around a comparison: <a < b> -> a < b.
-    // Do not use this fallback across sibling groups or multiple closing brackets.
-    const close = text.indexOf('>');
-    if (removed.length || close <= open || close !== text.lastIndexOf('>') || text.indexOf('<', close) !== -1
-      || !outside.test(text.slice(close + 1))) return unchanged;
-    removed.push(open, close);
-    after = close + 1;
-  }
-  if (!removed.length || !outside.test(text.slice(after))) return unchanged;
-  const parts: string[] = [];
-  let from = 0;
-  for (const position of removed) {
-    parts.push(text.slice(from, position));
-    from = position + 1;
-  }
-  parts.push(text.slice(from));
-  return { text: parts.join(''), removed };
+/** x < 5, p<0.05, <=, ->: a < or > that reads as a math sign or an arrow, not a bracket. */
+function isMathSign(text: string, at: number): boolean {
+  const before = text[at - 1], after = text[at + 1];
+  if (before === '=' || after === '=' || (text[at] === '>' && before === '-')) return true;
+  if (before === undefined || after === undefined) return false;
+  return (/\s/u.test(before) && /\s/u.test(after)) || (/[A-Za-z0-9]/.test(before) && /[A-Za-z0-9]/.test(after));
+}
+
+function lastSign(open: ReadonlyArray<{ sign: boolean }>, sign: boolean): number {
+  for (let i = open.length - 1; i >= 0; i--) if (open[i].sign === sign) return i;
+  return -1;
 }
 
 /** Cached timestamps belong to the speech text. Return copies in document coordinates. */
