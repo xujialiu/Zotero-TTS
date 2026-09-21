@@ -63,8 +63,10 @@ values are derived from `src/` until a run corrects them.
    `false` for this item. Fixture tab still signed out, popup opened →
    `providerTiers()` → `loginRowReplaced: true`, `options` = one entry per
    provider in item 1's `tiers`, none of Zotero's; the popup's DOM holds a
-   tier select and no `.row.log-in` element. Close the popup; put
-   `usePluginPlayer` back.
+   tier select and no `.row.log-in` element. Read the popup as it opens:
+   its options panel is open from the start (`showOptions` starts true),
+   and a click on Options collapses it — the first run's false negative
+   (2026-09-22). Close the popup; put `usePluginPlayer` back.
 5. **Signed in again, as before.** `setLoggedIn(Zotero.Sync.Runner.enabled)`
    on the fixture tab, popup opened → `liveVoiceList()` `asked: true`,
    `remote: true`; `providerTiers()` `signedIn: true`, `tiers` with

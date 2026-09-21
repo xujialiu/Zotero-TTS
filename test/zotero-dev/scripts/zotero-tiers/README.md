@@ -8,7 +8,10 @@ item `ZTTS Fixture A`). `08`/`09` bracket the tester's own
 `zotero_plugin_install` reinstall call, which is not a script. `03b`/`04b`
 run BEFORE `03`/`04` (reordered — see Limits): both need Standard ON at
 start and leave it ON, while `03`/`04` leave it OFF for the next item's
-setup — the table's order satisfies every script's precondition.
+setup — the table's order satisfies every script's precondition. `10`/`11`
+(issue #130) are their own self-contained pair — opening the pane fresh
+rather than reusing `01`'s, needing no fixture — and run any time after
+`09`; `12` (renamed from `10`) always runs last.
 
 | Script | Checks | Expects | Reads |
 | --- | --- | --- | --- |
@@ -24,7 +27,9 @@ setup — the table's order satisfies every script's precondition.
 | `07-everything-off.js` | Item 7: disables every enabled provider (this profile: only `fish`) + both Zotero tiers, each driven to an EXPLICIT target state (not just flipped — see Limits), checks the status line/`#ztts-voices-tiers`/`providerTiers()`, restores all through Enable | `fixtureOptions` = Zotero's 3, all `disabled: true`; status line reads `ztts-no-providers-on` — fixed in beta2, was a real bug through beta (see Limits); `restoreFailed: []` | `fixtureItemID` |
 | `08-before-reload.js` | Item 9 setup: opens the fixture fresh, leaves the tab open, snapshots `providerTiers()`/`zoteroTiers()`/errors | — | `fixtureItemID` |
 | `09-after-reload.js` | Item 9: after the tester's own reinstall, polls the surviving tab, re-reads a FRESH pane's switches, diffs the debug log tail for new dead-object lines | `readerSurvived: true`; `switchesMatchPrefs: true`; `deadObjectMentionsInTail: 0` | — (reads `state.fixture` from `08`) |
-| `10-cleanup-restore.js` | Restores every pref from `state.baseline`, in order, `readAloud.memory` last; closes the settings window; reports the error ring | Every restored pref `matches: true` | — |
+| `10-signed-out-greyed.js` | Item 10 (issue #130): opens the pane fresh, self-heals both switches ON, disables Standard (item 3's way, real click), shadows `Zotero.Sync.Data.Local.hasCredentials` to `() => false` (own descriptor kept) and fires `api-key`, then dispatches a raw `command` event at the greyed button | `standardAfterSignOut.disabled: true`; `premiumAfterSignOut.disabled: false`, same reason on both lines; `zoteroTiers().signedIn: false`; every reader `signedIn: false`; `commandEventWasNoOp: true` | — |
+| `11-signed-in-again.js` | Item 11 (issue #130): restores `hasCredentials` (the kept descriptor) and fires `api-key` again, then enables Standard the item-5 way (polled on the PREF); closes the pane | `standardDisabledFalse: true`; both result lines `''`; every reader `signedIn: true`; `standardResultMatchesExpected: true` | — |
+| `12-cleanup-restore.js` | Restores every pref from `state.baseline`, in order, `readAloud.memory` last; closes the settings window; reports the error ring | Every restored pref `matches: true` | — |
 
 ## Before you start
 
@@ -33,10 +38,13 @@ setup — the table's order satisfies every script's precondition.
   `diagnostics.providerTiers()` carrying a `hidden` field (done directly).
 - Fixture: the **standing** item `ZTTS Fixture A`, itemID **25290** (found
   by `zotero_db_query` on the title) — never imported or erased here.
-- State touched, restored by `10`: `readAloud.volume`, all 8 providers'
+- State touched, restored by `12`: `readAloud.volume`, all 8 providers'
   `.enabled` (only `fish` was on), both Zotero switches,
   `sameForAllDocuments`, `readAloud.memory`, `reader.readAloudVoices`,
-  `Zotero.Debug.storing`; the two WebDAV switches are read only.
+  `Zotero.Debug.storing`; the two WebDAV switches are read only. `10`/`11`
+  touch `Zotero.Sync.Data.Local.hasCredentials` (own descriptor kept and
+  restored inside `11`) and fire two `api-key` notifications — not
+  restored by `12`, since `11` already leaves everything signed back in.
 - Every `openFixturePausedFresh` helper (03–08) opens the fixture, pauses
   at once, then **settles**: polls `providerTiers()` up to 6 s until
   `tiers`/`options` stop changing, since the catalog's async fetch (Fish's
@@ -53,20 +61,12 @@ setup — the table's order satisfies every script's precondition.
   instead (global, tier-independent — `.locale` is the plugin's own
   separate `BrowserVoice` type, not this). `03b` redoes it that way: PASS,
   `lostToDisabling: []`.
-- **FIXED in 1.12.11-beta2 — the voice browser's `#ztts-voices-tiers`
-  used to keep a hidden Zotero tier's column.** Through beta: Standard
-  disabled still listed `Zotero Standard (0)` instead of dropping it, and
-  EVERYTHING off (`07`) read the status line `ztts-no-voices` instead of
-  `ztts-no-providers-on`, since `tiers.length` was 2, not 0
-  (`ui/voice-browser-rows.ts`'s `listedColumns()` ~246 appended both
-  `ZOTERO_TIERS` regardless of `hiddenZoteroTiers()`, and
-  `listBrowserVoices()`'s "keep an unlisted column" safety net ~428
-  re-added them, not yet in `known`). **beta2 fix, confirmed live this
-  run**: the safety net merges back only a plugin provider's column now
-  (`isZoteroTier`) — `03` reads `voicesTiersChildrenAfterDisable:
-  ["Fish Audio (339)", "Zotero Premium (1452)"]`, `07` reads
-  `voicesStatusAfterAllOff: "No provider is on: enable one above."`,
-  `voicesTiersChildCountAfterAllOff: 0`. The player's dropdown
+- **FIXED in 1.12.11-beta2 — the voice browser's `#ztts-voices-tiers` used
+  to keep a hidden Zotero tier's column** (`ui/voice-browser-rows.ts`'s
+  `listedColumns()`/`listBrowserVoices()` safety net, not yet in `known`):
+  confirmed live both ways, `03`/`07` reading the stale column through
+  beta and the correct one (`voicesStatusAfterAllOff: "No provider is on:
+  enable one above."`) from beta2 on. The player's dropdown
   (`buildTierOptions`) was unaffected throughout, on both builds.
 - **A same-instant `providerTiers()` read after opening can catch
   `buildTierOptions`' "nothing has voices yet" fallback while `tiers` in
@@ -100,47 +100,46 @@ setup — the table's order satisfies every script's precondition.
   label:"Disable"`). `02` was never affected. `05`/`06`/`07` now break on
   the PREF reaching its target, falling back to "Checking seen, then
   cleared" only on a failed check.
-- Two `zotero_execute_js`/`one()` calls for `04b` raced (a bridge timeout
-  on the first did not mean it had not started server-side); the two
-  flipped the same switch concurrently, and Standard was found off with
-  two failed self-restores until a manual click cleared it. `one()`'s
-  "busy" lock does not protect against a timeout followed by a fresh
-  `start()` — wait for `status().busy: false` before retrying.
-- **`03b`/`04b` each require Standard ON at start** (found running the
-  table's OLD order for the first time): both cycle on→off→on and throw
-  if it is not already on, since `03`/`04` deliberately leave it OFF for
-  the next item's setup. Each throw's catch self-heals (clicks Enable
-  before rethrowing), so state is not corrupted, but the attempt is
-  wasted. The reorder above avoids it; retry the same script once
-  Standard is back on if it still throws.
+- Two `one()` calls for `04b` raced once (a bridge timeout on the first
+  did not mean it had not started server-side), flipping the same switch
+  concurrently until a manual click cleared it: wait for `status().busy:
+  false` before retrying rather than assuming a timed-out call never ran.
+- `03b`/`04b` each require Standard ON at start (they cycle on→off→on);
+  the table above is ordered so `03`/`04` (which leave it OFF) run after
+  them — each throw's catch self-heals regardless, so retrying the same
+  script clears it.
 - **The reading guard can leave TWO `<dialog id="ztts-notice">` open at
-  once if a caller's own next action fires before the first invocation
-  settles** (found on `06`'s old fixed `sleep(500)`): a single, isolated
-  click resolves fast and correctly (dialog gone ~110 ms; the write
-  follows at once for Disable, or after Enable's own ~650-750 ms check —
-  confirmed live, cleanly, twice) — the mechanism itself is correct. But
-  `06`'s 500 ms read was sometimes too early, and its own immediate
-  "restore" click (on a toggle whose label had not yet updated) fired a
-  SECOND `refuseWhileReading` while the first was mid-flight, stacking a
-  second `openNotice()` dialog on the first; `getElementById` only ever
-  finds the OLDER one, so the switch stayed stuck refused for 15 s+ until
-  both were closed by hand. `06` now polls for real settlement (dialog
-  gone AND the pref moved, up to 10 s) before anything else, and throws
-  if a stray dialog remains. Not reachable by a real user:
-  `showModal()` traps input outside itself.
-- **`07`'s old `clickAndWaitSettled` always flipped whatever the pref
-  CURRENTLY was, not an explicit target** (downstream of the `06` race
-  above): with Premium's guard-triggered disable landing a beat after
-  `06` stopped watching it, `07` began "disable everything" with Premium
-  ALREADY off; its blind flip clicked it back ON mid-pass, and the run's
-  own `fixtureTiersEmpty`/`allOptionsDisabled` checks correctly caught
-  the wrong state (`["premium"]`, `false`) — a real finding, not a false
-  pass. Fixed with an explicit `desired: false`/`true` per phase; a
-  switch already at target is left untouched, reported `skipped: true`.
-  Re-run cleanly after: `zoteroPremiumBefore: true`,
-  `voicesStatusAfterAllOff: "No provider is on: enable one above."`,
-  `restoreFailed: []`.
-- Item 8 (backup/restore) was not run this pass (optional per the brief).
+  once if a caller's next action fires before the first settles** (found
+  on `06`'s old fixed `sleep(500)`): a single, isolated click resolves
+  correctly (~110 ms; not reachable by a real user, since `showModal()`
+  traps input outside itself) — the mechanism itself is correct, but an
+  early read plus an immediate restore click can stack a second dialog,
+  which `getElementById` never finds, stuck refused for 15 s+. `06` now
+  polls for real settlement (dialog gone AND the pref moved, up to 10 s)
+  and throws if a stray dialog remains.
+- **`07`'s old `clickAndWaitSettled` flipped whatever the pref CURRENTLY
+  was, not an explicit target** (downstream of the `06` race above):
+  Premium's guard-triggered disable landing a beat late meant `07` began
+  with Premium already off, and its blind flip clicked it back ON
+  mid-pass — caught correctly by `07`'s own checks (`["premium"]`,
+  `false`), a real finding, not a false pass. Fixed with an explicit
+  `desired: false`/`true` per phase, left untouched when already there
+  (`skipped: true`); re-run cleanly after.
+- Item 8 (backup/restore) was not run in either zotero-tiers pass
+  (optional per the brief).
+- **Toggling a provider/tier `.enabled` pref while ANOTHER reader's own
+  session is already active logs a caught `[zotero-tts] can't access
+  property "length", list is undefined`** (`live-voice-list.ts` `load()`,
+  `stage._allVoices` undefined — column 77 of the built bundle; found live
+  by `10`/`11` against the owner's own open tab, `applied` staying 0 for
+  its `liveVoiceList()` entry every time, reproduced once more in
+  isolation): traced to an in-place reinstall leaving that reader hooked
+  to the OLD plugin instance's `loadVoices` wrapper, which the NEW
+  instance's `attach()` then captures as `entry.original` and calls with
+  a `stage` the old wrapper never populates. Harmless — the session's own
+  playback is unaffected — reported to the main session, not a limit of
+  these checks; only surfaces when a reader was already active before an
+  in-place reinstall, which prior runs of this kit did not have.
 
 ## Runs
 
@@ -148,3 +147,4 @@ setup — the table's order satisfies every script's precondition.
 | --- | --- | --- | --- | --- |
 | 2026-09-15 | 1.12.11-beta, Zotero 10.0.3-beta.1+cfec88e31 | this run's reply (issue #111 verification) | 1 PASS (groupbox count 17, not the case's 16), 2 PASS, 3 PASS (options/tiers; voice-browser column FAIL, see Limits), 4 PASS (voice pick + selection avoids standard; `lastMove` null, see Limits), 5 PASS (memory recall confirmed), 6 PASS, 7 PASS (switches/options; status line FAIL, see Limits), 9 PASS, 8 not run | First run of this case's kit; `01`, `05`, `06`, `07` revised mid-run for a label-attribute bug and a click-poll race; `03`/`04`/`05`/`06`/`07`/`08` gained a settle-wait and stopped refusing a metered `readAloud.memory` voice |
 | 2026-09-15 | 1.12.11-beta2, Zotero 10.0.3-beta.1+cfec88e31 | this run's reply (issue #111 second-pass verification) | 1 PASS, 2 PASS, 3 PASS (voice-browser column now correct, the beta bug fixed), 4 PASS, 5 PASS, 6 PASS (cleanly, 101 ms settle after the `06` fix), 7 PASS (status line now correct, the beta bug fixed; re-run cleanly after the `07` fix), 9 PASS, 8 not run (optional) | Second run, re-verifying the beta2 fix for A3/A7 plus a full re-check of the rest; `03b`/`04b` hit their own Standard-ON precondition on the table's old order and were retried after self-healing (table reordered above so this does not recur); `04b` revised for the guard-race/stale-close bug, `06` for the settlement-poll bug, `07` for the flip-vs-target bug (both found live this run, see Limits) — all three re-run clean after the fix; `00`/`10` unchanged |
+| 2026-09-22 | 1.14.1-beta2, Zotero 10.0.3-beta.3+80bc5565e | the #130 closing comment | 10 PASS (`standardAfterSignOut`/`premiumAfterSignOut` exact reason text, every reader `signedIn: false`, `commandEventWasNoOp: true`), 11 PASS (ungreyed at once, every reader `signedIn: true`, Enable re-check matches `zoteroTiers()`'s own message) | First run of `10`/`11`, new for issue #130; both written and run clean first time, no revision needed; found live (see Limits) — toggling either switch while the owner's own OTHER open tab already had an active session logged a caught, harmless `[zotero-tts]` error unrelated to these items' own PASS/FAIL |
