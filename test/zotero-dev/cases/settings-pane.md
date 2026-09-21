@@ -19,9 +19,13 @@ Items 1.2 and 1.4 of the checklist, under their original numbers.
    measured 22.333 px) and on its row's center within 0.01 px; the gap
    to the control before it is that control's end margin, not the
    icon's (5 px after a menulist, an input, a button or a label, 6
-   after a checkbox, 4 after a description — measured against the
-   *visible* note: the hidden platform notes collapse to a zero rect and
-   a naive `previousElementSibling` reads 470.98); and
+   after a checkbox — 4 on macOS, where Zotero takes the checkbox's own
+   margin away — and 4 after a radio or a description on every
+   platform, the description's measured against the *visible* note:
+   the hidden platform notes collapse to a zero rect and a naive
+   `previousElementSibling` reads 470.98; the two auto-scroll options'
+   `?`, the only ones after a radio, read 0 on Windows and macOS until
+   issue #102); and
    `InspectorUtils.getMatchingCSSRules` lists the plugin's
    `label.ztts-help[value]` with `width: 1.25em` and no `font-size`.
    The About section's three lines (`src/ui/about-rows.ts`, 1.11.7),

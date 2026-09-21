@@ -565,3 +565,7 @@ then) and is in the git history before that day.
 
 - Gecko allows no copy out of a password field, revealed or not (issue #19)
 - The screenshot bridge reaches the main window only
+
+### [2026-09-21](NOTES_2026-09-21.md)
+
+- Zotero's settings window keeps a radio's end margin on Linux only (issue #102)
