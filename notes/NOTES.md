@@ -575,6 +575,7 @@ then) and is in the git history before that day.
 ### [2026-09-22](NOTES_2026-09-22.md)
 
 - Brackets go wherever they enclose text; a `<…>` pair of two math signs stays (issue #127)
+- Adoption needed a named document, and naming needed a native position (issue #129)
 - Zotero asks for its voice list only signed in, and every plugin voice rode that request (issue #130)
 - Verified live, issue #130: the tab's own flag proves the skip, and a tab open across a reinstall keeps the previous instance's `loadVoices` hook (issue #130)
 - The 03:30 entry had the order wrong: every clean shutdown carries a leftover `loadVoices` hook forward, and none makes one (issue #131)

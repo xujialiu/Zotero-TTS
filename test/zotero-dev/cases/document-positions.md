@@ -130,6 +130,35 @@ the first Read Aloud. Diagnostics: `Zotero.ZoteroTTS.diagnostics.positionSync()`
     no `shared position sync (resume)` line after the press; the same with
     the switch on for a PDF (no Document Id, nothing to pull for).
 
+### 13
+
+13. **A book read on the phone alone resumes at the phone's place** (issue
+    #129; 1.14.1). A fixture EPUB this computer has never opened — a fresh
+    import, so `shared.documents.documents` does not count it — and, before
+    its tab opens, an item for its Document Id in the file: `stamp.device`
+    `iPhone-test`, a later paragraph's locator and its second sentence as
+    `anchor.exact`, as in item 5. Open the tab: the log has `document id
+    for <lib>/<key>: … bytes read, … ms`, then `document named on open:
+    <lib>/<key>`, then `shared position sync (reader-open): N remote, N
+    merged, 1 adopted`; `shared.documents.documents` rose by one and
+    `shared.documents.adopted` by one. Shift+Space: `shared position sync
+    (resume)` before `resumed from the shared position of iPhone-test:
+    exact`, and the first spoken segment is that second sentence. On
+    1.14.0 the same steps log no `document named` line, `0 adopted` on the
+    open, no `resumed from` line, and Read Aloud starts at the book's first
+    sentence — the bug.
+
+### 14
+
+14. **An item that arrives while the tab is open is pulled by Shift+Space**
+    (issue #129; 1.14.1). A never-read fixture open with nothing held for it
+    — the file had no item for it when the tab opened, `shared.documents.items`
+    unchanged by the open — then the item of item 13 put into the file and
+    no sync in between: Shift+Space logs `shared position sync (resume): …
+    1 adopted` before `resumed from the shared position of iPhone-test:
+    exact`, and the first spoken segment is the phone's sentence. On 1.14.0
+    the key falls through to Zotero's own start with no `(resume)` sync line.
+
 ### 10
 
 10. **Restoration.** The crafted items and the version-2 file deleted from

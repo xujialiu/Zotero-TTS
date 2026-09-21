@@ -10,6 +10,10 @@ Glossary terms are OpenReader's (`CONTEXT.md` there): a **Document Id** is the
 content-derived identity of a document; a **Reading Position** is a
 **Locator** plus a **Text Anchor**; a **Stamp** is a wall-clock time plus the
 **Device Name** that wrote it; the **Positions File** is `xujialiu-positions.json`.
+One term is this document's own: a document is **Named** on a device once
+that device has computed its Document Id — OpenReader names a document when
+it is added to its Library, the plugin names an EPUB attachment when its
+reader opens — and a device adopts items only for the documents it has named.
 
 ## 1. Who writes what
 
@@ -298,15 +302,21 @@ on a timer while reading.
 
 ### 6.9 What each product adopts (informative)
 
-The plugin adopts an item for an attachment it holds when the item's stamp is
-newer than the item it already holds for that document, and keeps it beside
-its native row. Whether the adopted item beats this machine's own native row
-is decided **at resume** (Shift+Space, or the player's play on a paused
-session), by comparing the item's stamp with the row's own time; the native
-position is built only then, in the open document, by resolving the anchor
-(section 6.5); a resolution that fails falls back to the machine's own last
-native position and says so. A native row from before this file existed gets
-its item when the document is next opened, stamped with the row's own time. OpenReader adopts an item for a Library entry when the item's stamp
+The plugin adopts an item for an attachment it has named when the item's
+stamp is newer than the item it already holds for that document, and keeps it
+beside its native row. It names an EPUB attachment when its reader opens, and
+once more before a resume when the open's naming has not landed, so a book
+read on a phone alone resumes at the phone's place on a computer that never
+read it (plugin 1.14.1, issue #129; before that only a sentence read there, a
+row from before this file or the upgrade's backfill named one, and such a
+book started from the top). Whether the adopted item beats this machine's own
+native row is decided **at resume** (Shift+Space, or the player's play on a
+paused session), by comparing the item's stamp with the row's own time; the
+native position is built only then, in the open document, by resolving the
+anchor (section 6.5); a resolution that fails falls back to the machine's own
+last native position and says so. A native row from before this file existed
+gets its item when the document is next opened, stamped with the row's own
+time. OpenReader adopts an item for a Library entry when the item's stamp
 is newer than the entry's position stamp or the entry has no position; while
 the book is open and paused the highlight moves to the adopted sentence; while
 playing nothing moves.
@@ -318,3 +328,6 @@ playing nothing moves.
   OpenReader unreleased. Same day, after implementation: 6.5 allows a
   paragraph-long quotation for an item derived from an older native row; 6.9
   states when the plugin compares an adopted item with its native row.
+- **2026-09-22** — the glossary gains *Named*, and 6.9 says when the plugin
+  names an attachment: when its reader opens, not only once it has been read
+  there (plugin 1.14.1, issue #129). No change to any file's shape.

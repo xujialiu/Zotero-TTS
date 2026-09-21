@@ -775,10 +775,32 @@ function watchReader(reader: any): void {
   // Another machine may have read further since the last sync; a burst of
   // tabs at startup coalesces into one request (position-transport.ts)
   positionTransport?.poke('reader-open');
-  sharedTransport?.poke('reader-open');
   settingsSyncTransport?.poke('reader-open');
-  // A row from before 1.13.2 gets its Positions File item now, from the SDT
-  void deriveSharedFromNative(reader).catch((e) => Zotero.logError(e));
+  // The Positions File's side of the open: the EPUB named, then its sync,
+  // then a row from before 1.13.2 gets its item from the SDT
+  void nameThenSyncOnOpen(reader).catch((e) => Zotero.logError(e));
+}
+
+/**
+ * An open EPUB is named before the Positions File is synced for it (issue
+ * #129): the transport adopts an item only for a document this machine has
+ * named, and before 1.14.1 nothing named a book until a sentence of it was
+ * read here, so a phone's place for a book never read on this computer was
+ * never taken — and the first sentence read here then overwrote it. The id
+ * is computed once per attachment and stored (document-positions.ts); a
+ * later open answers from the store. A PDF has nothing to name and is
+ * synced at once. The debug line is what a live run greps for.
+ */
+async function nameThenSyncOnOpen(reader: any): Promise<void> {
+  const positions = documentPositions;
+  const attachment = readerAttachment(reader);
+  if (positions && attachment?.epub) {
+    const known = positions.documentIdOf(attachment.lib, attachment.key);
+    const id = await positions.name(attachment.lib, attachment.key);
+    if (id && !known) Zotero.debug(`[zotero-tts] document named on open: ${attachment.lib}/${attachment.key}`);
+  }
+  sharedTransport?.poke('reader-open');
+  await deriveSharedFromNative(reader);
 }
 
 /**
@@ -1100,9 +1122,10 @@ function startReadAloudShortcuts(pluginID: string): void {
     // isPositionNearView gate that erases Zotero's own copy is never reached.
     // Since 1.13.2 the resume pulls both positions files first, bounded, and
     // starts from the newest place — this machine's row or a phone's item
-    // (resumeAfterPull, spec 6.8, 6.9). True means something is stored and
-    // the resume is under way; the key must not fall through to Zotero's
-    // own start meanwhile.
+    // (resumeAfterPull, spec 6.8, 6.9). True means something is stored, or
+    // may come down for an EPUB under sync (issue #129), and the resume is
+    // under way; the key must not fall through to Zotero's own start
+    // meanwhile.
     resumeLastPosition: (reader: any) => {
       if (!positionSync) return false;
       // Catch up first, so the current sentence counts even between ticks
@@ -1110,7 +1133,11 @@ function startReadAloudShortcuts(pluginID: string): void {
       const attachment = readerAttachment(reader);
       const entry = attachment ? positionSync.entryOf(attachment.lib, attachment.key) : null;
       const shared = attachment ? (documentPositions?.itemFor(attachment.lib, attachment.key) ?? null) : null;
-      if (!entry && !shared) return false;
+      // Nothing held, but for an EPUB under sync the pull may still bring a
+      // phone's place — the open's naming may not have landed (issue #129);
+      // resumeAfterPull falls through to Zotero's own start when it brings
+      // nothing, which is what returning false would do
+      if (!entry && !shared && !canPullShared(attachment)) return false;
       void resumeAfterPull(reader, attachment, positionSync).catch((e) => Zotero.logError(e));
       return true;
     },
@@ -1351,11 +1378,33 @@ function cancelPauseSync(): void {
   pauseSyncTimer = null;
 }
 
-/** The pull before a resume (spec 6.8): both files, bounded; a slow server means resuming from what this machine holds. */
-async function pullBeforeResume(): Promise<void> {
+/** Whether a pull may bring a Positions File item for this attachment: an EPUB, with the switch on and the transport up. */
+function canPullShared(attachment: { epub: boolean } | null): boolean {
+  return !!attachment?.epub && !!sharedTransport && !!documentPositions && loadSettings(prefs).webdav.syncPositions;
+}
+
+/**
+ * The pull before a resume (spec 6.8): both files, bounded; a slow server
+ * means resuming from what this machine holds. An EPUB is named first
+ * (issue #129) and the Positions File comes down only once it is — the
+ * transport adopts for named documents alone, so for one that cannot be
+ * named there is nothing to pull for; the plugin's own file comes down
+ * regardless, as it did. One budget for all of it.
+ */
+async function pullBeforeResume(attachment: { lib: number; key: string; epub: boolean } | null): Promise<void> {
   const pulls: Promise<void>[] = [];
   if (positionTransport) pulls.push(positionTransport.flush('resume'));
-  if (sharedTransport) pulls.push(sharedTransport.flush('resume'));
+  const positions = documentPositions;
+  const shared = sharedTransport;
+  if (shared && positions && attachment?.epub) {
+    pulls.push(
+      positions.name(attachment.lib, attachment.key).then(async (id) => {
+        if (id) await shared.flush('resume');
+      }),
+    );
+  } else if (shared) {
+    pulls.push(shared.flush('resume'));
+  }
   if (!pulls.length) return;
   try {
     await withTimeout(Promise.all(pulls).then(() => undefined), RESUME_PULL_MS, () => new Error('zotero-tts: the pull before resume did not finish in time; resuming from what this computer holds'));
@@ -1418,8 +1467,8 @@ async function resumeFromShared(reader: any, item: SharedItem): Promise<boolean>
  * started; this machine's own row otherwise, exactly as before; a phone's
  * item that cannot be found here falls back to the row and says so once.
  */
-async function resumeAfterPull(reader: any, attachment: { lib: number; key: string } | null, sync: PositionSync): Promise<void> {
-  await pullBeforeResume();
+async function resumeAfterPull(reader: any, attachment: { lib: number; key: string; epub: boolean } | null, sync: PositionSync): Promise<void> {
+  await pullBeforeResume(attachment);
   const entry = attachment ? sync.entryOf(attachment.lib, attachment.key) : null;
   const shared = attachment ? (documentPositions?.itemFor(attachment.lib, attachment.key) ?? null) : null;
   if (shared && shared.stamp.at > (entry?.ts ?? Number.NEGATIVE_INFINITY)) {
@@ -1464,10 +1513,12 @@ async function resumeAfterPull(reader: any, attachment: { lib: number; key: stri
  * paused), or the item cannot be found (a toast says so), or nothing newer
  * exists, the original un-pause runs and play continues from where it was.
  *
- * Immediate, no pull: sync off, or an attachment without a Document Id —
- * a PDF, an EPUB this session could not name — for which the pull can
- * bring nothing. `true` here means the guard returns to Zotero at once and
- * the promise settles the press, always, through the finally.
+ * Immediate, no pull: sync off, or a PDF, for which the pull can bring
+ * nothing. An EPUB is named on the way when the open's naming has not
+ * landed (issue #129); one this session cannot name gets the plugin's own
+ * file pulled, bounded, and then the original un-pause. `true` here means
+ * the guard returns to Zotero at once and the promise settles the press,
+ * always, through the finally.
  */
 function pullBeforePlay(reader: any, control: { resume(): void; release(): void }): boolean {
   const sync = positionSync;
@@ -1475,11 +1526,11 @@ function pullBeforePlay(reader: any, control: { resume(): void; release(): void 
   if (!sync || !positions || !sharedTransport) return false;
   if (!loadSettings(prefs).webdav.syncPositions) return false;
   const attachment = readerAttachment(reader);
-  if (!attachment || !positions.documentIdOf(attachment.lib, attachment.key)) return false;
+  if (!attachment?.epub) return false;
   void (async () => {
     let started = false;
     try {
-      await pullBeforeResume();
+      await pullBeforeResume(attachment);
       const entry = sync.entryOf(attachment.lib, attachment.key);
       const shared = positions.itemFor(attachment.lib, attachment.key);
       if (shared && shared.stamp.at > (entry?.ts ?? Number.NEGATIVE_INFINITY)) {

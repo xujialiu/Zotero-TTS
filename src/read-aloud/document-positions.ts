@@ -8,14 +8,22 @@ import type { SharedItem } from './xujialiu-positions-file';
  * item held per document — written here when the sampler records a sentence,
  * or adopted from the file when a phone read further.
  *
+ * A document is named — its Document Id computed from its file (`identify`,
+ * async, index.ts) and stored — when its reader opens (`name`, issue #129),
+ * so that an item a phone wrote for a book never read on this machine has a
+ * holder before the open's sync offers it; a resume asks `name` too, in case
+ * the key lands before the id does. Before 1.14.1 only a sentence read here,
+ * a native row derived after the upgrade, or the backfill named one, and a
+ * book read on the phone alone was never adopted.
+ *
  * The sampler (position-sync.ts) stays synchronous and knows nothing about
- * ids: it hands over `(lib, key, locator + anchor, ts)` and moves on. Naming
- * a document reads its file (`identify`, async, index.ts), so the first
- * sentence of an attachment this session may arrive before its id does; the
- * latest capture per attachment waits for the id and is written then, and
- * every later capture of an attachment whose id is known is written at once.
- * An attachment `identify` could not name — not an EPUB, a file that is not
- * a ZIP, a missing file — is not asked about again this session.
+ * ids: it hands over `(lib, key, locator + anchor, ts)` and moves on. The
+ * first sentence of an attachment this session may still arrive before its
+ * id does; the latest capture per attachment waits for the id and is written
+ * then, and every later capture of an attachment whose id is known is
+ * written at once. An attachment `identify` could not name — not an EPUB, a
+ * file that is not a ZIP, a missing file — is not asked about again this
+ * session.
  *
  * The store (position-store.ts) persists both maps; nothing here is awaited
  * by anything that speaks. The transport (xujialiu-positions-transport.ts)
@@ -53,6 +61,8 @@ export interface DocumentPositionsStats {
 export interface DocumentPositions {
   /** Seed from the store, once, after it opened. */
   load(loaded: { documents: DocumentRow[]; positions: SharedItem[] }): void;
+  /** Name an attachment now — its reader opened, or a resume is about to pull: the id computed and stored once; null, remembered for the session, when it cannot be named. */
+  name(lib: number, key: string): Promise<string | null>;
   /** The sampler recorded a new sentence: the shared half, stamped and written, once the attachment's id is known. */
   recorded(lib: number, key: string, capture: SharedCapture, at: number): void;
   /** Every item this machine holds — the transport's `local()`. */
@@ -162,6 +172,7 @@ export function createDocumentPositions(deps: DocumentPositionsDeps): DocumentPo
       for (const row of loaded.documents) remember(row);
       for (const item of loaded.positions) byId.set(item.id, item);
     },
+    name: ensureId,
     recorded: (lib, key, capture, at) => {
       const k = keyOf(lib, key);
       const known = byAttachment.get(k);

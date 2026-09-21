@@ -85,6 +85,33 @@ describe('createDocumentPositions', () => {
     expect(h.positions.itemFor(1, 'EPUB0001')).toMatchObject({ anchor: { exact: 'desk' }, stamp: { at: 52, device: 'Desk' } });
   });
 
+  it('names an attachment on request, once, and adopts for it from then on', async () => {
+    const h = harness();
+    const phone: SharedItem = { ...capture('phone'), id: ID, format: 'epub', publicationId: null, stamp: { at: 50, device: 'iPhone-1' } };
+    // Not named yet: the phone's item has no holder and is refused
+    expect(h.positions.adopt(phone)).toBe(false);
+    expect(h.positions.itemFor(1, 'EPUB0001')).toBeNull();
+    const first = h.positions.name(1, 'EPUB0001');
+    const second = h.positions.name(1, 'EPUB0001');
+    expect(h.positions.stats().identifying).toBe(1);
+    await expect(first).resolves.toBe(ID);
+    await expect(second).resolves.toBe(ID);
+    expect(h.asked).toEqual(['1/EPUB0001']);
+    expect(h.documents).toEqual([{ lib: 1, key: 'EPUB0001', documentId: ID, publicationId: null, identifiedAt: 1000 }]);
+    expect(h.positions.documentIdOf(1, 'EPUB0001')).toBe(ID);
+    // Named: the same item is taken, and the resume path sees it
+    expect(h.positions.adopt(phone)).toBe(true);
+    expect(h.positions.itemFor(1, 'EPUB0001')).toEqual(phone);
+    // Asked again: the known id, no second read of the file
+    await expect(h.positions.name(1, 'EPUB0001')).resolves.toBe(ID);
+    expect(h.asked).toEqual(['1/EPUB0001']);
+    // An attachment that cannot be named answers null, once, and stays unnamed this session
+    await expect(h.positions.name(1, 'PDF00001')).resolves.toBeNull();
+    await expect(h.positions.name(1, 'PDF00001')).resolves.toBeNull();
+    expect(h.asked).toEqual(['1/EPUB0001', '1/PDF00001']);
+    expect(h.positions.stats()).toMatchObject({ documents: 1, unnamed: 1, identifying: 0, adopted: 1 });
+  });
+
   it('backfills the attachments it is given, skipping the ones already named', async () => {
     const h = harness();
     h.ids.set('1/EPUB0002', OTHER);
