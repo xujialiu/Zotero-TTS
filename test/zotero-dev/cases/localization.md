@@ -18,8 +18,8 @@ Items 1.10–1.12 of the checklist, under their original numbers.
     `2267 个语音可用。`, never `2,267` (a count that can pass a thousand is
     handed over as text; Fluent groups a number); `oneTab` and `twoTabs`
     the reading guard's message at 1 and at 2 with the blank line before
-    its last sentence — `Read Aloud is open in a tab:\n  • A\n\nClose that
-    tab, then try again.` / `以下 1 个标签页打开了朗读：\n  • A\n\n关闭该标签页后再试。`,
+    its last sentence — `Read Aloud is open in a tab:\n  • A\n\nClose the
+    player in that tab, then try again.` / `以下 1 个标签页打开了朗读：\n  • A\n\n关闭该标签页中的播放器后再试。`,
     and `2 tabs` … `those tabs` / `2 个标签页` … `这些标签页`; `joined`
     two sentences through `ztts-join` — `Connected. Synthesis works.` with
     the space, `已连接。合成正常。` without; `tier` `Zotero Standard` /
@@ -68,10 +68,11 @@ Items 1.10–1.12 of the checklist, under their original numbers.
     `?` and `help` its message's text; the *Offer only favorite voices…*
     checkbox has its bold run (`.checkbox-label b`) reading the message's
     `.bold`; the highlight preview's four painted spans keep their ids
-    (`#ztts-highlight-preview-sentence`, `-word-before`, `-word`,
-    `-word-after`) with the message's text in them; the four provider
-    switches read `Enable` or `Disable` (the `ztts-switch-*` messages
-    through `t()`), none blank; and the lines TypeScript writes read as
+    (`#ztts-highlight-preview`, `-word-before`, `-word`, `-word-after`)
+    with the message's text in them; every provider switch — twelve at
+    1.13.2, the ten providers' and Zotero's own two tiers' (#111, #113) —
+    reads `Enable` or `Disable` (the `ztts-switch-*` messages through
+    `t()`), none blank; and the lines TypeScript writes read as
     they did before #43: the first column one entry per enabled provider
     beside `Zotero Premium (N)` and `Zotero Standard (N)` (#111), sorted by
     name — `Azure (N)`, `Fish Audio (N)`, `Kokoro (N)`, `System (N)`,
