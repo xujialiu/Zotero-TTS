@@ -310,7 +310,7 @@ ztts-sync-positions =
     .label = Sync reading positions between computers
 ztts-help-sync-positions =
     .value = ?
-    .help = Keeps where Read Aloud last stopped in each document in the WebDAV folder above, and picks up what your other computers left there — so play resumes at the same sentence anywhere. Off, reading positions stay on this computer.
+    .help = Keeps where Read Aloud last stopped in each document in the WebDAV folder above, and picks up what your other computers — and the OpenReader app on your phone — left there, so play resumes at the same sentence anywhere. Off, reading positions stay on this computer.
 ztts-sync-settings =
     .label = Sync settings between computers
 ztts-help-sync-settings =
@@ -322,6 +322,8 @@ ztts-positions-status-none = Reading positions synced { $time }; nothing new for
 ztts-positions-status-taken = Reading positions synced { $time }: { $count } taken from your other computers.
 ztts-positions-status-last = Reading positions synced { $time }; the last one from another computer arrived { $when }.
 ztts-positions-status-failed = Reading positions sync failed { $time }: { $detail }
+# The toast when a place another device reached cannot be found in this copy of the document (resume falls back to this computer's own last sentence)
+ztts-shared-position-unresolved = The place reached on your other device was not found in this copy; resuming from this computer's last sentence.
 ztts-sync-status-waiting = Settings sync: waiting for the first sync.
 ztts-sync-status-none = Settings synced { $time }; nothing new for this computer.
 ztts-sync-status-applied = Settings synced { $time }: { $count } from { $from } applied here.

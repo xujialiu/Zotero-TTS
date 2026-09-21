@@ -1,4 +1,5 @@
 import { normalizePosition, type PositionEntry } from './read-aloud-position';
+import type { SharedItem } from './xujialiu-positions-file';
 
 /**
  * The reading-position store's home: the plugin's own SQLite database,
@@ -37,6 +38,16 @@ import { normalizePosition, type PositionEntry } from './read-aloud-position';
  * not running — and none for a row whose library is gone, since a library
  * removed from this machine is not a deleted document.
  *
+ * Two more tables since schema 3 (docs/spec/SYNC-FORMAT.md, issue #126):
+ * `documents` — the Document Id computed for an EPUB attachment this machine
+ * holds a position for, keyed like `positions`, so the id is computed once
+ * per attachment and the `{lib, key}` to id mapping never leaves this
+ * machine; and `document_positions` — the shared Positions File's items for
+ * the documents this machine holds, keyed by Document Id, whether this
+ * machine wrote them or adopted them from a phone. Both ride the same write
+ * queue as the rows above (`saveDocument`, `saveSharedPosition`) and are read
+ * back once with `loadShared()` after `open()`.
+ *
  * The connection MUST be closed permanently at shutdown: Gecko's
  * Sqlite.sys.mjs blocks `profile-before-change` on every open connection,
  * so a leaked one turns quitting Zotero into a 60-second AsyncShutdown hang
@@ -44,7 +55,7 @@ import { normalizePosition, type PositionEntry } from './read-aloud-position';
  * any write would throw "Database permanently closed".
  */
 
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 3;
 
 /** A failed write retries at most once per window — the pref store's cadence. */
 export const RETRY_MS = 10000;
@@ -93,6 +104,16 @@ export interface PositionStoreStats {
   deletions: number;
 }
 
+/** One row of `documents`: the Document Id this machine computed for an attachment (spec 6.3). */
+export interface DocumentRow {
+  lib: number;
+  key: string;
+  documentId: string;
+  publicationId: string | null;
+  /** When the id was computed, ms since the epoch. */
+  identifiedAt: number;
+}
+
 export interface PositionStore {
   /**
    * Migrate the schema, import the old pref store, sweep orphaned rows,
@@ -100,6 +121,12 @@ export interface PositionStore {
    * opened — the caller keeps the sampler running in memory and reports.
    */
   open(): Promise<PositionEntry[]>;
+  /** The two shared-sync tables, read once after `open()`; rejects only when the read itself fails. */
+  loadShared(): Promise<{ documents: DocumentRow[]; positions: SharedItem[] }>;
+  /** Queue one `documents` row; coalesced per attachment like a position. */
+  saveDocument(row: DocumentRow): void;
+  /** Queue one Positions File item for a document this machine holds; coalesced per Document Id. */
+  saveSharedPosition(item: SharedItem): void;
   /** Queue one row write; coalesced per attachment, safe before open and after close. */
   save(entry: PositionEntry): void;
   /**
@@ -124,7 +151,9 @@ export interface PositionStore {
 type Op =
   | { kind: 'put'; entry: PositionEntry }
   | { kind: 'remove'; lib: number; key: string }
-  | { kind: 'tombstone'; lib: number; key: string; ts: number };
+  | { kind: 'tombstone'; lib: number; key: string; ts: number }
+  | { kind: 'document'; row: DocumentRow }
+  | { kind: 'shared'; item: SharedItem };
 
 export function createPositionStore(deps: PositionStoreDeps): PositionStore {
   let state: PositionStoreStats['state'] = 'new';
@@ -169,8 +198,23 @@ export function createPositionStore(deps: PositionStoreDeps): PositionStore {
           ]);
         } else if (op.kind === 'remove') {
           await deps.db.queryAsync('DELETE FROM positions WHERE libraryID = ? AND key = ?', [op.lib, op.key]);
-        } else {
+        } else if (op.kind === 'tombstone') {
           await deps.db.queryAsync('REPLACE INTO deletions (libraryID, key, ts) VALUES (?, ?, ?)', [op.lib, op.key, op.ts]);
+        } else if (op.kind === 'document') {
+          await deps.db.queryAsync('REPLACE INTO documents (libraryID, key, documentId, publicationId, identifiedAt) VALUES (?, ?, ?, ?, ?)', [
+            op.row.lib,
+            op.row.key,
+            op.row.documentId,
+            op.row.publicationId,
+            op.row.identifiedAt,
+          ]);
+        } else {
+          const { item } = op;
+          await deps.db.queryAsync(
+            'REPLACE INTO document_positions (documentId, format, publicationId, locator, anchorExact, anchorPrefix, anchorSuffix, stampAt, stampDevice) ' +
+              'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            [item.id, item.format, item.publicationId, item.locator, item.anchor.exact, item.anchor.prefix, item.anchor.suffix, item.stamp.at, item.stamp.device],
+          );
         }
       }
     });
@@ -215,7 +259,8 @@ export function createPositionStore(deps: PositionStoreDeps): PositionStore {
   async function open(): Promise<PositionEntry[]> {
     // Schema, keyed off PRAGMA user_version; 0 is a fresh file. Every
     // step is additive and idempotent, so one pass brings any older file
-    // up: 1 (#16) the rows, 2 (#51) the tombstones
+    // up: 1 (#16) the rows, 2 (#51) the tombstones, 3 (#126) the Document
+    // Ids and the shared Positions File's items
     const version = Number(await deps.db.valueQueryAsync('PRAGMA user_version')) || 0;
     if (version < SCHEMA_VERSION) {
       await deps.db.executeTransaction(async () => {
@@ -233,6 +278,27 @@ export function createPositionStore(deps: PositionStoreDeps): PositionStore {
             'key TEXT NOT NULL, ' +
             'ts INTEGER NOT NULL, ' +
             'PRIMARY KEY (libraryID, key))',
+        );
+        await deps.db.queryAsync(
+          'CREATE TABLE IF NOT EXISTS documents (' +
+            'libraryID INTEGER NOT NULL, ' +
+            'key TEXT NOT NULL, ' +
+            'documentId TEXT NOT NULL, ' +
+            'publicationId TEXT, ' +
+            'identifiedAt INTEGER NOT NULL, ' +
+            'PRIMARY KEY (libraryID, key))',
+        );
+        await deps.db.queryAsync(
+          'CREATE TABLE IF NOT EXISTS document_positions (' +
+            'documentId TEXT NOT NULL PRIMARY KEY, ' +
+            'format TEXT NOT NULL, ' +
+            'publicationId TEXT, ' +
+            'locator TEXT NOT NULL, ' +
+            'anchorExact TEXT NOT NULL, ' +
+            'anchorPrefix TEXT NOT NULL, ' +
+            'anchorSuffix TEXT NOT NULL, ' +
+            'stampAt INTEGER NOT NULL, ' +
+            'stampDevice TEXT NOT NULL)',
         );
         await deps.db.queryAsync('PRAGMA user_version = ' + SCHEMA_VERSION);
       });
@@ -355,9 +421,47 @@ export function createPositionStore(deps: PositionStoreDeps): PositionStore {
         throw e;
       }
     },
+    loadShared: async () => {
+      const documents: DocumentRow[] = [];
+      const rows = ((await deps.db.queryAsync('SELECT libraryID, key, documentId, publicationId, identifiedAt FROM documents')) ?? []) as Record<string, unknown>[];
+      for (const row of rows) {
+        documents.push({
+          lib: Number(row.libraryID),
+          key: String(row.key),
+          documentId: String(row.documentId),
+          publicationId: typeof row.publicationId === 'string' ? row.publicationId : null,
+          identifiedAt: Number(row.identifiedAt) || 0,
+        });
+      }
+      const positions: SharedItem[] = [];
+      const items = ((await deps.db.queryAsync(
+        'SELECT documentId, format, publicationId, locator, anchorExact, anchorPrefix, anchorSuffix, stampAt, stampDevice FROM document_positions',
+      )) ?? []) as Record<string, unknown>[];
+      for (const row of items) {
+        positions.push({
+          id: String(row.documentId),
+          format: String(row.format),
+          publicationId: typeof row.publicationId === 'string' ? row.publicationId : null,
+          locator: String(row.locator),
+          anchor: { exact: String(row.anchorExact ?? ''), prefix: String(row.anchorPrefix ?? ''), suffix: String(row.anchorSuffix ?? '') },
+          stamp: { at: Number(row.stampAt) || 0, device: String(row.stampDevice ?? '') },
+        });
+      }
+      return { documents, positions };
+    },
     save: (entry) => {
       if (state === 'closed') return; // the tick that lost the race with shutdown
       queue.set(opKey(entry.lib, entry.key), { kind: 'put', entry });
+      void pump();
+    },
+    saveDocument: (row) => {
+      if (state === 'closed') return;
+      queue.set('document:' + opKey(row.lib, row.key), { kind: 'document', row });
+      void pump();
+    },
+    saveSharedPosition: (item) => {
+      if (state === 'closed') return;
+      queue.set('shared:' + item.id, { kind: 'shared', item });
       void pump();
     },
     remove: (lib, key, deletedAt) => {

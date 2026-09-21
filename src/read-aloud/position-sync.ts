@@ -1,4 +1,5 @@
 import { normalizePosition, samePosition, type PositionEntry } from './read-aloud-position';
+import type { SharedCapture } from './sdt-anchor';
 
 /**
  * Fills the reading-position store in from the open readers.
@@ -83,6 +84,22 @@ export interface PositionSyncDeps {
   managerOf(reader: unknown): { active?: boolean; paused?: boolean } | null;
   /** `reader._internalReader._state.readAloudState.savedPosition`. */
   savedPositionOf(reader: unknown): unknown;
+  /**
+   * The shared half of the sentence just recorded — the active segment's
+   * block locator and text anchor, read off the reader and copied
+   * (docs/spec/SYNC-FORMAT.md 6.4, 6.5; sdt-anchor.ts) — or null when the
+   * reader has no active segment or is not an EPUB. Optional: without it
+   * nothing is captured for the Positions File.
+   */
+  sharedCaptureOf?(reader: unknown): SharedCapture | null;
+  /** The capture above, for the attachment, at the entry's `ts`; document-positions.ts names the document and writes it. */
+  recordedShared?(attachment: Attachment, capture: SharedCapture, ts: number): void;
+  /**
+   * A Read Aloud session on some reader went from speaking to paused, or
+   * from open to closed (spec 6.8: the desktop syncs ten quiet seconds after
+   * a pause). Called once per pass that saw such a transition.
+   */
+  onPauseOrStop?(): void;
   setTimeout(fn: () => void, ms: number): unknown;
   clearTimeout(handle: unknown): void;
   now(): number;
@@ -105,6 +122,8 @@ export interface PositionSync {
   captureClose(reader: unknown): void;
   /** The stored position for a reader's attachment, or null. */
   lookup(reader: unknown): unknown | null;
+  /** The whole entry held for an attachment — position and its `ts` — or null; what the resume path compares a shared item's stamp against. */
+  entryOf(lib: number, key: string): PositionEntry | null;
   /** Every entry held, for the WebDAV transport's merge (position-transport.ts). */
   list(): PositionEntry[];
   /**
@@ -147,6 +166,9 @@ export function createPositionSync(deps: PositionSyncDeps): PositionSync {
   // again, however long the closing reader lingers in _readers — the row is
   // gone, and the map must not put it back (#51)
   const erased = new Set<string>();
+  // Whether each attachment's session was speaking at the last pass, so a
+  // pause or a close is noticed as a transition and not re-announced
+  const speaking = new Map<string, boolean>();
 
   // One broken reader must not stop the pass: a reader torn down mid-tick
   // throws on any property read.
@@ -178,6 +200,9 @@ export function createPositionSync(deps: PositionSyncDeps): PositionSync {
    * is serialized on the way in; it has to survive as plain data anyway,
    * since it goes into a database row.
    */
+  /** Set by record() when a session stopped speaking this pass; sample() announces it once. */
+  let stopped = false;
+
   function record(reader: unknown, force = false): Seen | null {
     const attachment = guard(() => deps.attachmentOf(reader), null);
     if (!attachment) return null;
@@ -185,6 +210,11 @@ export function createPositionSync(deps: PositionSyncDeps): PositionSync {
     const active = !!manager?.active;
     const seen: Seen = { ...attachment, active };
     const id = attachment.lib + '/' + attachment.key;
+    // Speaking is active and not paused; a pause or a close is the moment
+    // the other devices should hear about (spec 6.8)
+    const nowSpeaking = active && !manager?.paused;
+    if (speaking.get(id) && !nowSpeaking) stopped = true;
+    speaking.set(id, nowSpeaking);
     if (erased.has(id)) return seen;
     if (active) wasActive.add(id);
     // Ticks read open sessions only. The one forced read at close also
@@ -214,15 +244,31 @@ export function createPositionSync(deps: PositionSyncDeps): PositionSync {
     const entry: PositionEntry = { lib: attachment.lib, key: attachment.key, pos: norm, ts: previous ? Math.max(clock(), previous.ts + 1) : clock() };
     entries.set(id, entry);
     guard(() => deps.save(entry), undefined);
+    // The same sentence for the Positions File: a copy read off the reader
+    // here, named and written asynchronously by document-positions.ts
+    if (deps.sharedCaptureOf && deps.recordedShared) {
+      const capture = guard(() => deps.sharedCaptureOf!(reader), null);
+      if (capture) guard(() => deps.recordedShared!(attachment, capture, entry.ts), undefined);
+    }
     return seen;
   }
 
   function sample(): void {
     let sawActive = false;
+    stopped = false;
+    const present = new Set<string>();
     for (const reader of guard(() => deps.readers(), [] as unknown[])) {
       const seen = record(reader);
+      if (seen) present.add(seen.lib + '/' + seen.key);
       if (seen?.active) sawActive = true;
     }
+    // A reader that went away while speaking — its tab closed — is a stop too
+    for (const [id, was] of [...speaking]) {
+      if (present.has(id)) continue;
+      speaking.delete(id);
+      if (was) stopped = true;
+    }
+    if (stopped) guard(() => deps.onPauseOrStop?.(), undefined);
     anyActive = sawActive;
     // The store retries a failed write on this heartbeat — gated there to
     // one attempt per window, so an idle pass costs a size check
@@ -284,6 +330,7 @@ export function createPositionSync(deps: PositionSyncDeps): PositionSync {
     lastSeen.clear();
     wasActive.clear();
     erased.clear();
+    speaking.clear();
     if (tick !== null) {
       guard(() => deps.clearTimeout(tick), undefined);
       tick = null;
@@ -321,5 +368,5 @@ export function createPositionSync(deps: PositionSyncDeps): PositionSync {
     return held;
   }
 
-  return { start, stop, sample, captureClose, lookup, list, adopt, remove };
+  return { start, stop, sample, captureClose, lookup, entryOf: (lib, key) => entries.get(lib + '/' + key) ?? null, list, adopt, remove };
 }

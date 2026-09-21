@@ -62,6 +62,12 @@ import { createPositionTransport, SYNC_POSITIONS_OBSERVER, type PositionTranspor
 import { POSITIONS_FILENAME } from './read-aloud/position-file';
 import { createWebDAVClient } from './core/webdav';
 import { describePosition, READ_ALOUD_POSITIONS_PREF, readPositions, resumeTarget, type PositionEntry } from './read-aloud/read-aloud-position';
+import { createDocumentPositions, type DocumentPositions } from './read-aloud/document-positions';
+import { createSharedTransport, type SharedTransport } from './read-aloud/xujialiu-positions-transport';
+import { locatorPath, SHARED_POSITIONS_FILENAME, type SharedItem } from './read-aloud/xujialiu-positions-file';
+import { blockAtRef, captureShared, offsetInBlock, resolveSharedItem, sdtPositionAt, snapshotBlocks, walkSnapshot, type BlockSnapshot, type SharedCapture } from './read-aloud/sdt-anchor';
+import { documentIdOf } from './core/document-id/identity';
+import { bytesAsArchive } from './core/document-id/zip';
 import { readMemory } from './read-aloud/read-aloud-memory';
 import { readReadAloudVoices, resolveVoiceLang } from './core/read-aloud-speed';
 import { runStartupSteps, type StartupReport } from './core/startup-steps';
@@ -133,6 +139,11 @@ let positionSync: PositionSync | null = null;
 let positionStore: PositionStore | null = null;
 /** The WebDAV side of the bookmarks (#40); null while tracking is down. */
 let positionTransport: PositionTransport | null = null;
+/** The Positions File's side (docs/spec/SYNC-FORMAT.md, section 6): the Document Ids and the shared items this machine holds, and their transport. */
+let documentPositions: DocumentPositions | null = null;
+let sharedTransport: SharedTransport | null = null;
+/** The quiet period after a pause or a player close before both positions files go up (spec 6.8). */
+let pauseSyncTimer: unknown = null;
 /** The syncPositions checkbox's observer token, so flipping it on syncs at once. */
 let syncSwitchObserver: unknown = null;
 /** Keeps this machine's settings file on the server fresh (#41, core/settings-autoupload.ts). */
@@ -751,7 +762,10 @@ function watchReader(reader: any): void {
   // Another machine may have read further since the last sync; a burst of
   // tabs at startup coalesces into one request (position-transport.ts)
   positionTransport?.poke('reader-open');
+  sharedTransport?.poke('reader-open');
   settingsSyncTransport?.poke('reader-open');
+  // A row from before 1.13.2 gets its Positions File item now, from the SDT
+  void deriveSharedFromNative(reader).catch((e) => Zotero.logError(e));
 }
 
 /**
@@ -886,6 +900,7 @@ function hookTabClose(reader: any): void {
         // A primitive-ish reader cannot be marked; the uninit poke then runs
       }
       positionTransport?.poke('reader-close');
+      sharedTransport?.poke('reader-close');
       settingsSyncTransport?.poke('reader-close');
       return original?.call(tab);
     };
@@ -954,6 +969,7 @@ function hookPositionCapture(reader: any): void {
       }
       if (!closePoked.has(reader)) {
         positionTransport?.poke('reader-close');
+        sharedTransport?.poke('reader-close');
         settingsSyncTransport?.poke('reader-close');
       }
       try {
@@ -1069,23 +1085,20 @@ function startReadAloudShortcuts(pluginID: string): void {
     // resolves. Passing the position explicitly takes the
     // consumeTargetPosition branch of _captureReadAloudStart, so the
     // isPositionNearView gate that erases Zotero's own copy is never reached.
+    // Since 1.13.2 the resume pulls both positions files first, bounded, and
+    // starts from the newest place — this machine's row or a phone's item
+    // (resumeAfterPull, spec 6.8, 6.9). True means something is stored and
+    // the resume is under way; the key must not fall through to Zotero's
+    // own start meanwhile.
     resumeLastPosition: (reader: any) => {
       if (!positionSync) return false;
       // Catch up first, so the current sentence counts even between ticks
       positionSync.sample();
-      const pos = positionSync.lookup(reader);
-      if (pos === null || pos === undefined) return false;
-      // A PDF sentence rect lands one segment early; hand Zotero the same
-      // point shape the context menu's "Read Aloud from Here" uses
-      const target = resumeTarget(pos);
-      try {
-        trace(`resume item ${String(reader?.itemID)} target ${JSON.stringify(target).slice(0, 100)}`);
-      } catch {
-        // Tracing only
-      }
-      // A sandbox-built object reads as empty inside the reader
-      const win = reader?._iframeWindow;
-      reader._internalReader.startReadAloudAtPosition(win ? Components.utils.cloneInto(target, win) : target);
+      const attachment = readerAttachment(reader);
+      const entry = attachment ? positionSync.entryOf(attachment.lib, attachment.key) : null;
+      const shared = attachment ? (documentPositions?.itemFor(attachment.lib, attachment.key) ?? null) : null;
+      if (!entry && !shared) return false;
+      void resumeAfterPull(reader, attachment, positionSync).catch((e) => Zotero.logError(e));
       return true;
     },
     // Route Shift+O to the visible floating or native Options control.
@@ -1233,6 +1246,301 @@ const STORE_SHUTDOWN_TIMEOUT_MS = 3000;
 /** Bounds the shutdown push of the positions file: one GET and one PUT on a healthy network; on a dead one the push is lost and the next machine's sync carries on without it. */
 const SYNC_SHUTDOWN_TIMEOUT_MS = 8000;
 
+/** Ten quiet seconds after Read Aloud pauses or the player closes, both positions files go up (docs/spec/SYNC-FORMAT.md 6.8). */
+const PAUSE_SYNC_QUIET_MS = 10_000;
+
+/** How long a resume waits for the pull that precedes it before going on with what this machine holds (spec 6.8). */
+const RESUME_PULL_MS = 2000;
+
+const EPUB_CONTENT_TYPE = 'application/epub+zip';
+
+/** The attachment behind a reader as `{ lib, key }`, and whether it is an EPUB; null when the reader has no item. */
+function readerAttachment(reader: any): { lib: number; key: string; epub: boolean } | null {
+  const item = reader?.itemID ? Zotero.Items.get(reader.itemID) : null;
+  if (!item || typeof item.libraryID !== 'number' || !item.key) return null;
+  return { lib: item.libraryID, key: item.key, epub: item.attachmentContentType === EPUB_CONTENT_TYPE };
+}
+
+/** A reader-compartment array of integers, copied element by element: a reader array's own methods are not ours to call (MEMORY.md), and the copy has to outlive the tab. */
+function copyIntegers(value: any): number[] | null {
+  if (!value || typeof value.length !== 'number') return null;
+  const out: number[] = [];
+  for (let i = 0; i < value.length; i++) {
+    const n = Number(value[i]);
+    if (!Number.isInteger(n)) return null;
+    out.push(n);
+  }
+  return out;
+}
+
+/**
+ * The shared half of the sentence the sampler just recorded (spec 6.4, 6.5):
+ * the active segment's text and SDT position, and the block the position's
+ * ref names, read straight out of the loaded SDT structure (sdt-anchor.ts).
+ * Reads only, every value copied out. Null for anything but an EPUB reader
+ * with an active segment and a loaded SDT — a PDF records its native row and
+ * no shared half, as the spec reserves its format.
+ */
+function readSharedCapture(reader: any): SharedCapture | null {
+  const attachment = readerAttachment(reader);
+  if (!attachment?.epub) return null;
+  const dead = (value: unknown) => Components.utils.isDeadWrapper(value);
+  const segment = liveReaderValue(reader, dead, '_internalReader', '_readAloudManager', 'activeSegment');
+  const structure = liveReaderValue(reader, dead, '_internalReader', '_sdt', 'structure');
+  if (!segment || !structure) return null;
+  const text = typeof segment.text === 'string' ? segment.text : '';
+  const start = copyIntegers(segment.position?.start);
+  const end = copyIntegers(segment.position?.end);
+  if (!text || !start || !end || start.length < 3) return null;
+  const block = blockAtRef(structure, start.slice(0, -2));
+  return block ? captureShared(block, { text, start, end }) : null;
+}
+
+/**
+ * The Document Id of an EPUB attachment, from its file (spec 6.3): the copied
+ * identity rule, over the whole file read in one `IOUtils.read`. Whole rather
+ * than the two ranges the rule digests, because the copied core is
+ * synchronous and IOUtils is not; on a desktop a 34 MB read is tens of
+ * milliseconds and transient, and the debug line records what it cost (not
+ * measured before the live run). Null for anything that is not an EPUB with
+ * a file; a file the rule refuses throws, and the caller logs it.
+ */
+async function identifyAttachment(lib: number, key: string): Promise<string | null> {
+  const id = Zotero.Items.getIDFromLibraryAndKey(lib, key);
+  const item = id ? Zotero.Items.get(id) : null;
+  if (!item || item.attachmentContentType !== EPUB_CONTENT_TYPE) return null;
+  const path = await item.getFilePathAsync();
+  if (!path) return null;
+  const started = Date.now();
+  const bytes: Uint8Array = await IOUtils.read(path);
+  const documentId = documentIdOf(bytesAsArchive(bytes));
+  Zotero.debug(`[zotero-tts] document id for ${lib}/${key}: ${bytes.length} bytes read, ${Date.now() - started} ms`);
+  return documentId;
+}
+
+/** A pause or a player close (position-sync.ts): both files go up once the quiet period has passed, a burst of pauses coalescing into one. */
+function schedulePauseSync(): void {
+  cancelPauseSync();
+  pauseSyncTimer = setTimeout(() => {
+    pauseSyncTimer = null;
+    positionTransport?.poke('pause');
+    sharedTransport?.poke('pause');
+  }, PAUSE_SYNC_QUIET_MS);
+}
+
+function cancelPauseSync(): void {
+  if (pauseSyncTimer === null) return;
+  try {
+    clearTimeout(pauseSyncTimer as never);
+  } catch {
+    // A dead timer host at shutdown
+  }
+  pauseSyncTimer = null;
+}
+
+/** The pull before a resume (spec 6.8): both files, bounded; a slow server means resuming from what this machine holds. */
+async function pullBeforeResume(): Promise<void> {
+  const pulls: Promise<void>[] = [];
+  if (positionTransport) pulls.push(positionTransport.flush('resume'));
+  if (sharedTransport) pulls.push(sharedTransport.flush('resume'));
+  if (!pulls.length) return;
+  try {
+    await withTimeout(Promise.all(pulls).then(() => undefined), RESUME_PULL_MS, () => new Error('zotero-tts: the pull before resume did not finish in time; resuming from what this computer holds'));
+  } catch (e) {
+    Zotero.debug('[zotero-tts] ' + String(e));
+  }
+}
+
+/**
+ * The leaf blocks of a loaded SDT, related to `wantPath` or all of them
+ * (sdt-anchor.ts). Walked inside the reader's own window when it lends its
+ * `Function` — a 124,908-block novel at native speed rather than a wrapper
+ * per property — and from the sandbox otherwise.
+ */
+function blocksSnapshotOf(reader: any, structure: any, wantPath: string | null): BlockSnapshot[] {
+  try {
+    const win = waived(reader?._iframeWindow);
+    const walk = new win.Function('structure', 'wantPath', `return (${walkSnapshot.toString()})(structure, wantPath)`);
+    const json = walk(structure, wantPath);
+    if (typeof json === 'string') return JSON.parse(json) as BlockSnapshot[];
+  } catch (e) {
+    Zotero.debug('[zotero-tts] block snapshot in the reader window failed, walking from the sandbox: ' + String(e));
+  }
+  return snapshotBlocks(structure, wantPath);
+}
+
+/**
+ * Resume from a Positions File item newer than this machine's own row (spec
+ * 6.5, 6.9): the sentence found by its text in the loaded SDT — the
+ * locator's own block first, then every block — and handed to Zotero as an
+ * SDT position (`isSDTPosition`, reader.js 79494; consumed at 84117-84127),
+ * never as the locator itself. False when the sentence is not in this copy
+ * or two places tie, which the caller says and falls back on.
+ */
+async function resumeFromShared(reader: any, item: SharedItem): Promise<boolean> {
+  const internal = reader?._internalReader;
+  if (!internal || typeof internal._loadSDT !== 'function') return false;
+  const sdt = await internal._loadSDT();
+  const structure = sdt?.structure;
+  if (!structure) return false;
+  let resolution = resolveSharedItem(item.anchor, item.locator, blocksSnapshotOf(reader, structure, locatorPath(item.locator)));
+  if (resolution.outcome === 'unresolved' && resolution.search !== 'ambiguous') {
+    resolution = resolveSharedItem(item.anchor, item.locator, blocksSnapshotOf(reader, structure, null));
+  }
+  if (resolution.outcome === 'unresolved') {
+    Zotero.debug(`[zotero-tts] shared position from ${item.stamp.device} not resolved: ${resolution.because}, ${resolution.search}`);
+    return false;
+  }
+  const position = sdtPositionAt(resolution.block, resolution.start, resolution.end);
+  if (!position) return false;
+  const win = reader?._iframeWindow;
+  internal.startReadAloudAtPosition(win ? Components.utils.cloneInto(position, win) : position);
+  Zotero.debug(`[zotero-tts] resumed from the shared position of ${item.stamp.device}: ${resolution.agreement}${resolution.moved ? ', ' + resolution.moved : ''}`);
+  return true;
+}
+
+/**
+ * Shift+Space after the pull (spec 6.8, 6.9): the newest place wins. A
+ * phone's item newer than this machine's row is resolved by its text and
+ * started; this machine's own row otherwise, exactly as before; a phone's
+ * item that cannot be found here falls back to the row and says so once.
+ */
+async function resumeAfterPull(reader: any, attachment: { lib: number; key: string } | null, sync: PositionSync): Promise<void> {
+  await pullBeforeResume();
+  const entry = attachment ? sync.entryOf(attachment.lib, attachment.key) : null;
+  const shared = attachment ? (documentPositions?.itemFor(attachment.lib, attachment.key) ?? null) : null;
+  if (shared && shared.stamp.at > (entry?.ts ?? Number.NEGATIVE_INFINITY)) {
+    let resumed = false;
+    try {
+      resumed = await resumeFromShared(reader, shared);
+    } catch (e) {
+      Zotero.logError(e);
+    }
+    if (resumed) return;
+    const doc = toastDoc(reader);
+    if (doc) showToast(doc, t('ztts-shared-position-unresolved'));
+  }
+  if (!entry) {
+    // Nothing of this machine's own either: Zotero's own start
+    reader?._internalReader?.startReadAloudAtPosition?.();
+    return;
+  }
+  // A PDF sentence rect lands one segment early; hand Zotero the same
+  // point shape the context menu's "Read Aloud from Here" uses
+  const target = resumeTarget(entry.pos);
+  try {
+    trace(`resume item ${String(reader?.itemID)} target ${JSON.stringify(target).slice(0, 100)}`);
+  } catch {
+    // Tracing only
+  }
+  // A sandbox-built object reads as empty inside the reader
+  const win = reader?._iframeWindow;
+  reader._internalReader.startReadAloudAtPosition(win ? Components.utils.cloneInto(target, win) : target);
+}
+
+/**
+ * The player's play on a paused session (spec 6.8, 6.9), through the
+ * resume guard's wrap of `toggleReadAloudPaused` (reader.js 84220-84238):
+ * the same bounded pull as Shift+Space first, then the newest place. A
+ * phone's item newer than this machine's row is resolved by its text and
+ * started through `startReadAloudAtPosition(sdtPosition)`, which on an
+ * active session takes `jumpTo` → `repositionTo` (82607-82628): that sets
+ * `paused` false and starts a new controller at the sentence, so the
+ * original un-pause must **not** run afterwards — it would read the new
+ * state and pause again. When the jump was a no-op (the manager still
+ * paused), or the item cannot be found (a toast says so), or nothing newer
+ * exists, the original un-pause runs and play continues from where it was.
+ *
+ * Immediate, no pull: sync off, or an attachment without a Document Id —
+ * a PDF, an EPUB this session could not name — for which the pull can
+ * bring nothing. `true` here means the guard returns to Zotero at once and
+ * the promise settles the press, always, through the finally.
+ */
+function pullBeforePlay(reader: any, control: { resume(): void; release(): void }): boolean {
+  const sync = positionSync;
+  const positions = documentPositions;
+  if (!sync || !positions || !sharedTransport) return false;
+  if (!loadSettings(prefs).webdav.syncPositions) return false;
+  const attachment = readerAttachment(reader);
+  if (!attachment || !positions.documentIdOf(attachment.lib, attachment.key)) return false;
+  void (async () => {
+    let started = false;
+    try {
+      await pullBeforeResume();
+      const entry = sync.entryOf(attachment.lib, attachment.key);
+      const shared = positions.itemFor(attachment.lib, attachment.key);
+      if (shared && shared.stamp.at > (entry?.ts ?? Number.NEGATIVE_INFINITY)) {
+        let resolved = false;
+        try {
+          resolved = await resumeFromShared(reader, shared);
+        } catch (e) {
+          Zotero.logError(e);
+        }
+        if (resolved) {
+          // The jump un-pauses by itself; a manager still paused means the
+          // position was not mappable and the original un-pause is owed
+          started = !readAloudManager(reader)?.paused;
+        } else {
+          const doc = toastDoc(reader);
+          if (doc) showToast(doc, t('ztts-shared-position-unresolved'));
+        }
+      }
+    } catch (e) {
+      Zotero.logError(e);
+    } finally {
+      if (started) control.release();
+      else control.resume();
+    }
+  })();
+  return true;
+}
+
+/**
+ * The shared item for a row this machine held before the upgrade (spec 6.9):
+ * the native position resolved through the loaded SDT to its block and
+ * sentence, so a book read on the desktop before 1.13.2 reaches the phone
+ * without being read again. Runs when a reader's toolbar renders — the
+ * internal reader exists by then — only for an EPUB whose row is newer than
+ * its shared item, and stamps the item with the row's own time. Loading the
+ * SDT is what the first Read Aloud would do anyway; a pack Zotero has not
+ * built yet is built here, in the background.
+ */
+async function deriveSharedFromNative(reader: any): Promise<void> {
+  const attachment = readerAttachment(reader);
+  const sync = positionSync;
+  const positions = documentPositions;
+  if (!attachment?.epub || !sync || !positions) return;
+  const entry = sync.entryOf(attachment.lib, attachment.key);
+  if (!entry) return;
+  const held = positions.itemFor(attachment.lib, attachment.key);
+  if (held && held.stamp.at >= entry.ts) return;
+  const internal = reader?._internalReader;
+  if (!internal || typeof internal._loadSDT !== 'function') return;
+  const sdt = await internal._loadSDT();
+  if (!sdt?.mapper || !sdt.structure) return;
+  const win = reader?._iframeWindow;
+  const sdtPosition = sdt.mapper.sourceToSDTPosition(win ? Components.utils.cloneInto(entry.pos, win) : entry.pos);
+  let start = copyIntegers(sdtPosition?.start);
+  let end = copyIntegers(sdtPosition?.end);
+  if (!start || !end) return;
+  // A row whose text step Zotero's mapper could not match resolves to the
+  // block's boundaries — a bare ref, no node and no char (reader.js
+  // 62543-62546): then the whole paragraph is the quotation
+  let block = blockAtRef(sdt.structure, start.slice(0, -2));
+  if (!block || start.length < 3) {
+    block = blockAtRef(sdt.structure, start);
+    if (!block) return;
+    start = [...block.ref, 0, 0];
+    end = [...block.ref, Math.max(0, block.starts.length - 1), block.text.length - Math.max(0, block.starts[block.starts.length - 1] ?? 0)];
+  }
+  const from = offsetInBlock(block, start);
+  const to = offsetInBlock(block, end);
+  if (from === null) return;
+  const text = block.text.slice(from, to === null || to <= from ? undefined : to).replace(/\s+/g, ' ').trim();
+  const capture = captureShared(block, { text, start, end });
+  if (capture) positions.recorded(attachment.lib, attachment.key, capture, entry.ts);
+}
+
 async function startPositionTracking(): Promise<void> {
   await stopPositionTracking();
   // The name form, not a path: it follows the configured data directory
@@ -1264,6 +1572,24 @@ async function startPositionTracking(): Promise<void> {
     Zotero.debug('[zotero-tts] position store failed to open; bookmarks stay in memory this session');
     initial = readPositions(prefs);
   }
+  // The Positions File's side (spec 6): what the store holds of it, seeded
+  // once; a read that fails leaves the maps empty for the session
+  const positions = createDocumentPositions({
+    identify: identifyAttachment,
+    saveDocument: (row) => positionStore?.saveDocument(row),
+    saveSharedPosition: (item) => positionStore?.saveSharedPosition(item),
+    device: () => machineId(prefs, defaultMachineName),
+    now: () => Date.now(),
+    error: (e) => Zotero.logError(e),
+  });
+  documentPositions = positions;
+  if (positionStore) {
+    try {
+      positions.load(await positionStore.loadShared());
+    } catch (e) {
+      Zotero.logError(e);
+    }
+  }
   const sync = createPositionSync({
     initial,
     save: (entry) => positionStore?.save(entry),
@@ -1277,6 +1603,11 @@ async function startPositionTracking(): Promise<void> {
     },
     managerOf: (reader: any) => liveReaderValue(reader, value => Components.utils.isDeadWrapper(value), '_internalReader', '_readAloudManager'),
     savedPositionOf: (reader: any) => liveReaderValue(reader, value => Components.utils.isDeadWrapper(value), '_internalReader', '_state', 'readAloudState', 'savedPosition'),
+    // The Positions File's half of every sentence (spec 6.4, 6.5), and the
+    // pause that sends both files up after the quiet period (spec 6.8)
+    sharedCaptureOf: readSharedCapture,
+    recordedShared: (attachment, capture, ts) => positions.recorded(attachment.lib, attachment.key, capture, ts),
+    onPauseOrStop: schedulePauseSync,
     setTimeout: (fn, ms) => setTimeout(fn, ms),
     clearTimeout: (handle: any) => clearTimeout(handle),
     now: () => Date.now(),
@@ -1312,13 +1643,41 @@ async function startPositionTracking(): Promise<void> {
       }
     },
   });
+  // The Positions File (spec 6), under the same switch: the same pokes, plus
+  // the upgrade's backfill of Document Ids before its first sync
+  const shared = createSharedTransport({
+    enabled: () => loadSettings(prefs).webdav.syncPositions,
+    client: () => createWebDAVClient(loadSettings(prefs).webdav, { fetch }),
+    local: () => positions.list(),
+    adopt: (item) => positions.adopt(item),
+    prepare: async () => {
+      const epubs = initial.filter((entry) => {
+        try {
+          const id = Zotero.Items.getIDFromLibraryAndKey(entry.lib, entry.key);
+          return !!id && Zotero.Items.get(id)?.attachmentContentType === EPUB_CONTENT_TYPE;
+        } catch {
+          return false;
+        }
+      });
+      const result = await positions.backfill(epubs);
+      Zotero.debug(`[zotero-tts] document ids backfilled: ${result.identified} named, ${result.unnamed} not, of ${epubs.length} EPUB rows`);
+    },
+    now: () => Date.now(),
+    error: (e) => Zotero.logError(e),
+    debug: (message) => Zotero.debug('[zotero-tts] ' + message),
+  });
+  sharedTransport = shared;
   positionTransport.poke('startup');
+  shared.poke('startup');
   // Ticking the checkbox syncs right away — the user is at the pane,
   // watching for exactly that; without this the first sync would wait for
   // the next opened or closed tab
   try {
     syncSwitchObserver = Zotero.Prefs.registerObserver(SYNC_POSITIONS_OBSERVER, () => {
-      if (loadSettings(prefs).webdav.syncPositions) positionTransport?.poke('switch-on');
+      if (loadSettings(prefs).webdav.syncPositions) {
+        positionTransport?.poke('switch-on');
+        sharedTransport?.poke('switch-on');
+      }
     });
   } catch (e) {
     Zotero.logError(e);
@@ -1342,14 +1701,25 @@ async function stopPositionTracking(): Promise<void> {
     }
     syncSwitchObserver = null;
   }
+  cancelPauseSync();
   const transport = positionTransport;
   positionTransport = null;
+  const sharedFlush = sharedTransport;
+  sharedTransport = null;
+  documentPositions = null;
   if (transport) {
     // The session's final positions go up before the store closes; the
     // transport's deps hold this generation's sampler, so the captures the
     // stop() above just made are what it reads
     try {
       await withTimeout(transport.flush('shutdown'), SYNC_SHUTDOWN_TIMEOUT_MS, () => new Error('zotero-tts: position sync flush timed out at shutdown'));
+    } catch (e) {
+      Zotero.logError(e);
+    }
+  }
+  if (sharedFlush) {
+    try {
+      await withTimeout(sharedFlush.flush('shutdown'), SYNC_SHUTDOWN_TIMEOUT_MS, () => new Error('zotero-tts: shared position sync flush timed out at shutdown'));
     } catch (e) {
       Zotero.logError(e);
     }
@@ -1714,7 +2084,7 @@ function startSentenceInView(): void {
   };
   sentenceInView = createSentenceInView(deps);
   domFollowing = createDOMFollow(deps);
-  followResumeGuard = createResumeGuard(deps);
+  followResumeGuard = createResumeGuard({ ...deps, beforeResume: pullBeforePlay });
   for (const reader of Zotero.Reader._readers ?? []) {
     followResumeGuard.attach(reader);
     sentenceInView.attach(reader);
@@ -3130,6 +3500,13 @@ const diagnostics = {
         // held (#51): what the transport drops from the shared file
         tombstones: safe(() => positionStore?.stats().deletions ?? null),
         transport: safe(() => positionTransport?.stats() ?? 'not started'),
+        // The Positions File (docs/spec/SYNC-FORMAT.md, section 6): the
+        // Document Ids and items this machine holds, and its own transport
+        shared: {
+          file: SHARED_POSITIONS_FILENAME,
+          documents: safe(() => documentPositions?.stats() ?? 'not started'),
+          transport: safe(() => sharedTransport?.stats() ?? 'not started'),
+        },
       },
       null,
       1,
@@ -3218,7 +3595,9 @@ const diagnostics = {
   settingsFiles: async () => {
     try {
       const client = createWebDAVClient(loadSettings(prefs).webdav, { fetch });
-      const files = (await client.list()).filter((f) => SETTINGS_FILE_PATTERN.test(f.name) || f.name === POSITIONS_FILENAME || f.name === SHARED_SETTINGS_FILENAME);
+      const files = (await client.list()).filter(
+        (f) => SETTINGS_FILE_PATTERN.test(f.name) || f.name === POSITIONS_FILENAME || f.name === SHARED_SETTINGS_FILENAME || f.name === SHARED_POSITIONS_FILENAME,
+      );
       return JSON.stringify({ url: client.url, files }, null, 1);
     } catch (e) {
       return JSON.stringify({ error: String(e) }, null, 1);
@@ -3547,6 +3926,7 @@ Zotero.ZoteroTTS = {
             }
             // What was just merged should reach the other machines too
             positionTransport?.poke('import');
+            sharedTransport?.poke('import');
             return taken;
           },
         },
@@ -3573,6 +3953,7 @@ Zotero.ZoteroTTS = {
           poke: () => {
             settingsSyncTransport?.poke('pane-open');
             positionTransport?.poke('pane-open');
+            sharedTransport?.poke('pane-open');
           },
         },
       });

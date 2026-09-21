@@ -570,3 +570,7 @@ then) and is in the git history before that day.
 
 - The pane's blank check kept its own list of attributes (issue #103)
 - Zotero's settings window keeps a radio's end margin on Linux only (issue #102)
+- How Zotero 10 resolves and generates an EPUB Read Aloud position: the SDT pack, not the DOM (issue #126)
+- An element CFI from upstream epub.js names the same block in the SDT mapper, measured on four books (issue #126)
+- The hooks the Positions File rides on, and what is read where (issue #126)
+- The player's play resumes through toggleReadAloudPaused, and a jump un-pauses by itself (issue #126)

@@ -488,3 +488,76 @@ describe('createPositionStore', () => {
     expect(h.store.stats()).toMatchObject({ swept: 3, deletions: 2 });
   });
 });
+
+describe('schema 3: the Document Ids and the shared Positions File items (docs/spec/SYNC-FORMAT.md)', () => {
+  const ID = `sha256:${'b'.repeat(64)}`;
+  const shared = {
+    id: ID,
+    format: 'epub',
+    publicationId: null,
+    locator: 'epubcfi(/6/34!/4/2/4/2/4)',
+    anchor: { exact: '铁柱坐在村内的小路边，望着远处的群山。', prefix: '', suffix: '' },
+    stamp: { at: 1758470000000, device: 'iPhone-3f9a2c1b' },
+  };
+
+  it('brings a schema-2 file up to 3 without touching its rows, and is idempotent', async () => {
+    const h = harness();
+    // A schema-2 file: the two old tables, a row, and user_version 2
+    h.fake.raw.exec('CREATE TABLE positions (libraryID INTEGER NOT NULL, key TEXT NOT NULL, pos TEXT NOT NULL, ts INTEGER NOT NULL, PRIMARY KEY (libraryID, key))');
+    h.fake.raw.exec('CREATE TABLE deletions (libraryID INTEGER NOT NULL, key TEXT NOT NULL, ts INTEGER NOT NULL, PRIMARY KEY (libraryID, key))');
+    h.fake.raw.prepare('INSERT INTO positions VALUES (1, ?, ?, 7)').run('OLDROW01', JSON.stringify(PDF_POINT));
+    h.fake.raw.exec('PRAGMA user_version = 2');
+    const rows = await h.store.open();
+    expect(rows).toEqual([entry({ key: 'OLDROW01', ts: 7 })]);
+    expect(h.fake.userVersion()).toBe(3);
+    expect(h.store.stats().schemaVersion).toBe(SCHEMA_VERSION);
+    const tables = h.fake.raw.prepare("SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name").all().map((r) => (r as { name: string }).name);
+    expect(tables).toEqual(['deletions', 'document_positions', 'documents', 'positions']);
+    await h.store.close();
+    // Opened again on the same file: nothing to migrate, nothing lost
+    const again = createPositionStore({ ...h.store === undefined ? {} : {}, db: fakeDB(h.fake.raw).db, legacy: { read: () => [], clear: () => {} }, itemExists: () => true, libraryExists: () => true, now: () => 0, error: () => {} } as PositionStoreDeps);
+    expect(await again.open()).toEqual([entry({ key: 'OLDROW01', ts: 7 })]);
+    expect(h.fake.userVersion()).toBe(3);
+  });
+
+  it('starts empty, writes a document row and a shared item through the queue, and reads them back', async () => {
+    const h = harness();
+    await h.store.open();
+    expect(await h.store.loadShared()).toEqual({ documents: [], positions: [] });
+    h.store.saveDocument({ lib: 1, key: 'ABCD1234', documentId: ID, publicationId: null, identifiedAt: 5 });
+    h.store.saveSharedPosition(shared);
+    // Coalesced per key: the later item replaces the earlier one in the batch
+    h.store.saveSharedPosition({ ...shared, stamp: { at: 1758470000001, device: 'Desktop' } });
+    await h.store.drain();
+    const loaded = await h.store.loadShared();
+    expect(loaded.documents).toEqual([{ lib: 1, key: 'ABCD1234', documentId: ID, publicationId: null, identifiedAt: 5 }]);
+    expect(loaded.positions).toEqual([{ ...shared, stamp: { at: 1758470000001, device: 'Desktop' } }]);
+    expect(h.store.stats().queued).toBe(0);
+  });
+
+  it('replaces by key, so an attachment renamed to another book and a document read again each keep one row', async () => {
+    const h = harness();
+    await h.store.open();
+    h.store.saveDocument({ lib: 1, key: 'ABCD1234', documentId: ID, publicationId: null, identifiedAt: 5 });
+    await h.store.drain();
+    h.store.saveDocument({ lib: 1, key: 'ABCD1234', documentId: `sha256:${'c'.repeat(64)}`, publicationId: null, identifiedAt: 6 });
+    h.store.saveSharedPosition(shared);
+    await h.store.drain();
+    h.store.saveSharedPosition({ ...shared, anchor: { exact: 'later', prefix: '', suffix: '' }, stamp: { at: 9, device: 'x' } });
+    await h.store.drain();
+    const loaded = await h.store.loadShared();
+    expect(loaded.documents).toHaveLength(1);
+    expect(loaded.documents[0].documentId).toBe(`sha256:${'c'.repeat(64)}`);
+    expect(loaded.positions).toHaveLength(1);
+    expect(loaded.positions[0].anchor.exact).toBe('later');
+  });
+
+  it('drops a shared write that arrives after the close, like a position', async () => {
+    const h = harness();
+    await h.store.open();
+    await h.store.close();
+    h.store.saveSharedPosition(shared);
+    h.store.saveDocument({ lib: 1, key: 'ABCD1234', documentId: ID, publicationId: null, identifiedAt: 5 });
+    expect(h.store.stats().queued).toBe(0);
+  });
+});

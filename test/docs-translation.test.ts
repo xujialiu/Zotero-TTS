@@ -16,7 +16,11 @@ import { describe, expect, it } from 'vitest';
  *
  * The pairing is required both ways, so a tutorial added in English cannot
  * ship untranslated. notes/ is out of scope by design; docs/ is in since
- * PHILOSOPHY.md moved there with its translation (issue #109).
+ * PHILOSOPHY.md moved there with its translation (issue #109). Only docs/'s
+ * top-level pages are in: a subdirectory of docs/ (`docs/spec/`, the sync
+ * folder's contract with OpenReader, issue #126) holds developer documents
+ * that never go on the site and change with the format, and is out of scope
+ * on purpose.
  */
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const SUFFIX = '.zh.md';

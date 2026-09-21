@@ -297,7 +297,7 @@ ztts-sync-positions =
     .label = 在电脑之间同步朗读位置
 ztts-help-sync-positions =
     .value = ?
-    .help = 把每个文档里朗读上次停下的位置存进上面的 WebDAV 文件夹，并取回你其他电脑留下的——在哪台电脑上播放都从同一句继续。关闭时，朗读位置只留在本机。
+    .help = 把每篇文档朗读停下的位置保存到上面的 WebDAV 文件夹，并读取其他电脑和手机上的 OpenReader 留下的位置，在任何设备上都能从同一句继续播放。关闭后，阅读位置只留在这台电脑上。
 ztts-sync-settings =
     .label = 在电脑之间同步设置
 ztts-help-sync-settings =
@@ -309,6 +309,8 @@ ztts-positions-status-none = 朗读位置已于 { $time } 同步；这台电脑�
 ztts-positions-status-taken = 朗读位置已于 { $time } 同步：从你的其他电脑取回 { $count } 个。
 ztts-positions-status-last = 朗读位置已于 { $time } 同步；最近一次从其他电脑取回是 { $when }。
 ztts-positions-status-failed = 朗读位置同步于 { $time } 失败：{ $detail }
+# 其他设备到达的位置在本机这份文档里找不到时的提示（改从本机上次的句子继续）
+ztts-shared-position-unresolved = 在这份文档里没有找到其他设备到达的位置，将从这台电脑上次停下的句子继续。
 ztts-sync-status-waiting = 设置同步：等待第一次同步。
 ztts-sync-status-none = 设置已于 { $time } 同步；这台电脑没有新内容。
 ztts-sync-status-applied = 设置已于 { $time } 同步：来自 { $from } 的 { $count } 项已在这里应用。
