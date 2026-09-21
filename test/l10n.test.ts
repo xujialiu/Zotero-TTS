@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { FluentBundle, FluentResource } from '@fluent/bundle';
 import { parse, type Attribute, type Message, type Pattern, type Resource } from '@fluent/syntax';
 import { describe, expect, it } from 'vitest';
+import { paneElementBlank, type PaneElement } from '../src/core/l10n';
 import { SHIPPED_LOCALES } from '../src/core/l10n-source';
 
 /**
@@ -82,6 +83,22 @@ function codeIds(): Set<string> {
   return out;
 }
 
+/** A pane element as Fluent leaves it in `locale`: the message's value as its text, each of its attributes set on it. */
+function translated(locale: string): (id: string) => PaneElement {
+  const bundle = new FluentBundle(locale, { useIsolating: false });
+  bundle.addResource(new FluentResource(readFileSync(join(localeDir, locale, FTL), 'utf8')));
+  return (id) => {
+    const message = bundle.getMessage(id)!;
+    // A variable the markup would fill comes out as {$name}: text all the same
+    const errors: Error[] = [];
+    const attrs = new Map(Object.entries(message.attributes).map(([name, pattern]) => [name, bundle.formatPattern(pattern, undefined, errors)]));
+    return {
+      textContent: message.value ? bundle.formatPattern(message.value, undefined, errors) : '',
+      getAttribute: (name) => attrs.get(name) ?? null,
+    };
+  };
+}
+
 const source = messages(resource(SOURCE));
 
 describe('addon/locale', () => {
@@ -150,6 +167,17 @@ describe('addon/locale', () => {
       if (!bold) continue;
       expect(text(attribute(m, 'label')?.value ?? null), `${m.id.name}.label`).toContain(text(bold.value));
     }
+  });
+
+  // diagnostics.l10n() lists a pane element as blank when paneElementBlank
+  // finds none of its string on it, so a message carrying only a kind of
+  // attribute the rule does not read is reported missing on a healthy pane
+  // (issue #103: the bracket pairs field's aria-label). Every message, not
+  // only the markup's: an id the code sets later (ui/player.ts) is read the
+  // same way, and a message t() formats has a value anyway.
+  it.each(LOCALES)('%s leaves no message blank by the pane\'s check', (locale) => {
+    const element = translated(locale);
+    expect([...messages(resource(locale)).keys()].filter((id) => paneElementBlank(element(id)))).toEqual([]);
   });
 });
 

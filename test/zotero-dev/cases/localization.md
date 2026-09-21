@@ -52,8 +52,19 @@ Items 1.10–1.12 of the checklist, under their original numbers.
 
 11. **The pane is translated by Zotero, not by the plugin.** With the
     settings window open on the pane, `diagnostics.l10n().pane` →
-    `elements` the count of `data-l10n-id` in `preferences.xhtml` (derive),
-    `blank: []`, `questionless: []`. By DOM: every `.ztts-help` has `value`
+    `elements` the count of `data-l10n-id` in `preferences.xhtml` (derive:
+    202 at 1.13.2), `blank: []`, `questionless: []`. `blank` reads every
+    kind of attribute the pane's messages set (issue #103, 1.13.2): the
+    bracket pairs field `#ztts-bracket-pairs`, whose one string is its
+    `aria-label` (`Bracket pairs to remove` / `要去掉的括号对`), is not in
+    it; a build before 1.13.2 lists it there on a healthy pane. **The
+    control**, which shows an empty `blank` means something: save that
+    `aria-label`, remove it from the field in the open pane, and
+    `l10n().pane` → `blank: ["ztts-bracket-pairs"]` and nothing else,
+    `elements` unchanged; set the saved value back verbatim and `blank` is
+    `[]` again. The removal holds until something re-translates the
+    element; a reopened pane is rebuilt from the markup either way. By
+    DOM: every `.ztts-help` has `value`
     `?` and `help` its message's text; the *Offer only favorite voices…*
     checkbox has its bold run (`.checkbox-label b`) reading the message's
     `.bold`; the highlight preview's four painted spans keep their ids

@@ -12,7 +12,7 @@ import { encodeCommand, WINDOWS_DAEMON_SCRIPT, WINDOWS_POWERSHELL, windowsComman
 import { createMacBackend, type MacProcess } from './core/providers/system/mac';
 import { listSystemVoiceRecords, systemUnavailableReason, type SystemProviderDeps } from './core/providers/system';
 import { zoteroVoiceId } from './core/providers/system/voices';
-import { FTL_FILE, hasMessageSource, sentences, setMessageSource, t } from './core/l10n';
+import { FTL_FILE, hasMessageSource, paneElementBlank, sentences, setMessageSource, t } from './core/l10n';
 import { installOwnSource, OWN_SOURCE_NAME, unregisterOwnSource } from './core/l10n-source';
 import { createMemoryCache } from './core/memory-cache';
 import { audioCacheOn, autoScrollMode, createZoteroPrefs, DEFAULTS, hiddenZoteroTiers, loadSettings, migrateLegacyProviderPref, PREF_PREFIX, ZOTERO_SWITCH_IDS } from './core/settings';
@@ -2482,14 +2482,6 @@ const diagnostics = {
    */
   startup: () => JSON.stringify({ version: pluginVersion, ...(startupReport ?? { steps: null, failed: null }) }, null, 1),
   /**
-   * The strings' state (issue #30): Zotero's locale and the app locales
-   * Fluent negotiates from it; whether the sandbox formats a message of the
-   * plugin's file (`sample`, in the app's language) and hands back the id
-   * for one the file lacks (`fallback`); and, while the settings window is
-   * open with the pane loaded, the pane's data-l10n-id elements that
-   * Fluent left blank and the ? icons left without their ? — both empty.
-   */
-  /**
    * The settings pane's secret fields, while the settings window is open
    * with the pane loaded (issue #19): each one by the tail of its pref,
    * never by its value — the length alone. `type` is the whole of why
@@ -2549,6 +2541,15 @@ const diagnostics = {
     }
     return JSON.stringify({ pane: 'open', fields: report }, null, 1);
   },
+  /**
+   * The strings' state (issue #30): Zotero's locale and the app locales
+   * Fluent negotiates from it; whether the sandbox formats a message of the
+   * plugin's file (`sample`, in the app's language) and hands back the id
+   * for one the file lacks (`fallback`); and, while the settings window is
+   * open with the pane loaded, the pane's data-l10n-id elements that
+   * Fluent left blank (core/l10n.ts paneElementBlank) and the ? icons left
+   * without their ? — both empty.
+   */
   l10n: () => {
     const probe = 'ztts-no-such-message';
     // The window itself, not through safe(): that copies through JSON
@@ -2563,12 +2564,7 @@ const diagnostics = {
       const blank: string[] = [];
       const questionless: string[] = [];
       const elements: any[] = Array.from(pane.querySelectorAll('[data-l10n-id]'));
-      for (const el of elements) {
-        const attr = (name: string) => el.getAttribute(name) ?? '';
-        const value = attr('value');
-        const filled = (el.textContent ?? '').trim() || attr('label') || attr('placeholder') || attr('tooltiptext') || attr('help') || (value && value !== '?');
-        if (!filled) blank.push(attr('data-l10n-id'));
-      }
+      for (const el of elements) if (paneElementBlank(el)) blank.push(el.getAttribute('data-l10n-id') ?? '');
       for (const el of Array.from(pane.querySelectorAll('.ztts-help')) as any[]) {
         if (el.getAttribute('value') !== '?') questionless.push(el.getAttribute('data-l10n-id') || el.id || '?');
       }

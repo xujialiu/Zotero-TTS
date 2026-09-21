@@ -568,4 +568,5 @@ then) and is in the git history before that day.
 
 ### [2026-09-21](NOTES_2026-09-21.md)
 
+- The pane's blank check kept its own list of attributes (issue #103)
 - Zotero's settings window keeps a radio's end margin on Linux only (issue #102)

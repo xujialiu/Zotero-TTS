@@ -61,3 +61,31 @@ export function sentences(...parts: Array<string | null | undefined>): string {
   if (!kept.length) return '';
   return kept.reduce((first, second) => t('ztts-join', { first, second }));
 }
+
+/** The part of a settings pane element that paneElementBlank reads. */
+export interface PaneElement {
+  readonly textContent: string | null;
+  getAttribute(name: string): string | null;
+}
+
+/**
+ * The attributes the pane's messages set, besides `value` — `aria-label`
+ * the name of a field that shows no text of its own, which the diagnostic
+ * reported blank until issue #103. test/l10n.test.ts runs every message
+ * through paneElementBlank, so a message carrying only a kind this list
+ * lacks fails there, not in a live pass.
+ */
+const STRING_ATTRIBUTES = ['label', 'placeholder', 'tooltiptext', 'help', 'aria-label'];
+
+/**
+ * Whether Fluent left a settings pane element without its string — what
+ * diagnostics.l10n() lists as `blank` (issue #30): no text, none of the
+ * attributes above, and no `value` but the `?` a help icon's markup
+ * carries by itself.
+ */
+export function paneElementBlank(el: PaneElement): boolean {
+  if ((el.textContent ?? '').trim()) return false;
+  const value = el.getAttribute('value') ?? '';
+  if (value && value !== '?') return false;
+  return !STRING_ATTRIBUTES.some((name) => el.getAttribute(name));
+}
