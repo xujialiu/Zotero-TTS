@@ -133,7 +133,7 @@ the first Read Aloud. Diagnostics: `Zotero.ZoteroTTS.diagnostics.positionSync()`
 ### 13
 
 13. **A book read on the phone alone resumes at the phone's place** (issue
-    #129; 1.14.1). A fixture EPUB this computer has never opened — a fresh
+    #129; 1.14.2). A fixture EPUB this computer has never opened — a fresh
     import, so `shared.documents.documents` does not count it — and, before
     its tab opens, an item for its Document Id in the file: `stamp.device`
     `iPhone-test`, a later paragraph's locator and its second sentence as
@@ -151,7 +151,7 @@ the first Read Aloud. Diagnostics: `Zotero.ZoteroTTS.diagnostics.positionSync()`
 ### 14
 
 14. **An item that arrives while the tab is open is pulled by Shift+Space**
-    (issue #129; 1.14.1). A never-read fixture open with nothing held for it
+    (issue #129; 1.14.2). A never-read fixture open with nothing held for it
     — the file had no item for it when the tab opened, `shared.documents.items`
     unchanged by the open — then the item of item 13 put into the file and
     no sync in between: Shift+Space logs `shared position sync (resume): …

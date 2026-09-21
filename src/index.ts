@@ -784,7 +784,7 @@ function watchReader(reader: any): void {
 /**
  * An open EPUB is named before the Positions File is synced for it (issue
  * #129): the transport adopts an item only for a document this machine has
- * named, and before 1.14.1 nothing named a book until a sentence of it was
+ * named, and before 1.14.2 nothing named a book until a sentence of it was
  * read here, so a phone's place for a book never read on this computer was
  * never taken — and the first sentence read here then overwrote it. The id
  * is computed once per attachment and stored (document-positions.ts); a

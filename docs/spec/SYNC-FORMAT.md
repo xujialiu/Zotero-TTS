@@ -307,7 +307,7 @@ stamp is newer than the item it already holds for that document, and keeps it
 beside its native row. It names an EPUB attachment when its reader opens, and
 once more before a resume when the open's naming has not landed, so a book
 read on a phone alone resumes at the phone's place on a computer that never
-read it (plugin 1.14.1, issue #129; before that only a sentence read there, a
+read it (plugin 1.14.2, issue #129; before that only a sentence read there, a
 row from before this file or the upgrade's backfill named one, and such a
 book started from the top). Whether the adopted item beats this machine's own
 native row is decided **at resume** (Shift+Space, or the player's play on a
@@ -330,4 +330,4 @@ playing nothing moves.
   states when the plugin compares an adopted item with its native row.
 - **2026-09-22** — the glossary gains *Named*, and 6.9 says when the plugin
   names an attachment: when its reader opens, not only once it has been read
-  there (plugin 1.14.1, issue #129). No change to any file's shape.
+  there (plugin 1.14.2, issue #129). No change to any file's shape.

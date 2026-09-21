@@ -12,7 +12,7 @@ import type { SharedItem } from './xujialiu-positions-file';
  * async, index.ts) and stored — when its reader opens (`name`, issue #129),
  * so that an item a phone wrote for a book never read on this machine has a
  * holder before the open's sync offers it; a resume asks `name` too, in case
- * the key lands before the id does. Before 1.14.1 only a sentence read here,
+ * the key lands before the id does. Before 1.14.2 only a sentence read here,
  * a native row derived after the upgrade, or the backfill named one, and a
  * book read on the phone alone was never adopted.
  *
