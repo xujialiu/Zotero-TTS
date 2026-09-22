@@ -9,7 +9,7 @@ site/
 .tmp/
 
 # Private notes (billing account ids, cloud setup) — never committed.
-secrets/
+.secrets/
 
 # Icon design drafts at the repo root (scratch, never committed); the plugin's
 # own icons live in addon/content/icons/ and ship (issue #60).
