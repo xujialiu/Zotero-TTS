@@ -81,6 +81,23 @@ line.
   (`apiKey`, `headers`, `password`): report "set" or its length, mapped
   inside the script before the value reaches a tool result. Read prefs by
   name, never in bulk; never commit or stage a raw preference snapshot.
+- **Test WebDAV first** (2026-09-22): every zotero-dev run, research
+  included, uses the dedicated test WebDAV configuration from
+  `/Users/xujialiu/Works/Zotero-TTS/.secrets/test_webdav.txt` to protect
+  the owner's bookmarks and reading positions. After `zotero_ping`, before
+  installing a build or driving checks, snapshot the affected settings
+  privately, suspend automatic sync/backup and settle pending requests,
+  then switch Zotero-TTS and OpenReader Position to the test configuration
+  wherever they use WebDAV. Confirm the effective destinations match the
+  file before proceeding; report only the match result, never its contents
+  or credentials. If the file is unavailable or isolation cannot be
+  confirmed, stop the live run and report the blocker; never fall back to
+  the owner's normal WebDAV. During cleanup, keep sync/backup suspended
+  until test-created or downloaded bookmark/position data and pending
+  writes are isolated and the original local state and settings restored;
+  only then restore automatic sync/backup. If cleanup cannot be confirmed,
+  leave sync/backup suspended and report what remains. Include isolation
+  and cleanup evidence in the report.
 - **Builds.** A test build's version is the next version plus `-betaN`
   (`1.12.8-beta`, `-beta2`, …); the released `package.json` version is not
   what Zotero shows. Two worktrees can name the same beta: prove which
@@ -163,7 +180,8 @@ replace the original snapshot with the temporary zero on a resumed run.
 Keep any necessary nonzero interval as short as the check allows, and report
 why it was needed. Include volume restoration in the cleanup evidence.
 
-1. `zotero_ping` first. No answer: stop and report "bridge down".
+1. `zotero_ping` first. No answer: stop and report "bridge down". Complete
+   "Test WebDAV first" before proceeding to installation or research.
 2. A verification run installs: `zotero_plugin_list` for the installed
    version, `zotero_plugin_install` with the xpi (it upgrades in place, no
    restart), `zotero_plugin_list` again — the version must be the

@@ -35,7 +35,8 @@ covers — its rules bind that work as much as this file's do:
   `test/`, and before reading Zotero's source or its profile.
 - **Testing** — `MEMORY/testing.md`: before building an xpi to test,
   verifying a change, or driving the running Zotero through the zotero-dev
-  bridge, research included.
+  bridge, research included. Its test WebDAV prerequisite applies before
+  every live run, including Zotero-TTS and OpenReader Position work.
 - **Agents** — `MEMORY/agents.md`: before delegating to an agent or doing
   its work yourself, and before editing an agent definition or workflow.
 - **Git** — `MEMORY/git-workflow.md`: before any commit, merge, push, tag

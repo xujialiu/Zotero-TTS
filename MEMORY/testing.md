@@ -56,6 +56,23 @@ behavior before it is merged, and **researching** — reproducing a bug,
 reading a reader's live state, digging an issue's evidence out of Zotero
 before the issue is written.
 
+- **Test WebDAV first** (2026-09-22): every zotero-dev run, research
+  included, uses the dedicated test WebDAV configuration from
+  `/Users/xujialiu/Works/Zotero-TTS/.secrets/test_webdav.txt` to protect
+  the owner's bookmarks and reading positions. After `zotero_ping`, before
+  installing a build or driving checks, snapshot the affected settings
+  privately, suspend automatic sync/backup and settle pending requests,
+  then switch Zotero-TTS and OpenReader Position to the test configuration
+  wherever they use WebDAV. Confirm the effective destinations match the
+  file before proceeding; report only the match result, never its contents
+  or credentials. If the file is unavailable or isolation cannot be
+  confirmed, stop the live run and report the blocker; never fall back to
+  the owner's normal WebDAV. During cleanup, keep sync/backup suspended
+  until test-created or downloaded bookmark/position data and pending
+  writes are isolated and the original local state and settings restored;
+  only then restore automatic sync/backup. If cleanup cannot be confirmed,
+  leave sync/backup suspended and report what remains. Include isolation
+  and cleanup evidence in the report. Mirrored in `agents/zotero-tester.md`.
 - **The driving rules are `agents/zotero-tester.md`** (the bridge's tools,
   provider test authorization, the kit runner, and reports; the per-topic
   driving notes are `agents/zotero-tester-driving.md`, read on demand).
