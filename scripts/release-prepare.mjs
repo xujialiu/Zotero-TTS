@@ -1,4 +1,4 @@
-// Step 1 of a release: `node scripts/release-prepare.mjs X.Y.Z` (MEMORY/MEMORY.md,
+// Step 2 of a release: `node scripts/release-prepare.mjs X.Y.Z` (MEMORY/git-workflow.md,
 // Releasing). Bumps package.json and addon/manifest.json to the clean version
 // — a test build's `-betaN` dropped — refreshes package-lock.json, runs the
 // tests, the typecheck and the build, and checks the xpi's manifest; then it

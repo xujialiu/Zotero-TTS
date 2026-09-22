@@ -121,7 +121,7 @@ export function blockAtRef(structure: unknown, ref: readonly number[]): BlockSna
   if (typeof map !== 'string') return null;
   const children = Array.isArray(node.content) ? (node.content as { text?: unknown }[]) : [];
   // Index loops throughout: `structure` may be a reader-compartment object
-  // behind a wrapper, whose arrays never run a sandbox callback (MEMORY.md).
+  // behind a wrapper, whose arrays never run a sandbox callback (MEMORY/code.md).
   // Zotero's leaf rule (reader.js 59961-59969): a block is a leaf only when
   // every child is a text node. A container holds blocks, not a sentence.
   for (let i = 0; i < children.length; i++) {

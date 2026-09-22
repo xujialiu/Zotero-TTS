@@ -42,7 +42,7 @@
 // .some given a CHROME callback silently corrupt every element -- always the
 // STRING "undefined" for .map, a wrong boolean for .every/.some -- proven
 // side by side against a manual for-loop reading the identical array
-// correctly at the same instant, waived or not. This is MEMORY.md's
+// correctly at the same instant, waived or not. This is MEMORY/code.md's
 // documented find/some/filter pitfall on a reader-realm array given a chrome
 // callback, extended here to map/every too. Every array read below walks by
 // index through toIds/toLabels/allStartWith/anyLabelMatches/firstOtherThan,

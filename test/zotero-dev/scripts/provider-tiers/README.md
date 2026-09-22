@@ -52,7 +52,7 @@ never pipe the whole log through a param).
   `.some(...)` answered the string `"undefined"` for every element's `.id`
   (and a wrong boolean from `.every`/`.some`), proven side by side against
   a manual `for` loop reading the identical 339-entry array correctly at
-  the same instant — waived or not. This is MEMORY.md's documented
+  the same instant — waived or not. This is MEMORY/code.md's documented
   find/some/filter pitfall on a reader-realm array given a chrome
   callback, extended here to map/every too; the previous fix note ("waive
   before reading array elements") was a misattribution. Read such arrays

@@ -1,4 +1,4 @@
-// Steps 2 and 3 of a release (MEMORY/MEMORY.md, Releasing):
+// Steps 6 and 7 of a release (MEMORY/git-workflow.md, Releasing):
 //   node scripts/release-point.mjs X.Y.Z           after `gh release create`:
 //     checks that the release asset answers 200, then points update.json at
 //     it and stops — the commit and the push are the main session's.

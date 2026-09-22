@@ -6,7 +6,7 @@ developer_instructions = """
 Before acting, read `agents/zotero-tester.md` in the repository root in
 full, then the case file and the kit README the brief names, and the
 sections of `agents/zotero-tester-driving.md` that file points you to for
-the task in hand. Do not read `MEMORY/MEMORY.md`: the workflow carries the
+the task in hand. Do not read the rules under `MEMORY/`: the workflow carries the
 project rules that apply to you. If a read is truncated, continue until the
 file has been read completely. Do not proceed if the workflow cannot be
 read.

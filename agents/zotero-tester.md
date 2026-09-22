@@ -19,8 +19,8 @@ revise it, since the runner executes them from disk; the sections of
 [`agents/zotero-tester-driving.md`](zotero-tester-driving.md) the task in
 hand needs (the index is under "How to drive"); and, for the feature in
 hand, its entry in `notes/NOTES.md`'s index. You do not read
-`MEMORY/MEMORY.md`: the project rules that apply to you are the next
-section, and the main session holds the rest.
+the rules under `MEMORY/`: the project rules that apply to you are the
+next section, and the main session holds the rest.
 
 ## What you get
 
@@ -46,8 +46,9 @@ start over.
 
 ## The rules you carry
 
-Sourced from `MEMORY/MEMORY.md` on 2026-09-14; where the two disagree,
-MEMORY.md wins and the main session brings this section back in line.
+Sourced from the rules under `MEMORY/` on 2026-09-14; where the two
+disagree, `MEMORY/` wins and the main session brings this section back in
+line.
 
 - **The plugin is `Zotero-TTS`** wherever a person reads it; the lowercase
   `zotero-tts` is the identifier (the id `zotero-tts@xujialiu.top`, the
@@ -91,8 +92,8 @@ MEMORY.md wins and the main session brings this section back in line.
   plugin sees from inside its sandbox comes only from
   `Zotero.ZoteroTTS.diagnostics.*`, which is why a fix is proven by its
   diagnostic and not by a chrome read.
-- **Pitfalls that bite scripts** (the full list is MEMORY.md's "Zotero
-  pitfalls"): a reader-realm array's `find` / `some` / `filter` given a
+- **Pitfalls that bite scripts** (the full list is `MEMORY/code.md`'s
+  "Zotero pitfalls"): a reader-realm array's `find` / `some` / `filter` given a
   chrome callback calls nothing and answers `undefined` / `false` / `[]`,
   and its `map` / `every` answer wrong the same way (2026-09-15)
   — walk such arrays by index; an options object built in chrome reads as

@@ -1,7 +1,10 @@
 # Git workflow — Zotero-TTS
 
-The main session runs Git housekeeping and releases directly, within the
-user-authorized scope. Read `MEMORY/MEMORY.md` before following this workflow.
+The main session performs Git housekeeping — commits, pulls, branch
+cleanup, tags, pushes, fast-forward merges — and releases directly, within
+the user-authorized scope, and delegates none of it to an agent. Commit
+and push still require the user's instruction. Read `MEMORY/MEMORY.md`
+before following this workflow.
 
 - Commit messages: `feat: …` / `fix: …` / `docs: …` / `chore: …`, as short
   as possible — usually the subject alone; a body of a line or two only
@@ -33,10 +36,15 @@ user-authorized scope. Read `MEMORY/MEMORY.md` before following this workflow.
 
 ## Releasing
 
+Installed copies auto-update through the manifest's `update_url`, which
+points at `update.json` on `main`: until step 6 points it at the new
+release, every installed copy stays on the old version. X.Y.Z is the
+patch bump of `MEMORY/testing.md` unless the user names the version.
+
 "Release X.Y.Z", with a line or two of release notes, runs the whole
-release (MEMORY/MEMORY.md, Releasing) on a tree whose fix commits are already
-in — anything uncommitted is not the release's, and stops the run as
-above. In order, each step's output in the report:
+release on a tree whose fix commits are already in — anything
+uncommitted is not the release's, and stops the run as above. In order,
+each step's output in the report:
 
 1. `git fetch --prune`, `git status -sb`, `git worktree list`,
    `git log origin/main --oneline -5`: `git tag -l vX.Y.Z` must print
@@ -44,8 +52,9 @@ above. In order, each step's output in the report:
    `origin/main` — another worktree may have shipped that number the
    same morning (2026-09-06); then the number is wrong, and the run
    stops.
-2. `node scripts/release-prepare.mjs X.Y.Z` — the two version lines,
-   the lock file, tests, typecheck, build, the xpi's manifest checked.
+2. `node scripts/release-prepare.mjs X.Y.Z` — the two version lines (a
+   test build's `-betaN` dropped), the lock file, tests, typecheck, build,
+   the xpi's manifest checked.
    It refuses a dirty tree, a version that is not newer and an existing
    tag, and a failed check ends it; any refusal ends the run, reported
    verbatim. It touches nothing but the three files it names.
@@ -73,10 +82,9 @@ above. In order, each step's output in the report:
    names the wait; wait it out and retry, up to three times, before
    calling it a failure.
 8. The installed copy is offered the update — the one bridge run a
-   release does itself (MEMORY/MEMORY.md names it; everything else in Zotero
-   is the tester's). Load `mcp__zotero-dev__zotero_ping` and
-   `mcp__zotero-dev__zotero_execute_js` with ToolSearch, ping, then run
-   this verbatim:
+   release does itself (everything else in Zotero is the tester's). Load
+   `mcp__zotero-dev__zotero_ping` and `mcp__zotero-dev__zotero_execute_js`
+   with ToolSearch, ping, then run this verbatim:
 
    ```js
    (async () => {

@@ -1301,7 +1301,7 @@ function readerAttachment(reader: any): { lib: number; key: string; epub: boolea
   return { lib: item.libraryID, key: item.key, epub: item.attachmentContentType === EPUB_CONTENT_TYPE };
 }
 
-/** A reader-compartment array of integers, copied element by element: a reader array's own methods are not ours to call (MEMORY.md), and the copy has to outlive the tab. */
+/** A reader-compartment array of integers, copied element by element: a reader array's own methods are not ours to call (MEMORY/code.md), and the copy has to outlive the tab. */
 function copyIntegers(value: any): number[] | null {
   if (!value || typeof value.length !== 'number') return null;
   const out: number[] = [];
