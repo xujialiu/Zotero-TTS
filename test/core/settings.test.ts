@@ -28,8 +28,8 @@ function fakePrefs(initial: Record<string, unknown> = {}): PrefsBackend & { stor
 }
 
 describe('loadSettings', () => {
-  it('offers all three Fish voice sources for existing profiles without the new preferences', () => {
-    expect(loadSettings(fakePrefs()).fish).toMatchObject({ includeOfficial: true, includeOwn: true, includeManual: true });
+  it('offers only official Fish voices when no source preferences are saved', () => {
+    expect(loadSettings(fakePrefs()).fish).toMatchObject({ includeOfficial: true, includeOwn: false, includeManual: false });
   });
 
   it('round-trips independent Fish source switches without erasing manual model IDs', () => {
@@ -64,7 +64,7 @@ describe('loadSettings', () => {
   // Providers are switched on independently; there is no single "provider"
   it('has no provider field either — each provider carries its own enabled flag', () => {
     expect('provider' in DEFAULTS).toBe(false);
-    expect(DEFAULTS['openai-official'].enabled).toBe(true);
+    expect(DEFAULTS['openai-official'].enabled).toBe(false);
     expect(DEFAULTS.azure.enabled).toBe(false);
     expect(DEFAULTS.local.enabled).toBe(false);
   });
@@ -150,9 +150,10 @@ describe('hiddenZoteroTiers', () => {
 
 describe('enabledProviders', () => {
   it('lists the switched-on providers in catalog order', () => {
-    expect(enabledProviders(DEFAULTS)).toEqual(['openai-official']);
+    expect(enabledProviders(DEFAULTS)).toEqual([]);
     const all = {
       ...DEFAULTS,
+      'openai-official': { ...DEFAULTS['openai-official'], enabled: true },
       mimo: { ...DEFAULTS.mimo, enabled: true },
       compatible: { ...DEFAULTS.compatible, enabled: true },
       azure: { ...DEFAULTS.azure, enabled: true },
@@ -334,7 +335,7 @@ describe('the three sections that speak OpenAI’s API', () => {
   it('are openai-official, mimo and compatible, and no section is called openai', () => {
     expect(Object.keys(DEFAULTS)).not.toContain('openai');
     expect(PROVIDER_IDS.slice(0, 3)).toEqual(['openai-official', 'mimo', 'compatible']);
-    expect(DEFAULTS['openai-official']).toEqual({ enabled: true, apiKey: '', model: 'gpt-4o-mini-tts', voices: '' });
+    expect(DEFAULTS['openai-official']).toEqual({ enabled: false, apiKey: '', model: 'gpt-4o-mini-tts', voices: '' });
     expect(DEFAULTS.mimo).toEqual({ enabled: false, apiKey: '', model: 'mimo-v2.5-tts', voices: '' });
     expect(DEFAULTS.compatible).toEqual({ enabled: false, baseURL: '', apiKey: '', model: '', voices: '', headers: '' });
     const stored = loadSettings(fakePrefs({ [PREF_PREFIX + 'compatible.baseURL']: 'http://localhost:8004', [PREF_PREFIX + 'openai.server']: 'chatterbox' }));

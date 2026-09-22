@@ -1,5 +1,5 @@
 /* eslint-disable no-undef */
-pref('extensions.zotero.zotero-tts.openai-official.enabled', true);
+pref('extensions.zotero.zotero-tts.openai-official.enabled', false);
 pref('extensions.zotero.zotero-tts.openai-official.apiKey', '');
 pref('extensions.zotero.zotero-tts.openai-official.model', 'gpt-4o-mini-tts');
 pref('extensions.zotero.zotero-tts.openai-official.voices', '');
@@ -27,8 +27,8 @@ pref('extensions.zotero.zotero-tts.fish.apiKey', '');
 pref('extensions.zotero.zotero-tts.fish.freeOnly', true);
 pref('extensions.zotero.zotero-tts.fish.voices', '');
 pref('extensions.zotero.zotero-tts.fish.includeOfficial', true);
-pref('extensions.zotero.zotero-tts.fish.includeOwn', true);
-pref('extensions.zotero.zotero-tts.fish.includeManual', true);
+pref('extensions.zotero.zotero-tts.fish.includeOwn', false);
+pref('extensions.zotero.zotero-tts.fish.includeManual', false);
 pref('extensions.zotero.zotero-tts.fishspeech.enabled', false);
 pref('extensions.zotero.zotero-tts.fishspeech.baseURL', 'http://localhost:8080');
 pref('extensions.zotero.zotero-tts.fishspeech.headers', '');
@@ -75,7 +75,7 @@ pref('extensions.zotero.zotero-tts.readAloud.paragraphDelayMs', 200);
 pref('extensions.zotero.zotero-tts.readAloud.volume', 100);
 pref('extensions.zotero.zotero-tts.readAloud.restoreSkippedLines', true);
 pref('extensions.zotero.zotero-tts.readAloud.joinSplitSentences', true);
-pref('extensions.zotero.zotero-tts.readAloud.openExpanded', false);
+pref('extensions.zotero.zotero-tts.readAloud.openExpanded', true);
 pref('extensions.zotero.zotero-tts.highlight.wordColor', '#3478f6');
 pref('extensions.zotero.zotero-tts.highlight.wordAlpha', 70);
 pref('extensions.zotero.zotero-tts.highlight.sentenceColor', '#ffff00');

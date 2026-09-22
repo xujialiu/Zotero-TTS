@@ -368,7 +368,7 @@ provider (or Zotero's Standard / Premium), language, voice.
 
 - *Open the player expanded* — show the floating panel's provider, language
   and voice rows whenever it opens; with Zotero's original player, show its
-  options panel. Off by default. Options or Shift+O changes this opening
+  options panel. On by default. Options or Shift+O changes this opening
   only. Changes to the setting apply at the next opening.
 
 - *Use one voice everywhere* — one voice for every document and every open

@@ -51,6 +51,8 @@ opens a fixture ends with item 3.26's teardown ([playback](cases/playback.md)).
 
 ### Providers
 
+- [Providers on first installation (issue #132)](cases/first-install-providers.md)
+
 - [The OpenAI section split into OpenAI, Xiaomi MiMo and OpenAI Compatible, and the old settings carried over (issue #113)](cases/openai-split.md)
 - [System voices](cases/system-voices.md) — 1.8
 - [Cloudflare Workers AI](cases/cloudflare.md) — 1.14, 2.9, 3.15

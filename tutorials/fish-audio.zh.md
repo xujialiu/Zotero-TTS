@@ -1,4 +1,4 @@
-<!-- translated-from: fish-audio.md sha256:9584571b76d8 -->
+<!-- translated-from: fish-audio.md sha256:6a1f3a7bfb1f -->
 # Fish Audio：克隆语音、一个免费模型、逐词高亮
 
 [English](fish-audio.md) · **简体中文**
@@ -22,7 +22,7 @@
 
 ## 语音
 
-语音会出现在播放器第一个下拉框的**Fish Audio**条目下面，用它们各自的名字列出。三个来源开关默认开启，彼此独立。
+语音会出现在播放器第一个下拉框的**Fish Audio**条目下面，用它们各自的名字列出。只有**官方语音**默认开启；**我的语音**和**手动语音**默认关闭。三个来源开关彼此独立。
 
 - **官方语音。** 自动列出 **Fish Official** 发布的语音。社区语音只有在你自己输入其 Model ID 后才会加入。
 - **我的语音。** 自动列出你的 Fish Audio 账户创建的语音，无需粘贴 ID。

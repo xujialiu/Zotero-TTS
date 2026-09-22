@@ -579,3 +579,5 @@ then) and is in the git history before that day.
 - Zotero asks for its voice list only signed in, and every plugin voice rode that request (issue #130)
 - Verified live, issue #130: the tab's own flag proves the skip, and a tab open across a reinstall keeps the previous instance's `loadVoices` hook (issue #130)
 - The 03:30 entry had the order wrong: every clean shutdown carries a leftover `loadVoices` hook forward, and none makes one (issue #131)
+- Empty plugin preferences enable OpenAI, and native voice memory repopulates the cleared branch (issue #132)
+- OpenAI now requires an enable choice on a fresh installation (issue #132)

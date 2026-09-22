@@ -37,7 +37,8 @@ The block's **Use only the free model** switch is on when you start.
 ## Voices
 
 Voices appear under **Fish Audio** in the player's first dropdown, by name.
-The three source switches start on and work independently.
+Only **Official voices** starts on; **Your voices** and **Manual voices**
+start off. The three source switches work independently.
 
 - **Official voices.** Voices published by **Fish Official** are listed
   automatically. Community voices are added only when you enter their

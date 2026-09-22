@@ -322,7 +322,7 @@ describe('mergeSharedSettings', () => {
     expect(byKey['openai-official.enabled']).toEqual(item({ key: 'openai-official.enabled', value: false, ts: 100 }));
     expect(byKey['openai.apiKey']).toEqual(remote[1]);
     // The merge then adopts the derived items and passes the old ones through, unapplied
-    const plan = mergeSharedSettings({ values: values(), stamps: {}, machine }, parsed);
+    const plan = mergeSharedSettings({ values: values({ 'openai-official.enabled': true }), stamps: {}, machine }, parsed);
     expect(plan.adopt.map((i) => i.key).sort()).toEqual(['mimo.apiKey', 'mimo.enabled', 'openai-official.apiKey', 'openai-official.enabled']);
     expect(plan.items.map((i) => i.key)).toContain('openai.presetValues');
   });

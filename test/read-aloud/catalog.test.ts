@@ -113,7 +113,7 @@ describe('collectCatalog with a provider that never answers', () => {
   });
 
   it('is bounded through listNamedCatalog the same way', async () => {
-    const settings = { ...DEFAULTS, azure: { ...DEFAULTS.azure, enabled: true } };
+    const settings = { ...DEFAULTS, 'openai-official': { ...DEFAULTS['openai-official'], enabled: true }, azure: { ...DEFAULTS.azure, enabled: true } };
     const providers = { 'openai-official': hanging('openai-official'), azure: provider('azure', [xiaoxiao]) } as Record<ProviderId, TTSProvider>;
     const catalog = await listNamedCatalog(settings, (id) => providers[id], undefined, { timeoutMs: 20 });
     expect(catalog).toEqual([{ provider: 'azure', voices: [xiaoxiao] }]);
@@ -134,7 +134,7 @@ describe('listNamedCatalog', () => {
   const bella = { id: 'af_bella', label: 'af_bella', locale: 'en-US' };
 
   it('lists the enabled providers and names local voices after their engine', async () => {
-    const settings = { ...DEFAULTS, local: { ...DEFAULTS.local, enabled: true } };
+    const settings = { ...DEFAULTS, 'openai-official': { ...DEFAULTS['openai-official'], enabled: true }, local: { ...DEFAULTS.local, enabled: true } };
     const providers = { 'openai-official': provider('openai-official', [alloy]), local: provider('local', [bella]) } as Record<ProviderId, TTSProvider>;
     const catalog = await listNamedCatalog(settings, (id) => providers[id]);
     expect(catalog).toEqual([
@@ -148,7 +148,7 @@ describe('listNamedCatalog', () => {
   // the catalog gives them no name of its own
   it('leaves the OpenAI, Xiaomi MiMo and OpenAI Compatible entries to their fixed names', async () => {
     const bingtang = { id: '冰糖', label: '冰糖', locale: 'mul' };
-    const settings = { ...DEFAULTS, mimo: { ...DEFAULTS.mimo, enabled: true }, compatible: { ...DEFAULTS.compatible, enabled: true } };
+    const settings = { ...DEFAULTS, 'openai-official': { ...DEFAULTS['openai-official'], enabled: true }, mimo: { ...DEFAULTS.mimo, enabled: true }, compatible: { ...DEFAULTS.compatible, enabled: true } };
     const providers = { 'openai-official': provider('openai-official', [alloy]), mimo: provider('mimo', [bingtang]), compatible: provider('compatible', [alloy]) } as Record<ProviderId, TTSProvider>;
     expect(await listNamedCatalog(settings, (id) => providers[id])).toEqual([
       { provider: 'openai-official', voices: [alloy] },
@@ -211,7 +211,7 @@ describe('provider tiers from the settings', () => {
   });
 
   it('lists the enabled providers as columns, and Zotero’s two while their switches are on', () => {
-    const settings = { ...DEFAULTS, azure: { ...DEFAULTS.azure, enabled: true }, local: { ...DEFAULTS.local, enabled: true } };
+    const settings = { ...DEFAULTS, 'openai-official': { ...DEFAULTS['openai-official'], enabled: true }, azure: { ...DEFAULTS.azure, enabled: true }, local: { ...DEFAULTS.local, enabled: true } };
     expect(providerTierColumns(settings)).toEqual([
       { tier: 'openai-official', label: 'OpenAI' },
       { tier: 'azure', label: 'Azure' },

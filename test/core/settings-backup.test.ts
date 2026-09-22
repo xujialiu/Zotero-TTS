@@ -27,13 +27,13 @@ describe('createBackup', () => {
     expect(loadSettings(target).readAloud.stripAngleBrackets).toBe(false);
     expect(SYNCABLE_KEYS).toContain('readAloud.stripAngleBrackets');
   });
-  it('defaults expanded opening off and carries the opt-in through backup and restore', () => {
-    expect(loadSettings(fakePrefs()).readAloud.openExpanded).toBe(false);
-    const source = fakePrefs({ [PREF_PREFIX + 'readAloud.openExpanded']: true });
+  it('defaults expanded opening on and carries the opt-out through backup and restore', () => {
+    expect(loadSettings(fakePrefs()).readAloud.openExpanded).toBe(true);
+    const source = fakePrefs({ [PREF_PREFIX + 'readAloud.openExpanded']: false });
     const target = fakePrefs();
     const parsed = parseBackup(serializeBackup(createBackup(source)));
     applyBackup(target, parsed);
-    expect(loadSettings(target).readAloud.openExpanded).toBe(true);
+    expect(loadSettings(target).readAloud.openExpanded).toBe(false);
     expect(SYNCABLE_KEYS).toContain('readAloud.openExpanded');
   });
   it('includes every setting, API keys and all, under its pref name', () => {

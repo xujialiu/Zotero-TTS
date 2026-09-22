@@ -22,9 +22,10 @@ after successful automatic expansion expect `enabled: true`, `popup: true`,
 `ready: true`, `expanded: true`, `clicked: true`, `pending: false`, and
 `outcome: "expanded"`. An already expanded native popup needs no click.
 
-1. **Default off:** open a player through the toolbar and the normal start
-   shortcut. Expect ordinary collapsed behavior and `clicked: false`.
-2. **Opt in:** enable *Open the player expanded* under Reading. Existing
+1. **Default on (1.14.3):** with no saved preference, open a player through
+   the toolbar and the normal start shortcut. Expect expanded controls.
+   This changed default has automated coverage; live verification was waived.
+2. **Explicit enable:** enable *Open the player expanded* under Reading. Existing
    players stay as they were. Close and reopen: expect the successful
    diagnostic above in PDF, EPUB, another tab, and a separate window.
 3. **Manual folding:** fold using the Options button and `Shift+O` in

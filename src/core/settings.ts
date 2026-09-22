@@ -206,13 +206,13 @@ export const PREF_PREFIX = 'extensions.zotero.zotero-tts.';
 export const MAX_PAUSE_MS = 5000;
 
 export const DEFAULTS: Settings = {
-  'openai-official': { enabled: true, apiKey: '', model: 'gpt-4o-mini-tts', voices: '' },
+  'openai-official': { enabled: false, apiKey: '', model: 'gpt-4o-mini-tts', voices: '' },
   mimo: { enabled: false, apiKey: '', model: 'mimo-v2.5-tts', voices: '' },
   compatible: { enabled: false, baseURL: '', apiKey: '', model: '', voices: '', headers: '' },
   azure: { enabled: false, apiKey: '', region: 'eastasia', voice: 'zh-CN-XiaoxiaoNeural' },
   cloudflare: { enabled: false, accountId: '', apiToken: '' },
   speechify: { enabled: false, apiKey: '' },
-  fish: { enabled: false, apiKey: '', freeOnly: true, voices: '', includeOfficial: true, includeOwn: true, includeManual: true },
+  fish: { enabled: false, apiKey: '', freeOnly: true, voices: '', includeOfficial: true, includeOwn: false, includeManual: false },
   fishspeech: { enabled: false, baseURL: 'http://localhost:8080', headers: '' },
   local: { enabled: false, engine: 'kokoro', baseURL: 'http://localhost:8880', voice: 'af_bella', headers: '' },
   system: { enabled: false },
@@ -277,7 +277,7 @@ export const DEFAULTS: Settings = {
     // On by the owner's decision (issue #104): the off state is for a join
     // that swallowed a real paragraph break
     joinSplitSentences: true,
-    openExpanded: false,
+    openExpanded: true,
     stripAngleBrackets: true,
     bracketPairs: '<> []',
   },
