@@ -73,7 +73,7 @@ describe('createProvider', () => {
         ? Response.json({ items: [], has_more: false })
         : Response.json({ items: [], has_more: false, window_limited: false, total_is_exact: true }),
     );
-    const settings = { ...DEFAULTS, fish: { ...DEFAULTS.fish, apiKey: 'account-a' } };
+    const settings = { ...DEFAULTS, fish: { ...DEFAULTS.fish, apiKey: 'account-a', includeOwn: true } };
     await createProvider('fish', settings, { ...deps, fetch: fetchImpl as unknown as typeof fetch }).listVoices();
     await createProvider('fish', settings, { ...deps, fetch: fetchImpl as unknown as typeof fetch }).listVoices();
     expect(getFishVoiceCacheStats(fetchImpl as unknown as typeof fetch)).toMatchObject({ cacheHits: 2, loads: 2, cachedAccounts: 1 });
