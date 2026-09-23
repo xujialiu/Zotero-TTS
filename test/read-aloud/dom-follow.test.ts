@@ -18,6 +18,8 @@ function fixture() {
   const nativeNavigate = vi.fn();
   class View {
     initialized = true; iframeWindow = win; iframeDocument = doc; flowMode = 'scrolled';
+    // The view's iframe in the reader document, below a 41 px toolbar
+    _iframe = { getBoundingClientRect: () => ({ top: 41, bottom: 1041 }) };
     flow = { _settleAnchorAfterProgrammaticScroll: vi.fn(), invalidate: vi.fn() };
     _readAloud: any;
     toDisplayedRange(key: any) { return ranges.get(key); }
@@ -47,7 +49,9 @@ function fixture() {
   const helper = view._readAloud = new Helper();
   const reader = { _window: {}, _internalReader: { _primaryView: view } };
   let mode: 'outside' | 'sentence' = 'outside';
-  const deps = { enabled: () => true, mode: () => mode, keepFollowingWhileVisible: () => false, resuming: () => false, wordTiming: () => 'real' as const, error: vi.fn() };
+  type Covered = { top: number; bottom: number };
+  const deps = { enabled: () => true, mode: () => mode, keepFollowingWhileVisible: () => false, resuming: () => false, wordTiming: () => 'real' as const, error: vi.fn(),
+    covered: ((_frame: unknown, _box: Covered): Covered => ({ top: 0, bottom: 0 })) };
   const module = createDOMFollow(deps);
   const push = (key: string, word?: string) => helper.setState({ active: true, popupOpen: true, activeSegment: { position: key, sourcePosition: key }, activeWordSourcePosition: word });
   return { view, helper, module, reader, range, push, win, nativeNavigate, rendered, deps, mode: (v: typeof mode) => { mode = v; } };
@@ -273,5 +277,41 @@ describe('EPUB player A/M state', () => {
       f.module.manual(f.reader); f.helper.setState({ ...f.helper.state, paused: false });
       expect(f.module.automatic(f.reader)).toBe(true);
     } finally { f.module.dispose(); vi.useRealTimers(); }
+  });
+});
+
+describe('EPUB under a docked bar (#135)', () => {
+  it('scrolls a sentence out from under the Top bar and the Bottom bar in a scrolled EPUB', () => {
+    const top = fixture(); const covered = vi.fn(() => ({ top: 34, bottom: 0 })); top.deps.covered = covered;
+    top.module.attach(top.reader);
+    top.push(top.range('high', 10, 40));
+    // The window's box in the reader document: the iframe's top, the document's client height
+    expect(covered).toHaveBeenCalledWith(top.view._iframe, { top: 41, bottom: 1041 });
+    // 966 px left uncovered: its center on the sentence's, 34 px below the window's top
+    expect(top.win.scrollTo).toHaveBeenCalledWith(expect.objectContaining({ top: 1025 - 483 - 34 }));
+    expect(top.module.inspect(top.reader)).toMatchObject({ covered: { top: 34, bottom: 0 } });
+    const bottom = fixture(); bottom.deps.covered = () => ({ top: 0, bottom: 34 });
+    bottom.module.attach(bottom.reader);
+    bottom.push(bottom.range('edge', 950, 1000));
+    expect(bottom.win.scrollTo).toHaveBeenCalledWith(expect.objectContaining({ top: 1975 - 483 }));
+  });
+  it('leaves a paginated EPUB alone: a page cannot scroll out from under a bar', () => {
+    const f = fixture(); f.view.flowMode = 'paginated'; f.deps.covered = () => ({ top: 34, bottom: 0 });
+    f.module.attach(f.reader);
+    f.push(f.range('a', 10, 40));
+    expect(f.nativeNavigate).not.toHaveBeenCalled();
+    expect(f.win.scrollTo).not.toHaveBeenCalled();
+    expect(f.module.inspect(f.reader)).toMatchObject({ covered: { top: 0, bottom: 0 } });
+  });
+  it('counts a sentence under a bar as out of view after a manual scroll', () => {
+    vi.useFakeTimers();
+    for (const [covered, following] of [[{ top: 0, bottom: 0 }, true], [{ top: 0, bottom: 34 }, false]] as const) {
+      const f = fixture(); f.deps.keepFollowingWhileVisible = () => true; f.deps.covered = () => covered;
+      f.module.attach(f.reader); f.push(f.range('a', 100, 150)); f.view.navigateToNextPage();
+      f.range('a', 970, 995); f.win.dispatchEvent(new Event('scroll')); vi.runAllTimers();
+      expect(f.module.inspect(f.reader).following).toBe(following);
+      f.module.dispose();
+    }
+    vi.runAllTimers(); vi.useRealTimers();
   });
 });

@@ -196,9 +196,13 @@ for every document you have listened to.
   in the reader to open the player and start reading; click again to stop
   and close it. Switch the setting off to use Zotero's original player.
 - **Bottom bar, Top bar, Floating panel** are available in Settings and
-  from the player's layout button. Bars reserve space only in the document
-  area; the floating panel can be dragged. The top bar is the default when
-  no layout has been saved; existing choices are kept.
+  from the player's layout button. A bar lies over the top or bottom edge
+  of the document, so opening, closing or switching the player never
+  resizes or blurs the page; following keeps the sentence being read out
+  from under it, and Zotero's find bar opens below the top bar. The strip
+  under a bar stays covered at the very start or end of a document. The
+  floating panel can be dragged. The top bar is the default when no layout
+  has been saved; existing choices are kept.
 - **Provider, language, voice, speed and volume** use the same choices as
   the voice browser and keyboard shortcuts. Hearts on the left mark the
   same favorites as Settings.

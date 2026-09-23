@@ -15,14 +15,16 @@ top-bar default, also run [the player-controls case](player-controls.md).
   reports enabled/layout/readers from the sandbox. Count one frame, style,
   and toolbar icon per reader, with no prototype remnants.
 - With Use plugin player on, the plugin icon replaces the native icon.
-  The player starts closed with no reserved document space. Clicking on a
+  The player starts closed. Clicking on a
   fixture opens the player and activates the real manager; click again
   stops the manager and closes the panel.
 - Bottom bar, Top bar and Floating panel switch from the player and from
   Settings. The manager/controller, selected voice, speed, volume, pause
-  state and active segment survive a layout-only change. Bars reserve
-  34 px outside the sidebar. Menus stay 8 px above/below docked bars as
-  the host frame expands; theme colors match native controls.
+  state and active segment survive a layout-only change. Bars lie 34 px
+  over the document's edge, outside the sidebar, and the document area
+  keeps its size ([player-cover](player-cover.md)). Menus stay 8 px
+  above/below docked bars as the host frame expands; theme colors match
+  native controls.
 - Persist layout and Use plugin player, reopen Settings, and reinstall.
   Values remain; the original icon returns when the switch is off.
 

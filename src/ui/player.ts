@@ -1,4 +1,5 @@
 import { floatingMenuPlacement } from './player-menu';
+import { BAR_HEIGHT, barBand, coveredEdges, type Band, type Covered } from './player-cover';
 import type { PlayerSnapshot } from '../read-aloud/player-controller';
 import { PREF_PREFIX, playerLayout, setPlayerLayout, type PrefsBackend } from '../core/settings';
 
@@ -100,8 +101,6 @@ export function createPluginPlayer(deps: {
     if (layout === 'top') {
       const toolbarBottom = doc.querySelector('.toolbar')?.getBoundingClientRect().bottom ?? 41;
       entry.frame.style.top = toolbarBottom + 'px';
-      const rule = entry.style.sheet?.cssRules[entry.style.sheet.cssRules.length - 1] as CSSStyleRule | undefined;
-      if (rule?.selectorText === '#split-view') rule.style.setProperty('top', toolbarBottom + 34 + 'px', 'important');
     }
   }
   function paint(doc: Document): void {
@@ -115,9 +114,13 @@ export function createPluginPlayer(deps: {
     entry.button.setAttribute('aria-expanded', String(visible));
     entry.style.textContent = '#ztts-player-toggle[hidden], #ztts-player-frame[hidden] { display: none !important; }';
     if (enabled) entry.style.textContent += '\n.read-aloud-popup, #read-aloud { display: none !important; }';
-    // Reserve real reader space for the two docked layouts; floating leaves it intact.
-    if (visible && layout === 'A') entry.style.textContent += '\n#split-view { bottom: 34px !important; }';
-    if (visible && layout === 'top') entry.style.textContent += '\n#split-view { top: 75px !important; }';
+    // The bars lie over the document's edge (#135): a resized document area
+    // re-lays the document out, and Zotero blurs an EPUB while it does. Only
+    // Zotero's find bar, 15 px below the top of the view it opens in, is moved
+    // out from under the Top bar; side by side, both views reach the top.
+    if (visible && layout === 'top') {
+      entry.style.textContent += '\n.split-view .primary-view .find-popup, body.enable-vertical-split-view .split-view .secondary-view .find-popup { margin-top: ' + BAR_HEIGHT + 'px !important; }';
+    }
     entry.frame.style.cssText = 'position:fixed;z-index:10000;border:0;background:transparent;color-scheme:light;';
     if (layout === 'A') entry.frame.style.cssText += 'left:0;bottom:0;width:100%;height:34px;';
     if (layout === 'B') entry.frame.style.cssText += 'left:10px;top:51px;width:min(300px,95vw);height:' + panelHeight(entry.expanded) + 'px;';
@@ -351,6 +354,15 @@ export function createPluginPlayer(deps: {
         if (entry.reader === reader && live(doc)) return entry.open;
       }
       return false;
+    },
+    /** How much of a box a docked bar lies over, in the document that holds `frame`, a view's iframe (#135). */
+    covered(frame: unknown, box: Band): Covered {
+      try {
+        // By id, not through `entries`: the follow reaches the document behind a waived wrapper, which a key from our side misses
+        const bar = (frame as Element | null)?.ownerDocument?.getElementById('ztts-player-frame') as HTMLIFrameElement | null;
+        if (enabled && bar && !bar.hidden) return coveredEdges(barBand(layout, bar.getBoundingClientRect()), box);
+      } catch { /* a closed tab's document */ }
+      return { top: 0, bottom: 0 };
     },
     setLayout: changeLayout,
     setEnabled(value: boolean) {

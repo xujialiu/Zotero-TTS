@@ -70,6 +70,8 @@ export interface FollowInput {
   viewport: Viewport;
   /** The breathing room inside the viewport's edges; `followMargin` of the viewport when left out. */
   margin?: number;
+  /** The px a docked player bar lies over at the viewport's top and bottom (#135); none when left out. */
+  inset?: { top: number; bottom: number };
 }
 
 export interface FollowTarget {
@@ -252,25 +254,32 @@ export function followTarget(input: FollowInput): FollowTarget {
   const CH = v.clientHeight;
   const ST = v.scrollTop;
   if (!(CH > 0)) return { reason: 'none', fits: false, handled: false };
-  const margin = input.margin ?? followMargin(CH);
-  const fits = whole[3] - whole[1] <= CH;
+  // What a docked bar covers is off screen (#135): measure against the rest
+  let above = Math.max(0, input.inset?.top ?? 0);
+  let below = Math.max(0, input.inset?.bottom ?? 0);
+  if (!(CH - above - below > 0)) above = below = 0;
+  const VH = CH - above - below;
+  const seen: Viewport = { ...v, scrollTop: ST + above, clientHeight: VH };
+  const centerOn = (box: Box): number => (box[1] + box[3]) / 2 - VH / 2 - above;
+  const margin = input.margin ?? followMargin(VH);
+  const fits = whole[3] - whole[1] <= VH;
   let reason: FollowReason = 'none';
   let focus = whole;
   let top: number | undefined;
   if (fits) {
-    if (input.force || (mode === 'sentence' && input.entered) || isOutside(whole, v, 0)) {
+    if (input.force || (mode === 'sentence' && input.entered) || isOutside(whole, seen, 0)) {
       reason = input.force ? 'return' : mode === 'sentence' && input.entered ? 'sentence' : 'cut';
-      top = (whole[1] + whole[3]) / 2 - CH / 2;
+      top = centerOn(whole);
     }
   } else if (input.entered || input.force) {
     reason = input.force ? 'return' : 'cut';
     focus = head;
-    top = head[1] - margin;
+    top = head[1] - margin - above;
   } else if (part) {
     focus = part;
-    if (isOutside(part, v, 0)) {
+    if (isOutside(part, seen, 0)) {
       reason = 'part';
-      top = (part[1] + part[3]) / 2 - CH / 2;
+      top = centerOn(part);
     }
   } else {
     // No word timing: never repeatedly drag a tall sentence back to its head.
@@ -303,6 +312,11 @@ export interface SentenceInViewDeps {
   wordTiming?(reader: unknown): WordTiming;
   /** The clock of the re-target window. Optional: Date.now. */
   now?(): number;
+  /**
+   * How many px of a view's viewport a docked player bar lies over, at its top and bottom (#135):
+   * given the view's iframe and the viewport's box in the document that holds it. Optional: none.
+   */
+  covered?(frame: unknown, box: { top: number; bottom: number }): { top: number; bottom: number };
   error(e: unknown): void;
   debug?(message: string): void;
 }
@@ -346,7 +360,8 @@ export function createSentenceInView(deps: SentenceInViewDeps): SentenceInView {
         const b = c.getBoundingClientRect();
         const left = b.left + (c.clientLeft || 0), top = b.top + (c.clientTop || 0);
         if (!(c.clientWidth > 0 && c.clientHeight > 0)) return null;
-        const viewport = [left, top, left + c.clientWidth, top + c.clientHeight];
+        const inset = insetOf(view, top, c.clientHeight);
+        const viewport = [left, top + inset.top, left + c.clientWidth, top + c.clientHeight - inset.bottom];
         let missing = false, measured = false;
         for (const [index, rects] of [[position.pageIndex, position.rects], [position.pageIndex + 1, position.nextPageRects]]) {
           if (!rects?.length) continue;
@@ -389,8 +404,17 @@ export function createSentenceInView(deps: SentenceInViewDeps): SentenceInView {
     return Array.isArray(pages) ? pages : null;
   };
 
+  /** What a docked bar covers of a viewport `height` px tall whose top lies `top` px down the view's own window. */
+  function insetOf(view: any, top: number, height: number): { top: number; bottom: number } {
+    const frame = view?._iframe;
+    const box = deps.covered ? frame?.getBoundingClientRect?.() : null;
+    if (!box) return { top: 0, bottom: 0 };
+    const y = Number(box.top) + top;
+    return deps.covered!(frame, { top: y, bottom: y + height });
+  }
+
   /** The sentence and the word against the container, or null for what Zotero should handle. */
-  function measure(reader: unknown, view: any, position: unknown): { extent: Extent; part: Box | null; viewport: Viewport } | null {
+  function measure(reader: unknown, view: any, position: unknown): { extent: Extent; part: Box | null; viewport: Viewport; inset: { top: number; bottom: number } } | null {
     const container = containerOf(view);
     const pages = pagesOf(view);
     if (!container || !pages) return null;
@@ -406,6 +430,8 @@ export function createSentenceInView(deps: SentenceInViewDeps): SentenceInView {
       scrollWidth: Number(container.scrollWidth),
       scrollHeight: Number(container.scrollHeight),
     };
+    const c = container.getBoundingClientRect();
+    const inset = insetOf(view, Number(c.top) + (Number(container.clientTop) || 0), viewport.clientHeight);
     let part: Box | null = null;
     if (deps.wordTiming?.(reader) === 'real') {
       const word = waive(waive(view._readAloudState)?.activeWordSourcePosition);
@@ -414,7 +440,7 @@ export function createSentenceInView(deps: SentenceInViewDeps): SentenceInView {
         if (page) part = pageBoxInContainer(word.rects, page, scroll);
       }
     }
-    return { extent, part, viewport };
+    return { extent, part, viewport, inset };
   }
 
   /** The follow's call: true when answered here, false when Zotero's method should run. */
@@ -434,7 +460,7 @@ export function createSentenceInView(deps: SentenceInViewDeps): SentenceInView {
     const page = pagesOf(view)?.[position.pageIndex];
     if (page && position.rects?.length) head = pageBoxInContainer([position.rects[0]], page, m.viewport) ?? head;
     const target = followTarget({ head, whole: m.extent.whole, part: m.part, viewport: m.viewport,
-      mode, entered: entered || changedMode, force });
+      mode, entered: entered || changedMode, force, inset: m.inset });
     const last: LastDecision | undefined = view[LAST];
     const at = now();
     const decision: LastDecision = {
@@ -496,26 +522,30 @@ export function createSentenceInView(deps: SentenceInViewDeps): SentenceInView {
     let sentence: Record<string, unknown> | null = null;
     let part: Box | null = null;
     let viewport: Viewport | null = null;
+    let covered: { top: number; bottom: number } | null = null;
     try {
       const state = waive(view._readAloudState);
       const position = waive(state?.activeSegment)?.sourcePosition ?? null;
       const m = position ? measure(reader, waive(view), waive(position)) : null;
       if (m) {
         viewport = m.viewport;
+        covered = m.inset;
         part = m.part;
-        const margin = 0;
+        // Against what a docked bar leaves uncovered, as the follow measures
+        const seen: Viewport = { ...m.viewport, scrollTop: m.viewport.scrollTop + m.inset.top,
+          clientHeight: m.viewport.clientHeight - m.inset.top - m.inset.bottom };
         sentence = {
           head: m.extent.head,
           whole: m.extent.whole,
-          fits: m.extent.whole[3] - m.extent.whole[1] <= m.viewport.clientHeight - 2 * margin,
-          cut: isOutside(m.extent.whole, m.viewport, margin),
+          fits: m.extent.whole[3] - m.extent.whole[1] <= seen.clientHeight,
+          cut: isOutside(m.extent.whole, seen, 0),
         };
       }
     } catch (e) {
       deps.error(e);
     }
     const last: LastDecision | undefined = view[LAST];
-    return { kind: 'pdf', mode: autoScrollMode(deps.mode?.()), patched, ...ownership, viewport, sentence, part, last: last ? { ...last } : null };
+    return { kind: 'pdf', mode: autoScrollMode(deps.mode?.()), patched, ...ownership, viewport, covered, sentence, part, last: last ? { ...last } : null };
   }
 
   return {

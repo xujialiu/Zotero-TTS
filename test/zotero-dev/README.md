@@ -104,6 +104,7 @@ opens a fixture ends with item 3.26's teardown ([playback](cases/playback.md)).
 - [Player position shortcut (issue #122)](cases/player-position-key.md)
 - [Player menus, floating controls and speed steps (issue #118)](cases/player-controls.md)
 - [Player A/M follows the current document (issue #117)](cases/player-following.md)
+- [The docked bars lie over the document (issues #135, #137)](cases/player-cover.md)
 - [The highlight and its colors](cases/highlight.md) — 3.5, 5.5
 - [The Sentence and Word switches (issue #114, 1.12.11)](cases/highlight-levels.md)
 - [3a. The whole sentence on screen (issue #83, 1.11.7)](cases/whole-sentence.md)

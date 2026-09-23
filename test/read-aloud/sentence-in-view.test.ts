@@ -190,6 +190,60 @@ describe('followTarget', () => {
     expect(followTarget({ head: box, whole: box, part: null, viewport: at(2600) }).reason).toBe('none');
     expect(followTarget({ head: box, whole: box, part: null, viewport: at(2600), margin: 8 }).reason).toBe('none');
   });
+
+  describe('under a docked bar (#135)', () => {
+    const TOP = { top: 34, bottom: 0 };
+    const BOTTOM = { top: 0, bottom: 34 };
+
+    it('takes a sentence under the Top bar as cut, and centers it in the uncovered part', () => {
+      const box: Box = [100, 2610, 1000, 2645];
+      expect(decide({ head: box, whole: box, part: null, viewport: at(2600) }).reason).toBe('none');
+      const target = decide({ head: box, whole: box, part: null, viewport: at(2600), inset: TOP });
+      expect(target.reason).toBe('cut');
+      // The center of the 960 px left uncovered, 34 px below the viewport's top
+      expect(target.top).toBeCloseTo(2627.5 - 480 - 34);
+    });
+
+    it('takes a sentence over the Bottom bar as cut', () => {
+      const box: Box = [100, 3565, 1000, 3590];
+      expect(decide({ head: box, whole: box, part: null, viewport: at(2600) }).reason).toBe('none');
+      const target = decide({ head: box, whole: box, part: null, viewport: at(2600), inset: BOTTOM });
+      expect(target.reason).toBe('cut');
+      expect(target.top).toBeCloseTo(3577.5 - 480);
+    });
+
+    it('centers an entered sentence in the uncovered part', () => {
+      const box: Box = [100, 3400, 1000, 3435];
+      expect(decide({ head: box, whole: box, part: null, viewport: at(2600), mode: 'sentence', entered: true, inset: TOP }).top)
+        .toBeCloseTo(3417.5 - 480 - 34);
+    });
+
+    it('measures fit, the word and the head against the uncovered part', () => {
+      const tall: Box = [100, 3000, 1000, 3970];
+      expect(decide({ head: tall, whole: tall, part: null, viewport: at(2600) }).fits).toBe(true);
+      expect(decide({ head: tall, whole: tall, part: null, viewport: at(2600), inset: TOP }).fits).toBe(false);
+      const head: Box = [100, 3000, 1000, 3015];
+      const whole: Box = [100, 3000, 1000, 4287];
+      expect(decide({ head, whole, part: null, viewport: at(2000), entered: true, inset: TOP }).top).toBe(3000 - 24 - 34);
+      const part: Box = [100, 3965, 160, 3980];
+      expect(decide({ head, whole, part, viewport: at(3000) }).reason).toBe('none');
+      const word = decide({ head, whole, part, viewport: at(3000), inset: BOTTOM });
+      expect(word.reason).toBe('part');
+      expect(word.top).toBeCloseTo(3972.5 - 480);
+    });
+
+    it('still clamps to the real scroll range', () => {
+      const first: Box = [100, 10, 1000, 45];
+      expect(decide({ head: first, whole: first, part: null, viewport: at(600), inset: TOP }).top).toBe(0);
+      const last: Box = [100, 14800, 1000, 14835];
+      expect(decide({ head: last, whole: last, part: null, viewport: at(13000), inset: BOTTOM }).top).toBe(13932);
+    });
+
+    it('ignores a strip that would leave nothing uncovered', () => {
+      const box: Box = [100, 3000, 1000, 3035];
+      expect(decide({ head: box, whole: box, part: null, viewport: at(2600), inset: { top: 994, bottom: 994 } }).reason).toBe('none');
+    });
+  });
 });
 
 /**
@@ -223,6 +277,8 @@ function fakeReader(options: { scrollTop?: number; state?: unknown } = {}) {
     _pages: unknown[] = [];
     _readAloudState: unknown = options.state ?? null;
     _readAloudPositionLocked = false;
+    // The view's iframe in the reader document, below a 41 px toolbar
+    _iframe = { getBoundingClientRect: () => ({ top: 41, bottom: 1035 }) };
     _iframeWindow = {
       innerHeight: 994,
       document: { getElementById: (id: string) => (id === 'viewerContainer' ? container : null) },
@@ -428,6 +484,33 @@ describe('createSentenceInView', () => {
       expect(container.scrollTo).toHaveBeenCalledWith({ cloned: { top: 2976, behavior: 'smooth' } });
       expect((module.inspect(reader) as any).part).toBeNull();
     });
+  });
+
+  it('scrolls a sentence out from under a docked bar (#135)', () => {
+    const covered = vi.fn(() => ({ top: 34, bottom: 0 }));
+    const deps = makeDeps({ covered });
+    const module = createSentenceInView(deps);
+    const { reader, view, container } = fakeReader({ scrollTop: 2600 });
+    module.attach(reader);
+    push(view, { pageIndex: 1, rects: [[100, 2610, 1000, 2645]] });
+    // The container's box in the reader document: the iframe's top plus the container's own
+    expect(covered).toHaveBeenCalledWith(view._iframe, { top: 41, bottom: 1035 });
+    expect(container.scrollTo).toHaveBeenCalledWith({ cloned: { top: 2627.5 - 480 - 34, behavior: 'smooth' } });
+    expect(module.inspect(reader)).toMatchObject({ covered: { top: 34, bottom: 0 }, sentence: { cut: true } });
+  });
+
+  it('counts a sentence under a docked bar as out of view after a manual scroll (#135)', () => {
+    vi.useFakeTimers();
+    for (const [covered, following] of [[{ top: 0, bottom: 0 }, true], [{ top: 34, bottom: 0 }, false]] as const) {
+      const module = createSentenceInView(makeDeps({ covered: () => covered }));
+      const { reader, view, container } = fakeReader({ scrollTop: 1000 });
+      module.attach(reader);
+      push(view, { pageIndex: 0, rects: [[10, 1000, 500, 1030]] });
+      container.emit('wheel', { deltaY: 1 }); container.emit('scroll'); vi.runAllTimers();
+      expect(module.inspect(reader).following).toBe(following);
+      module.dispose();
+    }
+    vi.runAllTimers(); vi.useRealTimers();
   });
 
   it('reports what it sees, and puts the prototype back on dispose', () => {

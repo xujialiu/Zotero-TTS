@@ -2146,6 +2146,8 @@ function startSentenceInView(): void {
     isDead: (value) => Components.utils.isDeadWrapper(value),
     // Only a real word is followed; the whole-segment stand-in of a wordless voice is not one
     wordTiming: (reader) => highlightStyling?.wordTiming(reader) ?? 'none',
+    // A docked bar lies over the document's edge (#135)
+    covered: (frame, box) => pluginPlayer?.covered(frame, box) ?? { top: 0, bottom: 0 },
     error: (e) => Zotero.logError(e),
     debug: (message) => Zotero.debug('[zotero-tts] ' + message),
   };

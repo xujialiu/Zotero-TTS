@@ -8,7 +8,7 @@ button:hover { background: color-mix(in srgb, var(--preview-fg, #303137) 12%, tr
 button:focus-visible, input:focus-visible { outline: 2px solid var(--preview-accent, #356dc2); outline-offset: 1px; }
 .player { position: absolute; z-index: 2; background: var(--preview-bg, #fafafa); color: var(--preview-fg, #303137); }
 .layout-A { bottom: 0; left: 0; width: 100%; height: 34px; padding: 3px 10px; display: flex; align-items: center; gap: 8px; border-top: 1px solid var(--preview-border, #ddd); overflow-x: auto; scrollbar-width: none; white-space: nowrap; }
-.layout-top { top: 0; bottom: auto; }
+.layout-top { top: 0; bottom: auto; border-top: 0; border-bottom: 1px solid var(--preview-border, #ddd); }
 .identity { display: none; }
 .voice-group, .controls { display: contents; }
 .field { flex: 0 0 auto; width: 105px; min-width: 0; }

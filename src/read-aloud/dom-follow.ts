@@ -63,6 +63,18 @@ export function createDOMFollow(deps: SentenceInViewDeps) {
     }
     return boxes;
   }
+  /**
+   * What a docked bar covers of the window, `height` px tall (#135). None for
+   * a paginated EPUB: a page cannot scroll out from under a bar, and Zotero's
+   * page margin (40 px, 20 px below 800 px wide) is what the bar mostly covers.
+   */
+  function insetOf(r: Owned, height: number): { top: number; bottom: number } {
+    const frame = r.view._iframe;
+    const box = deps.covered && r.view.flowMode !== 'paginated' ? frame?.getBoundingClientRect?.() : null;
+    if (!box) return { top: 0, bottom: 0 };
+    const y = Number(box.top);
+    return deps.covered!(frame, { top: y, bottom: y + height });
+  }
   const union = (boxes: Box[]): Box => [Math.min(...boxes.map(b => b[0])), Math.min(...boxes.map(b => b[1])), Math.max(...boxes.map(b => b[2])), Math.max(...boxes.map(b => b[3]))];
 
   function navigate(r: Owned, selector: any) {
@@ -125,7 +137,8 @@ export function createDOMFollow(deps: SentenceInViewDeps) {
       const translate = (b: Box): Box => [b[0] + win.scrollX, b[1] + win.scrollY, b[2] + win.scrollX, b[3] + win.scrollY];
       const target = followTarget({ head: translate(boxes[0]), whole: translate(whole), part: part && translate(part),
         viewport: { scrollTop: win.scrollY, scrollLeft: win.scrollX, clientWidth: width, clientHeight: height,
-          scrollHeight: root.scrollHeight, scrollWidth: root.scrollWidth }, mode, entered: entered || changedMode, force: r.force });
+          scrollHeight: root.scrollHeight, scrollWidth: root.scrollWidth }, mode, entered: entered || changedMode, force: r.force,
+        inset: insetOf(r, height) });
       const now = deps.now?.() ?? Date.now();
       if (target.reason !== 'none' && !(r.last && r.last.top === target.top && r.last.left === target.left && now - r.last.at < RETARGET_MS)) {
         const options: Record<string, unknown> = { behavior: 'smooth' };
@@ -199,7 +212,8 @@ export function createDOMFollow(deps: SentenceInViewDeps) {
             if (!(width > 0 && height > 0)) return null;
             // No displayed range for a known sentence means its EPUB section is off screen.
             const boxes = rects(r.view.toDisplayedRange(selector));
-            for (const box of boxes) if (intersectsViewport(box, [0, 0, width, height])) return true;
+            const inset = insetOf(r, height);
+            for (const box of boxes) if (intersectsViewport(box, [0, inset.top, width, height - inset.bottom])) return true;
             return false;
           };
         },
@@ -298,7 +312,8 @@ export function createDOMFollow(deps: SentenceInViewDeps) {
       const view = waive(reader?._internalReader?._lastView ?? reader?._internalReader?._primaryView);
       const r = records.get(view);
       return r ? { kind: 'epub', patched: true, following: r.following, paused: r.paused, sentenceProtected: r.manual.sentenceProtected, interacting: r.manual.interacting, visibilityPaused: r.manual.suspended, keepFollowingWhileVisible: deps.keepFollowingWhileVisible?.() !== false, pending: r.pending, mode: autoScrollMode(deps.mode?.()),
-        flow: r.view.flowMode, reason: r.reason, last: r.last } : { kind: 'dom', patched: false };
+        flow: r.view.flowMode, reason: r.reason, last: r.last,
+        covered: insetOf(r, r.view.iframeDocument.documentElement.clientHeight || r.view.iframeWindow.innerHeight) } : { kind: 'dom', patched: false };
     },
     dispose() { disposed = true; for (const r of [...records.values()]) release(r); },
   };
