@@ -57,12 +57,13 @@ as offsets from whatever the window gives.
 
 ## 4. Following keeps the sentence out from under a bar
 
-- `diagnostics.sentenceInView()` on a playing or paused PDF reports
+- `diagnostics.autoScroll()`, which answers the PDF follow
+  (`kind: 'pdf'`) or the EPUB one (`kind: 'epub'`) per reader, reports
   `covered: { top: 34, bottom: 0 }` with the Top bar,
   `{ top: 0, bottom: 34 }` with the Bottom bar, and `{ top: 0, bottom: 0 }`
-  with the Floating panel or the player closed. An EPUB in scrolled flow
-  reports the same `covered` through the same diagnostic's EPUB branch.
-  A paginated EPUB reports zeros with any layout.
+  with the Floating panel or the player closed, on a playing or paused
+  PDF and an EPUB in scrolled flow. A paginated EPUB reports zeros with
+  any layout.
 - In `outside` mode, with the Top bar, scroll a PDF so that the current
   sentence lies wholly within the top 34 px of the viewport, then let the
   next state push arrive (resume a paused fixture). The follow scrolls it:
