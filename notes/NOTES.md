@@ -606,3 +606,4 @@ then) and is in the git history before that day.
 ### [2026-09-24](NOTES_2026-09-24.md)
 
 - The docked bars lie over the document: the reader has two layers, and the player moved one (issues #135, #137)
+- Verified live: the document area keeps its size, and the popups sit by their text again (issues #135, #137)
