@@ -1,5 +1,6 @@
 // Render Markdown to a browser preview: `node scripts/render-md.mjs [files...]`
-// (default: README, docs/, test/zotero-dev/, tutorials/, notes/, MEMORY/). Each file becomes
+// (default: README, CONTEXT.md, docs/ with its subfolders — spec/, design/, adr/ —
+// test/zotero-dev/, tutorials/, notes/, MEMORY/). Each file becomes
 // .docs/<same path>.html — the source tree mirrored under .docs/, with relative
 // links rewritten so images and cross-links still resolve.
 // Needs pandoc on PATH. .docs/ is gitignored; docs/ holds pages of the repo (issue #109).
@@ -111,15 +112,18 @@ ${body}</body>
   return out;
 }
 
-// The default set is every doc the README links to, so the preview navigates.
+// The default set is every doc the README links to, so the preview navigates,
+// plus the glossary and the decision records under docs/design/ and docs/adr/.
 function defaultFiles() {
-  const files = ['README.md', 'README.zh.md'];
-  for (const entry of readdirSync(join('test', 'zotero-dev'), { recursive: true, withFileTypes: true })) {
-    if (entry.isFile() && entry.name.endsWith('.md')) {
-      files.push(join(entry.parentPath, entry.name));
+  const files = ['README.md', 'README.zh.md', 'CONTEXT.md'];
+  for (const dir of [join('test', 'zotero-dev'), 'docs']) {
+    for (const entry of readdirSync(dir, { recursive: true, withFileTypes: true })) {
+      if (entry.isFile() && entry.name.endsWith('.md')) {
+        files.push(join(entry.parentPath, entry.name));
+      }
     }
   }
-  for (const dir of ['docs', 'tutorials', 'notes', 'MEMORY']) {
+  for (const dir of ['tutorials', 'notes', 'MEMORY']) {
     for (const name of readdirSync(dir)) {
       if (name.endsWith('.md')) files.push(join(dir, name));
     }
