@@ -63,8 +63,12 @@ rule book, whose core is `MEMORY/MEMORY.md`.
   decided from the impact on the user when the issue is written, never
   from the size of the fix, and moved when the evidence changes.
   `enhancement` and `chore` carry none; no other labels, no milestones.
-  The commit that finishes one closes it, with the number in the
-  subject: `fix: … (#5)`.
+- **An issue closes at the commit that finishes it** (settled 2026-09-23,
+  issue #133): that commit carries the number in its subject
+  (`fix: … (#5)`), and `gh issue close 5` runs right after it, the
+  closing comment already up — not after the merge, the push or the
+  release. The number in a subject only links the commit on GitHub; it
+  closes nothing, so the close by hand is the only close.
 - Open an issue because writing it clarifies the problem, not to defer
   it — on a public repo an issue left open is a promise to strangers, and
   a backlog of stale enhancements reads as an abandoned project.
@@ -91,14 +95,15 @@ rule book, whose core is `MEMORY/MEMORY.md`.
   has not read the evidence. The recommendation is what the user says yes
   or no to; the plan comment on the issue, with the mechanism and the
   files, follows once they have.
-- **An issue opened by someone outside the project gets a reply before it
-  closes** (settled 2026-09-06, issue #50): a couple of plain lines that
-  read like a person wrote them — thanks for the report or suggestion, it
-  is done, the released version it is in, and a star if they like the
-  plugin — in the reporter's language, posted once that version is
-  actually released so they can install it. It sits beside the closing
-  summary, not instead of it, and nothing in it reads like a generated
-  changelog.
+- **An issue opened by someone outside the project gets a reply once its
+  fix is released** (settled 2026-09-06, issue #50): a couple of plain
+  lines that read like a person wrote them — thanks for the report or
+  suggestion, it is done, the released version it is in, and a star if
+  they like the plugin — in the reporter's language, posted once that
+  version is actually released so they can install it. The issue itself
+  closed at its commit (above), so the reply goes on the closed issue. It
+  sits beside the closing summary, not instead of it, and nothing in it
+  reads like a generated changelog.
 - **One that was investigated gets two comments, in this order** (settled
   2026-09-07, issue #73): first the evidence, in the project's own shape —
   what goes wrong, what it costs, the measurements and the Zotero
