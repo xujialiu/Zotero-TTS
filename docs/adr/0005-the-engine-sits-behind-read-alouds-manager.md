@@ -275,6 +275,12 @@ tests, and no Zotero update can undo it.
   stay where the plugin's interface makes them: the Engine keeps whatever
   the fetch answers, and the highlight module tells a stand-in by its
   shape, as before.
+- Samples left to Read Aloud lose the plugin's volume: `volume.ts` gained
+  `RemoteSampleReadAloudController` too, through the base class the two
+  shared, so a sample played from Zotero's own player (shown only with
+  *Use plugin player* off) now plays at Zotero's level. Accepted with the
+  owner on 2026-09-23: #134 removes that switch once the Engine has
+  shipped, and the sample button goes with Zotero's own player.
 - The live kit follows: 154 files under `test/zotero-dev/` read Read Aloud's
   controller internals, 44 of them in `scripts/voice-switch/`, and are
   rewritten against the Engine.
