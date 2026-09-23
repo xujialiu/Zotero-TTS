@@ -3,8 +3,9 @@
 This file is the core of the shared project rule book, maintained in
 version control: the rules every session needs, and a pointer to each
 topic file under `MEMORY/` that holds the rest. All paths are relative to
-the repository root unless stated otherwise. `AGENTS.md` and `CLAUDE.md`
-are platform entry points; edit shared rules here and in the topic files.
+the repository root unless stated otherwise. `AGENTS.md` is the shared
+entry point for Codex and Claude Code; edit shared rules here and in the
+topic files.
 This is not an automatically maintained session memory file.
 
 Zotero 10 plugin that adds voices to Zotero's built-in **Read Aloud**: OpenAI
@@ -63,8 +64,8 @@ Two project documents are reached the same way:
   points to — and each rule lives in exactly one of them. A rule every
   session needs belongs here; one that only some work needs belongs in
   that work's topic file, whose trigger above names the work, not the
-  content. `AGENTS.md` and `CLAUDE.md` are thin platform entry points; do
-  not copy the shared rules into them, and never `@`-import a topic file,
+  content. `AGENTS.md` is the thin shared entry point; do
+  not copy the shared rules into it, and never `@`-import a topic file,
   which would load it into every session. A change to a rule that
   `zotero-tester` carries (`agents/zotero-tester.md`, "The rules you
   carry") is mirrored there in the same change.
