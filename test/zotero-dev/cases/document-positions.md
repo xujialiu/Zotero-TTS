@@ -159,6 +159,35 @@ the first Read Aloud. Diagnostics: `Zotero.ZoteroTTS.diagnostics.positionSync()`
     exact`, and the first spoken segment is the phone's sentence. On 1.14.0
     the key falls through to Zotero's own start with no `(resume)` sync line.
 
+### 15
+
+15. **A phone's item adopted while the document analysis loads stands**
+    (issue #138; 1.14.4). The window is the derivation's wait for the
+    document analysis at a tab's first open, which is long only when Zotero
+    has not built it for the attachment yet. Set up, in this order: a
+    fixture EPUB imported fresh and never opened, nothing held for its
+    Document Id (`shared.documents.items` does not count it); a native row
+    for it at `ts` T1, put into `zotero-tts-positions.json` as another
+    computer's row and taken by a sync of that file before anything else
+    (`position()` shows it stored); only then an item for its Document Id in
+    the Positions File at T2 > T1, `stamp.device` `iPhone-test`, a later
+    paragraph's locator and its second sentence as `anchor.exact` (as in
+    item 5), with no sync between that and the open. Open the fixture's tab
+    and wait for both lines: `shared position sync (reader-open): … 1
+    adopted` comes **before** `native row at T1 not derived for
+    <lib>/<key>; held: iPhone-test at T2`. That order is the proof: the
+    adoption landed inside the wait and the check at the write refused. The
+    item held is then `iPhone-test` at T2 and nothing of this machine's;
+    after the next sync (open and close another tab) the file's item for
+    the Document Id is still `iPhone-test` at T2, and `uploaded` is false.
+    The other order — `native row at T1 derived for …; held: <machine id>
+    at T1` before `… 1 adopted` — means the analysis loaded before the sync
+    landed: the end state is the same, but the window was not exercised, so
+    the check is repeated with a longer fixture, and it passes only in the
+    order above. Before 1.14.4-beta4 the window's order ended with the row's
+    sentence held at T2 + 1 by this machine and uploaded (a unit test, not
+    run live).
+
 ### 10
 
 10. **Restoration.** The crafted items and the version-2 file deleted from

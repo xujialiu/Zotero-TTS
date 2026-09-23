@@ -314,9 +314,14 @@ native row is decided **at resume** (Shift+Space, or the player's play on a
 paused session), by comparing the item's stamp with the row's own time; the
 native position is built only then, in the open document, by resolving the
 anchor (section 6.5); a resolution that fails falls back to the machine's own
-last native position and says so. A native row from before this file existed
-gets its item when the document is next opened, stamped with the row's own
-time. OpenReader adopts an item for a Library entry when the item's stamp
+last native position and says so. A native row newer than the item the plugin
+holds for its document — one from before this file existed, one brought from
+another computer through `zotero-tts-positions.json`, one whose last sentences
+gave the plugin no item to write — gets its item when the document is next
+opened, stamped with the row's own time, and only if that time is still newer
+than the item held when it is written: an item adopted meanwhile, as the
+open's own sync may adopt one, stands (plugin 1.14.4, issue #138). OpenReader
+adopts an item for a Library entry when the item's stamp
 is newer than the entry's position stamp or the entry has no position; while
 the book is open and paused the highlight moves to the adopted sentence; while
 playing nothing moves.
@@ -331,3 +336,7 @@ playing nothing moves.
 - **2026-09-22** — the glossary gains *Named*, and 6.9 says when the plugin
   names an attachment: when its reader opens, not only once it has been read
   there (plugin 1.14.2, issue #129). No change to any file's shape.
+- **2026-09-24** — 6.9 names every native row the plugin derives an item from
+  and says the item is written only when the row's time is still newer than
+  the item held at the write (plugin 1.14.4, issue #138). No change to any
+  file's shape.

@@ -602,3 +602,7 @@ then) and is in the git history before that day.
 
 - The Engine behind Read Aloud's manager: four hooks, and what the manager does around them (issue #133)
 - Verified live: the Engine plays in Zotero, and a cached answer that would not decode defeated Retry (issue #133)
+
+### [2026-09-24](NOTES_2026-09-24.md)
+
+- A native row's item was checked before the document analysis loaded and written after it, and the open's sync adopts in between (issue #138)

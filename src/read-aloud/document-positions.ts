@@ -5,8 +5,9 @@ import type { SharedItem } from './xujialiu-positions-file';
 /**
  * This machine's side of the Positions File (docs/spec/SYNC-FORMAT.md,
  * section 6): which Document Id each EPUB attachment has, and the one shared
- * item held per document — written here when the sampler records a sentence,
- * or adopted from the file when a phone read further.
+ * item held per document — written here when the sampler records a sentence
+ * or a native row newer than the item is derived when its reader opens, or
+ * adopted from the file when a phone read further.
  *
  * A document is named — its Document Id computed from its file (`identify`,
  * async, index.ts) and stored — when its reader opens (`name`, issue #129),
@@ -32,7 +33,11 @@ import type { SharedItem } from './xujialiu-positions-file';
  *
  * The stamp rule is the spec's 6.6: `at = max(now, previous.at + 1)`, so a
  * machine with a slow clock still outranks the item it adopted the moment it
- * reads on.
+ * reads on. A derived row is not a new position (6.9): it keeps the row's own
+ * time and is written only when that is newer than the item held at the
+ * write, never above it. The caller checks before it awaits the document
+ * analysis, and the open's sync may adopt a phone's newer item meanwhile
+ * (issue #138), so `derived` checks again.
  */
 
 export interface DocumentPositionsDeps {
@@ -65,6 +70,8 @@ export interface DocumentPositions {
   name(lib: number, key: string): Promise<string | null>;
   /** The sampler recorded a new sentence: the shared half, stamped and written, once the attachment's id is known. */
   recorded(lib: number, key: string, capture: SharedCapture, at: number): void;
+  /** A native row's place, derived when its reader opened: written at the row's own time, only for a named attachment and only when newer than the item held now; true when written. */
+  derived(lib: number, key: string, capture: SharedCapture, at: number): boolean;
   /** Every item this machine holds — the transport's `local()`. */
   list(): SharedItem[];
   /** One item from the file: taken when this machine holds its document and it is strictly newer than what is held. */
@@ -155,8 +162,9 @@ export function createDocumentPositions(deps: DocumentPositionsDeps): DocumentPo
       locator: capture.locator,
       anchor: capture.anchor,
       // The caller's `at` is when speech stopped there — now for the
-      // sampler, the native row's own time for a row derived after the
-      // upgrade — and never below the item it replaces (spec 6.6)
+      // sampler, the native row's own time for a derived row, which
+      // `derived` has found newer — and never below the item it replaces
+      // (spec 6.6)
       stamp: { at: Math.max(at, (held?.stamp.at ?? Number.NEGATIVE_INFINITY) + 1), device: deps.device() },
     };
     byId.set(id, item);
@@ -187,6 +195,14 @@ export function createDocumentPositions(deps: DocumentPositionsDeps): DocumentPo
         waiting.delete(k);
         if (id && latest) write(id, latest.capture, latest.at);
       });
+    },
+    derived: (lib, key, capture, at) => {
+      const known = byAttachment.get(keyOf(lib, key));
+      if (!known) return false;
+      const held = byId.get(known.documentId);
+      if (held && held.stamp.at >= at) return false;
+      write(known.documentId, capture, at);
+      return true;
     },
     list: () => [...byId.values()],
     adopt: (item) => {

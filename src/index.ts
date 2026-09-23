@@ -1560,7 +1560,9 @@ function pullBeforePlay(reader: any, control: { resume(): void; release(): void 
  * internal reader exists by then — only for an EPUB whose row is newer than
  * its shared item, and stamps the item with the row's own time. Loading the
  * SDT is what the first Read Aloud would do anyway; a pack Zotero has not
- * built yet is built here, in the background.
+ * built yet is built here, in the background. The open's sync runs beside
+ * it and may adopt a phone's newer item while the SDT loads, so the row is
+ * checked against the held item again at the write (issue #138).
  */
 async function deriveSharedFromNative(reader: any): Promise<void> {
   const attachment = readerAttachment(reader);
@@ -1605,7 +1607,11 @@ async function deriveSharedFromNative(reader: any): Promise<void> {
   if (from === null) return;
   const text = block.text.slice(from, to === null || to <= from ? undefined : to).replace(/\s+/g, ' ').trim();
   const capture = captureShared(block, { text, start, end });
-  if (capture) positions.recorded(attachment.lib, attachment.key, capture, entry.ts);
+  if (!capture) return;
+  // The debug line is what a live run greps for
+  const written = positions.derived(attachment.lib, attachment.key, capture, entry.ts);
+  const holding = positions.itemFor(attachment.lib, attachment.key);
+  Zotero.debug(`[zotero-tts] native row at ${entry.ts} ${written ? 'derived' : 'not derived'} for ${attachment.lib}/${attachment.key}; held: ${holding ? `${holding.stamp.device} at ${holding.stamp.at}` : 'nothing'}`);
 }
 
 async function startPositionTracking(): Promise<void> {
