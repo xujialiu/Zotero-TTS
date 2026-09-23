@@ -601,3 +601,4 @@ then) and is in the git history before that day.
 ### [2026-09-23](NOTES_2026-09-23.md)
 
 - The Engine behind Read Aloud's manager: four hooks, and what the manager does around them (issue #133)
+- Verified live: the Engine plays in Zotero, and a cached answer that would not decode defeated Retry (issue #133)

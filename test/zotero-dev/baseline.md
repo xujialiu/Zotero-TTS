@@ -59,12 +59,12 @@
   neither `notifyUserGestureActivation()` nor a later trusted Shift+Space
   rescued it (2026-09-06: 90 s at position 0 with 4 buffers prefetched).
   The Engine keeps one context per session and asks it to run on every
-  Play ([engine](cases/engine.md) item 23); until a run has measured
-  whether that is enough without a gesture, the probe stays a session
-  started by a **trusted Shift+Space in a fresh tab**, then
-  `diagnostics.engine()` read for the tab's `audio.state` and the
-  session's `playbackTime` twice ~500 ms apart in one script (rulebook
-  step 5): `running` with the time moving is a device. A sink
+  Play ([engine](cases/engine.md) item 23), and that is enough: a session
+  started by a script alone reads `audio.state` `running` and advances
+  (measured on 1.14.4-beta, 2026-09-23). The probe is a session started
+  any way, then `diagnostics.engine()` read for the tab's `audio.state`
+  and the session's `playbackTime` twice ~500 ms apart in one script
+  (rulebook step 5): `running` with the time moving is a device. A sink
   that has really gone says so in `zotero_read_errors` —
   `NS_ERROR_DOM_MEDIA_MEDIASINK_ERR (0x806e000b)` /
   `OnMediaSinkAudioError` on a `blob:resource://zotero/…` (2026-09-06
