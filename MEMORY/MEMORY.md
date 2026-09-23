@@ -27,8 +27,9 @@ Read a topic file in full when its trigger fires, before the work it
 covers — its rules bind that work as much as this file's do:
 
 - **Docs** — `MEMORY/docs.md`: before editing any `.md` in the repo
-  (README, `docs/`, `tutorials/`, a Chinese page, `notes/`) or the public
-  site.
+  (README, `CONTEXT.md`, `docs/` with its `design/` and `adr/` records,
+  `tutorials/`, a Chinese page, `notes/`) or the public site, and before
+  recording a decision.
 - **Issues** — `MEMORY/issues.md`: whenever you find a bug or start a
   feature that needs a design decision, and before researching, opening,
   commenting on or closing a GitHub issue.
@@ -43,7 +44,7 @@ covers — its rules bind that work as much as this file's do:
 - **Git** — `MEMORY/git-workflow.md`: before any commit, merge, push, tag
   or release.
 
-Two project documents are reached the same way:
+Four project documents are reached the same way:
 
 - `notes/NOTES.md` — the standing reference: what the plugin is, the Zotero
   internals verified by reading its source, what is still open, and an index
@@ -55,6 +56,12 @@ Two project documents are reached the same way:
   and moves off Read Aloud step by step, leaving document analysis to
   Zotero (settled 2026-09-15, issue #109); its rules are the yardstick for
   new features, and a feature they do not settle is put to the user.
+- `CONTEXT.md` — the glossary: each piece of reading aloud and the things
+  around it, and the words to avoid. Code, issues and docs use its terms
+  strictly; read it before naming a thing.
+- `docs/design/` and `docs/adr/` — the decision records, paired by number:
+  the product argument for the owner, the engineering for engineers and
+  agents (ADR 0004). Read an area's records before changing that area.
 
 ## Working with the user
 

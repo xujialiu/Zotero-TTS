@@ -11,7 +11,8 @@ one file per day: `NOTES_<date>.md`, indexed at the bottom. A new entry goes at
 the end of today's file, its heading stamped with the date and the time
 (`2026-08-30 14:32`); what is already written there is not rewritten.
 
-[Product decisions](DECISIONS.md) records concise choices and their reasons.
+Decisions and their reasons: [docs/design/](../docs/design/) for the owner,
+[docs/adr/](../docs/adr/) for engineers and agents.
 
 ## What the plugin is
 

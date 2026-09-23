@@ -1,8 +1,68 @@
 # Docs — Zotero-TTS
 
-The rules for the repository's Markdown: the README and the public site,
-the Chinese pages, and the notes log. Part of the project rule book, whose
-core is `MEMORY/MEMORY.md`.
+The rules for the repository's Markdown: where a thing gets written down,
+the README and the public site, the Chinese pages, and the notes log. Part
+of the project rule book, whose core is `MEMORY/MEMORY.md`.
+
+## Where a thing gets written down
+
+Five places (settled 2026-09-23, ADR 0004; the shape is OpenReader's).
+Putting something in the wrong one is how it stops being read.
+
+|                | Who reads it                          | What it holds                                          |
+| -------------- | ------------------------------------- | ------------------------------------------------------ |
+| `docs/design/` | Someone who does not read code        | The trade-off: what was chosen, what was given up      |
+| `docs/adr/`    | Engineers and AI agents               | The technical decision, and the facts that forced it   |
+| `notes/`       | A later session                       | What was measured and when: `NOTES.md`, the dated log  |
+| `CONTEXT.md`   | Everyone                              | The glossary, and nothing else                         |
+| GitHub issues  | Whoever works the change              | The running log of one piece of work (`issues.md`)     |
+
+- **`docs/design/` — the product argument.** A reader who does not know
+  the code — the owner, reading as a product manager — reads any file end
+  to end and knows what was decided and what it costs. The alternative
+  that was turned down is written in the user's terms: what they would
+  have seen, what would have gone wrong, what they would have had to do
+  instead. **Never here**: an API name, a file path,
+  a type, a library, a version number, a code fence, a stack trace. The
+  test is mechanical — strip those from a sentence, and if it stops making
+  sense it is an ADR sentence. A design file is new writing, not a
+  translation of its ADR, and has no front matter: the status is recorded
+  once, in the ADR. `docs/design/README.md` is the reader's way in.
+- **`docs/adr/` — the engineering record.** What was actually done and
+  the facts that forced it, the Zotero internals cited by file and line.
+  Front matter: `status` (`proposed`, `accepted`, `superseded by NNNN`),
+  `date`, and `issue` when there is one. A measured detail is the most
+  valuable sentence in it — that Zotero's compressor turns a +6 dB boost
+  into +3 dB, that a Kokoro-FastAPI server returns the words of a text it
+  rewrote — and is **never paraphrased away**, when the record is split,
+  moved or rewritten. A sentence that reads like a pointless caveat is
+  usually a scar.
+- **Paired by number.** Four digits: `docs/design/0005-…` and
+  `docs/adr/0005-…` are one decision written for two readers, with the
+  same slug where it reads naturally; each opens with an italic line
+  pointing to the other half. Not every decision has both: a purely
+  technical one has only an ADR, a purely product one only a design file.
+  The number is spent on the decision either way — a gap is not a
+  mistake, and a number never means two decisions. The next number is the
+  highest in either folder plus one. `notes/DECISIONS.md` is retired; its
+  three entries are records 0001–0003.
+- **What earns a record**: reversing it would be costly, a later reader
+  would wonder why, and there really was a choice — all three. A finding
+  with no choice in it is a note; a choice missing one of the three is
+  neither.
+- **`CONTEXT.md` — the glossary.** A term, what it means, and the words
+  to avoid for it. No implementation, no decisions, no scratch notes: a
+  definition that needs a sentence about how something works is too long,
+  and that sentence belongs in an ADR. Its words are used strictly — in
+  the code, the issues and every file above.
+- **Written down the moment it settles** — in a grill, an issue's plan or
+  plain chat — in the file it belongs in, never batched for a later sweep.
+  A decision is not a note even when a measurement forced it: the note
+  says what was seen, the ADR what was then chosen.
+- These files are **English only** and hard-wrapped like the rest of the
+  repo's Markdown. They are not translated (`test/docs-translation.test.ts`
+  covers only docs/'s top-level pages) and not on the public site;
+  `npm run docs` renders them with everything else.
 
 ## README, tutorials and the site
 
