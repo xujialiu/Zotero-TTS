@@ -50,7 +50,13 @@ _Avoid_: tracking
 **Player**:
 The visible controls: play, pause, skip, speed, volume, the provider,
 language and voice choices.
-_Avoid_: popup (Zotero's own player), panel, bar
+_Avoid_: popup (Zotero's own player), panel, bar (the names of its layouts)
+
+**Layout**:
+Where the player sits: the Top bar under the toolbar, the Bottom bar, or
+the Floating panel. "Bar" and "panel" name a layout, never the player
+itself.
+_Avoid_: position (where reading stopped), variant
 
 **Position**:
 Where reading stopped in a document, kept so that reading resumes there on
