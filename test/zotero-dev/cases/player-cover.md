@@ -30,7 +30,8 @@ as offsets from whatever the window gives.
   document bottom.
 - On EPUB, sample every 50 ms for 400 ms after each open, close and
   Shift+P step. The view never carries `mask-resizing`, and its computed
-  `filter` stays `none`, never `blur(10px)` (#124's probe).
+  `filter` stays at reader.css's resting `blur(0px)`, never `blur(10px)`
+  (#124's probe).
 
 ## 2. The find bar clears the Top bar
 
@@ -44,7 +45,10 @@ as offsets from whatever the window gives.
 - Side by side (`body.enable-vertical-split-view`), with the Top bar, the
   find bars of both views sit at + 49. Stacked
   (`enable-horizontal-split-view`), the lower view's find bar sits 15 px
-  below its own top, with no margin.
+  below its own top, with no margin. On 2026-09-24,
+  `toggleFindPopup({ primary: false, open: true })` did not open the
+  secondary view's find bar at all, so a `.find-popup` element appended
+  to the live `.secondary-view` stood in for it.
 
 ## 3. Zotero's popups sit by their text (#137)
 
@@ -61,15 +65,16 @@ as offsets from whatever the window gives.
   (`kind: 'pdf'`) or the EPUB one (`kind: 'epub'`) per reader, reports
   `covered: { top: 34, bottom: 0 }` with the Top bar,
   `{ top: 0, bottom: 34 }` with the Bottom bar, and `{ top: 0, bottom: 0 }`
-  with the Floating panel or the player closed, on a playing or paused
-  PDF and an EPUB in scrolled flow. A paginated EPUB reports zeros with
-  any layout.
+  with the Floating panel, on a playing or paused PDF and an EPUB in
+  scrolled flow. With the player closed the EPUB reports zeros, and the
+  PDF `null`, since it measures only while a sentence is active. A
+  paginated EPUB reports zeros with any layout.
 - In `outside` mode, with the Top bar, scroll a PDF so that the current
-  sentence lies wholly within the top 34 px of the viewport, then let the
-  next state push arrive (resume a paused fixture). The follow scrolls it:
-  `last.reason` is `cut`, and the sentence then lies between viewport top
-  + 34 and the viewport's bottom. Do the same with the Bottom bar and the
-  bottom 34 px, and with an EPUB in scrolled flow.
+  sentence lies wholly within the top 34 px of the viewport. The
+  placement scroll itself sets off the follow, with the fixture paused
+  throughout: `last.reason` is `cut`, and the sentence then lies between
+  viewport top + 34 and the viewport's bottom. Do the same with the Bottom
+  bar and the bottom 34 px, and with an EPUB in scrolled flow.
 - A paginated EPUB with the Top bar turns no page for a sentence at a
   page's top: `last` does not change and no navigation is recorded.
 - With *Keep following while the sentence is visible* on, scroll by
