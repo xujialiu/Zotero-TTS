@@ -85,8 +85,9 @@ redirection) the Read Aloud `AudioContext` stays `suspended` at
 `currentTime` 0, `source.onended` never fires and `_position` never moves
 on its own, while synthesis, timestamps, highlight and prefetch all run;
 an `<audio>` element there fails with `OnMediaSinkAudioError` a few ms
-after `playing`. Read the controller's `_audioContext.state` and
-`currentTime` twice ~500 ms apart in one script; frozen means every
+after `playing`. Read `diagnostics.engine()`'s `audio.state` for the tab
+and its session's `playbackTime` twice ~500 ms apart in one script; frozen
+means every
 "speaks within N s" is NOT TESTABLE (machine) and the mechanism checks
 still run. The device came and went within one day (2026-09-05), the sink
 is per content process and does not recover in place (a new reader tab
@@ -109,7 +110,27 @@ null, controller destroyed, no error (2026-09-04). Resuming after a voice
 change needs a fresh
 `reader._iframeWindow.document.notifyUserGestureActivation()` — on the
 reader iframe's *document*; `windowUtils` has no such method in this
-Firefox (2026-09-06). While the selected id has no `::` (a metered voice),
+Firefox (2026-09-06).
+
+**Since issue #133 the manager's controller is the Engine's**: Read Aloud's
+controller fields (`_audioContext`, `_position`, `_currentIndex`,
+`_segmentTimestamps`, `_sourceNode`, …) do not exist on it. Read
+`diagnostics.engine()` — per reader the session's `position`,
+`currentIndex`, `playbackTime`, `playing`, the audio output's `state`,
+and the counts — and the controller's public members
+(`getTimestampsForSegment(segment)`, `paused`, `speed`). A pick through
+`selectVoice` / `selectTier` / `setLanguage` while the manager is active
+and **playing** goes through the Handoff (`diagnostics.voiceSwitch()`);
+while paused, a tier or language pick goes the native way and Play starts
+the sentence over, so a handoff check picks while playing. A voice outside
+the selected tier is dropped as a Zotero-tier one is — each plugin
+provider is a tier of its own since #110 — so a script picking across
+providers calls `selectTier(<the voice's tier>)` first (2026-09-23: a
+`selectVoice('local::…')` under the `fish` tier left the manager active
+with no controller and the session ended). A pick made while the manager
+is idle does not survive the next activation:
+`_syncPersistedVoicesToManager` re-applies the remembered voice when the
+popup opens (2026-09-23) — pick with the manager active. While the selected id has no `::` (a metered voice),
 resume, poll and pause go in the SAME script — every bridge round trip is
 billed audio, and a check capped at four sentences ran thirteen once.
 Walking reader-compartment arrays from chrome: `Array.prototype.filter`

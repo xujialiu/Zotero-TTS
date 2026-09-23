@@ -137,9 +137,11 @@ credit left, item 21's out-of-credits path runs instead of the sentences.
 11. **Pause and resume.** A hard cut with the lit word kept
     (`activeTimestampIndex` unchanged while paused); resume within 5 s at
     the exact place, after 5 s one word back and after 20 s two, for `en`
-    voices only; paused while buffering plays the sentence from its start;
-    the EPUB resume guard (the position pull) unchanged
-    ([reading-positions](reading-positions.md)).
+    voices only — a voice whose locale starts with `en` (`session.voice`),
+    picked while the manager is active: a Fish `mul` voice takes the
+    exact-resume path, which is right for it; paused while buffering plays
+    the sentence from its start; the EPUB resume guard (the position pull)
+    unchanged ([reading-positions](reading-positions.md)).
 
 ### 12
 
@@ -186,7 +188,9 @@ credit left, item 21's out-of-credits path runs instead of the sentences.
 ### 17
 
 17. **The Handoff** (#95, #108), every direction, the Zotero voices
-    included: a voice picked while reading shows "Preparing voice: X" and
+    included, each pick made while the reading **plays** (a pick while
+    paused is item 17's last sentence): a voice picked while reading shows
+    "Preparing voice: X" and
     the old voice reads on; `voiceSwitch().readers[i].handoff` shows
     `pending`, `stage` (`preparing`, `word` once armed, `sentence` while
     preparing ahead) and `wordDecision`; the new voice takes over at the
@@ -207,7 +211,8 @@ credit left, item 21's out-of-credits path runs instead of the sentences.
 18. **One reading across tabs.** Starting in another tab pauses this one;
     the stop key closes every player, keeps each place and shows its toast
     ([stop-key](stop-key.md)); each closed player's session `ended` true
-    and its `audio.state` `closed`.
+    and its `audio.state` `none` (the context closed and let go; measured
+    2026-09-23).
 
 ### 19
 
@@ -250,7 +255,11 @@ credit left, item 21's out-of-credits path runs instead of the sentences.
     beginning. (b) A read-ahead that failed once (a server stopped for a
     moment, then back) is asked for again when reading reaches it, and the
     reading goes on. (c) Audio that will not decode (a server answering
-    garbage): `error: unknown`, the "!" and a working Retry. (d) A skip,
+    garbage): `error: unknown`, the "!" and a working Retry — the plugin's
+    cached copy of the bad answer is dropped at the failure (the debug line
+    `<provider>: forgot the cached audio of N chars, which would not
+    decode`), so Retry reaches the server again and plays once it answers
+    good audio. (d) A skip,
     then Stop within 600 ms: no request for the skipped-to sentence.
     (e) A session started by a script with no click or key in the reader:
     `audio.state` goes `running` on Play, and it is heard.
