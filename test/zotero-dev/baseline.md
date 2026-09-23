@@ -18,7 +18,7 @@
   order at the end — `readAloud.memory` **last** — and a byte-identical
   report per pref.
 - Mute and restore volume according to the
-  [tester workflow](../../agents/zotero-tester.md#how-to-drive): default
+  [tester workflow](../../.agents/zotero-tester.md#how-to-drive): default
   `readAloud.volume` to `0` before playback, retaining its original value
   and user-value state for cleanup. Record any necessary audible interval.
 - `diagnostics.position()` → `database.rows` and `legacyPref` (null), so

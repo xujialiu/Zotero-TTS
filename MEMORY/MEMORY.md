@@ -67,7 +67,7 @@ Two project documents are reached the same way:
   content. `AGENTS.md` is the thin shared entry point; do
   not copy the shared rules into it, and never `@`-import a topic file,
   which would load it into every session. A change to a rule that
-  `zotero-tester` carries (`agents/zotero-tester.md`, "The rules you
+  `zotero-tester` carries (`.agents/zotero-tester.md`, "The rules you
   carry") is mirrored there in the same change.
 - Reply in **Chinese**, always, whatever language the input (logs, source,
   instructions) is in. Everything else is **English only, American

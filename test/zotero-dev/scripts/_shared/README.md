@@ -1,6 +1,6 @@
 # Scripts: the shared kit — the runner, and the steps every case uses
 
-[Checklist index](../../README.md) · [All scripts](../README.md) · [Tester workflow](../../../../agents/zotero-tester.md)
+[Checklist index](../../README.md) · [All scripts](../README.md) · [Tester workflow](../../../../.agents/zotero-tester.md)
 
 Not a case's folder: what every kit uses. Today that is the runner. The
 steps several kits repeat — the baseline snapshot, mute and sync off, the

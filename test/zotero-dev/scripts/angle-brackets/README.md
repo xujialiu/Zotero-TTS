@@ -14,7 +14,7 @@ results under Runs are not a fresh pass.
 
 ## Before you start
 
-- **Build and bridge.** Read `agents/zotero-tester.md` and the case first;
+- **Build and bridge.** Read `.agents/zotero-tester.md` and the case first;
   `zotero_ping`, install in place, require `diagnostics.startup()` `ok`,
   `failed: []`. Never run while another agent drives Zotero, or an
   owner's reader plays.

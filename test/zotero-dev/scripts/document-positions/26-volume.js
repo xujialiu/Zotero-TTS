@@ -1,6 +1,6 @@
 /**
  * Mute before the first playback, and put the volume back afterwards
- * (agents/zotero-tester.md, "Mute by default"). params.volume `mute` snapshots
+ * (.agents/zotero-tester.md, "Mute by default"). params.volume `mute` snapshots
  * `readAloud.volume` with its user-value state into state.volume and writes 0;
  * `restore` writes the snapshot back — clearing the pref when it had no user
  * value, so the profile reads exactly as the run found it.

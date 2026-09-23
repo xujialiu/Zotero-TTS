@@ -1,4 +1,4 @@
-[Checklist index](../../README.md) · [All scripts](../README.md) · [Case](../../cases/zotero-tiers.md) · [Tester workflow](../../../../agents/zotero-tester.md)
+[Checklist index](../../README.md) · [All scripts](../README.md) · [Case](../../cases/zotero-tiers.md) · [Tester workflow](../../../../.agents/zotero-tester.md)
 
 ## Scripts
 

@@ -18,7 +18,7 @@
   out.storedPath = await item.getFilePathAsync();
   const reader = await Zotero.Reader.open(item.id);
   out.opened = !!reader;
-  // ≤7 s polls, a ~24 s ceiling (agents/zotero-tester.md, "How to drive" 2)
+  // ≤7 s polls, a ~24 s ceiling (.agents/zotero-tester.md, "How to drive" 2)
   const started = Date.now();
   let internal = null;
   let manager = null;

@@ -1,6 +1,6 @@
 # Scripts: The OpenAI section split into OpenAI, Xiaomi MiMo and OpenAI Compatible (issue #113)
 
-[Case](../../cases/openai-split.md) · [Checklist index](../../README.md) · [Tester workflow](../../../../agents/zotero-tester.md)
+[Case](../../cases/openai-split.md) · [Checklist index](../../README.md) · [Tester workflow](../../../../.agents/zotero-tester.md)
 
 ## Scripts
 

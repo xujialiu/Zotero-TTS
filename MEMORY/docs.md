@@ -68,7 +68,7 @@ core is `MEMORY/MEMORY.md`.
   2026-09-06, issue #58): a session running Fable or Astra hands it the English
   pages that changed and their diff, and checks the diff that comes back;
   any other model translates in place by
-  `agents/docs-translator.md`.
+  `.agents/docs-translator.md`.
 
 ## The notes log
 

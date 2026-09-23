@@ -11,7 +11,7 @@ own verification. A feature adds its items here before it merges
 before verification, then corrected from the tester's report; a fix
 that changed an expected output changes it here in the same commit.
 
-How to run it is [the tester workflow](../../agents/zotero-tester.md) — the bridge's tools,
+How to run it is [the tester workflow](../../.agents/zotero-tester.md) — the bridge's tools,
 the polling windows, the state rules, the report. This directory is *what* to
 check. The main session hands each case to the
 `zotero-tester` agent as a verification brief and confirms the report

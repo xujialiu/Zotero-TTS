@@ -18,7 +18,7 @@ fresh pass.
   `Zotero.ZoteroTTS.diagnostics.startup()` with every step `ok` and
   `failed: []`. The build needs `diagnostics.playerExpanded()`, which
   arrived in 1.12.3-beta. Drive by the
-  [tester workflow](../../../../agents/zotero-tester.md): a bare
+  [tester workflow](../../../../.agents/zotero-tester.md): a bare
   `undefined` result is the ~8 s eval timeout, not an answer.
 - **Two groups, never interleaved:** `tabs-*` needs a PDF and an EPUB,
   each open in exactly one reader tab, because it finds readers by item

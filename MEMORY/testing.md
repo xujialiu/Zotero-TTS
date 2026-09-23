@@ -57,9 +57,11 @@ reading a reader's live state, digging an issue's evidence out of Zotero
 before the issue is written.
 
 - **Test WebDAV first** (2026-09-22): every zotero-dev run, research
-  included, uses the dedicated test WebDAV configuration from
-  `/Users/xujialiu/Works/Zotero-TTS/.secrets/test_webdav.txt` to protect
-  the owner's bookmarks and reading positions. After `zotero_ping`, before
+  included, uses `~/.secrets/Zotero-TTS/test_webdav.txt` for the dedicated
+  test WebDAV configuration to protect the owner's bookmarks and reading
+  positions. On Windows and macOS, resolve `~` to the current user's home
+  directory, including when working in a worktree.
+  After `zotero_ping`, before
   installing a build or driving checks, snapshot the affected settings
   privately, suspend automatic sync/backup and settle pending requests,
   then switch Zotero-TTS and OpenReader Position to the test configuration
@@ -72,10 +74,10 @@ before the issue is written.
   writes are isolated and the original local state and settings restored;
   only then restore automatic sync/backup. If cleanup cannot be confirmed,
   leave sync/backup suspended and report what remains. Include isolation
-  and cleanup evidence in the report. Mirrored in `agents/zotero-tester.md`.
-- **The driving rules are `agents/zotero-tester.md`** (the bridge's tools,
+  and cleanup evidence in the report. Mirrored in `.agents/zotero-tester.md`.
+- **The driving rules are `.agents/zotero-tester.md`** (the bridge's tools,
   provider test authorization, the kit runner, and reports; the per-topic
-  driving notes are `agents/zotero-tester-driving.md`, read on demand).
+  driving notes are `.agents/zotero-tester-driving.md`, read on demand).
   The main agent may drive bug and feature research directly. For live
   testing and implementation verification, it delegates to `zotero-tester`
   by default, except when the user explicitly asks it to drive personally,
@@ -109,7 +111,7 @@ before the issue is written.
   change, the tester closes
   the player itself with the popup toggle, notes the tab, says so in the
   report and never reopens it — the owner is not asked first. Mirrored
-  in `agents/zotero-tester.md`.
+  in `.agents/zotero-tester.md`.
 - **Plan first.** List every new behavior on the branch and the check that
   covers it — for research, every question and the observation that would
   settle it; name what only unit tests can cover and why, and what only a

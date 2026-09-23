@@ -4,7 +4,7 @@ Who does which work, the main session or an agent; how agents are defined;
 and how the main session waits on them. Part of the project rule book,
 whose core is `MEMORY/MEMORY.md`.
 
-- **Agent definitions** (settled 2026-09-12): `agents/<name>.md` holds each
+- **Agent definitions** (settled 2026-09-12): `.agents/<name>.md` holds each
   agent's shared workflow. Its entry points are `.codex/agents/<name>.toml`
   and `.claude/agents/<name>.md`; both must require reading the shared
   workflow before acting, and the workflow says which rules under `MEMORY/`
@@ -12,7 +12,7 @@ whose core is `MEMORY/MEMORY.md`.
   and its workflow `MEMORY/docs.md`; `zotero-tester`'s read nothing under
   `MEMORY/` (settled 2026-09-14 — the rule book, then one 12k-token file,
   was on every one of the tester's calls and mostly not its business). The
-  rules the tester needs are carried in `agents/zotero-tester.md` under
+  rules the tester needs are carried in `.agents/zotero-tester.md` under
   "The rules you carry", sourced from `MEMORY/`.
   Keep paired names, descriptions and workflow references consistent when
   adding, renaming or removing an agent. Edit a shared workflow only once.
@@ -41,7 +41,7 @@ whose core is `MEMORY/MEMORY.md`.
   **Research and testing have different drivers** (settled 2026-09-14):
   when researching a bug or feature, the main agent may call the zotero-dev
   MCP tools directly, without a separate request from the user. Read
-  `agents/zotero-tester.md` first and follow its research, evidence and
+  `.agents/zotero-tester.md` first and follow its research, evidence and
   restoration rules. Live testing and verification of an implementation
   go to `zotero-tester` by default, regardless of the main agent's model,
   subject to the explicit-user-request and release-specific exceptions below.
@@ -51,7 +51,7 @@ whose core is `MEMORY/MEMORY.md`.
   (settled 2026-09-13): when the user asks the main session to use
   zotero-dev itself, the main session runs the bridge directly and does
   not call `zotero-tester`, regardless of model. Read and follow
-  `agents/zotero-tester.md` first; the same investigation, verification,
+  `.agents/zotero-tester.md` first; the same investigation, verification,
   evidence and restoration rules still apply.
   **A blocked tester keeps ownership** (settled 2026-09-15, issue #108):
   a usage limit, tool failure, interruption or delay leaves live testing

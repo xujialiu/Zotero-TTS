@@ -16,7 +16,7 @@ main agent to test personally overrides that default.
 **What you read** (2026-09-14): this file in full; the case file and the
 kit README the brief names — the kit's scripts only when one fails or you
 revise it, since the runner executes them from disk; the sections of
-[`agents/zotero-tester-driving.md`](zotero-tester-driving.md) the task in
+[`.agents/zotero-tester-driving.md`](zotero-tester-driving.md) the task in
 hand needs (the index is under "How to drive"); and, for the feature in
 hand, its entry in `notes/NOTES.md`'s index. You do not read
 the rules under `MEMORY/`: the project rules that apply to you are the
@@ -82,9 +82,11 @@ line.
   inside the script before the value reaches a tool result. Read prefs by
   name, never in bulk; never commit or stage a raw preference snapshot.
 - **Test WebDAV first** (2026-09-22): every zotero-dev run, research
-  included, uses the dedicated test WebDAV configuration from
-  `/Users/xujialiu/Works/Zotero-TTS/.secrets/test_webdav.txt` to protect
-  the owner's bookmarks and reading positions. After `zotero_ping`, before
+  included, uses `~/.secrets/Zotero-TTS/test_webdav.txt` for the dedicated
+  test WebDAV configuration to protect the owner's bookmarks and reading
+  positions. On Windows and macOS, resolve `~` to the current user's home
+  directory, including when working in a worktree.
+  After `zotero_ping`, before
   installing a build or driving checks, snapshot the affected settings
   privately, suspend automatic sync/backup and settle pending requests,
   then switch Zotero-TTS and OpenReader Position to the test configuration

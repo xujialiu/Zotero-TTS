@@ -13,7 +13,7 @@ old run's PASS results are not a fresh pass.
 
 ## Before you start
 
-- **Build and bridge.** Follow `agents/zotero-tester.md` (How to drive,
+- **Build and bridge.** Follow `.agents/zotero-tester.md` (How to drive,
   Rules) and the [baseline](../../baseline.md): bridge ping, the build
   installed, `diagnostics.startup()` with every step `ok`, the error ring's
   contents read. Each file is one self-invoking function that returns JSON.
