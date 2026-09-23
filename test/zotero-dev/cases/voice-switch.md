@@ -4,6 +4,16 @@
 
 Run the [baseline](../baseline.md) first and [cleanup](../cleanup.md) last.
 
+Since issue #133 the switch runs in the Engine (`core/engine/handoff.ts`):
+the new voice's audio is a second clip store of the tab's session, not a
+second controller of Read Aloud's, and taking over is the session swapping
+voices before the manager's own `selectVoice` rebuilds its controller,
+which carries on (`diagnostics.engine()` `stats.carriedOn` up one per
+switch, `stats.started` unchanged). `diagnostics.voiceSwitch()` keeps its
+report per reader. The runs below measured the native mechanism of 1.12.5;
+their scripts read that controller's fields and are rewritten against the
+Engine's diagnostics at the next run.
+
 Real-provider follow-up: use real Kokoro audio and capture
 `wordDecision` plus `audioReady` from `diagnostics.voiceSwitch()`. Prove
 that target audio became ready while the same old sentence was still
@@ -47,9 +57,10 @@ starts; the dual-playing setup required a fixture-only status guard.
 Do not count that guarded scenario as an ordinary supported Zotero state.
 
 1. **Identity and bindings.** `diagnostics.voiceSwitch()` reports
-   `mechanism: prepared-native-voice-v2`, previous `Shift+,`, next `Shift+.`.
+   `mechanism: engine-handoff-v1`, previous `Shift+,`, next `Shift+.`.
    Each attached reader reports `handoff.controlsAttached: true`.
-   Startup includes `prepared voice switching` with no failed step.
+   Startup includes `the Engine` and `voice switching` with no failed
+   step.
 2. **List and keys.** Compare the actual player's voice menu with the
    neighbors selected by trusted Shift+, / Shift+. For a regional selection,
    compare only voices in that exact normalized region: native menus and

@@ -50,18 +50,21 @@
   mid-run — a session never advances on its own, while synthesis,
   timestamps, highlight, prefetch and every state check still run; the
   device can come and go within a day. A `suspended` `AudioContext` at
-  `currentTime` 0 is **not** by itself the machine: `ReadAloudController`
-  builds its own context (`reader.js` 39936, one per
-  `_createController()`, 82650-82655), and Gecko's autoplay gate resumes
-  only one created inside a trusted gesture — a context made by a script
-  (`toggleReadAloudPopup(true)`, `startReadAloudAtPosition`, a voice or
-  speed change) stays `suspended` for its whole life, and neither
-  `notifyUserGestureActivation()` nor a later trusted Shift+Space
-  rescues it (2026-09-06: 90 s at `_position` 0 with 4 buffers
-  prefetched). The probe is therefore a session started by a **trusted
-  Shift+Space in a fresh tab**, then `manager._controller._audioContext`
-  read for `state` and `currentTime` twice ~500 ms apart in one script
-  (rulebook step 5): `running` with the clock moving is a device. A sink
+  `currentTime` 0 is **not** by itself the machine. Before issue #133
+  Read Aloud's own controller built its context (`reader.js` 39936, one
+  per `_createController()`, 82650-82655), and Gecko's autoplay gate
+  resumed only one created inside a trusted gesture — a context made by a
+  script (`toggleReadAloudPopup(true)`, `startReadAloudAtPosition`, a
+  voice or speed change) stayed `suspended` for its whole life, and
+  neither `notifyUserGestureActivation()` nor a later trusted Shift+Space
+  rescued it (2026-09-06: 90 s at position 0 with 4 buffers prefetched).
+  The Engine keeps one context per session and asks it to run on every
+  Play ([engine](cases/engine.md) item 23); until a run has measured
+  whether that is enough without a gesture, the probe stays a session
+  started by a **trusted Shift+Space in a fresh tab**, then
+  `diagnostics.engine()` read for the tab's `audio.state` and the
+  session's `playbackTime` twice ~500 ms apart in one script (rulebook
+  step 5): `running` with the time moving is a device. A sink
   that has really gone says so in `zotero_read_errors` —
   `NS_ERROR_DOM_MEDIA_MEDIASINK_ERR (0x806e000b)` /
   `OnMediaSinkAudioError` on a `blob:resource://zotero/…` (2026-09-06
@@ -69,7 +72,7 @@
   a new tab and under a trusted press alike. Frozen: every "speaks
   within N s" and every audio-driven count is NOT TESTABLE (machine), the
   mechanism half of the item still runs, and the run says which;
-  `skipAhead('sentence')` still moves `_controller._position` and drives
+  `skipAhead('sentence')` still moves the session's `position` and drives
   the position store, and the end-of-document path (item 5.8)
   cannot be reached at all.
 - The profile's state is read, not assumed: on 2026-09-05 both WebDAV sync

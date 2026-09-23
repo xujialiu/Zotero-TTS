@@ -243,14 +243,38 @@ tests, and no Zotero update can undo it.
 - The manager still destroys and rebuilds its controller on a voice or
   language change and whenever `_applyVoice` runs (#75). The Engine has to
   survive a rebuild without restarting the segment; that is what lets
-  `unchanged-voice.ts` go.
+  `unchanged-voice.ts` go. As built, a tab's reading is one session that
+  outlives its controllers: a controller asked for with the same voice over
+  the same segments carries on, one asked for after `repositionTo`, with
+  other segments or another voice starts afresh, as a new controller of
+  Read Aloud's would, and a destroyed controller no other follows within the
+  task ends the session. The Handoff (#95, #108) takes the reading over
+  inside the session first and then replays the pick through the manager's
+  own `selectVoice`, whose rebuild carries on.
 - The hooks the Engine needs — the voice's `getController` and the
   `instanceof` gate — are verified against Zotero 10.0.3, recorded in
   `notes/NOTES.md` and pinned to Zotero 10 (PHILOSOPHY rule 5). The gate is
   met by shadowing the manager's `activeTimestamp` per tab, the pattern
   `pauses.ts` and `volume.ts` use today, rather than by building the Engine's
   controller on Zotero's class, whose prototype is reachable only from a
-  live instance.
+  live instance. Two more, found in the building (2026-09-23): the voice's
+  prototype is reachable only from a live voice, and on a tab's first open
+  nothing of the plugin runs between the voice list landing and the first
+  `getController`, so the public `setSegments` is wrapped to patch it in
+  time; and a voice list landing between two sentences asks for a
+  controller at the run's start exactly as a jump there would (82659-82663),
+  so the public `repositionTo` is wrapped to mark a jump. Both are the
+  manager's public methods; the private members the Engine still reads are
+  `_controller`, `_activeSegment` and `_activeTimestampIndex`, in the
+  `activeTimestamp` shadow, and `_backwardStopIndex` once, when a reading
+  open under another controller is taken over.
+- One AudioContext per reading session rather than per controller, so a
+  rebuilt controller keeps its sound; it is closed when the session ends.
+- The stand-in timings — one timing over the whole sentence for a voice
+  without word timing, and for bracket-only, empty or refused tiny text —
+  stay where the plugin's interface makes them: the Engine keeps whatever
+  the fetch answers, and the highlight module tells a stand-in by its
+  shape, as before.
 - The live kit follows: 154 files under `test/zotero-dev/` read Read Aloud's
   controller internals, 44 of them in `scripts/voice-switch/`, and are
   rewritten against the Engine.

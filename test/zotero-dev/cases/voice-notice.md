@@ -10,14 +10,16 @@ their user-value flags. No paid synthesis is needed for notice timing.
 ### 4c.1. Slow preparation and playback start
 
 Select another voice through the actual player control and a voice shortcut.
-Delay target audio beyond five seconds. The old controller stays in place
-and `#ztts-voice-notice` stays visible. Once target audio is ready, keep the
+Delay target audio beyond five seconds. The old voice reads on and
+`#ztts-voice-notice` stays visible. Once target audio is ready, keep the
 old voice until its word boundary. Observe notice visibility around the
-target controller's native `_playAudioBuffer` invocation: controller adoption
-alone must not hide it; successful source start in a running AudioContext
-must hide it without an additional timed confirmation. Capture the diagnostic
-`handoff.notice` (`preparing` then `selected`), native source state and DOM
-opacity. Diagnostics alone are insufficient.
+new voice's first source start, which since issue #133 is the Engine's own
+(`diagnostics.engine()`: `session.voice` becomes the new voice and
+`stats.carriedOn` goes up one when the manager rebuilds its controller): the
+rebuild alone must not hide it; the source starting with the output running
+must hide it without an additional timed confirmation. Capture the
+diagnostic `handoff.notice` (`preparing` then `selected`), `session.playing`
+and `audio.state`, and DOM opacity. Diagnostics alone are insufficient.
 
 ### 4c.2. Paused readiness
 

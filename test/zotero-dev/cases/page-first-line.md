@@ -62,8 +62,9 @@ was measured on 1.11.7-beta10, Zotero 10.0.2-beta.9 (2026-09-10).
    `[142.3, 706, 157.3, 717]`.
 3. **Spoken and highlighted.** `repositionTo(28)` (re-read `_controller`
    on every poll — a reposition replaces it): `[zotero-tts] local: N word
-   timestamps for 102 chars (1 bridged)`. `_segmentTimestamps.get(28)`
-   holds one span per word, `2023` among them as a bridged span with the
+   timestamps for 102 chars (1 bridged)`.
+   `_controller.getTimestampsForSegment(segments[28])` holds one span per
+   word, `2023` among them as a bridged span with the
    server's own times (#86's aligner; on 1.11.7-beta10, built before #86
    merged, there were 19 spans and `2023` had none — the cursor aligner
    dropped a number Kokoro reports in words), `had` at `[94, 97)` and

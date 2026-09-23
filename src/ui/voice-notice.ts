@@ -1,5 +1,5 @@
-import type { VoiceNotice } from '../read-aloud/voice-switch';
-import type { PlaybackNotice } from '../read-aloud/playback-notice';
+import type { VoiceNotice } from '../core/engine/handoff';
+import type { PlaybackNotice } from '../core/engine/session';
 import { showToast, type ToastDocument } from './speed-toast';
 import { positionNotice } from './notice-position';
 

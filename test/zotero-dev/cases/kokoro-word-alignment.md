@@ -15,8 +15,9 @@ Items 3.24 and 3.25 of the checklist, under their original numbers.
     in), then `About 1,000 …` (78), `The pre-trained …` (54), `A
     magnification error …` (99) and the last paragraph (152). Play each
     from `manager.repositionTo(index)`, then read
-    `controller._segmentTimestamps.get(index)` — re-read `mgr._controller`
-    after the reposition, it rebuilds the controller — with each span's
+    `mgr._controller.getTimestampsForSegment(mgr.segments[index])` —
+    re-read `mgr._controller` after the reposition, it rebuilds the
+    controller — with each span's
     slice of the segment text. Expected, the mechanism: the log lines
     `local: 5 word timestamps for 37 chars`, `local: 37 word timestamps
     for 203 chars (5 bridged)`, `local: 14 word timestamps for 78 chars (3

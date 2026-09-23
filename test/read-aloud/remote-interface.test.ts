@@ -31,12 +31,11 @@ describe('voice preparation cancellation', () => {
     const provider = fakeProvider({ synthesize: (_text, options) => new Promise(resolve => {
       calls.push({ signal: options.signal, finish: resolve });
     }) });
-    const iface = createRemoteInterface({ ...deps(provider), newAbortController: () => new AbortController(),
-      getPreparationSignal: () => preparation });
+    const iface = createRemoteInterface({ ...deps(provider), newAbortController: () => new AbortController() });
     const ordinary = iface.getAudio({ text: 'An ordinary playback sentence.' }, voice);
     await vi.waitFor(() => expect(calls).toHaveLength(1));
     const request = new AbortController(); preparation = request.signal;
-    const pending = iface.getAudio({ text: 'An ordinary playback sentence.' }, voice);
+    const pending = iface.getAudio({ text: 'An ordinary playback sentence.' }, voice, { signal: preparation });
     await vi.waitFor(() => expect(calls).toHaveLength(2));
     request.abort(); expect((await pending).audio).toBeNull();
     expect(calls[0].signal.aborted).toBe(false); expect(calls[1].signal.aborted).toBe(true);
@@ -52,10 +51,10 @@ describe('voice preparation cancellation', () => {
       return new Promise<any>(resolve => { finish = resolve; });
     });
     const iface = createRemoteInterface({ ...deps(fakeProvider({ synthesize })),
-      newAbortController: () => new AbortController(), getPreparationSignal: () => request.signal,
+      newAbortController: () => new AbortController(),
       cache: () => ({ match: async () => null, put }), getPrefetch: () => ({ enabled: true, count: 2 }),
       getUpcomingTexts: () => ['Another sentence to prepare.'] });
-    const result = iface.getAudio({ text: 'The sentence being prepared.' }, voice);
+    const result = iface.getAudio({ text: 'The sentence being prepared.' }, voice, { signal: request.signal });
     await vi.waitFor(() => expect(synthesize).toHaveBeenCalledOnce());
     request.abort();
     expect(synthesisSignal?.aborted).toBe(true);

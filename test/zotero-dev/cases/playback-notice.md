@@ -13,15 +13,17 @@ No provider charge is needed. Retain executed scripts under
 Start through the actual player control. Delay audio beyond 300 ms. Observe
 `#ztts-playback-notice`: it shows the localized preparing message after the
 threshold, stays visible through download/decoding completion, and disappears
-immediately after the native source starts with running output. Sample around
-`_playAudioBuffer` as well as the DOM; a BufferingChange(false) or segment
+immediately after the source starts with running output. Sample the
+Engine's state as well as the DOM; a BufferingChange(false) or segment
 change alone does not prove playback. Repeat in PDF and EPUB.
 
-`diagnostics.playbackNotice()` has feature `playback-preparation-notice` and
-one entry per reader: attached true, phase waiting while preparation is
-pending, preparingRequested true after the threshold, phase playing and
-preparingRequested false after source start. sourceStarts must increase.
-preparingRequested is intent, not proof of DOM visibility under voice priority.
+Since issue #133 the notice is the Engine's own: `diagnostics.engine()`'s
+`session.notices` per reader counts `waits` begun, `shown` ("Preparing…"
+asked for after the threshold), `starts` (a wait ended by a source starting
+with the output running) and `failed`. A slow start: `waits` and `shown` up
+one, then `starts` up one with `session.playing` true and `audio.state`
+`running`. `shown` is intent, not proof of DOM visibility under voice
+priority.
 
 ### 3l.2. Fast start, resume and navigation
 

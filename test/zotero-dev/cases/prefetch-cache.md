@@ -15,5 +15,6 @@ Item 3.8 of the checklist, under its original number.
    setting at 5: 5, 7 and 11 ahead, all inside
    `[position + count, position + 3 + count]`); after the first
    pass every replayed segment logs `(cached)`. A skip back is answered
-   by Zotero's own `_audioBuffers` before the plugin's cache — not a
-   check.
+   by the Engine's decoded clips (`diagnostics.engine()` `store.clips`,
+   Read Aloud's 32 kept since issue #133) before the plugin's cache — not
+   a check.

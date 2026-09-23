@@ -128,8 +128,6 @@ export type RemoteInterfaceDeps = {
    * so unit tests can omit it; when absent, no signal is passed at all.
    */
   newAbortController?(): AbortController;
-  /** Scoped to an uncommitted voice preparation; ordinary playback has none. */
-  getPreparationSignal?(voiceID: string): AbortSignal | undefined;
   /**
    * Re-creates the provider's Blob in whatever compartment the caller needs it
    * to live in (in Zotero: the chrome window). Applied before the audio is
@@ -234,9 +232,16 @@ export interface RemoteInterface {
     premiumCreditsRemaining: number | null;
     devMode?: boolean;
   }>;
+  /**
+   * A segment's audio. `options.signal` belongs to a voice being prepared
+   * to take the reading over (core/engine/handoff.ts): its requests are
+   * shared among themselves only, end when it is called off, and warm
+   * nothing ahead; ordinary playback has none.
+   */
   getAudio(
     segment: ZoteroSegment,
     voice: ZoteroVoice,
+    options?: { signal?: AbortSignal },
   ): Promise<{ audio: Blob | null; timestamps?: unknown; error?: string; noStore?: boolean }>;
   getCreditsRemaining(): Promise<{ standardCreditsRemaining: number | null; premiumCreditsRemaining: number | null }>;
   resetCredits(): Promise<{ standardCreditsRemaining: number | null; premiumCreditsRemaining: number | null }>;
@@ -504,8 +509,8 @@ export function createRemoteInterface(deps: RemoteInterfaceDeps): RemoteInterfac
       };
     },
 
-    async getAudio(segment, voice) {
-      const signal = deps.getPreparationSignal?.(voice?.id ?? '');
+    async getAudio(segment, voice, options) {
+      const signal = options?.signal;
       if (signal?.aborted) return { audio: null, error: 'network' };
       // Snapshot the requested voice, not the manager's current voice: a handoff
       // can prepare a different regional voice while the old one is still active.

@@ -39,6 +39,8 @@ export interface ProtoPatchDeps {
 export interface ProtoPatches {
   /** Replace `proto[name]` with `make(original)`, unless this log already holds that pair. */
   shadow(proto: any, name: string, make: (original: AnyFn) => AnyFn): void;
+  /** Replace the getter of the accessor `proto[name]` with `make(originalGetter)`, keeping its setter and flags; the same dedup. */
+  shadowGetter(proto: any, name: string, make: (original: AnyFn) => AnyFn): void;
   /** Whether this log already patched `proto` — any method of it, or `name` alone. */
   has(proto: unknown, name?: string): boolean;
   /** Put back every prototype whose tab is still open; drop the rest without a word. */
@@ -90,6 +92,27 @@ export function createProtoPatches(deps: ProtoPatchDeps): ProtoPatches {
     });
   }
 
+  function shadowGetter(proto: any, name: string, make: (original: AnyFn) => AnyFn): void {
+    prune();
+    if (has(proto, name)) return;
+    const descriptor = Object.getOwnPropertyDescriptor(proto, name);
+    if (!descriptor || typeof descriptor.get !== 'function') throw new Error(`zotero-tts: ${name} is not a getter here`);
+    const original = descriptor.get as AnyFn;
+    Object.defineProperty(proto, name, {
+      get: exported(make(original), proto),
+      set: descriptor.set,
+      enumerable: descriptor.enumerable,
+      configurable: true,
+    });
+    entries.push({
+      proto,
+      name,
+      undo: () => {
+        Object.defineProperty(proto, name, descriptor);
+      },
+    });
+  }
+
   function restoreAll(): void {
     for (const { proto, undo } of [...entries].reverse()) {
       if (isDead(proto)) continue;
@@ -108,5 +131,5 @@ export function createProtoPatches(deps: ProtoPatchDeps): ProtoPatches {
     return { total: entries.length, live };
   }
 
-  return { shadow, has, restoreAll, counts };
+  return { shadow, shadowGetter, has, restoreAll, counts };
 }

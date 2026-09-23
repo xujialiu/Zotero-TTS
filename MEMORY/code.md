@@ -12,6 +12,13 @@ src/core/           pure logic, no Zotero globals: settings (DEFAULTS ↔ addon/
                     shortcuts, shortcut-actions, read-aloud-speed, settings-backup,
                     highlight-level + highlight-pin (the Sentence and Word switches;
                     Zotero's own level kept equal to them), webdav, reader-theme, timeout
+src/core/engine/    the Engine's pure half (issue #133): session (one tab's reading, Read
+                    Aloud's controller line for line), clips, read-ahead, handoff, gap, words
+                    (the word off the audio clock), skip; time-stretch, word-onset and
+                    speech-chain copied from Zotero 10.0.3 (ADR 0006)
+src/read-aloud/engine/ the Engine's Zotero half: index (the four hooks, one session per tab),
+                    controller (what the manager holds), audio-output (one AudioContext per
+                    session), voice-pick (a pick while reading goes through the handoff)
 src/read-aloud/     the Read Aloud integration: index (intercepts Zotero.Reader._readers and
                     overrides _getReadAloudRemoteInterface per reader), remote-interface
                     (composite of Zotero's native interface + our voices), voice-catalog,

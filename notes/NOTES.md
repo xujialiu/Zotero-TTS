@@ -16,12 +16,14 @@ Decisions and their reasons: [docs/design/](../docs/design/) for the owner,
 
 ## What the plugin is
 
-A Zotero 10 plugin that replaces the audio backend of Zotero's built-in Read
-Aloud. The native player, sentence segmentation, prefetching, and word/sentence
-highlighting are all Zotero's; the plugin only supplies voices and audio (plus
-word timestamps) from the user's own TTS services: OpenAI, Azure Speech,
-Cloudflare Workers AI, Speechify, Fish Audio (its cloud, and a Fish Speech
-server of the user's own), and a local Kokoro-FastAPI server.
+A Zotero 10 plugin that adds voices to Zotero's built-in Read Aloud, from the
+user's own TTS services: OpenAI, Azure Speech, Cloudflare Workers AI,
+Speechify, Fish Audio (its cloud, and a Fish Speech server of the user's own),
+and a local Kokoro-FastAPI server. Since issue #133 every voice of the Player,
+Zotero's Standard and Premium included, plays on the plugin's own engine
+(`src/core/engine/`, `src/read-aloud/engine/`), behind Read Aloud's manager;
+sentence segmentation, the word/sentence highlight, the follow and the
+position are still Zotero's, driven from that manager.
 
 Mechanism: intercept `Zotero.Reader._readers.push`, and on each new reader
 replace the instance method `_getReadAloudRemoteInterface` with ours. Zotero
@@ -87,6 +89,19 @@ Verified by reading the unpacked `omni.ja` of both `10.0-beta.26` and
   throws. Native does exactly this (`reader.js:1744-1826`).
 - The plugin sandbox whitelist is above. Run JavaScript runs in chrome scope
   and proves nothing about the sandbox.
+- **The Engine's hooks** (issue #133, verified against 10.0.3,
+  [2026-09-23](NOTES_2026-09-23.md)), each per tab:
+  `RemoteReadAloudVoice.prototype.getController` (reader.js 40476), which
+  `_createController` asks (82664); the manager's `activeTimestamp` getter
+  (82229-82235), whose `instanceof RemoteReadAloudController` test would
+  hide the word; `setSegments` (82543), the one public call before every
+  first controller, where the voice prototype is patched in time; and
+  `repositionTo` (82621), which marks a jump. Samples
+  (`getSampleController`, 40479) are not hooked. The copied code — the WSOLA
+  stretch (39747-39820), the word onset (39821-39894) and the filter chain of
+  `_initAudioContext` (39942-39963) — is 10.0.3's, pinned by the fixtures in
+  `test/fixtures/engine/`; a later Zotero reaches it only when it is copied
+  again on purpose (ADR 0006).
 - `manifest.json` → `applications.zotero` needs `id`, `update_url`,
   `strict_max_version`, or Zotero refuses the install with a generic message.
 - **Fluent for plugins** (issue #30, [2026-09-04](NOTES_2026-09-04.md)):
@@ -582,3 +597,7 @@ then) and is in the git history before that day.
 - The 03:30 entry had the order wrong: every clean shutdown carries a leftover `loadVoices` hook forward, and none makes one (issue #131)
 - Empty plugin preferences enable OpenAI, and native voice memory repopulates the cleared branch (issue #132)
 - OpenAI now requires an enable choice on a fresh installation (issue #132)
+
+### [2026-09-23](NOTES_2026-09-23.md)
+
+- The Engine behind Read Aloud's manager: four hooks, and what the manager does around them (issue #133)

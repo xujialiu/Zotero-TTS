@@ -242,6 +242,8 @@ Everything is under **Edit → Settings → Zotero-TTS**.
   installed; there is no paragraph level.
 - A voice without word timing highlights the sentence whatever the
   switches say.
+- The word lights up when it is heard: on wireless headphones it waits for
+  the sound, and it stays where it is while the sound stalls.
 
 ### Keyboard shortcuts
 

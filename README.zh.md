@@ -1,4 +1,4 @@
-<!-- translated-from: README.md sha256:2df1c12494af -->
+<!-- translated-from: README.md sha256:7e120ded7c42 -->
 <p align="center"><img src="assets/icon.png" width="80" alt="Zotero-TTS 图标"></p>
 <h1 align="center">Zotero-TTS</h1>
 
@@ -152,6 +152,7 @@ Zotero-TTS 为 Zotero 10 增加了语音和播放器：每个服务商都是播�
 - 预览按你阅读器的主题绘制。
 - Zotero 自己的**高亮当前**设置（设置 → 常规 → 朗读）跟随这里的选择，装着 Zotero-TTS 时会被置灰；没有段落级别。
 - 没有单词时间的语音无论怎么选都按整句高亮。
+- 单词在听到的那一刻才亮起：戴无线耳机时它会等声音到来，声音卡住时它也停在原处。
 
 ### 键盘快捷键
 

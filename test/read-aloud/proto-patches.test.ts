@@ -174,4 +174,23 @@ describe('createProtoPatches', () => {
     expect(patches.counts()).toEqual({ total: 0, live: 0 });
     expect(() => patches.restoreAll()).not.toThrow();
   });
+  it('shadows a getter once, keeps its setter, and puts the accessor back', () => {
+    const { patches } = make();
+    let stored = 1;
+    const proto = {};
+    Object.defineProperty(proto, 'value', { get: () => stored, set: (v: number) => (stored = v), configurable: true, enumerable: false });
+    const original = Object.getOwnPropertyDescriptor(proto, 'value')!;
+    patches.shadowGetter(proto, 'value', (get) => function (this: unknown) {
+      return (Reflect.apply(get, this, []) as number) * 10;
+    });
+    patches.shadowGetter(proto, 'value', () => () => 0);
+    expect((proto as any).value).toBe(10);
+    (proto as any).value = 2;
+    expect((proto as any).value).toBe(20);
+    expect(patches.has(proto, 'value')).toBe(true);
+    patches.restoreAll();
+    expect(Object.getOwnPropertyDescriptor(proto, 'value')).toEqual(original);
+    expect((proto as any).value).toBe(2);
+    expect(() => patches.shadowGetter({ plain: 1 }, 'plain', (g) => g)).toThrow(/not a getter/);
+  });
 });

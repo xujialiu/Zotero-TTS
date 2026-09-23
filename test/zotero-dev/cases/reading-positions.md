@@ -58,12 +58,12 @@ Items 5.1–5.4 and 5.8 of the checklist, under their original numbers.
    a surprise in section 4; driven before item 5.7's reload). A fixture
    read to its last segment on a plugin voice: at `Complete` the manager
    stays `active` and goes `paused`, `_activeSegment` null (`reader.js`
-   82687-82692), and the controller rewinds `_position` to
-   `_backwardStopIndex ?? 0` — the **run's** start, not the document's
-   (`reader.js` 39500) — while `_currentIndex` and `_indexAtPause` keep
-   the last segment. `smartKey()` then reports `togglePaused (resume…)`,
-   and Shift+Space replays from the rewind target: `_currentIndex` snaps
-   to it within ~100 ms and the position walks forward one segment at a
+   82687-82692), and the Engine's session rewinds its `position` to the
+   run's start, not the document's (`reader.js` 39500, kept by the Engine
+   since issue #133) — while `currentIndex` keeps the last segment (both in
+   `diagnostics.engine()`). `smartKey()` then reports `togglePaused
+   (resume…)`, and Shift+Space replays from the rewind target:
+   `currentIndex` snaps to it within ~100 ms and the position walks forward one segment at a
    time (`reader.js` 84210-84228 → 82548-82557; no reposition anywhere),
    with no `[zotero-tts]` line — the plugin's stored-position restore
    runs only on an **idle** manager. The store still names the last

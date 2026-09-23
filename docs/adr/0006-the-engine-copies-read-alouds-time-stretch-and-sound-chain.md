@@ -87,4 +87,15 @@ identical to today's sound is the point.
 - **The copy is pinned to 10.0.3.** A later change to Zotero's time-stretch
   or chain reaches the plugin only when someone copies it again on purpose;
   the copied file says which release it came from, and `notes/NOTES.md`
-  records it with the Engine's hooks.
+  records it with the Engine's hooks. The bundle's own code is kept beside
+  the copies as test fixtures (`test/fixtures/engine/`), and the tests prove
+  the stretch bit-identical at every player speed, the word onset identical
+  at every position, and the chain identical node for node.
+- **The stretch runs over copies of the samples.** The decoded clip is the
+  reader window's AudioBuffer, and reading its samples one by one through
+  the window's wrapper would crawl in a loop that touches each of them
+  hundreds of times. The Engine copies a clip's channels to the plugin's
+  side once, the first time a speed other than 1× needs them, stretches
+  there and copies the result into a buffer of the context. The arithmetic
+  is the same on either side, so the output is too; at 1× the clip's own
+  buffer plays and nothing is copied.

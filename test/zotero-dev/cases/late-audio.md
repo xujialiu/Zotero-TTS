@@ -2,9 +2,11 @@
 
 ## Audio that arrives after its tab closed is dropped (issue #116, 1.12.11)
 
-Zotero's controller keeps up to three sentences of audio on the way
+Zotero's controller kept up to three sentences of audio on the way
 (`_prefetchFrom`, `resource/reader/reader.js:40258-40260`: MAX_WINDOW 3,
-two requests at a time), and nothing cancels them when the popup closes
+two requests at a time), and the Engine keeps the same window since issue
+#133 (its answers land on the plugin's side, counted in
+`diagnostics.engine()` `stats.late`); nothing cancels them when the popup closes
 (`deactivate`, reader.js:82728) or the tab does: `Zotero_Tabs.close` runs
 `tab.onClose()` synchronously (`chrome/content/zotero/tabs.js:767-768`) and
 removes the browser element a `setTimeout` later (tabs.js:773-774), which
@@ -100,9 +102,11 @@ come from the design and are corrected from the run.
    and `play()`: the manager reads `active: true, paused: false`, the
    `<provider>: … chars` synthesis lines and the `ready ahead of playback`
    lines appear as before, `dropped` unchanged while the tab lives.
-   `_currentIndex` does not advance under the bridge — a script-started
-   `AudioContext` stays suspended (baseline.md) — so the advance itself
-   takes a trusted Shift+Space, or an ear.
+   The advance is `diagnostics.engine()`'s `session.currentIndex`; before
+   issue #133 a script-started `AudioContext` stayed suspended
+   (baseline.md) and the advance took a trusted Shift+Space, or an ear —
+   the Engine asks its output to run on Play ([engine](engine.md) item
+   23).
 
 **State**: the plugin's volume (snapshot and restore, user-value state
 included), `readAloud.memory` (byte-identical restore, the last write),

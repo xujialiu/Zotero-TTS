@@ -47,10 +47,9 @@ import { createSkippedLines, type SkippedLines } from './read-aloud/skipped-line
 import { createSystemVoiceHiding, type SystemVoiceHiding } from './read-aloud/system-voices';
 import { createMultilingualFirst, type MultilingualFirst } from './read-aloud/multilingual-first';
 import { createFavoriteMarks, type FavoriteMarks } from './read-aloud/favorite-marks';
-import { createPauses, pauseSettingsOf, type Pauses } from './read-aloud/pauses';
-import { createUnchangedVoice, type UnchangedVoice } from './read-aloud/unchanged-voice';
-import { createVolumeControl, type VolumeControl } from './read-aloud/volume';
-import { createVoiceSwitcher, type VoiceSwitcher } from './read-aloud/voice-switch';
+import { pauseSettingsOf } from './core/engine/gap';
+import { createEngine, type Engine } from './read-aloud/engine';
+import { createVoicePick, type VoicePick } from './read-aloud/engine/voice-pick';
 import { createPlayerVoiceList } from './read-aloud/player-voice-list';
 import { settleVolumePref, VOLUME_OBSERVER } from './core/read-aloud-volume';
 import { HIGHLIGHT_LEVEL_PREF, readHighlightLevels, type HighlightLevels, type WordTiming } from './core/highlight-level';
@@ -77,12 +76,12 @@ import { dropdownLanguage, languageDisplayName } from './read-aloud/language-dro
 import { decodeVoiceId, pluginVoiceTier, zoteroTierLabel } from './read-aloud/voice-catalog';
 import { createProviderTiers, type ProviderTiers } from './read-aloud/provider-tiers';
 import { isInvisibleSegment } from './read-aloud/invisible-text';
-import { upcomingSegmentTexts } from './read-aloud/upcoming-segments';
 import { createWindowWrapper } from './read-aloud/window-interface';
 import type { ZoteroVoice } from './read-aloud/zotero-voices';
 import {
   createRemoteInterface,
   type NativeRemoteInterface,
+  type RemoteInterface,
 } from './read-aloud/remote-interface';
 import { readingTabTitle, defaultMachineName, onPaneLoad, registerPrefsPane, runConnectionCheck, unregisterPrefsPane, zoteroVoiceService } from './ui/prefs-pane';
 import {
@@ -97,7 +96,6 @@ import { findOptionsButton, hasPlayer, isOptionsPanelOpen } from './ui/player-op
 import { createPlayerExpanded } from './read-aloud/player-expanded';
 import { removeSpeedToast, showSpeedToast, showToast, SPEED_TOAST_ID } from './ui/speed-toast';
 import { createVoiceNotices } from './ui/voice-notice';
-import { createPlaybackNotice } from './read-aloud/playback-notice';
 import { browserVoices, createSamplePlayer, defaultVoiceRows, groupVoicesByTier, languageNameOf, listBrowserVoices, startingSpeed, statusLine } from './ui/voice-browser-rows';
 import { silentWav } from './core/silence';
 import { withTimeout } from './core/timeout';
@@ -180,18 +178,22 @@ let playerExpanded: ReturnType<typeof createPlayerExpanded> | null = null;
 let playerExpandedObserver: unknown = null;
 /** The two prefs the marks follow, unregistered at shutdown. */
 let favoriteMarkObservers: unknown[] = [];
-/** The pauses between sentences and before paragraphs, for every voice (read-aloud/pauses.ts, issue #44). */
-let pauses: Pauses | null = null;
-/** How loud Read Aloud plays, for every voice (read-aloud/volume.ts, issue #62), and the pref observer that moves every open chain. */
-let volumeControl: VolumeControl | null = null;
-let voiceSwitcher: VoiceSwitcher | null = null;
-let voiceNotices: ReturnType<typeof createVoiceNotices> | null = null;
-let playbackNotice: ReturnType<typeof createPlaybackNotice> | null = null;
-let playerVoiceList: ReturnType<typeof createPlayerVoiceList> | null = null;
-/** A voice list landing on the voice already playing keeps the controller (read-aloud/unchanged-voice.ts, issue #75). */
-let unchangedVoice: UnchangedVoice | null = null;
-let textSettings: ReturnType<typeof createTextSettings> | null = null;
+/**
+ * Every voice of the Player plays on the plugin's own engine behind Read
+ * Aloud's manager (read-aloud/engine/, issue #133): the volume (issue #62),
+ * the pauses between sentences (issue #44), the preparing notice (issue
+ * #120) and the read-ahead are its own. The pref observer moves every tab's
+ * volume.
+ */
+let engine: Engine | null = null;
 let volumeObserver: unknown = null;
+/** A voice picked while reading goes through the Engine's handoff (read-aloud/engine/voice-pick.ts, issues #95, #108). */
+let voicePick: VoicePick | null = null;
+let voiceNotices: ReturnType<typeof createVoiceNotices> | null = null;
+let playerVoiceList: ReturnType<typeof createPlayerVoiceList> | null = null;
+let textSettings: ReturnType<typeof createTextSettings> | null = null;
+/** Each reader's composite interface on the plugin's side: the Engine fetches every voice's audio through it. */
+const readerSources = new WeakMap<object, RemoteInterface>();
 
 const prefs = createZoteroPrefs();
 let liveVoiceList: ReturnType<typeof createLiveVoiceList> | null = null;
@@ -199,7 +201,7 @@ let liveListObservers: unknown[] = [];
 const readingImpact = createReadingImpact({
   values: () => flattenSettings(loadSettings(prefs)),
   readers: () => Zotero.Reader._readers ?? [],
-  pending: reader => voiceSwitcher?.protectedVoices(reader) ?? [],
+  pending: reader => voicePick?.protectedVoices(reader) ?? [],
   title: readingTabTitle,
 });
 const playerController = createPlayerController({
@@ -484,108 +486,102 @@ function readerSignedIn(reader: any): boolean {
 function buildReaderInterface(reader: any, targetWindow: any, native: () => unknown): unknown {
   // Synchronous: Zotero has not constructed the React UI yet (issue #81).
   playerExpanded?.attach(reader, targetWindow?.document);
-  const iface = windowWrapper.wrap(
-      targetWindow,
-      createRemoteInterface({
-        // Zotero's own interface is kept: its Standard and Premium voices,
-        // credits and audio pass through untouched, and ours are merged in
-        // under the response's local key, then filed per provider
-        // (read-aloud/provider-tiers.ts). Zotero's code runs in its own compartment
-        // (including its use of the chrome window's Cache API, which only
-        // ever crashed when driven from this sandbox).
-        native: () => native() as NativeRemoteInterface | null,
-        // The internal reader exists by the time Zotero asks for voices,
-        // and Zotero restores the remembered voice on the same tick.
-        onVoicesRequested: () => {
-          readAloudMemory?.attach(reader);
-          // A popup open begins here: what it has to say about a substitute voice starts afresh
-          if (!reader?._internalReader?._readAloudManager?.active) readAloudMemory?.opening(reader);
-          // The popup is open, so the document is rendered and its views exist
-          highlightStyling?.attach(reader);
-          // The same views: the PDF one's follow is taken over here (issue #83)
-          sentenceInView?.attach(reader);
-          followResumeGuard?.attach(reader);
-          selectionStart?.attach(reader);
-          domFollowing?.attach(reader);
-          // The structure is materialized when the first segments are
-          // requested, after this listing: the shadow is in place first (issue #87)
-          skippedLines?.attach(reader);
-          // The manager exists and this very listing's _resolveVoice has not
-          // run yet, so even the first popup open is filtered
-          systemVoiceHiding?.attach(reader);
-          // After the hiding, so this shadow is the outer one: the re-tag runs
-          // first and hands to the splice (it counts no OS voice anyway); and
-          // the dropdown wrapper is on before this listing's first render (issue #110)
-          providerTiers?.attach(reader);
-          // The popup renders its language options after the voices arrive,
-          // so the label patch is in place for the first open too
-          multilingualFirst?.attach(reader);
-          // The dropdown is drawn from this very listing; the stylesheet has
-          // to be in the document before it opens (issue #45)
-          favoriteMarks?.attach(reader);
-          // The manager's controller is built after the voices land, so its
-          // prototype is patched from the first one this session builds
-          pauses?.attach(reader);
-          volumeControl?.attach(reader);
-          unchangedVoice?.attach(reader);
-          liveVoiceList?.attach(reader);
-          playerVoiceList?.attach(reader);
-          voiceSwitcher?.attach(reader);
-          playbackNotice?.attach(reader);
-          textSettings?.attach(reader);
-        },
-        // The list this reader is about to receive: the remembered voice is
-        // planned against it before Zotero resolves from it (issue #35)
-        onVoicesListed: (voices) => readAloudMemory?.reconcile(reader, voices, !!reader?._internalReader?._readAloudManager?.active),
-        listCatalog,
-        getFavoriteVoices: () => {
-          const s = loadSettings(prefs);
-          return s.readAloud.favoritesOnly ? parseFavoriteVoices(s.readAloud.favoriteVoices) : null;
-        },
-        // Zotero's own tiers switched off in the pane leave the list here (issue #111)
-        getHiddenTiers: () => hiddenZoteroTiers(loadSettings(prefs)),
-        // And while no Zotero account is signed in, Zotero is not asked for them (issue #130)
-        signedIn: () => readerSignedIn(reader),
-        getPrefetch: () => {
-          const s = loadSettings(prefs);
-          return { enabled: s.prefetchEnabled, count: s.prefetch };
-        },
-        getBracketPairs: () => textSettings?.pairs(reader) ?? loadSettings(prefs).readAloud.bracketPairs,
-        getStripAngleBrackets: () => textSettings?.enabled(reader) ?? loadSettings(prefs).readAloud.stripAngleBrackets,
-        getUpcomingTexts: (text, count) => upcomingSegmentTexts(reader, text, count, {
-          isDead: (value) => Components.utils.isDeadWrapper(value), isInvisible: isInvisibleSegment, error: (e) => Zotero.logError(e),
-        }),
-        // The window is the reader's life: a tab closed mid-chain ends the prefetch chain (issue #116)
-        isReaderLive: () => liveReaderValue(reader, (value) => Components.utils.isDeadWrapper(value), '_iframeWindow') !== null,
-        // Built from the voice id, not from the enabled flags: Zotero
-        // remembers the last-selected voice, which may belong to a provider
-        // the user has since switched off, and a cached or in-flight segment
-        // must still play.
-        getProvider: (id) => createProvider(id, loadSettings(prefs), providerDeps()),
-        cacheVersion,
-        // Read per call, so the pane applies to a reader that is already open;
-        // prefetch keeps it on where the pane never locked it (core/settings.ts audioCacheOn)
-        cache: () => (audioCacheOn(loadSettings(prefs)) ? audioCache : undefined),
-        log: (e) => Zotero.logError(e),
-        debug: (message) => Zotero.debug('[zotero-tts] ' + message),
-        // Every provider builds its audio Blob inside the plugin sandbox, and
-        // it is then Cu.cloneInto'd into the reader iframe. Native Zotero's
-        // Blob is created in the chrome window (syncAPIClient.js), so the
-        // compartment hop native performs is chrome -> reader, never
-        // sandbox -> reader. Re-create the Blob in the chrome window first so
-        // the hop we make is the one native makes; the bytes are copied and
-        // the sandbox object never leaves the plugin. (Kept after the Cache
-        // API was removed: it was not the crash cause, but parity with the
-        // native path is cheap and removes a difference we cannot test.)
-        adoptAudio: (blob) => new reader._window.Blob([blob], { type: blob.type || 'audio/mpeg' }),
-        // AbortController is not on the sandbox whitelist (spec §2.10); take
-        // it from the reader's chrome window, the same way WebSocket and
-        // caches are obtained. Per call, never cached, so a closed window is
-        // never retained.
-        newAbortController: () => new reader._window.AbortController(),
-        getPreparationSignal: id => voiceSwitcher?.preparationSignal(reader, id),
-      }),
-    );
+  const composite = createRemoteInterface({
+    // Zotero's own interface is kept: its Standard and Premium voices,
+    // credits and audio pass through untouched, and ours are merged in
+    // under the response's local key, then filed per provider
+    // (read-aloud/provider-tiers.ts). Zotero's code runs in its own compartment
+    // (including its use of the chrome window's Cache API, which only
+    // ever crashed when driven from this sandbox).
+    native: () => native() as NativeRemoteInterface | null,
+    // The internal reader exists by the time Zotero asks for voices,
+    // and Zotero restores the remembered voice on the same tick.
+    onVoicesRequested: () => {
+      readAloudMemory?.attach(reader);
+      // A popup open begins here: what it has to say about a substitute voice starts afresh
+      if (!reader?._internalReader?._readAloudManager?.active) readAloudMemory?.opening(reader);
+      // The popup is open, so the document is rendered and its views exist
+      highlightStyling?.attach(reader);
+      // The same views: the PDF one's follow is taken over here (issue #83)
+      sentenceInView?.attach(reader);
+      followResumeGuard?.attach(reader);
+      selectionStart?.attach(reader);
+      domFollowing?.attach(reader);
+      // The structure is materialized when the first segments are
+      // requested, after this listing: the shadow is in place first (issue #87)
+      skippedLines?.attach(reader);
+      // The manager exists and this very listing's _resolveVoice has not
+      // run yet, so even the first popup open is filtered
+      systemVoiceHiding?.attach(reader);
+      // After the hiding, so this shadow is the outer one: the re-tag runs
+      // first and hands to the splice (it counts no OS voice anyway); and
+      // the dropdown wrapper is on before this listing's first render (issue #110)
+      providerTiers?.attach(reader);
+      // The popup renders its language options after the voices arrive,
+      // so the label patch is in place for the first open too
+      multilingualFirst?.attach(reader);
+      // The dropdown is drawn from this very listing; the stylesheet has
+      // to be in the document before it opens (issue #45)
+      favoriteMarks?.attach(reader);
+      // The Engine: the manager's controllers come from it (read-aloud/engine/)
+      engine?.attach(reader);
+      liveVoiceList?.attach(reader);
+      playerVoiceList?.attach(reader);
+      voicePick?.attach(reader);
+      textSettings?.attach(reader);
+    },
+    // The list this reader is about to receive: the remembered voice is
+    // planned against it before Zotero resolves from it (issue #35)
+    onVoicesListed: (voices) => readAloudMemory?.reconcile(reader, voices, !!reader?._internalReader?._readAloudManager?.active),
+    listCatalog,
+    getFavoriteVoices: () => {
+      const s = loadSettings(prefs);
+      return s.readAloud.favoritesOnly ? parseFavoriteVoices(s.readAloud.favoriteVoices) : null;
+    },
+    // Zotero's own tiers switched off in the pane leave the list here (issue #111)
+    getHiddenTiers: () => hiddenZoteroTiers(loadSettings(prefs)),
+    // And while no Zotero account is signed in, Zotero is not asked for them (issue #130)
+    signedIn: () => readerSignedIn(reader),
+    getPrefetch: () => {
+      const s = loadSettings(prefs);
+      return { enabled: s.prefetchEnabled, count: s.prefetch };
+    },
+    getBracketPairs: () => textSettings?.pairs(reader) ?? loadSettings(prefs).readAloud.bracketPairs,
+    getStripAngleBrackets: () => textSettings?.enabled(reader) ?? loadSettings(prefs).readAloud.stripAngleBrackets,
+    // The sentences after the one just asked for, from the Engine's own reading of this tab
+    getUpcomingTexts: (text, count) => engine?.upcomingTexts(reader, text, count, isInvisibleSegment) ?? [],
+    // The window is the reader's life: a tab closed mid-chain ends the prefetch chain (issue #116)
+    isReaderLive: () => liveReaderValue(reader, (value) => Components.utils.isDeadWrapper(value), '_iframeWindow') !== null,
+    // Built from the voice id, not from the enabled flags: Zotero
+    // remembers the last-selected voice, which may belong to a provider
+    // the user has since switched off, and a cached or in-flight segment
+    // must still play.
+    getProvider: (id) => createProvider(id, loadSettings(prefs), providerDeps()),
+    cacheVersion,
+    // Read per call, so the pane applies to a reader that is already open;
+    // prefetch keeps it on where the pane never locked it (core/settings.ts audioCacheOn)
+    cache: () => (audioCacheOn(loadSettings(prefs)) ? audioCache : undefined),
+    log: (e) => Zotero.logError(e),
+    debug: (message) => Zotero.debug('[zotero-tts] ' + message),
+    // Every provider builds its audio Blob inside the plugin sandbox, and
+    // it is then Cu.cloneInto'd into the reader iframe. Native Zotero's
+    // Blob is created in the chrome window (syncAPIClient.js), so the
+    // compartment hop native performs is chrome -> reader, never
+    // sandbox -> reader. Re-create the Blob in the chrome window first so
+    // the hop we make is the one native makes; the bytes are copied and
+    // the sandbox object never leaves the plugin. (Kept after the Cache
+    // API was removed: it was not the crash cause, but parity with the
+    // native path is cheap and removes a difference we cannot test.)
+    adoptAudio: (blob) => new reader._window.Blob([blob], { type: blob.type || 'audio/mpeg' }),
+    // AbortController is not on the sandbox whitelist (spec §2.10); take
+    // it from the reader's chrome window, the same way WebSocket and
+    // caches are obtained. Per call, never cached, so a closed window is
+    // never retained.
+    newAbortController: () => new reader._window.AbortController(),
+  });
+  // The Engine asks this very interface for audio, on the plugin's side (read-aloud/engine/)
+  if (reader && typeof reader === 'object') readerSources.set(reader, composite);
+  const iface = windowWrapper.wrap(targetWindow, composite);
   (iface as Record<string, unknown>).__zoteroTTSInstance = interfaceInstanceToken;
   return iface;
 }
@@ -756,13 +752,10 @@ function watchReader(reader: any): void {
   providerTiers?.attach(reader);
   multilingualFirst?.attach(reader);
   favoriteMarks?.attach(reader);
-  pauses?.attach(reader);
-  volumeControl?.attach(reader);
-  unchangedVoice?.attach(reader);
+  engine?.attach(reader);
   liveVoiceList?.attach(reader);
   playerVoiceList?.attach(reader);
-  voiceSwitcher?.attach(reader);
-  playbackNotice?.attach(reader);
+  voicePick?.attach(reader);
   textSettings?.attach(reader);
   const iframe = reader._iframeWindow;
   if (iframe) {
@@ -918,8 +911,8 @@ function hookTabClose(reader: any): void {
     const wrapper = function zttsTabCloseCapture(this: unknown) {
       tabCloseHooks.delete(tab);
       try { playerExpanded?.detach(reader); } catch (error) { Zotero.logError(error); }
-      try { playbackNotice?.detach(reader); voiceNotices?.clear(reader); } catch (error) { Zotero.logError(error); }
-      try { voiceSwitcher?.detach(reader); liveVoiceList?.detach(reader); } catch (error) { Zotero.logError(error); }
+      try { voicePick?.detach(reader); voiceNotices?.clear(reader); } catch (error) { Zotero.logError(error); }
+      try { engine?.detach(reader); liveVoiceList?.detach(reader); } catch (error) { Zotero.logError(error); }
       try { followResumeGuard?.detach(reader); } catch (error) { Zotero.logError(error); }
       trace(`tab.onClose fired ${String(tabID)}`);
       try {
@@ -993,8 +986,8 @@ function hookPositionCapture(reader: any): void {
     const wrapper = function zttsUninitCapture(this: unknown, ...args: unknown[]) {
       positionCaptureHooks.delete(reader);
       try { playerExpanded?.detach(reader); } catch (error) { Zotero.logError(error); }
-      try { playbackNotice?.detach(reader); voiceNotices?.clear(reader); } catch (error) { Zotero.logError(error); }
-      try { voiceSwitcher?.detach(reader); liveVoiceList?.detach(reader); } catch (error) { Zotero.logError(error); }
+      try { voicePick?.detach(reader); voiceNotices?.clear(reader); } catch (error) { Zotero.logError(error); }
+      try { engine?.detach(reader); liveVoiceList?.detach(reader); } catch (error) { Zotero.logError(error); }
       try { followResumeGuard?.detach(reader); } catch (error) { Zotero.logError(error); }
       trace(`reader.uninit fired item ${String(reader?.itemID)}`);
       try {
@@ -1074,7 +1067,7 @@ function startReadAloudShortcuts(pluginID: string): void {
     // A speed the pref cannot carry goes to the memory (issue #59)
     rememberSpeed: (speed) => readAloudMemory?.learnSpeed(speed),
     showToast: toastFor,
-    switchVoice: (reader, direction) => voiceSwitcher?.step(reader, direction),
+    switchVoice: (reader, direction) => voicePick?.step(reader, direction),
     // The level in percent, where the speed's toast goes (issue #62)
     showVolumeToast: (reader: any, level: number) => {
       const doc = toastDoc(reader);
@@ -1213,8 +1206,8 @@ function stopReadAloudShortcuts(): void {
 function startReadAloudMemory(): void {
   stopReadAloudMemory();
   readAloudMemory = createReadAloudMemorySync({
-    deferVoiceChange: (reader, id, restore) => voiceSwitcher?.defer(reader, id, restore) ?? false,
-    isVoicePreview: reader => voiceSwitcher?.isPreviewing(reader) ?? false,
+    deferVoiceChange: (reader, id, restore) => voicePick?.defer(reader, id, restore) ?? false,
+    isVoicePreview: reader => voicePick?.isPreviewing(reader) ?? false,
     prefs,
     sameVoice: () => loadSettings(prefs).readAloud.sameForAllDocuments,
     globalSpeed: () => loadSettings(prefs).readAloud.globalSpeed,
@@ -2387,40 +2380,15 @@ function stopFavoriteMarks(): void {
   favoriteMarks = null;
 }
 
-// ---- The pauses between sentences and before paragraphs ------------------
+// ---- The Engine --------------------------------------------------------------
 //
-// Zotero's per-voice sentenceDelay and its paragraph extra, replaced by the
-// pane's two settings for every voice; see read-aloud/pauses.ts for the
-// scheduling hook.
+// Every voice of the Player plays on the plugin's own engine, behind Read
+// Aloud's manager (issue #133, ADR 0005): the volume, the pauses between
+// sentences, the preparing notice and the read-ahead are its own, where they
+// were patches on Read Aloud's engine. See read-aloud/engine/.
 
-function startPauses(): void {
-  stopPauses();
-  pauses = createPauses({
-    // Read on every sentence boundary, never cached: the pane applies at once
-    getSettings: () => pauseSettingsOf(loadSettings(prefs).readAloud),
-    exportFunction: (fn, target) => Components.utils.exportFunction(fn, target),
-    waiveXrays: (value) => ((value && typeof value === 'object') || typeof value === 'function' ? Components.utils.waiveXrays(value) : value),
-    isDead: (value) => Components.utils.isDeadWrapper(value),
-    error: (e) => Zotero.logError(e),
-    debug: (message) => Zotero.debug('[zotero-tts] ' + message),
-  });
-  for (const reader of Zotero.Reader._readers ?? []) pauses.attach(reader);
-}
-
-function stopPauses(): void {
-  pauses?.dispose();
-  pauses = null;
-}
-
-// ---- The volume ------------------------------------------------------------
-//
-// A gain ahead of Zotero's own filter chain, per controller, at the level of
-// the readAloud.volume pref; see read-aloud/volume.ts. The pref is written by
-// the pane's field and by the volume keys alike, and the observer here is the
-// one path from it to the audio, so both land within the sentence being spoken.
-
-function startVolume(): void {
-  stopVolume();
+function startEngine(): void {
+  stopEngine();
   // A level 1.11.1's 0–200 field stored above 100 is brought to 100 once,
   // before the observer is up, so the pane's field shows what plays (issue #66)
   try {
@@ -2429,19 +2397,29 @@ function startVolume(): void {
   } catch (e) {
     Zotero.logError(e);
   }
-  volumeControl = createVolumeControl({
-    getLevel: () => loadSettings(prefs).readAloud.volume,
+  engine = createEngine({
     exportFunction: (fn, target) => Components.utils.exportFunction(fn, target),
     waiveXrays: (value) => ((value && typeof value === 'object') || typeof value === 'function' ? Components.utils.waiveXrays(value) : value),
     isDead: (value) => Components.utils.isDeadWrapper(value),
+    cloneInto: (value, target) => Components.utils.cloneInto(value, target),
+    // The stretch reads every sample many times: a copy on this side, not the reader window's wrapper
+    toLocal: (value) => Components.utils.cloneInto(value, globalThis),
+    audioSource: (reader) => (reader && typeof reader === 'object' ? (readerSources.get(reader) ?? null) : null),
+    isPluginVoice: (id) => decodeVoiceId(id) !== null,
+    // Read at every boundary, never cached: the pane applies at once (issue #44)
+    pauses: () => pauseSettingsOf(loadSettings(prefs).readAloud),
+    volume: () => loadSettings(prefs).readAloud.volume,
+    notice: (reader, kind) => voiceNotices?.playback(reader, kind),
     error: (e) => Zotero.logError(e),
     debug: (message) => Zotero.debug('[zotero-tts] ' + message),
   });
-  for (const reader of Zotero.Reader._readers ?? []) volumeControl.attach(reader);
-  volumeObserver = Zotero.Prefs.registerObserver(VOLUME_OBSERVER, () => volumeControl?.apply());
+  for (const reader of Zotero.Reader._readers ?? []) engine.attach(reader);
+  // The pane's field and the volume keys both write the pref; this is the one path from it to the sound (issue #62)
+  volumeObserver = Zotero.Prefs.registerObserver(VOLUME_OBSERVER, () => engine?.setVolume(loadSettings(prefs).readAloud.volume));
 }
 
-function stopVolume(): void {
+/** A disable or uninstall hands every paused reading back to Read Aloud's own engine; an update leaves it to the successor. */
+function stopEngine(reason?: number): void {
   if (volumeObserver !== null) {
     try {
       Zotero.Prefs.unregisterObserver(volumeObserver);
@@ -2450,26 +2428,25 @@ function stopVolume(): void {
     }
     volumeObserver = null;
   }
-  volumeControl?.dispose();
-  volumeControl = null;
+  engine?.dispose({ handBack: reason === ADDON_DISABLE || reason === ADDON_UNINSTALL });
+  engine = null;
 }
 
-// ---- The voice kept through a voice-list reload ---------------------------
+// ---- Voice switching --------------------------------------------------------
 //
-// Zotero rebuilds the controller when its voice list lands, even onto the
-// voice already playing, which restarts the sentence on every popup reopen;
-// see read-aloud/unchanged-voice.ts for the shadow (issue #75).
+// A voice picked while a document is read hands over at a word or the next
+// sentence instead of restarting it (issues #95, #108); see
+// read-aloud/engine/voice-pick.ts. The notices it and the Engine show share
+// one toast per reader (ui/voice-notice.ts).
 
-function startVoiceSwitcher(): void {
-  voiceSwitcher?.dispose();
-  voiceNotices?.dispose();
+function startVoicePick(): void {
+  stopVoicePick();
   voiceNotices = createVoiceNotices({
     document: toastDoc,
     playbackMessage: kind => kind === 'preparing' ? t('ztts-playback-preparing') : t('ztts-playback-failed'),
     message: (kind, voice) => kind === 'preparing' ? t('ztts-voice-preparing', { voice })
       : kind === 'failed' ? t('ztts-voice-failed', { voice }) : t('ztts-voice-unavailable'),
   });
-  playerVoiceList?.dispose();
   playerVoiceList = createPlayerVoiceList({
     exportFunction: (fn, target) => Components.utils.exportFunction(fn, target),
     waiveXrays: value => Components.utils.waiveXrays(value),
@@ -2477,7 +2454,9 @@ function startVoiceSwitcher(): void {
     error: error => Zotero.logError(error),
   });
   for (const reader of Zotero.Reader._readers ?? []) playerVoiceList.attach(reader);
-  voiceSwitcher = createVoiceSwitcher({
+  if (!engine) return;
+  voicePick = createVoicePick({
+    engine,
     newAbortController: reader => new reader._window.AbortController(),
     exportFunction: (fn, target) => Components.utils.exportFunction(fn, target),
     waiveXrays: value => Components.utils.waiveXrays(value),
@@ -2486,19 +2465,12 @@ function startVoiceSwitcher(): void {
     debug: message => Zotero.debug(`[zotero-tts] ${message}`),
     notice: (reader, kind, voice) => voiceNotices?.notice(reader, kind, voice),
   });
-  for (const reader of Zotero.Reader._readers ?? []) voiceSwitcher.attach(reader);
+  for (const reader of Zotero.Reader._readers ?? []) voicePick.attach(reader);
 }
 
-function startPlaybackNotice(): void {
-  playbackNotice?.dispose();
-  playbackNotice = createPlaybackNotice({
-    exportFunction: (fn, target) => Components.utils.exportFunction(fn, target),
-    waiveXrays: value => Components.utils.waiveXrays(value),
-    isDead: value => Components.utils.isDeadWrapper(value),
-    error: error => Zotero.logError(error),
-    notice: (reader, kind) => voiceNotices?.playback(reader, kind),
-  });
-  for (const reader of Zotero.Reader._readers ?? []) playbackNotice.attach(reader);
+function stopVoicePick(): void {
+  voicePick?.dispose();
+  voicePick = null;
 }
 
 function startLiveVoiceList(): void {
@@ -2543,23 +2515,6 @@ function stopLiveVoiceList(): void {
   for (const token of liveListObservers.splice(0)) Zotero.Prefs.unregisterObserver(token);
   liveVoiceList?.dispose();
   liveVoiceList = null;
-}
-
-function startUnchangedVoice(): void {
-  stopUnchangedVoice();
-  unchangedVoice = createUnchangedVoice({
-    exportFunction: (fn, target) => Components.utils.exportFunction(fn, target),
-    waiveXrays: (value) => ((value && typeof value === 'object') || typeof value === 'function' ? Components.utils.waiveXrays(value) : value),
-    isDead: (value) => Components.utils.isDeadWrapper(value),
-    error: (e) => Zotero.logError(e),
-    debug: (message) => Zotero.debug('[zotero-tts] ' + message),
-  });
-  for (const reader of Zotero.Reader._readers ?? []) unchangedVoice.attach(reader);
-}
-
-function stopUnchangedVoice(): void {
-  unchangedVoice?.dispose();
-  unchangedVoice = null;
 }
 
 function startTextSettings(): void {
@@ -2731,13 +2686,10 @@ async function startup({ id, version, rootURI }: StartupParams): Promise<void> {
       ['Multiple-languages-first ordering', startMultilingualFirst],
       ['favorite marks in the player', startFavoriteMarks],
       ['expanded player opening', startPlayerExpanded],
-      ['sentence and paragraph pauses', startPauses],
-      ['Read Aloud volume', startVolume],
-      ['the voice kept through a list reload', startUnchangedVoice],
+      ['the Engine', startEngine],
       ['live voice choices', startLiveVoiceList],
       ['speech text settings', startTextSettings],
-      ['prepared voice switching', startVoiceSwitcher],
-      ['playback preparation notice', startPlaybackNotice],
+      ['voice switching', startVoicePick],
       ['Read Aloud hook', startHijack],
       ['Read Aloud shortcuts', () => startReadAloudShortcuts(id)],
     ],
@@ -2778,10 +2730,9 @@ async function shutdown(reason?: number): Promise<void> {
   uninstallHijack?.();
   uninstallHijack = null;
   stopReadAloudShortcuts();
-  playbackNotice?.dispose();
-  playbackNotice = null;
-  voiceSwitcher?.dispose();
-  voiceSwitcher = null;
+  stopVoicePick();
+  // A reading pauses at its segment; the successor takes it from there (issue #133)
+  stopEngine(reason);
   stopLiveVoiceList();
   voiceNotices?.dispose();
   voiceNotices = null;
@@ -2818,9 +2769,6 @@ async function shutdown(reason?: number): Promise<void> {
   stopSystemVoiceHiding();
   stopMultilingualFirst();
   stopFavoriteMarks();
-  stopPauses();
-  stopVolume();
-  stopUnchangedVoice();
   stopTextSettings();
   // The plugin's copy of its strings leaves with it; a reload's successor
   // registers its own (issue #64)
@@ -2899,12 +2847,12 @@ const diagnostics = {
       const reader = readerIndex === undefined
         ? pickReader(readers, win, win?.Zotero_Tabs?.selectedID ?? null, (r: any) => isSpeaking(readAloudManager(r)))
         : readers[readerIndex];
-      if (reader) voiceSwitcher?.step(reader, direction);
+      if (reader) voicePick?.step(reader, direction);
     }
-    return JSON.stringify({ mechanism: 'prepared-native-voice-v2', bindings: {
+    return JSON.stringify({ mechanism: 'engine-handoff-v1', bindings: {
       previous: loadSettings(prefs).shortcuts.previousVoice, next: loadSettings(prefs).shortcuts.nextVoice,
     }, readers: readers.map((reader: any, index: number) => ({ index, selected: readAloudManager(reader)?.selectedVoiceID ?? null,
-      handoff: voiceSwitcher?.inspect(reader) ?? null })) }, null, 2);
+      handoff: voicePick?.inspect(reader) ?? null })) }, null, 2);
   },
   /** Cache reuse and, on request, the provider's actual source union. Never returns credentials. */
   fishVoices: async (list = false) => {
@@ -3087,7 +3035,30 @@ const diagnostics = {
    * "…" (blocks a and b)` debug line per join.
    */
   skippedLines: () => JSON.stringify((Zotero.Reader._readers ?? []).map((r: any) => skippedLines?.inspect(r) ?? null), null, 1),
-  playbackNotice: () => JSON.stringify({ feature: 'playback-preparation-notice', readers: (Zotero.Reader._readers ?? []).map((reader: any) => ({ itemID: reader.itemID, ...playbackNotice?.inspect(reader) })) }, null, 1),
+  /**
+   * The Engine (issue #133), per open reader: whether its four hooks are in
+   * place (the voice's `getController`, the manager's `activeTimestamp`,
+   * `setSegments`, `repositionTo`); whether the manager's controller is the
+   * Engine's; the session — voice, position, paused, speed, buffering,
+   * error, what plays and where in it, the word lit, the clip store with
+   * its request count; the tab's audio output — context state, sample
+   * rate, latency, the volume's gain; and the counts that prove the paths
+   * ran: controllers built, carried on through a rebuild, started afresh,
+   * ended, adopted from a previous instance, late answers dropped, and
+   * fallbacks to Read Aloud's own engine (zero). Beside them the pause
+   * settings and the volume level as the Engine reads them.
+   */
+  engine: () =>
+    JSON.stringify(
+      {
+        feature: 'engine-v1',
+        pauses: safe(() => pauseSettingsOf(loadSettings(prefs).readAloud)) ?? null,
+        volume: safe(() => loadSettings(prefs).readAloud.volume) ?? null,
+        readers: (Zotero.Reader._readers ?? []).map((reader: any) => ({ itemID: safe(() => reader.itemID), ...(safe(() => engine?.inspect(reader)) ?? {}) })),
+      },
+      null,
+      1,
+    ),
   systemVoices: () => JSON.stringify((Zotero.Reader._readers ?? []).map((r: any) => systemVoiceHiding?.inspect(r) ?? null), null, 1),
   /**
    * One entry per provider in the player's first dropdown (issue #110,
@@ -3175,33 +3146,6 @@ const diagnostics = {
   playerExpanded: () => JSON.stringify((Zotero.Reader._readers ?? []).map((r: any) => ({
     itemID: safe(() => r.itemID), ...playerExpanded?.inspect(r),
   })), null, 1),
-  /**
-   * The pauses (issue #44), per open reader: whether the manager and its
-   * running controller are patched, the two settings, the speed, the
-   * selected voice's own `sentenceDelay`, the gaps a sentence boundary and
-   * a paragraph boundary would get right now, and `last` — the number
-   * Zotero's timer actually received at the latest boundary, with `count`.
-   * `last` advancing while a session plays is what proves the hook ran.
-   */
-  pauses: () => JSON.stringify((Zotero.Reader._readers ?? []).map((r: any) => pauses?.inspect(r) ?? null), null, 1),
-  /**
-   * The volume (issue #62), per open reader: whether the manager and the
-   * controllers' base prototype are patched, the session state, the level
-   * and the gain it means, and `chains` — every open chain the hook gained
-   * in the tab (a session's, a popup sample's), each with the gain it
-   * carries and, for the live controller, `inChain`: its `_filterChainInput`
-   * is that very node, so every source lands on it. `count` is how many
-   * chains the hook has gained in the tab, which is what proves it ran.
-   */
-  volume: () => JSON.stringify((Zotero.Reader._readers ?? []).map((r: any) => volumeControl?.inspect(r) ?? null), null, 1),
-  /**
-   * The voice kept through a voice-list reload (issue #75), per open
-   * reader: whether the manager's prototype is patched, the session state,
-   * the voice in use, `kept` — how many rebuilds onto the voice already
-   * playing the shadow skipped in that tab — and `last`. `kept` going up by
-   * one on a popup reopen, with one `volume gain inserted` line per start
-   * in the log, is what proves the hook ran.
-   */
   textSettings: () => JSON.stringify((Zotero.Reader._readers ?? []).map((r: any) => textSettings?.inspect(r) ?? null), null, 1),
   /**
    * The player's voice list rebuilt on the side (issue #121), per open
@@ -3213,10 +3157,9 @@ const diagnostics = {
    */
   liveVoiceList: () => JSON.stringify((Zotero.Reader._readers ?? []).map((r: any) => liveVoiceList?.inspect(r) ?? null)),
   readingImpact: (changes: FlatSettings | string = {}) => JSON.stringify({ sessions: readingImpact.sessions(), affected: readingImpact.affectedTabs(typeof changes === 'string' ? JSON.parse(changes) : changes) }),
-  unchangedVoice: () => JSON.stringify((Zotero.Reader._readers ?? []).map((r: any) => unchangedVoice?.inspect(r) ?? null), null, 1),
   playerVoiceList: () => JSON.stringify((Zotero.Reader._readers ?? []).map((r: any) => playerVoiceList?.inspect(r) ?? null), null, 1),
   /**
-   * The undo logs of the five modules that shadow a reader-side prototype
+   * The undo logs of the modules that shadow a reader-side prototype
    * (read-aloud/proto-patches.ts): `total` entries held, `live` of them
    * belonging to a tab that is still open. They used to drift apart by one
    * tab's worth of entries per closed tab, and shutdown logged a dead
@@ -3231,9 +3174,7 @@ const diagnostics = {
         providerTiers: safe(() => providerTiers?.patchCounts()) ?? null,
         multilingualFirst: safe(() => multilingualFirst?.patchCounts()) ?? null,
         readAloudMemory: safe(() => readAloudMemory?.patchCounts()) ?? null,
-        pauses: safe(() => pauses?.patchCounts()) ?? null,
-        volume: safe(() => volumeControl?.patchCounts()) ?? null,
-        unchangedVoice: safe(() => unchangedVoice?.patchCounts()) ?? null,
+        engine: safe(() => engine?.patchCounts()) ?? null,
         playerVoiceList: safe(() => playerVoiceList?.patchCounts()) ?? null,
         textSettings: safe(() => textSettings?.patchCounts()) ?? null,
         // Which instance serves each tab (issue #38): `hijacked` — the
