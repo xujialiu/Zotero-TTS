@@ -606,3 +606,5 @@ then) and is in the git history before that day.
 ### [2026-09-24](NOTES_2026-09-24.md)
 
 - A native row's item was checked before the document analysis loaded and written after it, and the open's sync adopts in between (issue #138)
+- A crafted native row needs Zotero's whole EPUB selector: without its `type` the mapper resolves nothing, and the derivation says nothing (issue #138)
+- A Positions File test leaves its fixtures' items in this machine's store, and the first sync after the owner's folder is restored uploads them (issue #138)

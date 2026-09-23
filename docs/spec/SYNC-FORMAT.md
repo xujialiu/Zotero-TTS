@@ -120,9 +120,11 @@ The plugin's own reading positions, keyed by Zotero's coordinates.
 
 - `lib`: the attachment's `libraryID`, meaningful only inside one Zotero
   profile. `key`: the item key. `pos`: Zotero's `sourcePosition`, opaque, in
-  Zotero's own dialect (`{pageIndex, rects}` for PDF, `{value: <cfi>}` for
-  EPUB, `{value: <selector>}` for snapshots). `ts`: milliseconds since the
-  epoch.
+  Zotero's own dialect and kept whole (`{pageIndex, rects}` for PDF,
+  `{type: "FragmentSelector", conformsTo, value: <cfi>}` for EPUB,
+  `{value: <selector>}` for snapshots). Zotero's EPUB mapper resolves nothing
+  from a position without that `type` (measured 2026-09-24, issue #138). `ts`:
+  milliseconds since the epoch.
 - Exactly these four fields; the serialiser strips anything else.
 - Items sorted by `lib` ascending, then `key` ascending.
 - Merged per `lib/key`, newest `ts` wins, an equal `ts` keeps the reader's own
@@ -338,5 +340,6 @@ playing nothing moves.
   there (plugin 1.14.2, issue #129). No change to any file's shape.
 - **2026-09-24** — 6.9 names every native row the plugin derives an item from
   and says the item is written only when the row's time is still newer than
-  the item held at the write (plugin 1.14.4, issue #138). No change to any
+  the item held at the write (plugin 1.14.4, issue #138); section 5 gives an
+  EPUB `pos` whole, with the `type` Zotero's mapper requires. No change to any
   file's shape.
