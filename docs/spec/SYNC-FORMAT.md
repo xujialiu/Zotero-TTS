@@ -74,9 +74,16 @@ transport compares text to decide whether an upload is needed at all.
 
 - UTF-8, no byte-order mark, no trailing newline.
 - `JSON.stringify` with no indentation and no spaces.
-- Keys in the order this document lists them, at every level.
+- Keys in the order this document lists them, at every level. A key this
+  document does not list is not written, at any level (2.1), and a field or
+  key an item lacks is not written either, never as `null`.
 - Items sorted as each file's section says.
 - Integers written as integers; no `-0`, no exponent.
+
+Every item takes this one form, whether the writer can use it or carries it
+through (2.5), so a file a third writer or a hand edit left is written back
+alike by every writer (issue #139). Keys kept in the order each was parsed
+would bind every implementation to a JSON parser that keeps key order.
 
 ### 2.4 Concurrency
 
@@ -90,9 +97,14 @@ failure is reported once per retry window and retried at the next moment.
 
 A reader re-emits every item it merged, including items it cannot use: an
 item whose `format` it does not implement, or whose fields it could not
-validate, is carried through with its fields exactly as parsed and is never
-adopted. The one item a reader drops is one whose `id` is not a string, because
-nothing can key it; that drop is reported, not silent.
+validate, is carried through and is never adopted. It is written in the form
+of 2.3 like any other item, every field's value exactly as parsed — a value of
+the wrong type, and an `anchor` or `stamp` that is not an object, included —
+and a field it lacks stays absent: an item without `publicationId` is not
+usable (6.2), and one written back with `null` would be. The one item a reader
+drops is one whose `id` is not a string, because nothing can key it; the empty
+string is a string, and its item is carried. That drop is reported, not
+silent.
 
 ## 3. `zotero-tts-settings_<machine>.json`
 
@@ -168,10 +180,13 @@ order). One item per `id`.
 | `stamp` | object | `at` (integer, milliseconds since the epoch) then `device` (string, 1–64 characters) (section 6.6). |
 
 An item is **usable** by a reader when its `format` is one the reader
-implements and every field validates: `id` matches the pattern, `locator` is
-a non-empty string, `anchor.exact` is a non-empty string, `anchor.prefix` and
-`anchor.suffix` are strings, `stamp.at` is a finite integer and `stamp.device`
-a non-empty string. Anything else is carried through and never adopted.
+implements and every field validates: `id` matches the pattern,
+`publicationId` is a string or `null`, `locator` is a non-empty string,
+`anchor.exact` is a non-empty string, `anchor.prefix` and `anchor.suffix` are
+strings, `stamp.at` is a finite integer and `stamp.device` a non-empty string.
+Anything else is carried through and never adopted. Nothing more is checked:
+a locator outside the grammar of 6.4 is usable, because a reader verifies
+every locator by its anchor (6.5).
 
 ### 6.3 The Document Id, for `epub`
 
@@ -216,7 +231,9 @@ epubcfi(/6/34!/4/2/4/2/4)
 
 Grammar: `epubcfi(` `/6/` even integer `!` (`/` even integer)+ `)`. No `[id]`
 assertions, no text step (odd integer), no character offset (`:`), no range
-(`,`), no temporal or spatial part.
+(`,`), no temporal or spatial part. The grammar binds a writer. A reader does
+not refuse an item whose locator is outside it (6.2): it resolves what it can
+of the locator, and the anchor decides.
 
 - The plugin writes the SDT block's `anchor.selectorMap` path, assertions
   stripped, of the block the active segment belongs to. Never a text-node
@@ -283,7 +300,9 @@ attribution only; the merge never compares it.
 
 - Union by `id`. Between two items with one `id`, the greater `stamp.at` wins;
   equal stamps keep the reader's own item, so merging a file into itself
-  changes nothing.
+  changes nothing. A stamp takes part only when it validates (6.2: `at` an
+  integer, `device` a non-empty string): an item whose stamp does not loses to
+  every item whose stamp does, and of two such the reader's own is kept.
 - **Nothing removes an item.** A permanently deleted Zotero attachment, a book
   removed from a phone's shelf, a machine that is gone: the item stays, because
   the document may exist on another device and its place is the whole point.
@@ -343,3 +362,11 @@ playing nothing moves.
   the item held at the write (plugin 1.14.4, issue #138); section 5 gives an
   EPUB `pos` whole, with the `type` Zotero's mapper requires. No change to any
   file's shape.
+- **2026-09-24** — every item takes one form, usable or carried (issue #139):
+  2.3 and 2.5 write a carried item canonically, its values as parsed, a field
+  it lacks left out rather than written as `null`, a key this document does
+  not list dropped at every level; an item whose `id` is the empty string is
+  carried, not dropped. 6.2 lists the `publicationId` check both products
+  made and says a locator outside the grammar of 6.4 is usable; 6.7 says an
+  item whose stamp does not validate loses the merge. Plugin 1.14.4,
+  OpenReader's next build. No change to any file's shape.

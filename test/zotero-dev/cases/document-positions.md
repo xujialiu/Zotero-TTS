@@ -192,6 +192,27 @@ the first Read Aloud. Diagnostics: `Zotero.ZoteroTTS.diagnostics.positionSync()`
     1.14.4-beta4 the window's order ended with the row's sentence held at
     T2 + 1 by this machine and uploaded (a unit test, not run live).
 
+### 16
+
+16. **A file a third writer left is written back in the one form** (issue
+    #139; 1.14.4). Save the server's `xujialiu-positions.json` as found (or
+    note it absent), then put `test/fixtures/xujialiu-positions.v1.carried.json`
+    there byte for byte: eight items with Document Ids no device holds — keys
+    out of order, keys the spec does not list, missing fields, an empty `id`,
+    a text-step locator, an empty `device` — and two with no string `id`.
+    Nothing is adopted from it, so this machine's store is untouched
+    (`shared.documents.items` the same before and after). Open and close a
+    tab: the log has `shared position sync (…): 8 remote, N merged, 0
+    adopted, 6 carried, 2 dropped, uploaded`, and `shared.transport` shows
+    `dropped` 2, `carried` 6, `uploaded` true. GET the file: its items with
+    the fixture's ids, the `""` one first, are in id order byte for byte the
+    items of `test/fixtures/xujialiu-positions.v1.carried.canonical.json`
+    (the file's other items are this machine's own, which every sync puts
+    there). A second sync: `uploaded` false. 1.14.4-beta4 on the same file
+    logs `7 remote` and `3 dropped`, leaves the `""` item out and writes
+    `"publicationId":null` into the item that lacks it — the bug. The file
+    goes back as found (item 10).
+
 ### 10
 
 10. **Restoration.** The crafted items and the version-2 file deleted from
