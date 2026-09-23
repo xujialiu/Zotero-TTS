@@ -21,10 +21,15 @@
   ];
   const baseline = {};
   for (const k of prefKeys) baseline[k] = snap(k);
-  // The memory is restored last of all prefs (workflow rule); snapshot its
-  // length only, never its value (it may carry a voice id and speed)
+  // The memory is restored last of all prefs (workflow rule). It is not a
+  // secret (not apiKey/headers/password), but a run that changes it needs
+  // the FULL value to restore byte-identically -- 2026-09-23's run kept only
+  // the length here (as this script did until now) and could not restore it
+  // at all. The full value goes into state (never the printed/returned
+  // JSON, which still reports only the length) for a later restore step.
   const memoryRaw = get('readAloud.memory');
   baseline['readAloud.memory'] = { len: typeof memoryRaw === 'string' ? memoryRaw.length : memoryRaw, hasUser: hasUser('readAloud.memory') };
+  Zotero.ZoteroTTSRun.state.readAloudMemoryFullValue = memoryRaw;
   const memoryVoicePrefix = (() => {
     try { return JSON.parse(memoryRaw).voice && JSON.parse(memoryRaw).voice.id ? String(JSON.parse(memoryRaw).voice.id).split('::')[0] : null; } catch (e) { return 'parse-error'; }
   })();

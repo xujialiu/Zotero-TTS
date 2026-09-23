@@ -7,7 +7,9 @@
   const S = Zotero.ZoteroTTSRun.state;
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const out = { step: 'teardown' };
-  const ids = [S.fixtures.A.itemID, S.fixtures.B.itemID];
+  // Every fixture this run created (A/B always; a run that also opened a
+  // C, per 133-27, gets it closed and erased here too -- 2026-09-23)
+  const ids = Object.keys(S.fixtures || {}).map((k) => S.fixtures[k].itemID).filter(Boolean);
 
   for (const itemID of ids) {
     let r = null;

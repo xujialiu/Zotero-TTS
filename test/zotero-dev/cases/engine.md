@@ -168,9 +168,11 @@ credit left, item 21's out-of-credits path runs instead of the sentences.
     no `can't access dead object` in the console, `stats.late` counts what
     landed after (read before the close from another tab's diagnostics is
     not possible — read `diagnostics.patches().lateResults` for the reader
-    realm's and the debug line `late audio dropped` for the Engine's), and
-    the warm chain stops (`prefetch: <provider>: stopped, the reader is
-    gone`) ([late-audio](late-audio.md)).
+    realm's and the debug line `late audio dropped: its reader window was
+    gone` for the Engine's), and the warm chain stops (`prefetch:
+    <provider>: stopped, the reader is gone` — only when the chain was
+    between two of its requests at the close; run 2 of 2026-09-23 caught
+    the Engine's line twice and never this one) ([late-audio](late-audio.md)).
 
 ### 15
 
@@ -198,10 +200,16 @@ credit left, item 21's out-of-credits path runs instead of the sentences.
     sentence (`last.kind` `word` or `sentence`); `stats.carriedOn` up one
     at the switch, `stats.started` unchanged; picks within 120 ms are one
     switch; 60 s per request and 120 s per switch, then "failed" and the
-    old voice reads on; a skip, a speed change, a jump or Stop calls it off
+    old voice reads on (a live check waits the budget out, and keeps the
+    old voice's own next sentences answered — cached, or from a server the
+    failure does not touch — or the old voice stalls too); a skip, a speed
+    change, a jump or Stop calls it off
     (`stage: cancelled`). Paused: silent preparation, "ready" once the
     paused word is known, and Play starts the new voice at the next word;
-    otherwise the old voice resumes and hands over later. A provider or
+    otherwise the old voice resumes and hands over later. A voice pick while
+    paused is such a switch, never an instant one: a script that needs a
+    plain voice change while paused uses `selectTier`, or waits for the
+    switch's `stage: committed` after Play. A provider or
     language pick while paused applies at once and Play starts the
     sentence over ([voice-switch](voice-switch.md),
     [voice-notice](voice-notice.md)).
