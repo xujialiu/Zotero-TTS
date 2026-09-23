@@ -2,10 +2,11 @@
 
 ## The Positions File shared with OpenReader (issue #126; 1.13.2)
 
-Against the user's real WebDAV folder, under the same switch as the
-plugin's own positions file (`Sync reading positions between computers`):
-every crafted item and every test file deleted from the server at the end,
-the switch restored, every tab closed. The file is
+Against the test WebDAV folder (`MEMORY/testing.md`, Test WebDAV first),
+never the owner's own, under the same switch as the plugin's own positions
+file (`Sync reading positions between computers`): every crafted item and
+every test file deleted from the server at the end, the switch restored,
+every tab closed. The file is
 `xujialiu-positions.json` (docs/spec/SYNC-FORMAT.md, section 6): items keyed
 by Document Id, canonical compact JSON, nothing ever removed. The fixture
 is an EPUB of the run's own — never a user document — and nothing plays
@@ -165,9 +166,11 @@ the first Read Aloud. Diagnostics: `Zotero.ZoteroTTS.diagnostics.positionSync()`
     (issue #138; 1.14.4). The window is the derivation's wait for the
     document analysis at a tab's first open, which is long only when Zotero
     has not built it for the attachment yet. Set up, in this order: a
-    fixture EPUB imported fresh and never opened, nothing held for its
-    Document Id (`shared.documents.items` does not count it); a native row
-    for it at `ts` T1, put into `zotero-tts-positions.json` as another
+    fixture EPUB imported fresh and never opened, of a Document Id this
+    machine has never held (a fixture an earlier run used keeps its item
+    for good); a native row for it at `ts` T1, its `pos` Zotero's whole
+    selector with its `type` (spec section 5; without it the derivation
+    stops silently), put into `zotero-tts-positions.json` as another
     computer's row and taken by a sync of that file before anything else
     (`position()` shows it stored); only then an item for its Document Id in
     the Positions File at T2 > T1, `stamp.device` `iPhone-test`, a later
@@ -184,9 +187,10 @@ the first Read Aloud. Diagnostics: `Zotero.ZoteroTTS.diagnostics.positionSync()`
     at T1` before `… 1 adopted` — means the analysis loaded before the sync
     landed: the end state is the same, but the window was not exercised, so
     the check is repeated with a longer fixture, and it passes only in the
-    order above. Before 1.14.4-beta4 the window's order ended with the row's
-    sentence held at T2 + 1 by this machine and uploaded (a unit test, not
-    run live).
+    order above. Measured on beta4 (2026-09-24, an 80-chapter fixture):
+    the sync's line at 648 ms, the row's at 690 ms after the open. Before
+    1.14.4-beta4 the window's order ended with the row's sentence held at
+    T2 + 1 by this machine and uploaded (a unit test, not run live).
 
 ### 10
 
@@ -194,4 +198,8 @@ the first Read Aloud. Diagnostics: `Zotero.ZoteroTTS.diagnostics.positionSync()`
     the server, the file left as the run found it (or absent when the run
     created it), the switch as found, the fixture's tab closed, the rows
     the run created erased with the fixture (its Document Id row and item
-    stay — nothing removes an item, by design).
+    stay — nothing removes an item, by design). An item this machine
+    adopted or derived for a fixture stays in its store, and the first
+    sync after the owner's folder is restored uploads it there (2026-09-24:
+    the first beta4 run's crafted `b` item did): the report names every
+    fixture Document Id left held.
