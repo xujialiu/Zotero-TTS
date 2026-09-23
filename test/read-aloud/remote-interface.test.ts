@@ -1163,3 +1163,26 @@ describe('the fallback note of a provider reaches the debug output', () => {
     expect(debug).toHaveBeenCalledWith(expect.stringMatching(/no word timestamps for 5 chars \(.*captioned_speech returned 404.*\), highlighting the sentence/));
   });
 });
+
+describe('forget (issue #133)', () => {
+  it('drops the cached answer of a segment, so the next request reaches the provider again', async () => {
+    const synthesize = vi.fn(async () => ({ audio: new Blob(['garbage']) }));
+    const { createMemoryCache } = await import('../../src/core/memory-cache');
+    const cache = createMemoryCache({ maxBytes: 1024 });
+    const iface = createRemoteInterface({ ...deps(fakeProvider({ synthesize })), cache: () => cache, getStripAngleBrackets: () => true });
+    const segment = { text: 'A sentence <with> brackets.' };
+    await iface.getAudio(segment, voice);
+    await iface.getAudio(segment, voice);
+    expect(synthesize).toHaveBeenCalledTimes(1);
+    await iface.forget(segment, voice);
+    await iface.getAudio(segment, voice);
+    expect(synthesize).toHaveBeenCalledTimes(2);
+  });
+
+  it('leaves a sample, a Zotero voice and a cache without delete alone', async () => {
+    const iface = createRemoteInterface({ ...deps(), cache: () => ({ match: async () => null, put: async () => {} }) });
+    await expect(iface.forget('sample', voice)).resolves.toBeUndefined();
+    await expect(iface.forget({ text: 'Zotero speaks this.' }, { id: 'zotero-standard-1' })).resolves.toBeUndefined();
+    await expect(iface.forget({ text: 'No delete here.' }, voice)).resolves.toBeUndefined();
+  });
+});

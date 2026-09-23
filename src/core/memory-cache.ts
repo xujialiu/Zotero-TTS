@@ -57,6 +57,13 @@ export function createMemoryCache(opts: { maxBytes: number }): AudioCache & { cl
       total += bytes;
     },
 
+    async delete(key) {
+      const entry = entries.get(key);
+      if (!entry) return;
+      entries.delete(key);
+      total -= entry.bytes;
+    },
+
     clear() {
       entries.clear();
       total = 0;

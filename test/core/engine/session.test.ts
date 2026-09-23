@@ -438,6 +438,24 @@ describe('EngineSession: errors and Retry', () => {
     expect(t.audio.started).toHaveLength(1);
   });
 
+  it('has the undecodable answer dropped where it is kept, so Retry reaches the provider again', async () => {
+    const t = setup();
+    const discarded: string[] = [];
+    const session = new EngineSession<FakeClip>({
+      clock: t.clock,
+      audio: t.audio,
+      fetch: (segment, v) => Promise.resolve({ audio: { name: segment.text, duration: 1, undecodable: true } }),
+      discard: (segment, v) => discarded.push(`${v.id}:${segment.text}`),
+      pauses: () => pauses(0, 0),
+      emit: t.log.emit,
+    });
+    session.bind({ voice: t.v, segments: t.list, backwardStopIndex: 0, forwardStopIndex: null });
+    session.setPaused(false);
+    await t.clock.advance(0);
+    expect(session.error).toBe('unknown');
+    expect(discarded).toEqual(['openai-official::alloy:One two three.']);
+  });
+
   it('asks once more for a segment whose read-ahead failed, when playback reaches it', async () => {
     const t = setup({ settings: pauses(0, 0) });
     const answer = t.fetch.answer;

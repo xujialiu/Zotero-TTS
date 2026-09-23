@@ -69,6 +69,8 @@ export interface SessionDeps<Clip extends EngineClip> {
   clock: EngineClock;
   audio: EngineAudio<Clip>;
   fetch(segment: EngineSegment, voice: EngineVoice, signal?: unknown): Promise<FetchResult>;
+  /** A fetched answer whose audio would not decode: drop it wherever it is kept (clips.ts). */
+  discard?(segment: EngineSegment, voice: EngineVoice): void;
   /** The pane's pause settings, read at every sentence boundary. */
   pauses(): PauseSettings;
   /** The events Read Aloud's manager listens for. */
@@ -195,6 +197,7 @@ export class EngineSession<Clip extends EngineClip = EngineClip> {
       clock: this.deps.clock,
       fetch: this.deps.fetch,
       decode: (audio) => this.deps.audio.decode(audio),
+      discard: this.deps.discard,
     });
     // A new controller of Read Aloud's (reader.js 39396-39404)
     this.position = request.backwardStopIndex ?? 0;

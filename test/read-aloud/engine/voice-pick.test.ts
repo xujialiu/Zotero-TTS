@@ -100,7 +100,7 @@ function setup(options: { paused?: boolean } = {}) {
       session.end();
     },
   };
-  const engine = { session: () => session, voiceOf } as unknown as Engine;
+  const engine = { session: () => session, voiceOf, bound: () => !session.ended } as unknown as Engine;
   const reader = { _internalReader: { _readAloudManager: manager } };
   const notices: string[] = [];
   const pick = createVoicePick({

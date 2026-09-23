@@ -60,4 +60,14 @@ describe('createMemoryCache', () => {
     c.clear();
     expect(await c.match('a')).toBeNull();
   });
+  it('deletes one entry and gives its bytes back', async () => {
+    const cache = createMemoryCache({ maxBytes: 10 });
+    await cache.put('a', { audio: new Blob(['12345']) } as any);
+    await cache.put('b', { audio: new Blob(['12345']) } as any);
+    await cache.delete!('a');
+    expect(await cache.match('a')).toBeNull();
+    await cache.put('c', { audio: new Blob(['12345']) } as any);
+    expect(await cache.match('b')).not.toBeNull();
+    await cache.delete!('missing');
+  });
 });

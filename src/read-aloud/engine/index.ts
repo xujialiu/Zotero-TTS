@@ -59,6 +59,8 @@ export interface TabVoice extends EngineVoice {
 /** The plugin's composite interface of one reader (remote-interface.ts), called on the plugin's side. */
 export interface SegmentAudioSource {
   getAudio(segment: unknown, voice: unknown, options?: { signal?: AbortSignal }): Promise<any>;
+  /** Drop a cached answer whose audio would not decode (remote-interface.ts). */
+  forget?(segment: unknown, voice: unknown): Promise<void>;
 }
 
 export interface EngineDeps {
@@ -120,6 +122,8 @@ export interface Engine {
   session(reader: unknown): EngineSession<DecodedClip> | null;
   /** A reader's voice as the Engine plays it. */
   voiceOf(voice: any): TabVoice;
+  /** Whether the reader's manager holds a live controller of the Engine's. */
+  bound(reader: unknown): boolean;
   /** The texts after `text`, for the plugin's warm chain (remote-interface.ts). */
   upcomingTexts(reader: unknown, text: string, count: number, skip: (segment: EngineSegment) => boolean): string[];
   /** Move every tab's volume. */
@@ -211,6 +215,10 @@ export function createEngine(deps: EngineDeps): Engine {
       clock,
       audio,
       fetch: (segment, voice, signal) => fetchFor(tab, segment, voice as TabVoice, signal),
+      discard: (segment, voice) => {
+        const source = deps.audioSource(tab.reader);
+        if (source?.forget) void source.forget(segment, (voice as TabVoice).reader.impl).catch(deps.error);
+      },
       pauses: deps.pauses,
       emit: (type, segment) => tab.controller?.dispatch(type, segment),
       notice: (kind) => {
@@ -475,6 +483,8 @@ export function createEngine(deps: EngineDeps): Engine {
     session: (reader) => tabOfReader(reader)?.session ?? null,
 
     voiceOf: (voice) => voiceOf(waive(voice)),
+
+    bound: (reader) => tabOfReader(reader)?.controller?.live === true,
 
     upcomingTexts(reader, text, count, skip) {
       try {

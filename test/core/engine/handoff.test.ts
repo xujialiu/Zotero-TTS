@@ -213,6 +213,16 @@ describe('Handoff: called off', () => {
     expect(t.session.voice?.id).toBe(alloy.id);
   });
 
+  it('fails when the manager does not take the new voice', async () => {
+    const t = setup();
+    t.session.setPaused(false);
+    t.session.prepareHandoff({ target: nova, commit: () => false, notice: (kind) => t.notices.push(kind), report: t.report });
+    await t.clock.advance(200);
+    expect(t.notices).toEqual(['preparing', 'failed']);
+    expect(t.report.stage).toBe('failed');
+    expect(t.errors.some((e) => String(e).includes('did not take the new voice'))).toBe(true);
+  });
+
   it('fails on a request that fails', async () => {
     const t = setup();
     const answer = t.fetch.answer;

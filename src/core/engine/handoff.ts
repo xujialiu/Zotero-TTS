@@ -79,8 +79,12 @@ export interface HandoffReport {
 
 export interface HandoffOptions {
   target: EngineVoice;
-  /** The manager's own selection of the new voice, made once the new voice has the reading. */
-  commit(): void;
+  /**
+   * The manager's own selection of the new voice, made once the new voice
+   * has the reading; false when the manager did not take it (its rebuild
+   * left no controller of the Engine's).
+   */
+  commit(): boolean | void;
   /** What else calls the switch off: the manager's voice or voice list moved under it. */
   valid?(): boolean;
   notice(kind: VoiceNotice): void;
@@ -124,6 +128,7 @@ export class Handoff<Clip extends EngineClip> {
       clock: deps.clock,
       fetch: deps.fetch,
       decode: (audio) => deps.audio.decode(audio),
+      discard: deps.discard,
       signal: options.abort?.signal,
     });
   }
@@ -405,11 +410,19 @@ export class Handoff<Clip extends EngineClip> {
     report.last = last;
     this.deps.debug?.(`voice handoff ${kind}: ${last.from} -> ${last.to}, segment ${index}, char ${charStart}, offset ${offset}`);
     s.takeOver(this.options.target, this.store, index, offset);
+    let taken = true;
     try {
       // The manager's own selection: its rebuild of the controller carries on (session.ts bind)
-      this.options.commit();
+      taken = this.options.commit() !== false;
     } catch (e) {
       this.deps.log?.(e);
+      taken = false;
+    }
+    if (!taken) {
+      report.stage = 'failed';
+      this.deps.log?.(new Error('Zotero-TTS: the manager did not take the new voice'));
+      this.options.notice('failed');
+      return true;
     }
     this.watchStart();
     return true;

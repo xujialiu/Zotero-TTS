@@ -38,6 +38,8 @@ export interface ClipStoreDeps<Clip extends EngineClip> {
   clock: EngineClock;
   fetch(segment: EngineSegment, voice: EngineVoice, signal?: unknown): Promise<FetchResult>;
   decode(audio: unknown): Promise<Clip>;
+  /** Audio that would not decode: whatever keeps the answer must drop it, so asking again reaches the provider. */
+  discard?(segment: EngineSegment, voice: EngineVoice): void;
   /** Passed to every fetch: a handoff's preparation can be called off (handoff.ts). */
   signal?: unknown;
 }
@@ -102,6 +104,12 @@ export class ClipStore<Clip extends EngineClip> {
     try {
       clip = await this.deps.decode(result.audio);
     } catch (e) {
+      // Retry must not be answered with the same bytes again
+      try {
+        this.deps.discard?.(segment, this.deps.voice);
+      } catch {
+        // The error below is what matters
+      }
       throw new ClipError('unknown', 'decode', e);
     }
     if (this.closed) throw new ClipError('unknown', 'closed');

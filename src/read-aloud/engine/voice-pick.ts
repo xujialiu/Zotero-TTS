@@ -265,6 +265,8 @@ export function createVoicePick(deps: VoicePickDeps): VoicePick {
       commit: () => {
         unwindPending(reader, undo);
         select(selection);
+        // A voice the manager does not take (not in the current tier's list) leaves no controller
+        return deps.engine.bound(reader);
       },
       valid: () => !deps.isDead?.(manager) && manager.active && manager.selectedVoiceID === originalVoice && manager.allVoices === catalog,
       notice: (kind) => {

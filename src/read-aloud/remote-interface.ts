@@ -35,6 +35,7 @@ function neverAbort(): Pick<AbortController, 'signal' | 'abort'> {
 export interface AudioCache {
   match(key: string): Promise<SynthesisResult | null>;
   put(key: string, value: SynthesisResult): Promise<void>;
+  delete?(key: string): Promise<void>;
 }
 
 type ZoteroSegment = { text: string } | 'sample';
@@ -245,6 +246,14 @@ export interface RemoteInterface {
   ): Promise<{ audio: Blob | null; timestamps?: unknown; error?: string; noStore?: boolean }>;
   getCreditsRemaining(): Promise<{ standardCreditsRemaining: number | null; premiumCreditsRemaining: number | null }>;
   resetCredits(): Promise<{ standardCreditsRemaining: number | null; premiumCreditsRemaining: number | null }>;
+  /**
+   * Forget the cached answer `getAudio` would give for this segment and
+   * voice: its audio would not decode, and Retry must ask the provider
+   * again rather than replay the same bytes (issue #133). The cache keeps
+   * whatever a provider answers, garbage included. A Zotero voice's answer
+   * is in Zotero's own cache, which is not the plugin's to touch.
+   */
+  forget(segment: ZoteroSegment, voice: ZoteroVoice): Promise<void>;
 }
 
 export function createRemoteInterface(deps: RemoteInterfaceDeps): RemoteInterface {
@@ -620,6 +629,17 @@ export function createRemoteInterface(deps: RemoteInterfaceDeps): RemoteInterfac
         }
         return { audio: null, error: toZoteroError(e) };
       }
+    },
+
+    async forget(segment, voice) {
+      if (segment === 'sample') return;
+      const decoded = decodeVoiceId(voice?.id ?? '');
+      if (!decoded) return;
+      const strip = deps.getStripAngleBrackets?.() ?? true;
+      const prepared = prepareSpeechText(segment.text, strip, deps.getBracketPairs?.());
+      const key = cacheKeyFor(decoded.provider, decoded.voiceId, prepared.text, hintFor(decoded.provider, prepared.text, voice?.locale));
+      await deps.cache?.()?.delete?.(key);
+      deps.debug?.(`${decoded.provider}: forgot the cached audio of ${prepared.text.length} chars, which would not decode`);
     },
 
     async getCreditsRemaining() {
