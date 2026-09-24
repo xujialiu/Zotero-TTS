@@ -78,18 +78,25 @@ top-bar default, also run [the player-controls case](player-controls.md).
    and *Read Aloud from Here* each open the Player (`open: true`), and
    `.read-aloud-popup` and `#read-aloud` read computed `display: none` on
    every sample, taken every 50 ms from before the open until the reading
-   plays.
+   plays. Close a reader window with `reader.close()`, never
+   `reader._window.close()`: that skips Zotero's close, leaves a dead
+   entry in `Zotero.Reader._readers`, and at the next reinstall six
+   startup steps that walk the readers fail on it (2026-09-24).
 3. **A Player that cannot load refuses the reading.** Take the Player's
    resource away for the run: `setSubstitution(<the host of
    pluginPlayer().resource>, null)` on
    `Services.io.getProtocolHandler('resource')` as
-   `nsISubstitutingProtocolHandler`. Open a new fixture tab. After 5 s
-   its reader reports `failed: "frame"`, and one `player did not finish
-   loading` error is logged. Then:
+   `nsISubstitutingProtocolHandler`. Open a new fixture tab. Once its
+   connection gives up — 100 × 50 ms, about 5 s, later with the window in
+   the background or the bridge busy (2026-09-24) — its reader reports
+   `failed: "frame"`, and one `player did not finish loading` error is
+   logged. Let the document settle before a key: on a reader given no
+   time, Shift+Space started nothing. Then:
    - the plugin's button shows the toast *The Zotero-TTS player could not
      load here. …* and nothing reads (`active` false);
-   - Shift+Space closes the reading within 250 ms (`popupOpen` false) with
-     the same toast, once;
+   - Shift+Space's reading is closed at the Player's next check, every
+     250 ms and later when Zotero is busy (`popupOpen` false), with the
+     same toast, once;
    - Zotero's popup is never displayed.
 
    Item 4's reinstall registers the resource afresh; close the tab
@@ -110,12 +117,17 @@ top-bar default, also run [the player-controls case](player-controls.md).
    `#ztts-player-frame` in any open reader; Zotero's headphone button
    shows and opens Zotero's own player. Enable it again: the Player is
    back in every reader.
-6. **An old backup skips the switch.** Restore a backup file holding
-   `"readAloud.usePluginPlayer": false` (the current backup with that key
-   added): the restore message lists it among the skipped keys, and the
-   Player still shows.
-7. **Shift+O falls through with the Player closed.** After item 4, with
-   the reading open and the Player closed, Shift+O changes nothing:
+6. **An old backup skips the switch.** Human-only: the restore opens
+   Zotero's file dialog, which blocks the bridge (see
+   [limitations](../limitations.md), section 8); the unit test
+   `test/core/settings-backup.test.ts` covers the skip. By hand, restore a
+   backup file holding `"readAloud.usePluginPlayer": false` (the current
+   backup with that key added): the restore message lists it among the
+   skipped keys, and the Player still shows.
+7. **The Options key falls through with the Player closed.** The key is
+   the profile's *Player options* binding: Shift+O by default, Shift+Q on
+   the owner's profile. After item 4, with the reading open and the Player
+   closed, it changes nothing:
    `playerOptions()` reads `player: false`, `button: false`. In the
    Floating panel it folds and unfolds the rows.
 8. **The wording.** The Zotero section's note says credits are bought on

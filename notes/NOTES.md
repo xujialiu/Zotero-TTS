@@ -623,3 +623,4 @@ then) and is in the git history before that day.
 - A Positions File test leaves its fixtures' items in this machine's store, and the first sync after the owner's folder is restored uploads them (issue #138)
 - Two products writing back a carried item settle after one upload; the plugin's `null` for a missing field made an item adoptable (issue #139)
 - Zotero's own player carries the media keys, and three ways the Player left it showing or showed nothing (issue #134)
+- Verified live: Zotero's own player never shows, even across an update, and a half-closed reader window fails six startup steps (issue #134)

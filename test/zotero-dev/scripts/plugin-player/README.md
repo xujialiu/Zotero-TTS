@@ -15,6 +15,14 @@
 | `08-voice-switch-followup.js` | Trusted Fish playback followed by one explicit second-voice handoff | running clock, target selected, memory/controller moved, committed voice-switch diagnostics; fixture-only cleanup | `root`, `fixturesDir`, `runId` |
 | `09-compact-ui.js` | Beta31 compact player/Settings geometry, all dropdown second clicks, overflow and chevrons | 24 px options, 4 px menu padding, 192 px floating body, 8 px chevrons, unchanged widths, closed second clicks | `root`, `fixturesDir`, `runId` |
 | `10-lifecycle.js` | Beta33 null/dead/closed document cleanup after a no-playback fixture presentation | native popup closed, manager inactive/no controller, unique compact stylesheet, 192 px B bounds, no new post-close `defaultView` error | `root`, `fixturesDir`, `runId` |
+| `11-item1-no-switch.js` | Issue #134 item 1: no `ztts-player-enabled` checkbox anywhere in the pane; `pluginPlayer()` has no `enabled` key; writes `readAloud.usePluginPlayer` `false` for 12/14 to open/reinstall under | `checkboxPresent`/`anyPlayerEnabledNode`/`pluginPlayerHasEnabledKey` all false; pref written, baseline stashed in `state.usePluginPlayerBaseline` | none |
+| `12-item2-pdf-tab-entries.js` | Item 2 on the PDF fixture in a tab: toolbar button, trusted Cmd/Ctrl+Shift+R, trusted Shift+Space, and `startReadAloudAtPosition` (Read Aloud from Here) each open the Player, `.read-aloud-popup`/`#read-aloud` sampled every 50ms | every entry `zoteroNeverShown: true`; `playerOpen` follows within ~250ms of `active` for the three native-path entries (see Limits) | `root`, `fixturesDir`, `runId` |
+| `13-item3-resource-taken-away.js` | Item 3: `setSubstitution(host, null)`, a fresh third fixture tab, its Player never connects | `failed:"frame"` eventually (see Limits on timing), `"player did not finish loading"` logged once, the button's toast matches `ztts-player-failed` verbatim, `active` stays false, Zotero's popup stays `none`/`ABSENT` throughout | `root`, `fixturesDir`, `runId` |
+| `13b-item2-epub-tab-and-windows.js` | Item 2's remaining matrix cells: EPUB in a tab, PDF in its own reader window (`openInWindow: true`) | both `zoteroNeverShown: true`; the window reader is a genuine `ReaderWindow` (`_window !== win`) | none (reads `state.fixtures`) |
+| `14-item4-reinstall-mid-reading.js` | Item 4: a muted PDF reading playing, then an in-place reinstall (triggered by the tester as a separate concurrent call — see Limits), `.read-aloud-popup` sampled every 50ms across it | every sample `none`/`ABSENT`; `pluginPlayer().resource` changes (fresh instance token); Player closed after; `diagnostics.engine().stats.adopted` +1; button resumes the same segment; `usePluginPlayer` restored from `state.usePluginPlayerBaseline` | none (reads `state.fixtures.pdf`, `state.usePluginPlayerBaseline`) |
+| `15-item5-disable-enable.js` | Item 5: samples the PDF+EPUB readers' `#ztts-player-style`/`-toggle`/`-frame` and `#read-aloud`'s computed display every 150ms while the tester calls `zotero_plugin_reload` concurrently | disabled: all three ids gone, native button `flex`; re-enabled: all three back, native button `none` | none |
+| `16-item7-shift-o-fallthrough.js` | Item 7: reinstalls mid-reading to reach "reading open, Player closed" (ADR 0007), then `diagnostics.playerOptions(true)` closed and, after opening the Floating panel, open | closed: `player:false, button:false`; open (layout B): `expanded` flips both ways; no lasting change to any OTHER reader's Options state | none (reads `state.fixtures.pdf`) |
+| `17-item8-wording.js` | Item 8, en-US: the Zotero section's note and the favorites switch's rendered text | note mentions `zotero.org`; switch reads "Offer only favorite voices in the player" verbatim | none |
 
 Before you start:
 
@@ -27,6 +35,13 @@ Before you start:
 - The kit stores only ids and sanitized values in `Zotero.ZoteroTTSRun.state`.
   It restores volume, sync flags, layout/player switches, favorites, following,
   voice memory, and reader voice memory in cleanup; `readAloud.memory` is last.
+- Scripts 11-16 (issue #134, `plugin-player.md` section 5) run individually
+  through `run.start()`/`one()`, not as one group: 14/15/16 each need the
+  tester to make a SEPARATE, concurrent `zotero_plugin_install` or
+  `zotero_plugin_reload` call while the script is mid-run (poll
+  `state.item4ReadyAt`/`item5ReadyAt`/`item7ReadyAt` first). 11 must run
+  before 12 (it writes the pref 12/14 open under); 13 before 14 (14's
+  reinstall re-registers the resource 13 broke); 16 assumes 14 already ran.
 
 Limits:
 
@@ -64,6 +79,44 @@ Limits:
 - In the beta32 run, the owner item 25424 was uninitialized at 10:31:34.792
   after the fixture tab was added and before fixture cleanup; no causal claim
   is made, and the owner was never targeted or reopened.
+- **Close a reader WINDOW with `reader.close()`, never `reader._window.close()`
+  — found live 2026-09-24 (beta6, #134 run).** The latter skips `uninit()`
+  and `_onClose()` (`xpcom/reader.js` `ReaderWindow.close()`), leaving a dead
+  entry in `Zotero.Reader._readers` whose Proxy-wrapped getters throw
+  `can't access dead object` unpredictably (some properties, like `itemID`,
+  read fine; others, like anything touching `_internalReader`, do not).
+  Zotero's OWN `Reader.open()` touches `.itemID` on every entry via
+  `.find()` too, so the dead entry then poisons EVERY later `open()` for
+  that same itemID, `openInWindow` or not. Worse: several startup steps
+  (`sentence in view`, `live voice choices`, `voice switching`, `Read Aloud
+  shortcuts`, `Read Aloud memory`, `highlight colors`) loop
+  `Zotero.Reader._readers` with NO per-reader try/catch (unlike `plugin
+  player`'s own `attach()`), so ONE dead entry fails the WHOLE step at the
+  next reinstall/reload — reproduced, then disproved by removing the entry
+  (`Zotero.Reader._readers.splice(index, 1)`, found by `_window.closed ===
+  true`) and reinstalling clean. Not a #134 regression: `plugin player`
+  itself was `ok` throughout; unrelated to the Player's own code. A tab
+  closed via `Zotero_Tabs.close(tabID)` instead leaves a harmless
+  `_isTabClosed: true` entry that reads fine — expected Zotero bookkeeping,
+  not this bug.
+- **A reader's `popupOpen` is `reader._internalReader._state.readAloudState
+  .popupOpen`, not `manager.popupOpen`** (`player-controller.ts`'s own
+  `popupOpen()` helper) — the manager itself has no such field.
+- **Item 3's exact "after 5s"/"within 250ms" timings were not cleanly
+  reproducible under this run's concurrent bridge load**: the connect()
+  retry and the Player's 250ms `tick()` both eventually fired correctly
+  (confirmed: `failed:"frame"`, the load error, the exact `ztts-player-failed`
+  toast on both the button and the native-path refusal), but a background/
+  minimized window plus concurrent Fish network calls pushed the observed
+  latency well past 5s/250ms in two of three attempts. A third, isolated,
+  foregrounded attempt (fresh fixture, no other concurrent work) still saw
+  the native path fail to even start playback via a trusted Shift+Space on
+  a reader given no settle time — reopen and let the document settle
+  before the key, next time.
+- `diagnostics.playerOptions(true)` presses every reader's Options button;
+  confirmed harmless on a Player that is closed elsewhere (nothing to press),
+  but re-check `otherReadersAfterPress`-style state if another reader's
+  Player might be open when this runs.
 
 Runs:
 
@@ -76,3 +129,4 @@ Runs:
 | 2026-09-16 / 1.12.11-beta32 | Fresh per-instance player resource, compact A/top/B panels, 24 px rows, 4 px menus, footer bounds, dropdown second clicks, chevrons, Settings menu | PASS; fixture 25454 erased; prefs restored; unattributed Zotero native HTTP 500 and post-close defaultView error recorded |
 | 2026-09-16 / 1.12.11-beta33 | In-place install, no-playback fixture, awaited unique resource/CSS, B frame/root/footer bounds, null/dead/closed cleanup and post-close console scan | PASS; fixture 25455 erased; no new defaultView error |
 | 2026-09-16 / 1.12.11-beta33 lifecycle fix1 | Awaited resource metadata and repeat no-playback teardown | PASS; resource and stylesheet share `instance-241pd3l9`; fixture 25456 erased; no new lifecycle error |
+| 2026-09-24 / 1.14.4-beta6 (issue #134, section 5) | Items 1-8: no switch/no `enabled` key (1); all 4 entry points + PDF/EPUB × tab/window (2); resource taken away, failed:"frame", toast, popup never shown (3); reinstall mid-reading, popup never shown, adopted+resumed (4); disable/enable (5); backup restore (6); Shift+O fallthrough + Floating fold (7); en-US wording live, zh-CN from source (8) | PASS except item 6 NOT TESTABLE (native file picker); a self-inflicted dead `Zotero.Reader._readers` entry from a wrong reader-window close briefly failed 6 unrelated startup steps on one reinstall, root-caused and resolved (see Limits), not a #134 regression |
