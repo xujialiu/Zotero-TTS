@@ -108,7 +108,6 @@ export interface Settings {
    */
   shortcuts: Record<ShortcutAction, string>;
   readAloud: {
-    usePluginPlayer: boolean;
     playerLayout: 'A' | 'B' | 'top';
     /** Follow only clipped content, or center each new sentence. */
     autoScrollMode: AutoScrollMode;
@@ -254,7 +253,6 @@ export const DEFAULTS: Settings = {
     nextVoice: 'Shift+.',
   },
   readAloud: {
-    usePluginPlayer: true,
     playerLayout: 'top',
     autoScrollMode: 'sentence',
     keepFollowingWhileVisible: true,
@@ -398,7 +396,6 @@ export function loadSettings(prefs: PrefsBackend): Settings {
       nextVoice: str(prefs, 'shortcuts.nextVoice', DEFAULTS.shortcuts.nextVoice),
     },
     readAloud: {
-      usePluginPlayer: bool(prefs, 'readAloud.usePluginPlayer', true),
       playerLayout: playerLayout(prefs),
       autoScrollMode: autoScrollMode(prefs.get(PREF_PREFIX + 'readAloud.autoScrollMode')),
       keepFollowingWhileVisible: prefs.get(PREF_PREFIX + 'readAloud.keepFollowingWhileVisible') !== false,

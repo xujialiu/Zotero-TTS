@@ -225,7 +225,7 @@ describe('multilingual locales', () => {
   const localesOf = (out: Record<string, any[]>) => out.local.map((c) => Object.keys(c.locales)[0]);
 
   // mul gives them their own "Multiple languages" dropdown entry, which
-  // read-aloud/multilingual-first.ts pins to the top of the language list
+  // the Player pins to the top of the language list (player-controller.ts)
   it('publishes multilingual voices under mul and never rewrites concrete locales', () => {
     expect(localesOf(buildVoicesResponse(entries, 'v1')).sort()).toEqual(['en-US', 'mul', 'mul']);
   });

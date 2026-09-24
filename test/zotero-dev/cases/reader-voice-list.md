@@ -16,7 +16,6 @@ Items 3.1 and 3.3 of the checklist, under their original numbers.
    tier, no others; `diagnostics.systemVoices()` → Zotero's own system
    voices hidden (`hid N system voices` in the log; 191 on this Mac, 9
    on Windows);
-   `diagnostics.multilingualFirst()` → `mulLabel` with the leading space;
    `manager.speed` the memory's speed.
 
 ### 3.3

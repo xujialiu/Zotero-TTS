@@ -1,6 +1,6 @@
 /**
  * The undo log for the reader-side prototypes this plugin shadows —
- * highlight-style.ts, system-voices.ts, multilingual-first.ts and
+ * highlight-style.ts, system-voices.ts, provider-tiers.ts and
  * memory-sync.ts each own one.
  *
  * Zotero gives every reader tab its own copy of the reader bundle, so the

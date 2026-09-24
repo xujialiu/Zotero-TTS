@@ -98,6 +98,18 @@ describe('parseBackup / applyBackup', () => {
     expect(parsed.ignored).toEqual(['openai-official.model', 'cacheAudio', 'speed', 'future.setting']);
   });
 
+  it('skips the player switch of a backup from before #134: no setting chooses the player any more', () => {
+    const parsed = parseBackup(
+      JSON.stringify({
+        format: BACKUP_FORMAT,
+        version: 1,
+        settings: { 'readAloud.usePluginPlayer': false, 'readAloud.playerLayout': 'B' },
+      }),
+    );
+    expect(parsed.settings).toEqual({ 'readAloud.playerLayout': 'B' });
+    expect(parsed.ignored).toEqual(['readAloud.usePluginPlayer']);
+  });
+
   it('leaves settings the file does not mention as they are', () => {
     const prefs = fakePrefs({ [PREF_PREFIX + 'openai-official.apiKey']: 'keep' });
     const parsed = parseBackup(JSON.stringify({ format: BACKUP_FORMAT, version: 1, settings: { 'azure.region': 'eastus' } }));

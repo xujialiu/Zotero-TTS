@@ -23,7 +23,7 @@ under `../scripts/player-position-key/` with their prerequisites and cleanup.
 
 ## 2. Guards and recorder
 
-- Closed player, plugin player disabled, and no reader context: Shift+P
+- Closed player and no reader context: Shift+P
   falls through without changing the preference or opening a player.
 - Holding Shift+P produces one transition, repeat events produce none.
   Inputs/search, extra modifiers and already-consumed events do not change

@@ -13,7 +13,7 @@ import { encodeVoiceId } from './voice-catalog';
 /** The "offer only favorite voices" pref as Zotero.Prefs.registerObserver wants it: relative to `extensions.zotero.` (pinned by a test). */
 export const FAVORITES_ONLY_OBSERVER = 'zotero-tts.readAloud.favoritesOnly';
 
-/** The favorites themselves, named the same way: what the player's ♥ marks follow (read-aloud/favorite-marks.ts). */
+/** The favorites themselves, named the same way: what the settings pane's rows follow. */
 export const FAVORITES_OBSERVER = 'zotero-tts.readAloud.favoriteVoices';
 
 export function parseFavoriteVoices(raw: unknown): string[] {

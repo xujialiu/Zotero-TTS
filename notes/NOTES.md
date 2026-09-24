@@ -102,6 +102,16 @@ Verified by reading the unpacked `omni.ja` of both `10.0-beta.26` and
   `_initAudioContext` (39942-39963) — is 10.0.3's, pinned by the fixtures in
   `test/fixtures/engine/`; a later Zotero reaches it only when it is copied
   again on purpose (ADR 0006).
+- **Zotero's own player, hidden** (issue #134, verified against
+  10.0.3-beta.3, [2026-09-24](NOTES_2026-09-24.md)): the Player hides
+  `.read-aloud-popup` and `#read-aloud` with one stylesheet rule and never
+  removes them. The popup component alone registers the OS media keys and
+  the now-playing session (`useMediaControls`, reader.js 38282-38415), and
+  `popupOpen`, not the popup being drawn, drives activation (83875-83878),
+  the PDF view's highlight (76434) and the jump button. It has no sample
+  button: picking a voice in it while paused plays one (38585-38593). Its
+  balance, low-balance warning, purchase link and log-in row exist nowhere
+  else in Zotero (#140).
 - `manifest.json` → `applications.zotero` needs `id`, `update_url`,
   `strict_max_version`, or Zotero refuses the install with a generic message.
 - **Fluent for plugins** (issue #30, [2026-09-04](NOTES_2026-09-04.md)):
@@ -612,3 +622,4 @@ then) and is in the git history before that day.
 - A crafted native row needs Zotero's whole EPUB selector: without its `type` the mapper resolves nothing, and the derivation says nothing (issue #138)
 - A Positions File test leaves its fixtures' items in this machine's store, and the first sync after the owner's folder is restored uploads them (issue #138)
 - Two products writing back a carried item settle after one upload; the plugin's `null` for a missing field made an item adoptable (issue #139)
+- Zotero's own player carries the media keys, and three ways the Player left it showing or showed nothing (issue #134)

@@ -9,12 +9,14 @@ frames over 50 ms, and the main thread was blocked 83 ms per frame.
 Mechanism: the tier of a voice id is read through a factory the walk opens
 once (`voiceTiers()`), so the local engine's name — which costs a whole
 `loadSettings` over 66 preferences — is read once per walk of the voice
-list instead of once per voice. The two walks are `scan()` in
-`src/read-aloud/provider-tiers.ts`, which `rewrite()` runs every time the
-reader re-renders the player's first dropdown (Zotero repositions the open
-popup once per scroll frame, `reader.js` `_handleScroll` 55160 →
-`_repositionPopups` 53973), and the list walk in
-`src/read-aloud/live-voice-list.ts`.
+list instead of once per voice. The walks are `scan()` in
+`src/read-aloud/provider-tiers.ts`, in front of every `_resolveVoice`, and
+the list walk in `src/read-aloud/live-voice-list.ts`. Until #134 `scan()`
+also ran every time the reader re-rendered Zotero's own player's first
+dropdown, since Zotero repositions the open popup once per scroll frame
+(`reader.js` `_handleScroll` 55160 → `_repositionPopups` 53973); that
+per-frame walk is what this case measured, and #134 removed it with the
+dropdown's rewrite.
 
 Run the baseline first. Fixture:
 `test/fixtures/scroll-performance/scroll-performance.epub` — 400
@@ -64,7 +66,9 @@ reads over 60 frames with 1,819 voices — about 190 per frame, which is the
 same pass. **The number to compare against is 1,819 × 66 ≈ 120,054, which
 is what a single walk cost before the fix** — the whole 60-frame pass is
 now under a tenth of one old walk. A count in the tens of thousands per
-frame means the fix did not take and everything below is moot.
+frame means the fix did not take and everything below is moot. Since #134
+no walk runs per render: expect the player-open pass near the
+player-closed one.
 
 ### 3. Frame rate, player open against closed
 
@@ -107,12 +111,13 @@ settings are re-read on every walk rather than cached once.
 ### 6. The dropdown and the live list are unchanged
 
 `Zotero.ZoteroTTS.diagnostics.providerTiers()` and
-`.liveVoiceList()`. Expected: every reader reports `resolveShadow`,
-`createElementWrapped` and `tierMemoryHook` true; `tiers` one entry per
-provider with voices beside Zotero's; `retagged` counting the plugin voices
-the walk re-tagged; the fixture's `options` sorted by displayed label.
+`.liveVoiceList()`. Expected: every reader reports `resolveShadow` and
+`tierMemoryHook` true; `tiers` one entry per provider with voices beside
+Zotero's; `retagged` counting the plugin voices the walk re-tagged; the
+fixture's `pluginPlayer()` `state.providers` sorted by displayed label.
 
-Measured: all three patches true on both readers; `tiers`
+Measured before #134, with the dropdown's rewrite and its `options`: all
+three patches true on both readers; `tiers`
 `['premium','standard','fish']`; `retagged` `{fish: 339}`; `options`
 `fish=Fish Audio`, `premium=Zotero Premium`, `standard=Zotero Standard`;
 `liveVoiceList` `applied: 1` on the fixture with `retained: 0`. The fuller

@@ -4,18 +4,14 @@
 
 Signed out of Zotero, the player lists every enabled provider's voices and
 reads with them, as signed in; only Zotero's own Standard and Premium are
-left out, as Zotero itself leaves them out. Zotero's original player (the
-plugin player switched off) shows the first dropdown with the providers
-instead of Zotero's "Log in to access Zotero Voices." row. Nothing changes
-signed in. Mechanism: Zotero asks for its remote voice list only with an
+left out, as Zotero itself leaves them out. Nothing changes signed in. Mechanism: Zotero asks for its remote voice list only with an
 account signed in (`loadVoices(this._state.loggedIn)`, reader.js 84271),
 and every plugin voice travels in it; the plugin's `loadVoices` hook asks
 for that list whatever the flag says on a reader whose interface is the
 plugin's (`src/read-aloud/live-voice-list.ts`), the composite interface
 skips Zotero's own `getVoices` while the reader's flag says signed out
-(`src/read-aloud/remote-interface.ts`, `signedIn`), and the dropdown
-wrapper hands Zotero's `TierSelect` `loggedIn: true` while the plugin
-lists voices (`src/read-aloud/provider-tiers.ts`).
+(`src/read-aloud/remote-interface.ts`, `signedIn`). Zotero's own player,
+whose log-in row the plugin used to replace, is never shown since #134.
 
 **Signed out, per tab.** The owner's profile is signed in, and signing out
 is not the kit's to do. The player reads the tab's own flag, so the case
@@ -34,8 +30,8 @@ run). The checks name the providers enabled in the profile (read
 `zotero-tts.<provider>.enabled`; never switch one on for the run) and
 need both Zotero switches on (`zotero-tts.zotero-standard.enabled`,
 `zotero-tts.zotero-premium.enabled`, `true` by default). Read the popup's
-state only once it has settled: poll `providerTiers()` until `tiers` and
-`options` stop changing, up to 6 s (`cases/zotero-tiers.md`). Expected
+state only once it has settled: poll `providerTiers()` until `tiers`
+stops changing, up to 6 s (`cases/zotero-tiers.md`). Expected
 values are derived from `src/` until a run corrects them.
 
 1. **The plugin's list is asked for, Zotero's is not.** Fixture tab
@@ -59,25 +55,14 @@ values are derived from `src/` until a run corrects them.
    provider: a `[zotero-tts] <provider>: N word timestamps for M chars`
    line in the debug output, no `standard` or `premium` voice in use
    (`manager._voice.tier`). Stop and close the popup.
-4. **Zotero's original player.** `zotero-tts.readAloud.usePluginPlayer`
-   `false` for this item. Fixture tab still signed out, popup opened →
-   `providerTiers()` → `loginRowReplaced: true`, `options` = one entry per
-   provider in item 1's `tiers`, none of Zotero's; the popup's DOM holds a
-   tier select and no `.row.log-in` element. Read the popup as it opens:
-   its options panel is open from the start (`showOptions` starts true),
-   and a click on Options collapses it — the first run's false negative
-   (2026-09-22). Close the popup; put `usePluginPlayer` back.
-5. **Signed in again, as before.** `setLoggedIn(Zotero.Sync.Runner.enabled)`
+4. **Signed in again, as before.** `setLoggedIn(Zotero.Sync.Runner.enabled)`
    on the fixture tab, popup opened → `liveVoiceList()` `asked: true`,
    `remote: true`; `providerTiers()` `signedIn: true`, `tiers` with
    `standard` and `premium` beside the providers; no `not asked for` line
-   for this open. With `usePluginPlayer` `false` once more,
-   `loginRowReplaced: false` and `options` with `Zotero Standard` and
-   `Zotero Premium`. Close the popup; put `usePluginPlayer` back.
+   for this open. Close the popup.
 
 What it may touch: the fixture tab's `_state.loggedIn`, through Zotero's
 own `setLoggedIn` (back to `Zotero.Sync.Runner.enabled`),
-`zotero-tts.readAloud.usePluginPlayer` (back to what it was),
 `readAloud.volume` (0 for the run, restored), the fixture tab and its
 popup. Nothing is written to the account or to any other tab.
 

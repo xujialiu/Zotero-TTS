@@ -10,7 +10,6 @@ export function positionNotice(document: ToastDocument, element: HTMLElement): (
   let stopped = false;
   const split = doc.getElementById('split-view');
   const frame = doc.getElementById('ztts-player-frame') as HTMLIFrameElement | null;
-  const native = doc.querySelector('.read-aloud-popup') as HTMLElement | null;
   const set = (name: string, value: string) => {
     if (element.style.getPropertyValue(name) !== value) element.style.setProperty(name, value);
   };
@@ -50,7 +49,6 @@ export function positionNotice(document: ToastDocument, element: HTMLElement): (
           else avoid(outer);
         }
       }
-      if (native) avoid(native.getBoundingClientRect());
       edge = Math.max(top + size.height + 8, edge);
       set('bottom', `${Math.max(0, height - edge)}px`);
     } catch (error) {
@@ -59,9 +57,9 @@ export function positionNotice(document: ToastDocument, element: HTMLElement): (
   };
   place();
   const resized = new win.ResizeObserver(place);
-  for (const node of [split, element, frame, native]) if (node) resized.observe(node);
+  for (const node of [split, element, frame]) if (node) resized.observe(node);
   const changed = new win.MutationObserver(place);
-  for (const node of [doc.documentElement, doc.body, frame, native]) {
+  for (const node of [doc.documentElement, doc.body, frame]) {
     if (node) changed.observe(node, { attributes: true, attributeFilter: ['class', 'style', 'hidden', 'data-layout'] });
   }
   win.addEventListener('resize', place);

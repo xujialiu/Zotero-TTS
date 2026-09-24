@@ -2,7 +2,6 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   buildTierOptions,
   createProviderTiers,
-  isTierOptionList,
   strandedTarget,
   type ProviderTiersDeps,
   type TierOption,
@@ -78,7 +77,7 @@ function makeReader(voices: unknown[], state: { selectedTier?: string | null; pe
     }
   }
   const manager = new Manager();
-  /** Zotero's React.createElement, kept so the calls that reach it can be read once the wrapper is on. */
+  /** Zotero's React.createElement, which the module leaves alone since Zotero's own player is never shown (#134). */
   const create = vi.fn((type: unknown, props: unknown, ...children: unknown[]) => ({ type, props, children }));
   const React = { createElement: create as (...args: unknown[]) => unknown };
   const reader = { _internalReader: { _readAloudManager: manager }, _iframeWindow: { React } };
@@ -97,30 +96,11 @@ function make(overrides: Partial<ProviderTiersDeps> = {}) {
   return { tiers, error };
 }
 
-const Select = function CustomSelect() {};
-const tierProps = (options: TierOption[], value = 'local') => ({ 'aria-label': 'Voice mode', value, tabIndex: '-1', onChange: () => {}, options: realmArray(options) });
 const zoteroThree = (): TierOption[] => [
   { value: 'standard', label: 'Standard', disabled: false },
   { value: 'premium', label: 'Premium', disabled: false },
   { value: 'local', label: 'Local', disabled: false },
 ];
-
-describe('isTierOptionList', () => {
-  it('recognizes a list whose values are exactly Zotero’s tiers, walked by index', () => {
-    expect(isTierOptionList(realmArray(zoteroThree()))).toBe(true);
-    expect(isTierOptionList(realmArray([{ value: 'local', label: 'Local', disabled: false }]))).toBe(true);
-  });
-
-  it('rejects every other option list and anything that is not one', () => {
-    expect(isTierOptionList(realmArray([{ value: 'en', label: 'English' }, { value: 'zh', label: 'Chinese' }]))).toBe(false);
-    expect(isTierOptionList(realmArray([{ value: 'fish::x', label: 'Dax' }, { value: 'more-voices', label: 'More voices…' }]))).toBe(false);
-    expect(isTierOptionList(realmArray([{ value: 'standard', label: 'Standard' }, { value: 'fish::x', label: 'x' }]))).toBe(false);
-    expect(isTierOptionList(realmArray([]))).toBe(false);
-    expect(isTierOptionList(null)).toBe(false);
-    expect(isTierOptionList('standard')).toBe(false);
-    expect(isTierOptionList({ length: 1, 0: { value: 'standard' } })).toBe(true);
-  });
-});
 
 describe('buildTierOptions', () => {
   it('names Zotero’s Standard and Premium behind its name, adds one entry per provider tier with voices, and drops local', () => {
@@ -251,7 +231,7 @@ describe('createProviderTiers: the re-tag in front of _resolveVoice', () => {
 
   it('reads the engine’s name once per walk, not once per voice (#125)', () => {
     const voices = Array.from({ length: 40 }, (_, i) => remote(`local::v${i}`));
-    const { manager, reader, React } = makeReader(voices);
+    const { manager, reader } = makeReader(voices);
     let walks = 0;
     let lookups = 0;
     const { tiers } = make({
@@ -269,13 +249,6 @@ describe('createProviderTiers: the re-tag in front of _resolveVoice', () => {
     manager._resolveVoice();
     expect(walks).toBe(1);
     expect(lookups).toBe(voices.length);
-
-    // And one render of the dropdown is one more walk, not one more per voice.
-    // With the player open Zotero re-renders it on every scroll frame, so a
-    // settings read per voice here is what made scrolling 13 fps (#125).
-    React.createElement(Select, tierProps(zoteroThree()));
-    expect(walks).toBe(2);
-    expect(lookups).toBe(voices.length * 2);
   });
 
   it('moves a selected tier no voice carries any more, before Zotero resolves', () => {
@@ -374,170 +347,14 @@ describe('createProviderTiers: the re-tag in front of _resolveVoice', () => {
   });
 });
 
-describe('createProviderTiers: the first dropdown', () => {
-  it('hands the tier select the provider entries in place of Zotero’s three, cloned into the reader, and calls the original', () => {
-    const fish = remote('fish::a');
-    const bella = remote('local::af_bella');
-    const { manager, reader, React, create } = makeReader([remote('s1', 'standard'), fish, bella, new OSVoice('David')]);
-    const cloneInto = vi.fn((_reader: unknown, value: unknown) => JSON.parse(JSON.stringify(value)));
-    const { tiers, error } = make({ cloneInto });
-    tiers.attach(reader);
-    manager._resolveVoice();
-    const props = tierProps(zoteroThree(), 'fish');
-    const element = React.createElement(Select, props, 'child') as any;
-    expect(create.mock.calls).toHaveLength(1);
-    expect(create.mock.contexts[0]).toBe(React);
-    expect(element.type).toBe(Select);
-    expect(element.children).toEqual(['child']);
-    // Premium has no voice on this manager, so it leaves like a provider would (issue #111)
-    expect(props.options).toEqual([
-      { value: 'fish', label: 'Fish Audio', disabled: false },
-      { value: 'kokoro', label: 'Kokoro', disabled: false },
-      { value: 'standard', label: 'Zotero Standard', disabled: false },
-    ]);
-    expect(cloneInto).toHaveBeenCalledWith(reader, props.options);
-    expect(props.value).toBe('fish');
-    expect(tiers.inspect(reader)).toMatchObject({ createElementWrapped: true, options: props.options });
-    expect(error).not.toHaveBeenCalled();
-  });
-
-  it('leaves every other element alone: the language and voice selects, plain tags, a null props', () => {
-    const { manager, reader, React, create } = makeReader([remote('fish::a')]);
-    const { tiers } = make();
-    tiers.attach(reader);
-    manager._resolveVoice();
-    const language = { value: 'en', onChange: () => {}, options: realmArray([{ value: 'en', label: 'English' }]) };
-    const voice = { value: 'fish::a', onChange: () => {}, options: realmArray([{ value: 'fish::a', label: 'a' }, { value: 'more-voices', label: 'More…' }]) };
-    React.createElement(Select, language);
-    React.createElement(Select, voice);
-    React.createElement('div', null, 'text');
-    React.createElement('span', { className: 'x' });
-    expect(Array.from(language.options, (o) => o.value)).toEqual(['en']);
-    expect(Array.from(voice.options, (o) => o.value)).toEqual(['fish::a', 'more-voices']);
-    expect(create.mock.calls).toHaveLength(4);
-    expect(tiers.inspect(reader)).toMatchObject({ options: null });
-  });
-
-  // The list is built from the manager at render time: a provider gone
-  // between two opens has left the manager's voices by then
-  it('follows the manager’s voices at every render', () => {
-    const fish = remote('fish::a');
-    const bella = remote('local::af_bella');
-    const { manager, reader, React } = makeReader([fish, bella]);
-    const { tiers } = make();
-    tiers.attach(reader);
-    manager._resolveVoice();
-    const first = tierProps(zoteroThree());
-    React.createElement(Select, first);
-    expect(first.options.map((o) => o.value)).toEqual(['fish', 'kokoro']);
-    manager._allVoices = realmArray([bella]);
-    manager._resolveVoice();
-    const second = tierProps(zoteroThree());
-    React.createElement(Select, second);
-    expect(second.options.map((o) => o.value)).toEqual(['kokoro']);
-  });
-
-  it('exports the wrapper into the reader’s compartment through the React object, and the shadow through the prototype', () => {
-    const { manager, reader, React } = makeReader([remote('fish::a')]);
-    const exportFunction = vi.fn((fn: (...args: unknown[]) => unknown, _target: object) => fn);
-    const { tiers } = make({ exportFunction });
-    tiers.attach(reader);
-    expect(exportFunction).toHaveBeenCalledTimes(2);
-    expect(exportFunction.mock.calls.map(([, target]) => target)).toEqual([Object.getPrototypeOf(manager), React]);
-  });
-
-  it('a rewrite that throws is reported and the original still renders', () => {
-    const { manager, reader, React } = makeReader([remote('fish::a')]);
-    const { tiers, error } = make({
-      cloneInto: () => {
-        throw new Error('no window');
-      },
-    });
-    tiers.attach(reader);
-    manager._resolveVoice();
-    const props = tierProps(zoteroThree());
-    const element = React.createElement(Select, props) as any;
-    expect(element.type).toBe(Select);
-    expect(error).toHaveBeenCalled();
-  });
-
-  it('attaches the wrapper without a manager yet, and the shadow once there is one', () => {
-    const React = { createElement: vi.fn() };
-    const reader: any = { _iframeWindow: { React } };
-    const { tiers } = make();
-    expect(tiers.attach(reader)).toBe(false);
-    expect(tiers.patchCounts()).toEqual({ total: 1, live: 1 });
-    const { manager } = makeReader([remote('fish::a')]);
-    reader._internalReader = { _readAloudManager: manager };
-    expect(tiers.attach(reader)).toBe(true);
-    expect(tiers.patchCounts()).toEqual({ total: 2, live: 2 });
-  });
-});
-
-describe('createProviderTiers: Zotero’s original player signed out (#130)', () => {
-  const TierSelect = function TierSelect() {};
-  /** TierSelect's props as the popup builds them (reader.js:38638-38644). */
-  const selectProps = (loggedIn: boolean, tiers: string[]) => ({ loggedIn, value: 'fish', tiers: new Set(tiers), onChange: () => {}, onLogIn: () => {} });
-
-  it('tells the tier select it is signed in while the plugin lists voices, so it draws its dropdown instead of the log-in row', () => {
-    const { manager, reader, React, create } = makeReader([remote('fish::a'), new OSVoice('David')]);
-    const { tiers, error } = make();
-    tiers.attach(reader);
-    manager._resolveVoice();
-    const props = selectProps(false, ['fish', 'local']);
-    React.createElement(TierSelect, props);
-    expect(props.loggedIn).toBe(true);
-    expect(create.mock.calls[0][1]).toBe(props);
-    expect(tiers.inspect(reader)).toMatchObject({ loginRowReplaced: true });
-    expect(error).not.toHaveBeenCalled();
-  });
-
-  it('counts the plugin’s voices before the re-tag has run, under local', () => {
-    const { reader, React } = makeReader([remote('local::af_bella')]);
-    const { tiers } = make();
-    tiers.attach(reader);
-    const props = selectProps(false, ['local']);
-    React.createElement(TierSelect, props);
-    expect(props.loggedIn).toBe(true);
-  });
-
-  it('keeps Zotero’s log-in row when the plugin lists no voice, and leaves a signed-in select alone', () => {
-    const { manager, reader, React } = makeReader([new OSVoice('David')]);
-    const { tiers } = make();
-    tiers.attach(reader);
-    manager._resolveVoice();
-    const out = selectProps(false, ['local']);
-    React.createElement(TierSelect, out);
-    expect(out.loggedIn).toBe(false);
-    expect(tiers.inspect(reader)).toMatchObject({ loginRowReplaced: false });
-    const signedIn = makeReader([remote('fish::a')]);
-    tiers.attach(signedIn.reader);
-    const props = selectProps(true, ['fish']);
-    signedIn.React.createElement(TierSelect, props);
-    expect(props.loggedIn).toBe(true);
-    expect(tiers.inspect(signedIn.reader)).toMatchObject({ loginRowReplaced: false });
-  });
-
-  it('leaves the popup’s own props alone: they carry loggedIn and onLogIn but no tiers', () => {
-    const { manager, reader, React } = makeReader([remote('fish::a')]);
-    const { tiers } = make();
-    tiers.attach(reader);
-    manager._resolveVoice();
-    const popup = { manager: {}, title: 'Paper', loggedIn: false, onLogIn: () => {}, onPurchaseCredits: () => {}, onLockPosition: () => {} };
-    React.createElement(function ReadAloudPopup() {}, popup);
-    expect(popup.loggedIn).toBe(false);
-    expect(tiers.inspect(reader)).toMatchObject({ loginRowReplaced: null });
-  });
-});
-
 describe('createProviderTiers: dispose', () => {
-  it('restores the prototype method and React.createElement', () => {
+  it('restores the prototype method, and never touches the reader\'s React: the Player lists the entries itself (#134)', () => {
     const { manager, reader, React, log } = makeReader([remote('fish::a')], { selectedTier: 'azure' });
     const originalCreate = React.createElement;
     const originalResolve = Object.getPrototypeOf(manager)._resolveVoice;
     const { tiers } = make();
     tiers.attach(reader);
-    expect(React.createElement).not.toBe(originalCreate);
+    expect(React.createElement).toBe(originalCreate);
     tiers.dispose();
     expect(React.createElement).toBe(originalCreate);
     expect(Object.getPrototypeOf(manager)._resolveVoice).toBe(originalResolve);
@@ -547,15 +364,14 @@ describe('createProviderTiers: dispose', () => {
     expect(tiers.patchCounts()).toEqual({ total: 0, live: 0 });
   });
 
-  it('skips a closed tab’s prototype and React in silence', () => {
-    const { manager, reader, React } = makeReader([remote('fish::a')]);
+  it('skips a closed tab’s prototype in silence', () => {
+    const { manager, reader } = makeReader([remote('fish::a')]);
     const closed = new Set<unknown>();
     const { tiers, error } = make({ isDead: (value) => closed.has(value) });
     tiers.attach(reader);
-    expect(tiers.patchCounts()).toEqual({ total: 2, live: 2 });
+    expect(tiers.patchCounts()).toEqual({ total: 1, live: 1 });
     closed.add(Object.getPrototypeOf(manager));
-    closed.add(React);
-    expect(tiers.patchCounts()).toEqual({ total: 2, live: 0 });
+    expect(tiers.patchCounts()).toEqual({ total: 1, live: 0 });
     tiers.dispose();
     expect(error).not.toHaveBeenCalled();
     expect(tiers.patchCounts()).toEqual({ total: 0, live: 0 });
@@ -563,7 +379,7 @@ describe('createProviderTiers: dispose', () => {
 
   it('inspect answers for a reader it never saw', () => {
     const { tiers } = make();
-    expect(tiers.inspect({})).toEqual({ resolveShadow: false, createElementWrapped: false, tierMemoryHook: false, options: null, loginRowReplaced: null, tiers: [], selectedTier: null, lastMove: null, retagged: {} });
+    expect(tiers.inspect({})).toEqual({ resolveShadow: false, tierMemoryHook: false, tiers: [], selectedTier: null, lastMove: null, retagged: {} });
   });
 });
 

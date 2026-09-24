@@ -1,11 +1,11 @@
 /**
- * One entry per provider in the Read Aloud player's first dropdown, beside
- * Zotero's Standard and Premium (issue #110), and each provider's own
- * memory of its last voice per language.
+ * One entry per provider in the Player's first dropdown, beside Zotero's
+ * Standard and Premium (issue #110), and each provider's own memory of its
+ * last voice per language.
  *
- * Zotero hard-codes its three tiers in three places, and each has a way
- * past it (researched 2026-09-15 in 10.0.3-beta.1, bundle lines below are
- * its `resource/reader/reader.js`):
+ * Zotero hard-codes its three tiers in two places the Player reaches, and
+ * each has a way past it (researched 2026-09-15 in 10.0.3-beta.1, bundle
+ * lines below are its `resource/reader/reader.js`):
  *
  * - The parser keeps only its three keys (`TIERS` 39265, parseVoicesResponse
  *   40531), so the plugin's voices still travel under `local`
@@ -31,33 +31,12 @@
  *   remembered voice's tier (the entry's `voice`), else the plugin's
  *   default voice's, else the first entry of the list as displayed. Zotero's
  *   two entries are ordinary entries of that rule.
- * - The dropdown's options are built inside `TierSelect` (38827-38855):
- *   Standard and Premium when logged in, `local` always, each only greyed
- *   when it has no voices, and the element exists only at render time. The
- *   reader takes React from the iframe's global (reader.html loads
- *   resource://zotero/react.js; the UMD wrapper takes root["React"], lines
- *   1-10, 28775) and looks `createElement` up on that object at every call
- *   (1,714 calls per popup open, 8 tier elements, measured live). So
- *   `createElement` is wrapped per reader on that object, exported into the
- *   reader's compartment like the prototype shadows: the one element whose
- *   `options` are exactly a subset of Zotero's three values is handed
- *   another list — Zotero's Standard and Premium as given, one entry per
- *   provider tier that has voices, sorted by displayed label
- *   (compareVoiceLabels), `local` dropped unless OS voices are still listed.
- *   Its `onChange` stays Zotero's own `manager.selectTier(value)`. Every
- *   React render rebuilds the element, which is why the list is made here
- *   and never injected into the rendered DOM.
- * - Signed out of Zotero, `TierSelect` lists `local` alone and draws its
- *   "Log in to access Zotero Voices." row instead of the select (38839,
- *   38855), so the provider entries had nowhere to go (issue #130). The
- *   same wrapper meets `TierSelect`'s own element, known by its props — a
- *   boolean `loggedIn`, the manager's `tiers` Set, `onChange` and
- *   `onLogIn`; the popup's element carries the last two but no `tiers` —
- *   and while the manager lists any of the plugin's voices hands it
- *   `loggedIn: true`: the select is drawn and the rewrite above fills it,
- *   Zotero's two dropping out since they carry no voices signed out
- *   (remote-interface.ts signedIn). With none of the plugin's voices,
- *   Zotero's row stays.
+ * - The Player lists the manager's `tiers` itself (player-controller.ts),
+ *   sorted by displayed label. Zotero's own dropdown, `TierSelect`
+ *   (38827-38855), was rewritten here through a wrapper of the reader's
+ *   `React.createElement`, and told signed in while the plugin listed
+ *   voices (issue #130); both went with Zotero's own player, which is never
+ *   shown (issue #134, ADR 0007).
  *
  * - Each provider's own last voice per language is Zotero's per-tier memory
  *   (`tierVoices`), which `selectTier` reads from `_persistedVoices`
@@ -71,18 +50,12 @@
  *   the manager's language, resolved as Zotero resolves it, before the pick
  *   reads it.
  *
- * Keyed on the literal `local`, and gone with it (stated and accepted on
- * #110): the speed slider's pause-while-dragging and the "More voices…" row.
- * Out of reach: the first-run and Manage voices windows, separate bundles
- * with their own `TIERS`, which keep filing the plugin's voices under Local.
- *
  * Compartment rules as in highlight-style.ts and system-voices.ts: `this`
- * and the props arrive behind Xray wrappers and are waived before anything
- * is written; the reader's arrays are walked by index, never with `find`
- * or `some` (issue #75); the new option list is cloned into the reader's
- * window; the originals run through Reflect.apply. Both patches go through
- * one proto-patches log, so a closed tab's dead React and prototype are
- * skipped at dispose (issue #5).
+ * arrives behind an Xray wrapper and is waived before anything is written;
+ * the reader's arrays are walked by index, never with `find` or `some`
+ * (issue #75); the originals run through Reflect.apply. The shadow goes
+ * through a proto-patches log, so a closed tab's dead prototype is skipped
+ * at dispose (issue #5).
  */
 
 import { createProtoPatches, type AnyFn } from './proto-patches';
@@ -90,10 +63,10 @@ import { ownerOf } from './system-voices';
 import { compareVoiceLabels, decodeVoiceId, PUBLISHED_TIER } from './voice-catalog';
 import { resolveVoiceLang } from '../core/read-aloud-speed';
 
-/** The values Zotero's TierSelect builds its options from, and nothing else. */
+/** Zotero's own three tiers. */
 export const ZOTERO_TIER_VALUES: readonly string[] = ['standard', 'premium', 'local'];
 
-/** One option of Zotero's CustomSelect: `{ value, label, disabled }`. */
+/** One entry of the first dropdown: `{ value, label, disabled }`. */
 export interface TierOption {
   value: string;
   label: string;
@@ -110,24 +83,8 @@ export interface TierMove {
 const isRecord = (value: unknown): value is Record<string, unknown> => !!value && typeof value === 'object';
 
 /**
- * Whether an element's `options` are the tier select's: at least one, and
- * every value one of Zotero's three. Never the localized aria-label. The
- * list is the reader realm's, so it is walked by index.
- */
-export function isTierOptionList(options: unknown): boolean {
-  if (!isRecord(options) || typeof options.length !== 'number') return false;
-  const length = options.length;
-  if (length < 1 || length > ZOTERO_TIER_VALUES.length) return false;
-  for (let i = 0; i < length; i++) {
-    const option = (options as Record<number, unknown>)[i];
-    if (!isRecord(option) || typeof option.value !== 'string' || !ZOTERO_TIER_VALUES.includes(option.value)) return false;
-  }
-  return true;
-}
-
-/**
- * The replacement list: Zotero's own options only while the manager lists
- * voices under them — Standard and Premium like `local` (the OS voices,
+ * The entries in the order the dropdown lists them, for the stranded rule:
+ * Zotero's own options only while the manager lists voices under them — Standard and Premium like `local` (the OS voices,
  * which system-voices.ts hides): a tier switched off in the pane (issue
  * #111), or one with no favorite while only favorites are offered, leaves
  * the list like a provider with nothing to offer, instead of staying
@@ -207,9 +164,7 @@ export interface ProviderTiersDeps {
   exportFunction?(fn: AnyFn, target: object): AnyFn;
   /** Components.utils.waiveXrays for what the reader passes into an exported wrapper, and for its window. Optional for tests. */
   waiveXrays?(value: unknown): unknown;
-  /** Components.utils.cloneInto toward the reader's window: the option list handed to Zotero's element must live in its compartment. Optional for tests. */
-  cloneInto?(reader: unknown, value: unknown): unknown;
-  /** Components.utils.isDeadWrapper, so a closed tab's prototype and React are skipped instead of throwing (proto-patches.ts). Optional for tests. */
+  /** Components.utils.isDeadWrapper, so a closed tab's prototype is skipped instead of throwing (proto-patches.ts). Optional for tests. */
   isDead?(value: unknown): boolean;
   error(e: unknown): void;
   debug?(message: string): void;
@@ -218,14 +173,8 @@ export interface ProviderTiersDeps {
 export interface ProviderTiersReport {
   /** Whether this tab's manager prototype carries the `_resolveVoice` shadow. */
   resolveShadow: boolean;
-  /** Whether this tab's React carries the `createElement` wrapper. */
-  createElementWrapped: boolean;
   /** Whether this tab's manager carries the selectTier hook that refreshes its persisted entry mid-session. */
   tierMemoryHook: boolean;
-  /** The option list last handed to the tier select in this tab; null before its first render. */
-  options: TierOption[] | null;
-  /** Whether the tier select's last render was handed signed in by this module, signed out of Zotero (issue #130); null before its first render. */
-  loginRowReplaced: boolean | null;
   /** The tiers that have voices on the manager's list right now, in list order — what the dropdown lists. */
   tiers: string[];
   selectedTier: string | null;
@@ -236,37 +185,33 @@ export interface ProviderTiersReport {
 }
 
 export interface ProviderTiers {
-  /** Shadow the tab's manager prototype and wrap its React; true once the shadow is on. Cheap to repeat, so it may run on every voices request. */
+  /** Shadow the tab's manager prototype; true once the shadow is on. Cheap to repeat, so it may run on every voices request. */
   attach(reader: unknown): boolean;
   /** What this module sees in a reader, as plain data, for diagnostics.providerTiers(). */
   inspect(reader: unknown): ProviderTiersReport;
   /** Entries held by the undo log, and how many of them a closed tab has not taken with it. */
   patchCounts(): { total: number; live: number };
-  /** Put every prototype, React and selectTier back. */
+  /** Put every prototype and selectTier back. */
   dispose(): void;
 }
 
-const EMPTY_REPORT: ProviderTiersReport = { resolveShadow: false, createElementWrapped: false, tierMemoryHook: false, options: null, loginRowReplaced: null, tiers: [], selectedTier: null, lastMove: null, retagged: {} };
+const EMPTY_REPORT: ProviderTiersReport = { resolveShadow: false, tierMemoryHook: false, tiers: [], selectedTier: null, lastMove: null, retagged: {} };
 
 export function createProviderTiers(deps: ProviderTiersDeps): ProviderTiers {
   const patches = createProtoPatches({ exportFunction: deps.exportFunction, isDead: deps.isDead, error: deps.error });
   const waive = (value: unknown): any => (deps.waiveXrays ? deps.waiveXrays(value) : value);
-  /** Per manager (waived): the list last handed to the dropdown, whether its last render was handed signed in, and the last stranded move. */
-  const state = new WeakMap<object, { options: TierOption[] | null; loginRowReplaced: boolean | null; lastMove: TierMove | null }>();
+  /** Per manager (waived): the last stranded move. */
+  const state = new WeakMap<object, { lastMove: TierMove | null }>();
   const stateOf = (manager: object) => {
     let record = state.get(manager);
     if (!record) {
-      record = { options: null, loginRowReplaced: null, lastMove: null };
+      record = { lastMove: null };
       state.set(manager, record);
     }
     return record;
   };
 
   const managerOf = (reader: any): any => waive(reader?._internalReader?._readAloudManager);
-  const reactOf = (reader: any): any => {
-    const React = waive(reader?._iframeWindow)?.React;
-    return React && typeof React.createElement === 'function' ? React : null;
-  };
 
   /** The selectTier hooks, one per manager, restored by descriptor (the player-voice-list.ts pattern). */
   const memoryHooks: { manager: any; own: PropertyDescriptor | undefined; hook: AnyFn }[] = [];
@@ -414,79 +359,13 @@ export function createProviderTiers(deps: ProviderTiersDeps): ProviderTiers {
     return true;
   }
 
-  /** The options of the tier select, read off the reader's list by index as primitives. */
-  function readOptions(options: any): TierOption[] {
-    const out: TierOption[] = [];
-    for (let i = 0; i < options.length; i++) {
-      const option = options[i];
-      out.push({ value: String(option.value), label: typeof option.label === 'string' ? option.label : String(option.value), disabled: !!option.disabled });
-    }
-    return out;
-  }
-
-  /**
-   * `TierSelect`'s own element, by its props: while Zotero says signed out
-   * and the manager lists any of the plugin's voices — counted whatever tier
-   * they carry, the re-tag's or still `local` — it is told signed in, so it
-   * draws its select rather than the log-in row (issue #130). True when the
-   * props were its.
-   */
-  function signIn(reader: any, props: any): boolean {
-    const tiers = props.tiers;
-    if (typeof props.loggedIn !== 'boolean' || !tiers || typeof tiers.has !== 'function' || typeof props.onChange !== 'function' || typeof props.onLogIn !== 'function') return false;
-    const manager = managerOf(reader);
-    if (!manager) return true;
-    const replaced = !props.loggedIn && Object.keys(scan(manager, false).retagged).length > 0;
-    if (replaced) props.loggedIn = true;
-    stateOf(manager).loginRowReplaced = replaced;
-    return true;
-  }
-
-  /** The tier select's props, and no other element's: `options` replaced by the provider list, cloned into the reader's window. */
-  function rewrite(reader: any, rawProps: unknown): void {
-    if (!rawProps || typeof rawProps !== 'object') return;
-    const props = waive(rawProps);
-    if (signIn(reader, props)) return;
-    const options = props.options;
-    if (!isTierOptionList(options) || typeof props.onChange !== 'function') return;
-    const manager = managerOf(reader);
-    if (!manager) return;
-    const { tiers } = scan(manager, false);
-    const next = buildTierOptions(readOptions(options), tiers, deps.labels());
-    props.options = deps.cloneInto ? deps.cloneInto(reader, next) : next;
-    stateOf(manager).options = next;
-  }
-
-  function attachDropdown(reader: any): boolean {
-    const React = reactOf(reader);
-    if (!React) return false;
-    if (patches.has(React, 'createElement')) return true;
-    patches.shadow(React, 'createElement', (original) =>
-      function (this: unknown, ...args: unknown[]) {
-        try {
-          rewrite(reader, args[1]);
-        } catch (e) {
-          deps.error(e);
-        }
-        return Reflect.apply(original, React, args);
-      },
-    );
-    deps.debug?.("provider tiers: the player's first dropdown is wrapped");
-    return true;
-  }
-
   function attach(reader: unknown): boolean {
     let resolved = false;
     let manager: any = null;
     try {
-      // Waived once for the two manager patches; the dropdown's is the window's
+      // Waived once for the two manager patches
       manager = managerOf(reader);
       resolved = attachResolve(manager);
-    } catch (e) {
-      deps.error(e);
-    }
-    try {
-      attachDropdown(reader);
     } catch (e) {
       deps.error(e);
     }
@@ -502,15 +381,11 @@ export function createProviderTiers(deps: ProviderTiersDeps): ProviderTiers {
     try {
       const manager = managerOf(reader);
       const proto = manager ? ownerOf(manager, '_resolveVoice') : null;
-      const React = reactOf(reader);
       const record = manager ? state.get(manager) : undefined;
       const { tiers, retagged } = manager ? scan(manager, false) : { tiers: new Set<string>(), retagged: {} };
       return {
         resolveShadow: !!proto && patches.has(proto, '_resolveVoice'),
-        createElementWrapped: !!React && patches.has(React, 'createElement'),
         tierMemoryHook: !!manager && memoryHooks.some((h) => h.manager === manager),
-        options: record?.options ?? null,
-        loginRowReplaced: record?.loginRowReplaced ?? null,
         tiers: [...tiers],
         selectedTier: typeof manager?._selectedTier === 'string' ? manager._selectedTier : null,
         lastMove: record?.lastMove ?? null,

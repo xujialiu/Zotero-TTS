@@ -2,6 +2,11 @@ import { floatingMenuPlacement } from './player-menu';
 import { BAR_HEIGHT, barBand, coveredEdges, type Band, type Covered } from './player-cover';
 import type { PlayerSnapshot } from '../read-aloud/player-controller';
 import { PREF_PREFIX, playerLayout, setPlayerLayout, type PrefsBackend } from '../core/settings';
+import { t } from '../core/l10n';
+
+/** Zotero's own player and its headphone button, never shown while the plugin runs (ADR 0007). */
+export const HIDE_ZOTERO_PLAYER = '.read-aloud-popup, #read-aloud { display: none !important; }';
+const HIDDEN_PARTS = '#ztts-player-toggle[hidden], #ztts-player-frame[hidden] { display: none !important; }';
 
 /** Gecko can detach defaultView without marking the document wrapper dead. */
 export function isPlayerDocumentLive(doc: { readonly defaultView?: { closed?: boolean } | null } | null, dead: (value: unknown) => boolean): boolean {
@@ -34,7 +39,6 @@ export function createPluginPlayer(deps: {
   const readLayout = () => playerLayout(deps.prefs);
   const panelHeight = (expanded: boolean) => expanded ? 202 : 108;
   let layout = readLayout();
-  let enabled = deps.prefs.get(PREF_PREFIX + 'readAloud.usePluginPlayer') !== false;
   const live = (doc: Document) => isPlayerDocumentLive(doc, deps.dead);
   const settingsDocuments = new Set<Document>();
   function updateSettingsLayout(doc: Document): void {
@@ -61,7 +65,11 @@ export function createPluginPlayer(deps: {
       updateSettingsLayout(doc);
     }
   }
-  const entries = new Map<Document, { frame: HTMLIFrameElement; style: HTMLStyleElement; button: HTMLButtonElement; open: boolean; reader: any; nativeOpened: boolean; lastSnapshot: string; actionError: string | null; openedAt: number; moved: boolean; expanded: boolean; menuInset: number; listener: (event: MessageEvent) => void; resize: () => void; connect: () => void; cleanup: () => void }>();
+  const entries = new Map<Document, { frame: HTMLIFrameElement; style: HTMLStyleElement; button: HTMLButtonElement; open: boolean; reader: any; nativeOpened: boolean;
+    /** Why this reader's Player cannot appear, if it cannot: its attach threw, or its frame never finished loading (ADR 0007). */
+    failed: 'attach' | 'frame' | null;
+    /** The reading this Player refused is already closed and said so. */
+    refused: boolean; lastSnapshot: string; actionError: string | null; openedAt: number; moved: boolean; expanded: boolean; menuInset: number; listener: (event: MessageEvent) => void; resize: () => void; connect: () => void; cleanup: () => void }>();
   function syncAppearance(doc: Document): void {
     const entry = entries.get(doc);
     if (!entry || !live(doc)) return;
@@ -107,13 +115,12 @@ export function createPluginPlayer(deps: {
     if (!live(doc)) return;
     const entry = entries.get(doc)!;
     entry.moved = false; entry.menuInset = 0;
-    const visible = enabled && entry.open;
+    const visible = entry.open;
     entry.frame.hidden = !visible;
-    entry.button.hidden = !enabled;
+    entry.button.hidden = false;
     entry.button.classList.toggle('active', visible);
     entry.button.setAttribute('aria-expanded', String(visible));
-    entry.style.textContent = '#ztts-player-toggle[hidden], #ztts-player-frame[hidden] { display: none !important; }';
-    if (enabled) entry.style.textContent += '\n.read-aloud-popup, #read-aloud { display: none !important; }';
+    entry.style.textContent = HIDDEN_PARTS + '\n' + HIDE_ZOTERO_PLAYER;
     // The bars lie over the document's edge (#135): a resized document area
     // re-lays the document out, and Zotero blurs an EPUB while it does. Only
     // Zotero's find bar, 15 px below the top of the view it opens in, is moved
@@ -136,147 +143,167 @@ export function createPluginPlayer(deps: {
     entry.connect();
   }
   function attach(reader: any): void {
+    let doc: Document | undefined;
     try {
-      for (const doc of entries.keys()) if (!live(doc)) detach(doc);
-      const doc = reader?._iframeWindow?.document as Document | undefined;
+      for (const held of entries.keys()) if (!live(held)) detach(held);
+      doc = reader?._iframeWindow?.document as Document | undefined;
       if (!doc?.body || !live(doc)) return;
       if (entries.has(doc)) { entries.get(doc)!.connect(); return; }
-      // Recover nodes left by an interrupted prototype hot-upgrade.
-      for (const stale of doc.querySelectorAll('#ztts-player-prototype, #ztts-player-prototype-layout, #ztts-player-toolbar-slot, #ztts-player-frame, #ztts-player-style, #ztts-player-toggle')) stale.remove();
-      const button = doc.createElement('button');
-      button.id = 'ztts-player-toggle';
-      button.className = 'toolbar-button';
-      button.type = 'button';
-      button.title = 'Zotero-TTS';
-      button.setAttribute('aria-label', 'Zotero-TTS');
-      button.setAttribute('aria-controls', 'ztts-player-frame');
-      const icon = doc.createElement('img');
-      icon.src = deps.iconURI;
-      icon.alt = '';
-      icon.width = 20;
-      icon.height = 20;
-      button.append(icon);
-      doc.querySelector('#read-aloud')?.before(button);
-      const frame = doc.createElement('iframe');
-      frame.id = 'ztts-player-frame';
-      frame.setAttribute('title', 'Zotero-TTS');
-      const style = doc.createElement('style');
-      style.id = 'ztts-player-style';
-      const listener = (event: MessageEvent) => {
-        if (event.source !== frame.contentWindow || typeof event.data !== 'string') return;
-        if (event.data === 'ztts-preview-ready') {
-          if (frame.contentWindow) deps.exportResize(frame.contentWindow, resizeMenu);
-          resize();
-          return;
-        }
-      };
-      const resize = () => {
-        try {
-          syncAppearance(doc);
+      build(reader, doc);
+    } catch (error) {
+      deps.error(error);
+      // Its hiding rule is in: a reading opened here is refused, not left to Zotero's own player
+      const entry = doc ? entries.get(doc) : undefined;
+      if (entry) entry.failed = 'attach';
+    }
+  }
+  function build(reader: any, doc: Document): void {
+    // Recover nodes left by an interrupted prototype hot-upgrade, and the hiding rule an upgrade left behind.
+    for (const stale of doc.querySelectorAll('#ztts-player-prototype, #ztts-player-prototype-layout, #ztts-player-toolbar-slot, #ztts-player-frame, #ztts-player-style, #ztts-player-toggle')) stale.remove();
+    // First, so that nothing failing below leaves Zotero's own player showing (ADR 0007)
+    const style = doc.createElement('style');
+    style.id = 'ztts-player-style';
+    style.textContent = HIDDEN_PARTS + '\n' + HIDE_ZOTERO_PLAYER;
+    doc.head.append(style);
+    const button = doc.createElement('button');
+    button.id = 'ztts-player-toggle';
+    button.className = 'toolbar-button';
+    button.type = 'button';
+    button.title = 'Zotero-TTS';
+    button.setAttribute('aria-label', 'Zotero-TTS');
+    button.setAttribute('aria-controls', 'ztts-player-frame');
+    const icon = doc.createElement('img');
+    icon.src = deps.iconURI;
+    icon.alt = '';
+    icon.width = 20;
+    icon.height = 20;
+    button.append(icon);
+    const frame = doc.createElement('iframe');
+    frame.id = 'ztts-player-frame';
+    frame.setAttribute('title', 'Zotero-TTS');
+    const listener = (event: MessageEvent) => {
+      if (event.source !== frame.contentWindow || typeof event.data !== 'string') return;
+      if (event.data === 'ztts-preview-ready') {
+        if (frame.contentWindow) deps.exportResize(frame.contentWindow, resizeMenu);
+        resize();
+        return;
+      }
+    };
+    const resize = () => {
+      try {
+        syncAppearance(doc);
+        const entry = entries.get(doc);
+        // Host resize can change available menu space without resizing the child.
+        if (entry && layout === 'B') { entry.lastSnapshot = ''; publish(doc); }
+      } catch (error) { deps.error(error); }
+    };
+    const win = doc.defaultView as any;
+    let geometry: { observe(target: Element): void; disconnect(): void } | null = null;
+    let changes: { observe(target: Node, options: MutationObserverInit): void; disconnect(): void } | null = null;
+    let scheme: MediaQueryList | null = null;
+    // Export a synchronous callback into the child, with no stale document retained.
+    const resizeMenu = (value: number) => {
+      const height = Number(value);
+      if (!(height >= 34 && height <= 500)) return;
+      const entry = entries.get(doc);
+      if (layout === 'B' && entry?.menuInset) {
+        frame.style.top = (frame.getBoundingClientRect().top + entry.menuInset) + 'px';
+        entry.menuInset = 0;
+        const player = frame.contentDocument?.querySelector('.player') as HTMLElement | null;
+        if (player) player.style.top = '0px';
+      }
+      if (frame.style.height !== height + 'px') frame.style.height = height + 'px';
+    };
+    let unlistenKeys: (() => void) | null = null;
+    const loaded = () => {
+      if (frame.contentWindow) {
+        deps.exportResize(frame.contentWindow, resizeMenu);
+        deps.exportMenu(frame.contentWindow, json => {
           const entry = entries.get(doc);
-          // Host resize can change available menu space without resizing the child.
-          if (entry && layout === 'B') { entry.lastSnapshot = ''; publish(doc); }
+          if (!entry || layout !== 'B' || !live(doc)) return '';
+          const request = JSON.parse(json);
+          const box = frame.getBoundingClientRect();
+          const placement = floatingMenuPlacement({
+            panelTop: box.top + entry.menuInset, panelHeight: panelHeight(entry.expanded),
+            anchorTop: box.top + Number(request.top), anchorBottom: box.top + Number(request.bottom),
+            menuHeight: Number(request.height), viewportHeight: win.innerHeight,
+          });
+          entry.menuInset = placement.panelInset;
+          const player = frame.contentDocument?.querySelector('.player') as HTMLElement | null;
+          if (player) player.style.top = placement.panelInset + 'px';
+          if (box.top !== placement.frameTop) frame.style.top = placement.frameTop + 'px';
+          if (box.height !== placement.frameHeight) frame.style.height = placement.frameHeight + 'px';
+          return JSON.stringify({ top: placement.menuTop - placement.frameTop, height: placement.menuHeight, side: placement.side });
+        });
+        deps.exportFloating(frame.contentWindow, (dx, dy) => {
+          if (layout !== 'B' || !Number.isFinite(dx) || !Number.isFinite(dy)) return;
+          const box = frame.getBoundingClientRect();
+          entries.get(doc)!.moved = true;
+          frame.style.left = Math.max(0, Math.min(win.innerWidth - box.width, box.left + dx)) + 'px';
+          frame.style.top = Math.max(0, Math.min(win.innerHeight - panelHeight(entries.get(doc)!.expanded), box.top + dy)) + 'px';
+        });
+        deps.exportLayout(frame.contentWindow, changeLayout);
+        unlistenKeys?.();
+        unlistenKeys = deps.listenKeys(reader, frame.contentWindow);
+        deps.exportCommand(frame.contentWindow, (action, value) => { void act(doc, action, value); });
+        const entry = entries.get(doc)!;
+        // A frame that loaded late recovers the Player; an attach that threw does not
+        if (entry.failed === 'frame') { entry.failed = null; entry.refused = false; }
+        entry.lastSnapshot = '';
+        publish(doc);
+      }
+      resize();
+    };
+    let connectionTimer: ReturnType<typeof setTimeout> | undefined;
+    const connect = () => {
+      clearTimeout(connectionTimer);
+      let attempts = 0;
+      const tryConnect = () => {
+        if (!live(doc)) { detach(doc); return; }
+        try {
+          if (frame.contentDocument?.querySelector('.player')) { loaded(); return; }
+          if (++attempts < 100) connectionTimer = setTimeout(tryConnect, 50);
+          else {
+            const entry = entries.get(doc);
+            if (entry && !entry.failed) entry.failed = 'frame';
+            deps.error(new Error('Zotero-TTS: player did not finish loading.'));
+          }
         } catch (error) { deps.error(error); }
       };
-      const win = doc.defaultView as any;
-      const geometry = new win.ResizeObserver(resize);
-      const split = doc.querySelector('#split-view');
-      if (split) geometry.observe(split);
-      const toolbar = doc.querySelector('.toolbar');
-      if (toolbar) geometry.observe(toolbar);
-      const changes = new win.MutationObserver(resize);
-      for (const node of [doc.documentElement, doc.body]) changes.observe(node, { attributes: true, attributeFilter: ['class', 'style', 'data-color-scheme'] });
-      const scheme = win.matchMedia('(prefers-color-scheme: dark)');
-      scheme.addEventListener('change', resize);
-      // Export a synchronous callback into the child, with no stale document retained.
-      const resizeMenu = (value: number) => {
-        const height = Number(value);
-        if (!(height >= 34 && height <= 500)) return;
-        const entry = entries.get(doc);
-        if (layout === 'B' && entry?.menuInset) {
-          frame.style.top = (frame.getBoundingClientRect().top + entry.menuInset) + 'px';
-          entry.menuInset = 0;
-          const player = frame.contentDocument?.querySelector('.player') as HTMLElement | null;
-          if (player) player.style.top = '0px';
-        }
-        if (frame.style.height !== height + 'px') frame.style.height = height + 'px';
-      };
-      let unlistenKeys: (() => void) | null = null;
-      const loaded = () => {
-        if (frame.contentWindow) {
-          deps.exportResize(frame.contentWindow, resizeMenu);
-          deps.exportMenu(frame.contentWindow, json => {
-            const entry = entries.get(doc);
-            if (!entry || layout !== 'B' || !live(doc)) return '';
-            const request = JSON.parse(json);
-            const box = frame.getBoundingClientRect();
-            const placement = floatingMenuPlacement({
-              panelTop: box.top + entry.menuInset, panelHeight: panelHeight(entry.expanded),
-              anchorTop: box.top + Number(request.top), anchorBottom: box.top + Number(request.bottom),
-              menuHeight: Number(request.height), viewportHeight: win.innerHeight,
-            });
-            entry.menuInset = placement.panelInset;
-            const player = frame.contentDocument?.querySelector('.player') as HTMLElement | null;
-            if (player) player.style.top = placement.panelInset + 'px';
-            if (box.top !== placement.frameTop) frame.style.top = placement.frameTop + 'px';
-            if (box.height !== placement.frameHeight) frame.style.height = placement.frameHeight + 'px';
-            return JSON.stringify({ top: placement.menuTop - placement.frameTop, height: placement.menuHeight, side: placement.side });
-          });
-          deps.exportFloating(frame.contentWindow, (dx, dy) => {
-            if (layout !== 'B' || !Number.isFinite(dx) || !Number.isFinite(dy)) return;
-            const box = frame.getBoundingClientRect();
-            entries.get(doc)!.moved = true;
-            frame.style.left = Math.max(0, Math.min(win.innerWidth - box.width, box.left + dx)) + 'px';
-            frame.style.top = Math.max(0, Math.min(win.innerHeight - panelHeight(entries.get(doc)!.expanded), box.top + dy)) + 'px';
-          });
-          deps.exportLayout(frame.contentWindow, changeLayout);
-          unlistenKeys?.();
-          unlistenKeys = deps.listenKeys(reader, frame.contentWindow);
-          deps.exportCommand(frame.contentWindow, (action, value) => { void act(doc, action, value); });
-          const entry = entries.get(doc)!;
-          entry.lastSnapshot = '';
-          publish(doc);
-        }
-        resize();
-      };
-      let connectionTimer: ReturnType<typeof setTimeout> | undefined;
-      const connect = () => {
-        clearTimeout(connectionTimer);
-        let attempts = 0;
-        const tryConnect = () => {
-          if (!live(doc)) { detach(doc); return; }
-          try {
-            if (frame.contentDocument?.querySelector('.player')) { loaded(); return; }
-            if (++attempts < 100) connectionTimer = setTimeout(tryConnect, 50);
-            else deps.error(new Error('Zotero-TTS: player did not finish loading.'));
-          } catch (error) { deps.error(error); }
-        };
-        connectionTimer = setTimeout(tryConnect, 50);
-      };
-      const toggle = (event: Event) => {
-        event.stopPropagation();
-        if (!enabled) return;
-        const entry = entries.get(doc)!;
-        if (!entry.open) entry.expanded = deps.snapshot(reader).expandOnOpen;
-        entry.open = !entry.open;
-        entry.openedAt = entry.open ? Date.now() : 0;
-        paint(doc);
-        void act(doc, entry.open ? 'open' : 'close');
-      };
-      button.addEventListener('click', toggle);
-      entries.set(doc, { frame, style, button, open: false, reader, nativeOpened: deps.snapshot(reader).opened, lastSnapshot: '', actionError: null, openedAt: 0, moved: false, expanded: deps.snapshot(reader).expandOnOpen, menuInset: 0, listener, resize, connect, cleanup: () => {
-        clearTimeout(connectionTimer);
-        for (const cleanup of [() => unlistenKeys?.(), () => button.removeEventListener('click', toggle),
-          () => geometry.disconnect(), () => changes.disconnect(), () => scheme.removeEventListener('change', resize)]) {
-          try { cleanup(); } catch (error) { if (live(doc)) deps.error(error); }
-        }
-      } });
-      doc.head.append(style);
-      doc.body.append(frame);
-      doc.defaultView?.addEventListener('message', listener);
-      doc.defaultView?.addEventListener('resize', resize);
+      connectionTimer = setTimeout(tryConnect, 50);
+    };
+    const toggle = (event: Event) => {
+      event.stopPropagation();
+      const entry = entries.get(doc)!;
+      if (entry.failed) { deps.notice(reader, t('ztts-player-failed')); return; }
+      if (!entry.open) entry.expanded = deps.snapshot(reader).expandOnOpen;
+      entry.open = !entry.open;
+      entry.openedAt = entry.open ? Date.now() : 0;
       paint(doc);
-    } catch (error) { deps.error(error); }
+      void act(doc, entry.open ? 'open' : 'close');
+    };
+    entries.set(doc, { frame, style, button, open: false, reader, nativeOpened: deps.snapshot(reader).opened, failed: null, refused: false, lastSnapshot: '', actionError: null, openedAt: 0, moved: false, expanded: deps.snapshot(reader).expandOnOpen, menuInset: 0, listener, resize, connect, cleanup: () => {
+      clearTimeout(connectionTimer);
+      for (const cleanup of [() => unlistenKeys?.(), () => button.removeEventListener('click', toggle),
+        () => geometry?.disconnect(), () => changes?.disconnect(), () => scheme?.removeEventListener('change', resize)]) {
+        try { cleanup(); } catch (error) { if (live(doc)) deps.error(error); }
+      }
+    } });
+    doc.querySelector('#read-aloud')?.before(button);
+    button.addEventListener('click', toggle);
+    geometry = new win.ResizeObserver(resize);
+    const split = doc.querySelector('#split-view');
+    if (split) geometry!.observe(split);
+    const toolbar = doc.querySelector('.toolbar');
+    if (toolbar) geometry!.observe(toolbar);
+    changes = new win.MutationObserver(resize);
+    for (const node of [doc.documentElement, doc.body]) changes!.observe(node, { attributes: true, attributeFilter: ['class', 'style', 'data-color-scheme'] });
+    scheme = win.matchMedia('(prefers-color-scheme: dark)') as MediaQueryList;
+    scheme.addEventListener('change', resize);
+    doc.body.append(frame);
+    doc.defaultView?.addEventListener('message', listener);
+    doc.defaultView?.addEventListener('resize', resize);
+    paint(doc);
   }
   function refresh(): void {
     for (const doc of entries.keys()) {
@@ -286,7 +313,7 @@ export function createPluginPlayer(deps: {
   }
   async function act(doc: Document, action: string, value?: unknown): Promise<void> {
     const entry = entries.get(doc);
-    if (!entry || !enabled || !live(doc)) return;
+    if (!entry || !live(doc)) return;
     entry.actionError = null;
     if (action === 'options') { if (layout === 'B') { entry.expanded = !entry.expanded; publish(doc); } return; }
     try { await deps.command(entry.reader, action, value); }
@@ -297,14 +324,27 @@ export function createPluginPlayer(deps: {
     const entry = entries.get(doc);
     if (!entry || !live(doc)) return;
     const state = deps.snapshot(entry.reader);
+    if (entry.failed) { refuse(entry, state.opened); return; }
     if (state.opened !== entry.nativeOpened) {
       entry.nativeOpened = state.opened;
-      if (enabled && entry.open !== state.opened) { if (state.opened) entry.expanded = state.expandOnOpen; entry.open = state.opened; entry.openedAt = state.opened ? Date.now() : 0; paint(doc); }
+      if (entry.open !== state.opened) { if (state.opened) entry.expanded = state.expandOnOpen; entry.open = state.opened; entry.openedAt = state.opened ? Date.now() : 0; paint(doc); }
     }
     const json = JSON.stringify({ ...state, expanded: entry.expanded, error: entry.actionError ?? state.error,
       loading: entry.open && !state.voices.length && Date.now() - entry.openedAt < 15000,
       strings: deps.strings() });
     if (json !== entry.lastSnapshot && entry.frame.contentWindow && deps.update(entry.frame.contentWindow, json)) entry.lastSnapshot = json;
+  }
+  /**
+   * A reading opened where the Player cannot appear — by Zotero's shortcut,
+   * Shift+Space or Read Aloud from Here — is closed at once and the reason
+   * shown, once per opening: Zotero's own player never stands in (ADR 0007).
+   */
+  function refuse(entry: { reader: any; refused: boolean }, opened: boolean): void {
+    if (!opened) { entry.refused = false; return; }
+    if (entry.refused) return;
+    entry.refused = true;
+    deps.notice(entry.reader, t('ztts-player-failed'));
+    void deps.command(entry.reader, 'close').catch(deps.error);
   }
   let timer: ReturnType<typeof setTimeout> | undefined;
   let disposed = false;
@@ -318,38 +358,37 @@ export function createPluginPlayer(deps: {
   }
   timer = setTimeout(tick, 250);
   const unwatch = deps.watchSettings(() => {
-    const nextLayout = readLayout(), nextEnabled = deps.prefs.get(PREF_PREFIX + 'readAloud.usePluginPlayer') !== false;
-    if (nextLayout !== layout || nextEnabled !== enabled) { layout = nextLayout; enabled = nextEnabled; refresh(); }
+    const nextLayout = readLayout();
+    if (nextLayout !== layout) { layout = nextLayout; refresh(); }
     for (const doc of settingsDocuments) {
       if (!live(doc)) { settingsDocuments.delete(doc); continue; }
       updateSettingsLayout(doc);
-      const toggle = doc.getElementById('ztts-player-enabled') as HTMLInputElement | null;
-      if (toggle) toggle.checked = enabled;
     }
   });
-  function detach(doc: Document): void {
+  /** `keepHiding`: an upgrade leaves Zotero's own player hidden until the successor attaches (ADR 0007). */
+  function detach(doc: Document, keepHiding = false): void {
     const entry = entries.get(doc);
     if (!entry) return;
     entries.delete(doc);
     const report = live(doc);
+    const style = keepHiding && report ? () => { entry.style.textContent = HIDE_ZOTERO_PLAYER; } : () => entry.style.remove();
     for (const cleanup of [entry.cleanup,
       () => doc.defaultView?.removeEventListener('message', entry.listener),
       () => doc.defaultView?.removeEventListener('resize', entry.resize),
-      () => entry.button.remove(), () => entry.frame.remove(), () => entry.style.remove()]) {
+      () => entry.button.remove(), () => entry.frame.remove(), style]) {
       try { cleanup(); } catch (error) { if (report) deps.error(error); }
     }
   }
   return {
     attach,
     inspect() {
-      return { enabled, layout, resource: deps.uri, readers: [...entries].filter(([doc]) => live(doc)).map(([doc, entry]) => ({
-        open: entry.open, expanded: entry.expanded, menuInset: entry.menuInset, ready: !!entry.frame.contentDocument?.querySelector('.player'),
+      return { layout, resource: deps.uri, readers: [...entries].filter(([doc]) => live(doc)).map(([doc, entry]) => ({
+        open: entry.open, failed: entry.failed, expanded: entry.expanded, menuInset: entry.menuInset, ready: !!entry.frame.contentDocument?.querySelector('.player'),
         frames: doc.querySelectorAll('#ztts-player-frame').length, actionError: entry.actionError,
         state: deps.snapshot(entry.reader),
       })) };
     },
     isOpen(reader: unknown): boolean {
-      if (!enabled) return false;
       for (const [doc, entry] of entries) {
         if (entry.reader === reader && live(doc)) return entry.open;
       }
@@ -360,17 +399,11 @@ export function createPluginPlayer(deps: {
       try {
         // By id, not through `entries`: the follow reaches the document behind a waived wrapper, which a key from our side misses
         const bar = (frame as Element | null)?.ownerDocument?.getElementById('ztts-player-frame') as HTMLIFrameElement | null;
-        if (enabled && bar && !bar.hidden) return coveredEdges(barBand(layout, bar.getBoundingClientRect()), box);
+        if (bar && !bar.hidden) return coveredEdges(barBand(layout, bar.getBoundingClientRect()), box);
       } catch { /* a closed tab's document */ }
       return { top: 0, bottom: 0 };
     },
     setLayout: changeLayout,
-    setEnabled(value: boolean) {
-      enabled = value;
-      for (const entry of entries.values()) entry.open = false;
-      deps.prefs.set(PREF_PREFIX + 'readAloud.usePluginPlayer', value);
-      refresh();
-    },
     prepareSettingsMenu(doc: Document) {
       if (!live(doc)) return;
       const button = doc.getElementById('ztts-player-layout-trigger')!;
@@ -385,14 +418,13 @@ export function createPluginPlayer(deps: {
       for (const held of settingsDocuments) if (!live(held)) settingsDocuments.delete(held);
       settingsDocuments.add(doc);
       const select = doc.getElementById('ztts-player-layout') as HTMLSelectElement | null;
-      const toggle = doc.getElementById('ztts-player-enabled') as HTMLInputElement | null;
       if (select) select.value = layout;
       updateSettingsLayout(doc);
-      if (toggle) toggle.checked = enabled;
     },
-    dispose() {
+    /** `handBack` on a disable or uninstall: Zotero's own player shows again. Otherwise it stays hidden for the successor (ADR 0007). */
+    dispose(options: { handBack: boolean } = { handBack: true }) {
       disposed = true; clearTimeout(timer); unwatch();
-      for (const doc of entries.keys()) detach(doc);
+      for (const doc of [...entries.keys()]) detach(doc, !options.handBack);
       entries.clear();
       settingsDocuments.clear();
     },

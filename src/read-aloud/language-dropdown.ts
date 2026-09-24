@@ -20,7 +20,7 @@
  *   reads "English" in a tier and "English (United States)" in another.
  *
  * The dropdown's order — "Multiple languages" first, the rest by label —
- * is multilingual-first.ts's business; the browser sorts its column the
+ * is the Player's (player-controller.ts); the browser sorts its column the
  * same way.
  */
 

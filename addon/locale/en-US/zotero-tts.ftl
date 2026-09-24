@@ -100,10 +100,10 @@ ztts-help-system-voices =
 
 ## Zotero's own voices (issue #111): a switch per tier, no fields
 
-ztts-zotero-note = Zotero's own voices, with a Zotero account signed in. A tier switched off leaves the player; Standard and Premium keep separate credits, bought in the player.
+ztts-zotero-note = Zotero's own voices, with a Zotero account signed in. A tier switched off leaves the player; Standard and Premium keep separate credits, bought on zotero.org.
 ztts-help-zotero =
     .value = ?
-    .help = Standard and Premium are the voices Zotero itself offers once you are signed in under Settings → Sync; each has its own credits, shown and bought in the player. Switch a tier off to take it out of the player's first dropdown, the voice browser and the language list; nothing Zotero remembers is lost, and switching it back on brings the tier's last voice back. Signed out, Enable is greyed; signed in, it checks that Zotero lists voices in that tier.
+    .help = Standard and Premium are the voices Zotero itself offers once you are signed in under Settings → Sync; each has its own credits, bought on zotero.org. Switch a tier off to take it out of the player's first dropdown, the voice browser and the language list; nothing Zotero remembers is lost, and switching it back on brings the tier's last voice back. Signed out, Enable is greyed; signed in, it checks that Zotero lists voices in that tier.
 ztts-zotero-standard = Standard
 ztts-zotero-premium = Premium
 ztts-zotero-not-signed-in = Not signed in to a Zotero account: sign in under Settings → Sync.
@@ -127,7 +127,7 @@ ztts-switch-testing = Testing…
 
 ztts-heading-voice-browser = Voice browser
 ztts-favorites-only =
-    .label = Offer only favorite voices in the Read Aloud player
+    .label = Offer only favorite voices in the player
     .bold = favorite voices
 ztts-voices-speed =
     .value = Speed
@@ -148,7 +148,7 @@ ztts-open-expanded =
     .label = Open the player expanded
 ztts-help-open-expanded =
     .value = ?
-    .help = Show the floating panel's provider, language and voice rows whenever it opens, or the options panel when using Zotero's original player. Options or Shift+O hides or shows them for this opening. Changes apply the next time you open the player.
+    .help = Show the floating panel's provider, language and voice rows whenever it opens. Options or Shift+O hides or shows them for this opening. Changes apply the next time you open the player.
 ztts-one-voice =
     .label = Use one voice everywhere
 ztts-help-one-voice =
@@ -260,10 +260,10 @@ ztts-help-key-return =
     .help = Acts only while Read Aloud is open; otherwise the key keeps its usual meaning in the reader.
 ztts-help-key-options =
     .value = ?
-    .help = Shows or hides the floating panel's provider, language and voice rows, or the options panel in Zotero's original player. Acts only while Read Aloud is open.
+    .help = Shows or hides the floating panel's provider, language and voice rows. Acts only while Read Aloud is open.
 ztts-help-key-stop =
     .value = ?
-    .help = Closes the Read Aloud player in every tab at once. Each tab keeps its place, and Read Aloud picks up there when you start it again. While no player is open the key keeps its usual meaning.
+    .help = Closes the player in every tab at once. Each tab keeps its place, and reading picks up there when you start it again. While no player is open the key keeps its usual meaning.
 ztts-help-key-word-highlight =
     .value = ?
     .help = Turns the Word switch of the Highlight section on and off without leaving the document, for every tab, and it stays until changed again. Turning it off never leaves nothing highlighted: the sentence comes on. A voice without word timing keeps highlighting the sentence either way.
@@ -630,7 +630,6 @@ ztts-bracket-error-duplicate = Duplicate pair “{ $entry }”. Enter each pair 
 
 
 ztts-player-heading = Player
-ztts-player-enabled = Use plugin player
 ztts-player-layout = Layout
 ztts-player-bottom = Bottom bar
 ztts-player-floating = Floating panel
@@ -653,6 +652,8 @@ ztts-player-unfavorite = Remove favorite
 ztts-player-retry = Retry
 ztts-player-buffering = Buffering…
 ztts-player-unavailable = Read Aloud is unavailable in this document.
+# When the player cannot load in a document, Zotero's own player does not stand in (issue #134, ADR 0007)
+ztts-player-failed = The Zotero-TTS player could not load here. To read aloud with Zotero's own player meanwhile, turn Zotero-TTS off under Tools → Plugins.
 ztts-player-unavailable-choice = This voice or language is no longer available. Choose another one.
 ztts-player-invalid-value = The selected value is not supported.
 ztts-player-playback-error = Playback failed. Check your provider connection and try again.
@@ -673,4 +674,4 @@ ztts-key-player-layout =
     .value = Player layout
 ztts-help-key-player-layout =
     .value = ?
-    .help = Cycle Top bar → Bottom bar → Floating panel while the plugin player is open. All players share the layout, and it is remembered after restart.
+    .help = Cycle Top bar → Bottom bar → Floating panel while the player is open. All players share the layout, and it is remembered after restart.

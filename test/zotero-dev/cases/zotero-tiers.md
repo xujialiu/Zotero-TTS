@@ -16,8 +16,8 @@ two entries read `Zotero Standard` / `Zotero Premium` (zh-CN `Zotero 标准`
 / `Zotero 高级`) in the player and the browser. Mechanism: the composite
 remote interface drops a hidden tier's key from Zotero's own `getVoices`
 answer before anything reads it (`src/read-aloud/remote-interface.ts`,
-`withoutTiers`), and `buildTierOptions` drops any of Zotero's options
-without voices (`src/read-aloud/provider-tiers.ts`); the switches are
+`withoutTiers`), and the Player lists only the tiers that carry voices
+(`src/read-aloud/player-controller.ts`); the switches are
 `<section>.enabled` prefs, `zotero-standard.enabled` /
 `zotero-premium.enabled`, wired by `ui/provider-rows.ts` like a
 provider's (`src/ui/zotero-tier-check.ts` is the check).
@@ -28,10 +28,10 @@ run). **No player may be open** while a switch is used — the reading guard
 refuses both directions (item 6), so the owner's paused player must be
 closed before the run, and the run's own fixture tab closed or stopped
 before each switch. **Read the popup's state only once it has settled**:
-right after a popup opens, `providerTiers()` can still show
-`buildTierOptions`' nothing-has-voices fallback while the plugin's
-catalog (Fish's 339-voice listing) is loading — poll until `tiers` and
-`options` stop changing, up to 6 s (the kit's every open does). Expected
+right after a popup opens, `providerTiers()` can still show only
+Zotero's tiers while the plugin's catalog (Fish's 339-voice listing) is
+loading — poll until `tiers` stops changing, up to 6 s (the kit's every
+open does). Expected
 values below were derived from `src/` and corrected by the first run
 (`scripts/zotero-tiers/README.md`).
 
@@ -66,8 +66,9 @@ values below were derived from `src/` and corrected by the first run
    browser's status line names a default voice as before. Open the
    fixture's popup: `diagnostics.providerTiers()` → `hidden: ["standard"]`,
    the tab's `tiers` without `standard` (with `premium` and every enabled
-   provider), `options` without a `standard` entry, a `premium` entry
-   labeled `Zotero Premium`; `manager._allVoices` walked **by index** has
+   provider), `pluginPlayer()`'s `state.providers` without a `standard`
+   entry and with a `premium` one labeled `Zotero Premium`;
+   `manager._allVoices` walked **by index** has
    no voice with `tier === 'standard'`; no language that only Standard
    voices covered is left — compare the set of `_allVoices[i].language`
    (by index; the field the manager's voice objects carry) with both on
@@ -108,9 +109,8 @@ values below were derived from `src/` and corrected by the first run
    (`#ztts-voices-status`) reads `No provider is on: enable one above.`
    (zh-CN `没有打开任何服务商：请在上方启用一个。`) and `#ztts-voices-tiers`
    is empty. Open the fixture's popup → `diagnostics.providerTiers()` →
-   `tiers: []`, `options` = Zotero's own three as it built them, every one
-   `disabled: true` (`Zotero Standard`, `Zotero Premium`, `Local`), the
-   player's voice list empty, no error in the ring. Restore every switch
+   `tiers: []`, `pluginPlayer()`'s `state.providers` and `state.voices`
+   empty, no error in the ring. Restore every switch
    (the providers through their Enable buttons, so the checks run; a
    provider that fails its check now stays off and is reported).
 8. **Backup and restore.** Settings → Backup → the backup JSON holds

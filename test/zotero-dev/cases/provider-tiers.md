@@ -11,8 +11,8 @@ column is the same list. Mechanism: every plugin voice's `impl.tier` is
 rewritten to its provider's key (`azure`, `cloudflare`, `speechify`,
 `fish`, `fishspeech`, `openai`, `system`; the local engine's name,
 `kokoro`) in a shadow of the manager's `_resolveVoice`, outside
-system-voices.ts's, and the reader's `React.createElement` is wrapped per
-tab to hand the tier select another option list, and the manager's
+system-voices.ts's, the Player lists the manager's `tiers`
+(`src/read-aloud/player-controller.ts`), and the manager's
 `selectTier` gets a hook that refreshes its persisted entry from the
 reader's state before the pick reads it, since Zotero refreshes that
 entry only when a popup opens (`src/read-aloud/provider-tiers.ts`).
@@ -36,39 +36,25 @@ Expected values below are derived from `src/` (`buildTierOptions`,
    `azure`, `cloudflare`, `speechify`, `openai` (`OpenAI`, or the
    Server preset's name: `Xiaomi MiMo` / `Chatterbox-TTS-Server`).
 2. After the fixture's popup opened, its reader in `readers` →
-   `resolveShadow: true`, `createElementWrapped: true`,
-   `tierMemoryHook: true`; `tiers` = the
+   `resolveShadow: true`, `tierMemoryHook: true`; `tiers` = the
    enabled providers' keys plus `standard` / `premium` (signed in) and
    **never `local`**; `retagged` = one count per provider key, no
    `local` key (a `local` count is the re-tag not landing — FAIL);
-   `selectedTier` a key of `tiers`; `options` = the list last handed to
-   the dropdown: Zotero's Standard/Premium only while they have voices,
-   relabeled `Zotero Standard` / `Zotero Premium` (#111; as given and
-   greyed when empty until then), one `{ value, label, disabled: false }`
-   per provider tier with voices, sorted by label (`Fish Audio`, `Kokoro`,
-   `Zotero Premium`, `Zotero Standard` on a Fish + Kokoro profile), no
-   `local` entry.
-   `diagnostics.patches()` → `providerTiers.live` = 2 per open tab whose
-   popup opened this session (one prototype, one React; the selectTier
-   hook is not in that log), `total` equal.
-   The debug log carries `provider tiers attached`, `provider tiers: the
-   player's first dropdown is wrapped` and `re-tagged N plugin voices by
-   provider: fish 339, kokoro 68` once per listing.
+   `selectedTier` a key of `tiers`.
+   `diagnostics.patches()` → `providerTiers.live` = 1 per open tab whose
+   popup opened this session (the prototype; the selectTier hook is not in
+   that log; 2 until #134 wrapped the reader's React too), `total` equal.
+   The debug log carries `provider tiers attached` and `re-tagged N plugin
+   voices by provider: fish 339, kokoro 68` once per listing.
 
-### 2. The dropdown's rows
+### 2. The Player's first dropdown
 
-3. Open the Options panel (read the popup's `expanded` class first: the
-   expanded-player setting may have it open, and a click would fold it)
-   and open the first dropdown. It is the CustomSelect whose open
-   `.custom-select-dropdown` holds a row with id ending `-option-standard`
-   or `-option-premium` (React's `useId` prefix varies; never match the
-   localized aria-label). Its `.option` rows, in DOM order: ids ending
-   `-option-<value>` for exactly the `options` of item 2 in that order,
-   `.label` texts the labels — `Fish Audio`, `Kokoro`, `Zotero Premium`,
-   `Zotero Standard`; no row ending `-option-local`; the `selected` class on the
-   row of `selectedTier`; the trigger's text the selected entry's name.
-   Zotero's `checked` gutter and the ♥ column (favorite-marks) are
-   unaffected. Close the dropdown with Escape.
+3. `diagnostics.pluginPlayer()`, the fixture's reader → `state.providers`,
+   in order: one `{ value, label }` per key of item 2's `tiers`, sorted by
+   label — `Fish Audio`, `Kokoro`, `Zotero Premium`, `Zotero Standard` on
+   a Fish + Kokoro profile — and no `local` entry; `state.provider` the
+   `selectedTier`. Zotero's own dropdown is never shown since #134 (ADR
+   0007), and nothing of the plugin's rewrites it any more.
 
 ### 3. A pick, and each provider's own memory
 
@@ -111,15 +97,14 @@ Expected values below are derived from `src/` (`buildTierOptions`,
    by: "remembered" }` (the entry's `voice` is the Kokoro voice; with
    the entry's voice not listed and `readAloud.memory` naming a Fish
    voice, `to: "fish", by: "default"`; with neither listed, `to` the
-   first entry of `options`, `by: "first"`); the log line `the player's
+   first entry of item 3's `providers`, `by: "first"`); the log line `the player's
    entry azure has no voices any more; moved to kokoro (remembered)`.
    `manager.voices.length` > 0 afterwards — never the stranded 0.
 6. Between two opens, with `zotero-tts.readAloud.sameForAllDocuments`
    set to `false` for this item (snapshot, restore): the popup on Kokoro,
    close it, set `zotero-tts.local.enabled` false, reopen → the list
    lands without Kokoro; `lastMove.from` `kokoro`, `selectedTier` the
-   rule's target, `options` without `kokoro`; the dropdown's rows
-   (item 3) agree. Switch the provider back on and reopen → `kokoro`
+   rule's target, and item 3's `providers` without `kokoro`. Switch the provider back on and reopen → `kokoro`
    listed again. With the switch left **on** instead, memory-sync's
    substitute (#35) stages the manager before the list lands and
    `lastMove` stays as it was while `selectedTier` follows the substitute
@@ -145,11 +130,12 @@ Expected values below are derived from `src/` (`buildTierOptions`,
 8. `zotero_plugin_reload` (or an in-place reinstall of the same xpi) with
    the fixture's popup open: no `can't access dead object` in the errors;
    afterwards `providerTiers()` reports the fixture tab `resolveShadow`
-   `createElementWrapped` and `tierMemoryHook` true again, `diagnostics.patches().providerTiers`
+   and `tierMemoryHook` true again, `diagnostics.patches().providerTiers`
    `live` equal to `total`; close the fixture tab → the next
-   `patches()` shows `live` down by 2 while `total` stays until the next
-   attach compacts the log (proto-patches.ts; measured 2026-09-15:
-   `live` 6 → 4 within 1.3 s, `total` 6), no error logged.
+   `patches()` shows `live` down by 1 while `total` stays until the next
+   attach compacts the log (proto-patches.ts; measured 2026-09-15, two
+   patches per tab then: `live` 6 → 4 within 1.3 s, `total` 6), no error
+   logged.
 
 ### What the run may touch, and what only a human can judge
 

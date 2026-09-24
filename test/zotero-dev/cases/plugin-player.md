@@ -12,9 +12,9 @@ top-bar default, also run [the player-controls case](player-controls.md).
 ## 1. Entry and layouts
 
 - Install the xpi; all startup steps succeed. `diagnostics.pluginPlayer()`
-  reports enabled/layout/readers from the sandbox. Count one frame, style,
+  reports layout/readers from the sandbox. Count one frame, style,
   and toolbar icon per reader, with no prototype remnants.
-- With Use plugin player on, the plugin icon replaces the native icon.
+- The plugin icon replaces the native icon in every reader.
   The player starts closed. Clicking on a
   fixture opens the player and activates the real manager; click again
   stops the manager and closes the panel.
@@ -25,8 +25,8 @@ top-bar default, also run [the player-controls case](player-controls.md).
   keeps its size ([player-cover](player-cover.md)). Menus stay 8 px
   above/below docked bars as the host frame expands; theme colors match
   native controls.
-- Persist layout and Use plugin player, reopen Settings, and reinstall.
-  Values remain; the original icon returns when the switch is off.
+- Persist the layout, reopen Settings, and reinstall. The layout
+  remains.
 
 ## 2. Real playback and selection
 
@@ -63,5 +63,63 @@ top-bar default, also run [the player-controls case](player-controls.md).
 - Report actual audio progression separately from muted transport/state
   evidence. Natural listening quality and perceived animation smoothness
   remain human checks when the environment cannot demonstrate them.
+
+## 5. The only player (issue #134, ADR 0007)
+
+1. **No switch.** Settings → Zotero-TTS → Player has no *Use plugin
+   player* row. `diagnostics.pluginPlayer()` has no `enabled`; each
+   reader reports `open` and `failed` (`null`). A profile holding
+   `zotero-tts.readAloud.usePluginPlayer` `false` (written before the
+   install, restored after) gets the plugin icon and the Player on every
+   open, and the pref is left as it was.
+2. **Every way in opens the Player; Zotero's own never shows.** On a PDF
+   and an EPUB fixture, in a tab and in a reader window (*Move to New
+   Window*): the plugin's toolbar button, Cmd/Ctrl+Shift+R, Shift+Space
+   and *Read Aloud from Here* each open the Player (`open: true`), and
+   `.read-aloud-popup` and `#read-aloud` read computed `display: none` on
+   every sample, taken every 50 ms from before the open until the reading
+   plays.
+3. **A Player that cannot load refuses the reading.** Take the Player's
+   resource away for the run: `setSubstitution(<the host of
+   pluginPlayer().resource>, null)` on
+   `Services.io.getProtocolHandler('resource')` as
+   `nsISubstitutingProtocolHandler`. Open a new fixture tab. After 5 s
+   its reader reports `failed: "frame"`, and one `player did not finish
+   loading` error is logged. Then:
+   - the plugin's button shows the toast *The Zotero-TTS player could not
+     load here. …* and nothing reads (`active` false);
+   - Shift+Space closes the reading within 250 ms (`popupOpen` false) with
+     the same toast, once;
+   - Zotero's popup is never displayed.
+
+   Item 4's reinstall registers the resource afresh; close the tab
+   first.
+4. **An update mid-reading shows no Zotero player.** This beta must
+   already be installed: an update *from* a build before #134 still shows
+   Zotero's popup once, since that build's shutdown takes the hiding rule
+   away. Start a fixture reading, muted and playing, then reinstall the
+   same xpi in place. Sample `.read-aloud-popup`'s computed `display`
+   every 50 ms from before the install until 2 s after the new
+   `pluginPlayer()` answers: `none` on every sample. Afterwards:
+   - the Player is closed (`open: false`);
+   - the session is paused at the same segment (`diagnostics.engine()`
+     `adopted`, as in the Engine case's item 24);
+   - the plugin's button opens the Player and resumes from that segment.
+5. **A disable hands Zotero's player back.** Tools → Plugins, disable
+   Zotero-TTS: no `#ztts-player-style`, `#ztts-player-toggle` or
+   `#ztts-player-frame` in any open reader; Zotero's headphone button
+   shows and opens Zotero's own player. Enable it again: the Player is
+   back in every reader.
+6. **An old backup skips the switch.** Restore a backup file holding
+   `"readAloud.usePluginPlayer": false` (the current backup with that key
+   added): the restore message lists it among the skipped keys, and the
+   Player still shows.
+7. **Shift+O falls through with the Player closed.** After item 4, with
+   the reading open and the Player closed, Shift+O changes nothing:
+   `playerOptions()` reads `player: false`, `button: false`. In the
+   Floating panel it folds and unfolds the rows.
+8. **The wording.** The Zotero section's note says credits are bought on
+   zotero.org, and the favorites switch reads *Offer only favorite voices
+   in the player* (zh-CN *播放器中只提供收藏的语音*).
 
 The executed scripts belong in `../scripts/plugin-player/`.

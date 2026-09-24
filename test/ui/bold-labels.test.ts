@@ -47,7 +47,7 @@ function setup(boxes: FakeCheckbox[]) {
 describe('initBoldLabels', () => {
   it('redraws the named run of the label in an HTML <b>, the text around it kept', () => {
     const box = new FakeCheckbox({
-      label: 'Offer only favorite voices in the Read Aloud player',
+      label: 'Offer only favorite voices in the player',
       [BOLD_ATTRIBUTE]: 'favorite voices',
     });
     const { created } = setup([box]);
@@ -55,7 +55,7 @@ describe('initBoldLabels', () => {
     const [before, bold, after] = box.label!.children as [string, FakeNode, string];
     expect(before).toBe('Offer only ');
     expect(bold.textContent).toBe('favorite voices');
-    expect(after).toBe(' in the Read Aloud player');
+    expect(after).toBe(' in the player');
   });
 
   // The attribute is the checkbox's accessible name, and what shows of the
@@ -99,12 +99,12 @@ describe('addon/content/preferences.xhtml', () => {
 
   // The words are the message's (addon/locale, issue #30); the markup names
   // the run's attribute so Fluent writes it beside the label
-  it('bolds the favorite voices of the voice browser switch, in the Read Aloud player', () => {
+  it('bolds the favorite voices of the voice browser switch, in the player', () => {
     const box = checkboxes.find((markup) => markup.includes('id="ztts-favorites-only"'));
     expect(box).toBeDefined();
     expect(box).toContain('data-l10n-id="ztts-favorites-only"');
     expect(box).toContain(`data-l10n-attrs="${BOLD_ATTRIBUTE}"`);
-    expect(englishAttribute('ztts-favorites-only', 'label')).toBe('Offer only favorite voices in the Read Aloud player');
+    expect(englishAttribute('ztts-favorites-only', 'label')).toBe('Offer only favorite voices in the player');
     expect(englishAttribute('ztts-favorites-only', BOLD_ATTRIBUTE)).toBe('favorite voices');
   });
 

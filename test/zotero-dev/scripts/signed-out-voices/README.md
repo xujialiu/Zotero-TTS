@@ -15,8 +15,7 @@ rather than trusting a stale object across scripts.
 | `01-item1-plugin-list-asked.js` | Item 1: `setLoggedIn(false)` on the fixture tab BEFORE its first popup open, then opens+pauses in the same script, settles, reads `liveVoiceList()`/`providerTiers()`/`_allVoices`/the debug log | `asked: false`, `remote: true`, `applied` +1; `tiers` has no `standard`/`premium`; the "not asked for" debug line present; `zoteroTiers().signedIn: true` (the account, not the tab) | — |
 | `02-item2-plugin-player-shows.js` | Item 2: `diagnostics.pluginPlayer()`, the fixture's entry found by `open === true` (unique — the owner's own entry is `open: false` throughout this run, checked) | `state.opened: true`, `providers` = item 1's `tiers` with labels, no Zotero tiers, `voices.length > 0`, `error: null` | — |
 | `03-item3-it-reads.js` | Item 3: plays (muted), polls ≤10 s for `active && !paused` AND a new `<provider>: N word timestamps for M chars` debug line, checks `manager._voice.tier`, pauses again, closes the popup | `sawTimestampLineWithin10s: true`; `voiceTierIsNotZotero: true` | — |
-| `04-item4-native-player.js` | Item 4: `usePluginPlayer` false, reopens+pauses+settles, reads `providerTiers()` and the ALREADY-EXPANDED popup's own DOM (`.read-aloud-popup` in `reader._iframeWindow`, no click needed — see Limits), closes, restores the pref | `loginRowReplaced: true`; `logInRowPresent: false`; `popupTextIncludesProviderLabel: true` | — |
-| `05-item5-signed-in-again.js` | Item 5: `setLoggedIn(Zotero.Sync.Runner.enabled)`, reopens+pauses+settles, checks `liveVoiceList()`/`providerTiers()`/the debug log (scoped to THIS open only); repeats once more with `usePluginPlayer` false, then restores it | `asked: true`, `remote: true`, both Zotero tiers back in `tiers`; second pass `loginRowReplaced: false`, `options` has `Zotero Standard`/`Zotero Premium` | — |
+| `05-item5-signed-in-again.js` | Item 4 since #134 (was item 5): `setLoggedIn(Zotero.Sync.Runner.enabled)`, reopens+pauses+settles, checks `liveVoiceList()`/`providerTiers()`/the debug log (scoped to THIS open only). Its second pass, with `usePluginPlayer` false, reads fields #134 removed: rewrite it without that pass on the next run | `asked: true`, `remote: true`, both Zotero tiers back in `tiers` | — |
 | `06-cleanup-restore.js` | Closes and erases the fixture tab (`database.rows` checked before/after), restores every pref from `state.baseline`, `readAloud.memory` last, restores `Zotero.Debug.storing`, reports the error ring | `rowsBackToBaseline: true`; every restored pref `matches: true` | — |
 
 ## Before you start
@@ -50,14 +49,6 @@ rather than trusting a stale object across scripts.
   one-line `S.baseline = baseline;` plus re-injecting the already-captured
   values into the live `Zotero.ZoteroTTSRun.state` rather than re-running
   the network-bound `00`–`03` group. `04`–`06` then ran clean.
-- **The native player's options panel is expanded from the moment the
-  popup opens (`showOptions` starts `true`) — no Options click is
-  needed**, and clicking the toggle button COLLAPSES an already-expanded
-  panel instead of opening one: an earlier version of `04` clicked it and
-  read a collapsed panel with neither the tier select nor the `.row.log-in`
-  row rendered (`popupTextIncludesProviderLabel: false`), a false negative
-  confirmed live with a throwaway probe (`fixture-b.pdf`, erased after) —
-  not a product problem. `04` now reads the panel as opened, no click.
 - **Toggling a provider/tier `.enabled` pref while ANOTHER reader's own
   session is already active logs a caught `[zotero-tts] can't access
   property "length", list is undefined`** (`live-voice-list.ts` `load()`,

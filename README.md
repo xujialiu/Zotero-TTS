@@ -74,7 +74,7 @@ is built for the way its author reads —
 | **Xiaomi MiMo** | An API key from platform.xiaomimimo.com | Free for a limited time | sentence |
 | **OpenAI Compatible** | The address of any server that speaks OpenAI's API, and a key if it wants one: a self-hosted [Chatterbox](tutorials/chatterbox-tts-server.md), a hosted service, a proxy of OpenAI | The server's own price; self-hosted servers are free | sentence |
 | **System voices** | Nothing — Windows and macOS | Free, offline | word on Windows, sentence on macOS |
-| **Zotero Standard / Premium** | A Zotero account signed in under Edit → Settings → Sync; a switch each in the **Zotero** section, both on to begin with | Zotero's own credits, shown and bought in the player | word |
+| **Zotero Standard / Premium** | A Zotero account signed in under Edit → Settings → Sync; a switch each in the **Zotero** section, both on to begin with | Zotero's own credits, bought on zotero.org | word |
 
 The player's first dropdown lists every enabled provider that has voices
 right now, and Zotero's own **Zotero Standard** and **Zotero Premium**
@@ -192,9 +192,12 @@ for every document you have listened to.
 
 ### Player
 
-- **Use plugin player** is on by default. Click the red headphones icon
-  in the reader to open the player and start reading; click again to stop
-  and close it. Switch the setting off to use Zotero's original player.
+- **The player** is the plugin's in every document; Zotero's original
+  player no longer appears. Click the red headphones icon in the reader to
+  open it and start reading; click again to stop and close it. Where the
+  player cannot load, a message says so and nothing is read: turn
+  Zotero-TTS off under Tools → Plugins to read with Zotero's own player
+  meanwhile.
 - **Bottom bar, Top bar, Floating panel** are available in Settings and
   from the player's layout button. A bar lies over the top or bottom edge
   of the document, so opening, closing or switching the player never
@@ -271,7 +274,7 @@ doing:
   priority while a new voice is being prepared.
 
 - **Player layout — `Shift+P`** cycles Top bar → Bottom bar → Floating
-  panel while the plugin player is open, playing or paused. All players
+  panel while the player is open, playing or paused. All players
   share the layout, and it is remembered after restart. Holding the key
   switches only once; typing in a text field leaves the layout alone.
 - **Faster / slower — `Shift+C` / `Shift+X`** support holding the key to
@@ -329,7 +332,7 @@ provider (or Zotero's Standard / Premium), language, voice.
   languages", first in the language column.
 - **▶** — a sample in the voice's own language: your voices cost one short
   request, Zotero's own cost nothing.
-- *Offer only favorite voices* trims the Read Aloud player to the marked
+- *Offer only favorite voices* trims the player to the marked
   ones **for every provider** — a provider you marked nothing in leaves
   the player's first dropdown, Zotero's own two included. With nothing
   marked at all, or when none of the
@@ -337,11 +340,10 @@ provider (or Zotero's Standard / Premium), language, voice.
   switch is on, only a favorite can be the default, and the switch stays
   off while the default is not one. Favorites travel with the settings
   backup.
-- The hearts show in the player's own voice list too: with *Offer only
-  favorite voices* off, a marked voice carries a ♥ in the dropdown and the
-  rest do not, so a favorite is findable without giving up every other
-  voice. A marker, not a button — hearts are set here — and it is gone
-  while the switch is on, where every listed voice is one.
+- The hearts show in the player's voice list too, favorites first, and a
+  click on one marks or unmarks that voice. While *Offer only favorite
+  voices* is on, a change that would take away the voice a tab is reading
+  with is refused until that tab's player is closed.
 - A click on the default row clears the default, back to Zotero's own
   per-language choice. Pick another voice in any tab's player while the
   settings are open and the highlight moves there.
@@ -373,9 +375,9 @@ provider (or Zotero's Standard / Premium), language, voice.
 <summary><b>Expanded player, one voice everywhere, pauses, prefetch, cache, the whole sentence on screen, a page's first line, a sentence split in two</b></summary>
 
 - *Open the player expanded* — show the floating panel's provider, language
-  and voice rows whenever it opens; with Zotero's original player, show its
-  options panel. On by default. Options or Shift+O changes this opening
-  only. Changes to the setting apply at the next opening.
+  and voice rows whenever it opens. On by default. Options or Shift+O
+  changes this opening only. Changes to the setting apply at the next
+  opening.
 
 - *Use one voice everywhere* — one voice for every document and every open
   tab, whatever the document's language. Off, Zotero remembers a voice per

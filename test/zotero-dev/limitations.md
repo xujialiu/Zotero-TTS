@@ -1,15 +1,5 @@
 [Checklist index](README.md)
 
-Issue #81: [expanded player opening](cases/player-expanded.md) passed its
-core live checks, including PDF/EPUB and separate-window first-visible-state
-samples, missing-button recovery, timeout recovery, and reload. See the
-run report (2026-09-12, 1.12.3-beta) for remaining checks and
-the restoration incident. Neither final diagnostics nor sampled states
-alone establish absence of a perceptible flash. The throwing-access live
-test proves the error handler clears the stylesheet but its visibility
-observation is confounded by the harness removing that stylesheet. The
-follow-up did not verify raw voice-preference/memory equality after testing.
-
 ## 8. What only a human can check
 
 Handed round in the old form (MEMORY/testing.md, "The user takes over only"):

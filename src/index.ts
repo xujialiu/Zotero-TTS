@@ -45,8 +45,6 @@ import { createSelectionStart } from './read-aloud/selection-start';
 import { createSentenceInView, type SentenceInView, type SentenceInViewDeps } from './read-aloud/sentence-in-view';
 import { createSkippedLines, type SkippedLines } from './read-aloud/skipped-lines';
 import { createSystemVoiceHiding, type SystemVoiceHiding } from './read-aloud/system-voices';
-import { createMultilingualFirst, type MultilingualFirst } from './read-aloud/multilingual-first';
-import { createFavoriteMarks, type FavoriteMarks } from './read-aloud/favorite-marks';
 import { pauseSettingsOf } from './core/engine/gap';
 import { createEngine, type Engine } from './read-aloud/engine';
 import { createVoicePick, type VoicePick } from './read-aloud/engine/voice-pick';
@@ -71,7 +69,7 @@ import { readMemory } from './read-aloud/read-aloud-memory';
 import { readReadAloudVoices, resolveVoiceLang } from './core/read-aloud-speed';
 import { runStartupSteps, type StartupReport } from './core/startup-steps';
 import { CATALOG_CAP_MS, listNamedCatalog, providerNaming, providerTierColumns, providerTierLabels, type CatalogEntry } from './read-aloud/catalog';
-import { FAVORITES_OBSERVER, FAVORITES_ONLY_OBSERVER, parseFavoriteVoices } from './read-aloud/favorites';
+import { parseFavoriteVoices } from './read-aloud/favorites';
 import { dropdownLanguage, languageDisplayName } from './read-aloud/language-dropdown';
 import { decodeVoiceId, pluginVoiceTier, zoteroTierLabel } from './read-aloud/voice-catalog';
 import { createProviderTiers, type ProviderTiers } from './read-aloud/provider-tiers';
@@ -93,7 +91,6 @@ import {
   type ReadAloudShortcuts,
 } from './ui/read-aloud-shortcuts';
 import { findOptionsButton, hasPlayer, isOptionsPanelOpen } from './ui/player-options';
-import { createPlayerExpanded } from './read-aloud/player-expanded';
 import { removeSpeedToast, showSpeedToast, showToast, SPEED_TOAST_ID } from './ui/speed-toast';
 import { createVoiceNotices } from './ui/voice-notice';
 import { browserVoices, createSamplePlayer, defaultVoiceRows, groupVoicesByTier, languageNameOf, listBrowserVoices, startingSpeed, statusLine } from './ui/voice-browser-rows';
@@ -172,12 +169,6 @@ let skippedLines: SkippedLines | null = null;
 let systemVoiceHiding: SystemVoiceHiding | null = null;
 /** One entry per provider in the player's first dropdown, and the provider's tier on every plugin voice (read-aloud/provider-tiers.ts, issue #110). */
 let providerTiers: ProviderTiers | null = null;
-let multilingualFirst: MultilingualFirst | null = null;
-let favoriteMarks: FavoriteMarks | null = null;
-let playerExpanded: ReturnType<typeof createPlayerExpanded> | null = null;
-let playerExpandedObserver: unknown = null;
-/** The two prefs the marks follow, unregistered at shutdown. */
-let favoriteMarkObservers: unknown[] = [];
 /**
  * Every voice of the Player plays on the plugin's own engine behind Read
  * Aloud's manager (read-aloud/engine/, issue #133): the volume (issue #62),
@@ -484,8 +475,6 @@ function readerSignedIn(reader: any): boolean {
  * a tab's slots hold — the slot always holds a clone, never this object.
  */
 function buildReaderInterface(reader: any, targetWindow: any, native: () => unknown): unknown {
-  // Synchronous: Zotero has not constructed the React UI yet (issue #81).
-  playerExpanded?.attach(reader, targetWindow?.document);
   const composite = createRemoteInterface({
     // Zotero's own interface is kept: its Standard and Premium voices,
     // credits and audio pass through untouched, and ours are merged in
@@ -513,16 +502,9 @@ function buildReaderInterface(reader: any, targetWindow: any, native: () => unkn
       // The manager exists and this very listing's _resolveVoice has not
       // run yet, so even the first popup open is filtered
       systemVoiceHiding?.attach(reader);
-      // After the hiding, so this shadow is the outer one: the re-tag runs
-      // first and hands to the splice (it counts no OS voice anyway); and
-      // the dropdown wrapper is on before this listing's first render (issue #110)
+      // After the hiding, so this shadow is the outer one: the re-tag, which
+      // counts no OS voice anyway, runs first and hands to the splice (issue #110)
       providerTiers?.attach(reader);
-      // The popup renders its language options after the voices arrive,
-      // so the label patch is in place for the first open too
-      multilingualFirst?.attach(reader);
-      // The dropdown is drawn from this very listing; the stylesheet has
-      // to be in the document before it opens (issue #45)
-      favoriteMarks?.attach(reader);
       // The Engine: the manager's controllers come from it (read-aloud/engine/)
       engine?.attach(reader);
       liveVoiceList?.attach(reader);
@@ -739,7 +721,6 @@ function watchWindow(win: any): void {
 function watchReader(reader: any): void {
   if (!reader || !readAloudShortcuts) return;
   pluginPlayer?.attach(reader);
-  playerExpanded?.attach(reader);
   watchWindow(reader._window);
   readAloudMemory?.attach(reader);
   highlightStyling?.attach(reader);
@@ -750,8 +731,6 @@ function watchReader(reader: any): void {
   skippedLines?.attach(reader);
   systemVoiceHiding?.attach(reader);
   providerTiers?.attach(reader);
-  multilingualFirst?.attach(reader);
-  favoriteMarks?.attach(reader);
   engine?.attach(reader);
   liveVoiceList?.attach(reader);
   playerVoiceList?.attach(reader);
@@ -910,7 +889,6 @@ function hookTabClose(reader: any): void {
     const original = tab.onClose;
     const wrapper = function zttsTabCloseCapture(this: unknown) {
       tabCloseHooks.delete(tab);
-      try { playerExpanded?.detach(reader); } catch (error) { Zotero.logError(error); }
       try { voicePick?.detach(reader); voiceNotices?.clear(reader); } catch (error) { Zotero.logError(error); }
       try { engine?.detach(reader); liveVoiceList?.detach(reader); } catch (error) { Zotero.logError(error); }
       try { followResumeGuard?.detach(reader); } catch (error) { Zotero.logError(error); }
@@ -985,7 +963,6 @@ function hookPositionCapture(reader: any): void {
     const original = target.uninit;
     const wrapper = function zttsUninitCapture(this: unknown, ...args: unknown[]) {
       positionCaptureHooks.delete(reader);
-      try { playerExpanded?.detach(reader); } catch (error) { Zotero.logError(error); }
       try { voicePick?.detach(reader); voiceNotices?.clear(reader); } catch (error) { Zotero.logError(error); }
       try { engine?.detach(reader); liveVoiceList?.detach(reader); } catch (error) { Zotero.logError(error); }
       try { followResumeGuard?.detach(reader); } catch (error) { Zotero.logError(error); }
@@ -2258,8 +2235,7 @@ function stopSystemVoiceHiding(): void {
 //
 // The plugin's voices travel under Zotero's `local` key and are re-tagged
 // per provider on the manager's voice objects, in front of the same
-// _resolveVoice the hiding above shadows; the dropdown's option list is
-// rebuilt in a wrapper of the reader's React.createElement. See
+// _resolveVoice the hiding above shadows. See
 // read-aloud/provider-tiers.ts (issue #110). Attached after the hiding on
 // every reader, so its shadow is the outer one, and disposed before it, so
 // the prototypes unwind in order.
@@ -2268,8 +2244,7 @@ function startProviderTiers(): void {
   stopProviderTiers();
   providerTiers = createProviderTiers({
     // Read per walk, not per voice: the engine and the server preset can
-    // change in the pane, but loadSettings reads every preference, and the
-    // walk behind the dropdown runs on every scroll frame (issue #125)
+    // change in the pane, but loadSettings reads every preference (issue #125)
     voiceTiers: () => {
       const { localEngine } = providerNaming(loadSettings(prefs));
       return (id) => pluginVoiceTier(id, localEngine);
@@ -2281,8 +2256,6 @@ function startProviderTiers(): void {
     preferredLanguages,
     exportFunction: (fn, target) => Components.utils.exportFunction(fn, target),
     waiveXrays: (value) => ((value && typeof value === 'object') || typeof value === 'function' ? Components.utils.waiveXrays(value) : value),
-    // The option list is destructured by Zotero's element in the reader's compartment
-    cloneInto: (reader: any, value) => (reader?._iframeWindow ? Components.utils.cloneInto(value, reader._iframeWindow) : value),
     isDead: (value) => Components.utils.isDeadWrapper(value),
     error: (e) => Zotero.logError(e),
     debug: (message) => Zotero.debug('[zotero-tts] ' + message),
@@ -2293,99 +2266,6 @@ function startProviderTiers(): void {
 function stopProviderTiers(): void {
   providerTiers?.dispose();
   providerTiers = null;
-}
-
-// ---- "Multiple languages" first in the language dropdown --------------------
-//
-// The popup sorts languages by display label, hard-coded; see
-// read-aloud/multilingual-first.ts for the label patch that wins that sort.
-
-function startMultilingualFirst(): void {
-  stopMultilingualFirst();
-  multilingualFirst = createMultilingualFirst({
-    exportFunction: (fn, target) => Components.utils.exportFunction(fn, target),
-    waiveXrays: (value) => ((value && typeof value === 'object') || typeof value === 'function' ? Components.utils.waiveXrays(value) : value),
-    // The diagnostics probe hands an options object to a reader-compartment
-    // constructor; a sandbox-built object is unreadable there
-    cloneInto: (reader: any, value) => (reader?._iframeWindow ? Components.utils.cloneInto(value, reader._iframeWindow) : value),
-    isDead: (value) => Components.utils.isDeadWrapper(value),
-    error: (e) => Zotero.logError(e),
-    debug: (message) => Zotero.debug('[zotero-tts] ' + message),
-  });
-  for (const reader of Zotero.Reader._readers ?? []) multilingualFirst.attach(reader);
-}
-
-function stopMultilingualFirst(): void {
-  multilingualFirst?.dispose();
-  multilingualFirst = null;
-}
-
-// ---- The ♥ on the favorites in the player's voice list ---------------------
-//
-// A stylesheet in the reader's document, marking rows by the voice id in
-// their DOM id; see read-aloud/favorite-marks.ts for why the label is left
-// alone. Unlike everything else that edits the player's list, a heart may be
-// toggled while a tab reads: the ids never change, so ui/reading-guard.ts
-// has nothing to protect here, and an open dropdown repaints on the spot.
-
-function startPlayerExpanded(): void {
-  stopPlayerExpanded();
-  playerExpanded = createPlayerExpanded({
-    enabled: () => loadSettings(prefs).readAloud.openExpanded,
-    documentOf: (reader: any) => liveReaderValue(reader, value => Components.utils.isDeadWrapper(value), '_iframeWindow', 'document'),
-    observe: (doc, changed) => {
-      const win = doc.defaultView as any;
-      const callback = Components.utils.exportFunction(() => changed(), win);
-      const observer = new win.MutationObserver(callback);
-      observer.observe(doc.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
-      return () => observer.disconnect();
-    },
-    isDead: (value) => Components.utils.isDeadWrapper(value),
-    error: (error) => Zotero.logError(error),
-  });
-  playerExpandedObserver = Zotero.Prefs.registerObserver('zotero-tts.readAloud.openExpanded', () => playerExpanded?.refresh());
-  for (const reader of Zotero.Reader._readers ?? []) playerExpanded.attach(reader);
-}
-
-function stopPlayerExpanded(): void {
-  if (playerExpandedObserver !== null) {
-    try { Zotero.Prefs.unregisterObserver(playerExpandedObserver); }
-    catch (error) { Zotero.logError(error); }
-    playerExpandedObserver = null;
-  }
-  playerExpanded?.dispose();
-  playerExpanded = null;
-}
-
-function startFavoriteMarks(): void {
-  stopFavoriteMarks();
-  favoriteMarks = createFavoriteMarks({
-    marks: () => {
-      const s = loadSettings(prefs).readAloud;
-      return { favorites: parseFavoriteVoices(s.favoriteVoices), favoritesOnly: s.favoritesOnly };
-    },
-    documentOf: (reader: any) => liveReaderValue(reader, value => Components.utils.isDeadWrapper(value), '_iframeWindow', 'document'),
-    isDead: (value) => Components.utils.isDeadWrapper(value),
-    error: (e) => Zotero.logError(e),
-    debug: (message) => Zotero.debug('[zotero-tts] ' + message),
-  });
-  favoriteMarkObservers = [FAVORITES_OBSERVER, FAVORITES_ONLY_OBSERVER].map((name) =>
-    Zotero.Prefs.registerObserver(name, () => favoriteMarks?.refresh()),
-  );
-  for (const reader of Zotero.Reader._readers ?? []) favoriteMarks.attach(reader);
-}
-
-function stopFavoriteMarks(): void {
-  for (const token of favoriteMarkObservers) {
-    try {
-      Zotero.Prefs.unregisterObserver(token);
-    } catch (e) {
-      Zotero.logError(e);
-    }
-  }
-  favoriteMarkObservers = [];
-  favoriteMarks?.dispose();
-  favoriteMarks = null;
 }
 
 // ---- The Engine --------------------------------------------------------------
@@ -2656,7 +2536,7 @@ async function startup({ id, version, rootURI }: StartupParams): Promise<void> {
             Reflect.apply(win.zttsUpdate, win, [json]); return true;
           },
           watchSettings: (changed) => {
-            const names = ['readAloud.usePluginPlayer', 'readAloud.playerLayout'];
+            const names = ['readAloud.playerLayout'];
             const tokens = names.map(name => Zotero.Prefs.registerObserver('zotero-tts.' + name, () => { changed(); sentenceInView?.refresh(); domFollowing?.refresh(); }));
             return () => { for (const token of tokens) Zotero.Prefs.unregisterObserver(token); };
           },
@@ -2691,9 +2571,6 @@ async function startup({ id, version, rootURI }: StartupParams): Promise<void> {
       ],
       ['system-voice hiding', startSystemVoiceHiding],
       ['provider entries in the player', startProviderTiers],
-      ['Multiple-languages-first ordering', startMultilingualFirst],
-      ['favorite marks in the player', startFavoriteMarks],
-      ['expanded player opening', startPlayerExpanded],
       ['the Engine', startEngine],
       ['live voice choices', startLiveVoiceList],
       ['speech text settings', startTextSettings],
@@ -2711,7 +2588,8 @@ async function startup({ id, version, rootURI }: StartupParams): Promise<void> {
 }
 
 async function shutdown(reason?: number): Promise<void> {
-  pluginPlayer?.dispose();
+  // An upgrade leaves Zotero's own player hidden for the successor; a disable hands it back (ADR 0007)
+  pluginPlayer?.dispose({ handBack: reason === ADDON_DISABLE || reason === ADDON_UNINSTALL });
   pluginPlayer = null;
   if (playerResourceName) playerResources?.setSubstitution(playerResourceName, null);
   playerResources = null;
@@ -2746,7 +2624,6 @@ async function shutdown(reason?: number): Promise<void> {
   voiceNotices = null;
   playerVoiceList?.dispose();
   playerVoiceList = null;
-  stopPlayerExpanded();
   // A settings change still inside its quiet period goes up now, bounded;
   // then the observers come off
   const auto = settingsAutoUpload;
@@ -2775,8 +2652,6 @@ async function shutdown(reason?: number): Promise<void> {
   // The outer shadow first, so the hiding's restore puts Zotero's own method back
   stopProviderTiers();
   stopSystemVoiceHiding();
-  stopMultilingualFirst();
-  stopFavoriteMarks();
   stopTextSettings();
   // The plugin's copy of its strings leaves with it; a reload's successor
   // registers its own (issue #64)
@@ -2820,7 +2695,7 @@ let openaiSplitReport: SplitReport | null = null;
 
 /** For Tools → Developer → Run JavaScript: `Zotero.ZoteroTTS.diagnostics.highlight()` etc. */
 const diagnostics = {
-  pluginPlayer: async () => JSON.stringify(pluginPlayer?.inspect() ?? { enabled: false }),
+  pluginPlayer: async () => JSON.stringify(pluginPlayer?.inspect() ?? null),
   /**
    * Issue #113: the three sections as the prefs say (keys, headers and
    * the address by length, never by value), this start's split report,
@@ -3072,19 +2947,14 @@ const diagnostics = {
    * One entry per provider in the player's first dropdown (issue #110,
    * read-aloud/provider-tiers.ts). `feature` names the build. Per open
    * reader: its title; whether its manager prototype carries the re-tag
-   * shadow (`resolveShadow`) and its React the dropdown wrapper
-   * (`createElementWrapped`); `options`, the list last handed to the first
-   * dropdown, values and labels, null before its first render; `tiers`,
-   * the tiers with voices on the manager's list right now; `selectedTier`;
+   * shadow (`resolveShadow`); `tiers`, the tiers with voices on the
+   * manager's list right now; `selectedTier`;
    * `lastMove`, the last selection moved off a tier no voice carries
    * (from, to, and which step of the rule); and `retagged`, the plugin's
    * voices by the tier their objects carry — provider keys once the shadow
    * ran, `local` where it did not, which is the proof by mechanism.
-   * `labels` is the name map the dropdown draws from. Signed out of Zotero
-   * (issue #130): `signedIn`, the reader's own flag, and
-   * `loginRowReplaced`, whether the tier select's last render was handed
-   * signed in so it drew the dropdown instead of Zotero's log-in row; null
-   * before its first render.
+   * `labels` is the name map the dropdown draws from. `signedIn` is the
+   * reader's own flag (issue #130).
    */
   providerTiers: async () =>
     JSON.stringify(
@@ -3098,7 +2968,7 @@ const diagnostics = {
             return (item?.parentItem ?? item)?.getField('title') ?? null;
           }),
           signedIn: safe(() => readerSignedIn(r)),
-          ...(providerTiers?.inspect(r) ?? { resolveShadow: false, createElementWrapped: false, tierMemoryHook: false }),
+          ...(providerTiers?.inspect(r) ?? { resolveShadow: false, tierMemoryHook: false }),
         })),
       },
       null,
@@ -3140,20 +3010,6 @@ const diagnostics = {
     const p = preferred ?? preferredLanguages();
     return JSON.stringify({ lang, keys: k, preferred: p, key: resolveVoiceLang(lang, k, p) });
   },
-  multilingualFirst: () => JSON.stringify((Zotero.Reader._readers ?? []).map((r: any) => multilingualFirst?.inspect(r) ?? null), null, 1),
-  /**
-   * The ♥ marks (issue #45), per open reader: whether the stylesheet is in
-   * that reader's document, how many voices it marks, and — the mechanism,
-   * not the effect — how many rows of the dropdown those rules match right
-   * now. `options` is 0 while the dropdown is closed, since Zotero renders
-   * the list only then; with it open, `matched` is what proves the rules
-   * found their rows.
-   */
-  favoriteMarks: () => JSON.stringify((Zotero.Reader._readers ?? []).map((r: any) => favoriteMarks?.inspect(r) ?? null), null, 1),
-  /** Issue #81: pending must clear; expanded + ready proves the gate released after the Options commit. */
-  playerExpanded: () => JSON.stringify((Zotero.Reader._readers ?? []).map((r: any) => ({
-    itemID: safe(() => r.itemID), ...playerExpanded?.inspect(r),
-  })), null, 1),
   textSettings: () => JSON.stringify((Zotero.Reader._readers ?? []).map((r: any) => textSettings?.inspect(r) ?? null), null, 1),
   /**
    * The player's voice list rebuilt on the side (issue #121), per open
@@ -3180,7 +3036,6 @@ const diagnostics = {
         highlight: safe(() => highlightStyling?.patchCounts()) ?? null,
         systemVoices: safe(() => systemVoiceHiding?.patchCounts()) ?? null,
         providerTiers: safe(() => providerTiers?.patchCounts()) ?? null,
-        multilingualFirst: safe(() => multilingualFirst?.patchCounts()) ?? null,
         readAloudMemory: safe(() => readAloudMemory?.patchCounts()) ?? null,
         engine: safe(() => engine?.patchCounts()) ?? null,
         playerVoiceList: safe(() => playerVoiceList?.patchCounts()) ?? null,
@@ -3341,7 +3196,8 @@ const diagnostics = {
         active: safe(() => !!r?._internalReader?._readAloudManager?.active),
         // A manager that never ran reads `paused: true`; the flag means something only behind an open player
         paused: open ? safe(() => !!r?._internalReader?._readAloudManager?.paused) : null,
-        popupInDom: safe(() => hasPlayer(r?._iframeWindow?.document ?? null)),
+        // Zotero's own player, never shown but rendered while its popup flag is up (ADR 0007)
+        popupInDom: safe(() => !!r?._iframeWindow?.document?.querySelector('.read-aloud-popup')),
       };
     };
     const readers = () => (Zotero.Reader._readers ?? []) as any[];
@@ -3926,7 +3782,6 @@ const diagnostics = {
 Zotero.ZoteroTTS = {
   pluginPlayer: {
     setLayout: (value: string) => pluginPlayer?.setLayout(value),
-    setEnabled: (value: boolean) => pluginPlayer?.setEnabled(value),
     initSettings: (doc: Document) => pluginPlayer?.initSettings(doc),
     prepareSettingsMenu: (doc: Document) => pluginPlayer?.prepareSettingsMenu(doc),
   },
