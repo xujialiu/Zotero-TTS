@@ -127,7 +127,7 @@ opens a fixture ends with item 3.26's teardown ([playback](cases/playback.md)).
 
 - [Reading positions](cases/reading-positions.md) — 5.1–5.4, 5.8
 - [Reading position sync over WebDAV](cases/position-sync.md) — 6.1–6.5, 6.10
-- [The Positions File shared with OpenReader](cases/document-positions.md) — 1–14 (issues #126, #129)
+- [The Positions File shared with OpenReader](cases/document-positions.md) — 1–16 (issues #126, #129, #138, #139)
 - [Settings backup](cases/settings-backup.md) — 3.21, 6.6–6.9
 - [Settings sync over WebDAV](cases/settings-sync.md) — 3.19, 6.11–6.15, 6.17–6.19
 - [Synced settings wait while a tab reads](cases/settings-sync-while-reading.md) — 1.16, 6.16

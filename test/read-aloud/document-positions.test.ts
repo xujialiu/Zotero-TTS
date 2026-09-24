@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { createDocumentPositions, type DocumentPositionsDeps } from '../../src/read-aloud/document-positions';
 import type { DocumentRow } from '../../src/read-aloud/position-store';
-import type { SharedItem } from '../../src/read-aloud/xujialiu-positions-file';
+import { entryOf, serializeSharedPositions, type SharedItem } from '../../src/read-aloud/xujialiu-positions-file';
+import { createSharedTransport } from '../../src/read-aloud/xujialiu-positions-transport';
 
 const ID = `sha256:${'b'.repeat(64)}`;
 const OTHER = `sha256:${'c'.repeat(64)}`;
@@ -125,6 +126,68 @@ describe('createDocumentPositions', () => {
     expect(h.asked).toEqual(['1/EPUB0002', '1/GONE0001']);
     expect(h.positions.documentIdOf(1, 'EPUB0002')).toBe(OTHER);
     expect(h.positions.stats()).toMatchObject({ documents: 2, unnamed: 1 });
+  });
+
+  it('derives a native row at the row’s own time, and never over an item as new or newer (spec 6.9, issue #138)', () => {
+    const h = harness();
+    h.positions.load({ documents: [{ lib: 1, key: 'EPUB0001', documentId: ID, publicationId: null, identifiedAt: 1 }], positions: [] });
+    // Nothing held: the row's place, at the row's time
+    expect(h.positions.derived(1, 'EPUB0001', capture('row'), 30)).toBe(true);
+    expect(h.positions.itemFor(1, 'EPUB0001')).toMatchObject({ anchor: { exact: 'row' }, stamp: { at: 30, device: 'Desk' } });
+    // An older item held: replaced, at the later row's time
+    expect(h.positions.derived(1, 'EPUB0001', capture('later row'), 40)).toBe(true);
+    expect(h.positions.itemFor(1, 'EPUB0001')?.stamp.at).toBe(40);
+    // A phone's newer item held: left alone, not outranked at 5001
+    const phone: SharedItem = { ...capture('phone'), id: ID, format: 'epub', publicationId: null, stamp: { at: 5000, device: 'iPhone-1' } };
+    expect(h.positions.adopt(phone)).toBe(true);
+    expect(h.positions.derived(1, 'EPUB0001', capture('row'), 1000)).toBe(false);
+    // One as new: left alone too
+    expect(h.positions.derived(1, 'EPUB0001', capture('row'), 5000)).toBe(false);
+    expect(h.positions.itemFor(1, 'EPUB0001')).toEqual(phone);
+    expect(h.items.map((i) => i.anchor.exact)).toEqual(['row', 'later row', 'phone']);
+    // An attachment not named: nothing written, and nothing asked of its file
+    expect(h.positions.derived(1, 'NOTNAMED', capture(), 1000)).toBe(false);
+    expect(h.asked).toEqual([]);
+    expect(h.positions.list()).toHaveLength(1);
+  });
+
+  it('keeps the phone’s item that the open’s sync adopted while the document analysis loaded (issue #138)', async () => {
+    const h = harness();
+    // Named at the open, nothing held: the native row came from another computer
+    h.positions.load({ documents: [{ lib: 1, key: 'EPUB0001', documentId: ID, publicationId: null, identifiedAt: 1 }], positions: [] });
+    const phone: SharedItem = { ...capture('where the phone stopped'), id: ID, format: 'epub', publicationId: null, stamp: { at: 5000, device: 'iPhone-1' } };
+    let server = serializeSharedPositions([entryOf(phone)]);
+    let uploads = 0;
+    const transport = createSharedTransport({
+      enabled: () => true,
+      client: () => ({
+        download: async () => server,
+        upload: async (_name, text) => {
+          uploads++;
+          server = text;
+        },
+      }),
+      local: () => h.positions.list(),
+      adopt: (item) => h.positions.adopt(item),
+      now: () => 9999,
+      error: (e) => void h.errors.push(e),
+      debug: () => {},
+    });
+    // index.ts nameThenSyncOnOpen: the sync poked, the derivation beside it,
+    // whose early check passes with nothing held
+    transport.poke('reader-open');
+    expect(h.positions.itemFor(1, 'EPUB0001')).toBeNull();
+    // The sync completes while the derivation awaits the document analysis
+    await transport.flush('meanwhile');
+    expect(h.positions.itemFor(1, 'EPUB0001')).toEqual(phone);
+    // Then the row's older place, at the row's time: refused
+    expect(h.positions.derived(1, 'EPUB0001', capture('Monday on the desktop'), 1000)).toBe(false);
+    expect(h.positions.itemFor(1, 'EPUB0001')).toEqual(phone);
+    const before = server;
+    await transport.flush('next');
+    expect(server).toBe(before);
+    expect(uploads).toBe(0);
+    expect(h.errors).toEqual([]);
   });
 
   it('lets two attachments of one book share the item, and re-points an attachment whose file changed', () => {

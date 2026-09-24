@@ -1,0 +1,72 @@
+{
+  "items": [
+    {
+      "id": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "format": "pdf",
+      "publicationId": null,
+      "locator": "page=3",
+      "anchor": { "suffix": "", "exact": "Written by hand, keys in any order.", "prefix": "", "note": "not in the spec" },
+      "stamp": { "device": "Desktop", "at": 3, "tz": "UTC" }
+    },
+    {
+      "id": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "format": "epub",
+      "publicationId": null,
+      "locator": "epubcfi(/6/34!/4/2/4/2/4)",
+      "anchor": { "exact": "铁柱坐在村内的小路边，望着远处的群山。", "prefix": "", "suffix": "" },
+      "stamp": { "at": 1758470000000, "device": "iPhone-3f9a2c1b" }
+    },
+    {
+      "id": "",
+      "format": "epub",
+      "publicationId": null,
+      "locator": "epubcfi(/6/4!/4/2)",
+      "anchor": { "exact": "An empty id is a string.", "prefix": "", "suffix": "" },
+      "stamp": { "at": 2, "device": "Desktop" }
+    },
+    {
+      "id": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "format": "epub",
+      "locator": "epubcfi(/6/4!/4/2)",
+      "anchor": { "exact": "No publicationId, so not usable.", "prefix": "", "suffix": "" },
+      "stamp": { "at": 4, "device": "Desktop" }
+    },
+    {
+      "id": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+      "format": "pdf",
+      "publicationId": null,
+      "locator": "page=5",
+      "anchor": { "exact": "No prefix, and no stamp.", "suffix": "" }
+    },
+    {
+      "stamp": { "at": 6, "device": "Desktop" },
+      "anchor": { "exact": "Keys out of order at the top.", "prefix": "", "suffix": "" },
+      "locator": "page=6",
+      "publicationId": null,
+      "format": "pdf",
+      "id": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "note": "not in the spec"
+    },
+    {
+      "id": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "format": "epub",
+      "publicationId": null,
+      "locator": "epubcfi(/6/4!/4/2/1:0)",
+      "anchor": { "exact": "A text step in the locator.", "prefix": "", "suffix": "" },
+      "stamp": { "at": 7, "device": "Desktop" }
+    },
+    {
+      "id": "sha256:9999999999999999999999999999999999999999999999999999999999999999",
+      "format": "epub",
+      "publicationId": null,
+      "locator": "epubcfi(/6/4!/4/2)",
+      "anchor": { "exact": "An empty device.", "prefix": "", "suffix": "" },
+      "stamp": { "at": 9, "device": "" }
+    },
+    7,
+    { "id": 5, "format": "epub" }
+  ],
+  "version": 1,
+  "format": "xujialiu-positions",
+  "note": "not in the spec"
+}

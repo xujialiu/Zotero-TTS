@@ -78,7 +78,7 @@ export interface SharedTransportStats {
   remoteItems: number | null;
   /** Items the file held that this build could not use — other formats, malformed — carried through. */
   carried: number | null;
-  /** Items the file held with no id, dropped and counted. */
+  /** Items the file held whose id is not a string, dropped and counted. */
   dropped: number | null;
   adopted: number | null;
   uploaded: boolean | null;

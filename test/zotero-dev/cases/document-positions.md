@@ -2,10 +2,11 @@
 
 ## The Positions File shared with OpenReader (issue #126; 1.13.2)
 
-Against the user's real WebDAV folder, under the same switch as the
-plugin's own positions file (`Sync reading positions between computers`):
-every crafted item and every test file deleted from the server at the end,
-the switch restored, every tab closed. The file is
+Against the test WebDAV folder (`MEMORY/testing.md`, Test WebDAV first),
+never the owner's own, under the same switch as the plugin's own positions
+file (`Sync reading positions between computers`): every crafted item and
+every test file deleted from the server at the end, the switch restored,
+every tab closed. The file is
 `xujialiu-positions.json` (docs/spec/SYNC-FORMAT.md, section 6): items keyed
 by Document Id, canonical compact JSON, nothing ever removed. The fixture
 is an EPUB of the run's own — never a user document — and nothing plays
@@ -159,10 +160,67 @@ the first Read Aloud. Diagnostics: `Zotero.ZoteroTTS.diagnostics.positionSync()`
     exact`, and the first spoken segment is the phone's sentence. On 1.14.0
     the key falls through to Zotero's own start with no `(resume)` sync line.
 
+### 15
+
+15. **A phone's item adopted while the document analysis loads stands**
+    (issue #138; 1.14.4). The window is the derivation's wait for the
+    document analysis at a tab's first open, which is long only when Zotero
+    has not built it for the attachment yet. Set up, in this order: a
+    fixture EPUB imported fresh and never opened, of a Document Id this
+    machine has never held (a fixture an earlier run used keeps its item
+    for good); a native row for it at `ts` T1, its `pos` Zotero's whole
+    selector with its `type` (spec section 5; without it the derivation
+    stops silently), put into `zotero-tts-positions.json` as another
+    computer's row and taken by a sync of that file before anything else
+    (`position()` shows it stored); only then an item for its Document Id in
+    the Positions File at T2 > T1, `stamp.device` `iPhone-test`, a later
+    paragraph's locator and its second sentence as `anchor.exact` (as in
+    item 5), with no sync between that and the open. Open the fixture's tab
+    and wait for both lines: `shared position sync (reader-open): … 1
+    adopted` comes **before** `native row at T1 not derived for
+    <lib>/<key>; held: iPhone-test at T2`. That order is the proof: the
+    adoption landed inside the wait and the check at the write refused. The
+    item held is then `iPhone-test` at T2 and nothing of this machine's;
+    after the next sync (open and close another tab) the file's item for
+    the Document Id is still `iPhone-test` at T2, and `uploaded` is false.
+    The other order — `native row at T1 derived for …; held: <machine id>
+    at T1` before `… 1 adopted` — means the analysis loaded before the sync
+    landed: the end state is the same, but the window was not exercised, so
+    the check is repeated with a longer fixture, and it passes only in the
+    order above. Measured on beta4 (2026-09-24, an 80-chapter fixture):
+    the sync's line at 648 ms, the row's at 690 ms after the open. Before
+    1.14.4-beta4 the window's order ended with the row's sentence held at
+    T2 + 1 by this machine and uploaded (a unit test, not run live).
+
+### 16
+
+16. **A file a third writer left is written back in the one form** (issue
+    #139; 1.14.4). Save the server's `xujialiu-positions.json` as found (or
+    note it absent), then put `test/fixtures/xujialiu-positions.v1.carried.json`
+    there byte for byte: eight items with Document Ids no device holds — keys
+    out of order, keys the spec does not list, missing fields, an empty `id`,
+    a text-step locator, an empty `device` — and two with no string `id`.
+    Nothing is adopted from it, so this machine's store is untouched
+    (`shared.documents.items` the same before and after). Open and close a
+    tab: the log has `shared position sync (…): 8 remote, N merged, 0
+    adopted, 6 carried, 2 dropped, uploaded`, and `shared.transport` shows
+    `dropped` 2, `carried` 6, `uploaded` true. GET the file: its items with
+    the fixture's ids, the `""` one first, are in id order byte for byte the
+    items of `test/fixtures/xujialiu-positions.v1.carried.canonical.json`
+    (the file's other items are this machine's own, which every sync puts
+    there). A second sync: `uploaded` false. 1.14.4-beta4 on the same file
+    logs `7 remote` and `3 dropped`, leaves the `""` item out and writes
+    `"publicationId":null` into the item that lacks it — the bug. The file
+    goes back as found (item 10).
+
 ### 10
 
 10. **Restoration.** The crafted items and the version-2 file deleted from
     the server, the file left as the run found it (or absent when the run
     created it), the switch as found, the fixture's tab closed, the rows
     the run created erased with the fixture (its Document Id row and item
-    stay — nothing removes an item, by design).
+    stay — nothing removes an item, by design). An item this machine
+    adopted or derived for a fixture stays in its store, and the first
+    sync after the owner's folder is restored uploads it there (2026-09-24:
+    the first beta4 run's crafted `b` item did): the report names every
+    fixture Document Id left held.
