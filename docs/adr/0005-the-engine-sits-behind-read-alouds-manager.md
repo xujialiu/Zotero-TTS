@@ -279,8 +279,11 @@ tests, and no Zotero update can undo it.
   `RemoteSampleReadAloudController` too, through the base class the two
   shared, so a sample played from Zotero's own player (shown only with
   *Use plugin player* off) now plays at Zotero's level. Accepted with the
-  owner on 2026-09-23: #134 removes that switch once the Engine has
-  shipped, and the sample button goes with Zotero's own player.
+  owner on 2026-09-23: #134 removes that switch, and it ships in the same
+  release as the Engine (ADR 0007). Zotero's own player has no sample
+  button in 10.0.3-beta.3 — it plays one when a voice is picked in it while
+  paused (38585-38593) — and with that player never shown, nobody picks
+  there.
 - The live kit follows: 154 files under `test/zotero-dev/` read Read Aloud's
   controller internals, 44 of them in `scripts/voice-switch/`, and are
   rewritten against the Engine.
@@ -300,4 +303,6 @@ tests, and no Zotero update can undo it.
   Player shows none of them, nor the first-run notice, and calls a daily
   limit a connection failure, while the settings pane says credits are
   shown and bought in the player (`zotero-tts.ftl` 103, 106). Found on
-  2026-09-23; the owner chose not to open an issue for it.
+  2026-09-23; the owner chose not to open an issue for it then. On
+  2026-09-24, with #134, #140 was opened for it, and both strings now say
+  credits are bought on zotero.org.
