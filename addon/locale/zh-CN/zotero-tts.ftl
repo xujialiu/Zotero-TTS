@@ -614,9 +614,9 @@ ztts-player-next-paragraph = 下一段
 ztts-playback-preparing = 正在准备…
 ztts-playback-failed = 无法准备音频，请重试播放。
 
-ztts-action-player-position = 播放器位置
-ztts-key-player-position =
-    .value = 播放器位置
-ztts-help-key-player-position =
+ztts-action-player-layout = 播放器布局
+ztts-key-player-layout =
+    .value = 播放器布局
+ztts-help-key-player-layout =
     .value = ?
-    .help = 插件播放器打开时，按顶部栏 → 底部栏 → 悬浮面板循环切换。所有播放器共用此位置，重启后仍会保留。
+    .help = 插件播放器打开时，按顶部栏 → 底部栏 → 悬浮面板循环切换。所有播放器共用此布局，重启后仍会保留。

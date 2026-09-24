@@ -101,7 +101,7 @@ describe('loadSettings', () => {
     expect(loadSettings(fakePrefs({ 'extensions.zotero.zotero-tts.highlight.sentenceAlpha': -1 })).highlight.sentenceAlpha).toBe(0);
   });
 
-  it('ships Shift+Z / X / C for the speed, Shift+↓ / ↑ for the volume, the arrow keys for skipping, Shift+Space / Shift+Enter for the position, Shift+O for the options panel, Shift+P for player position, Shift+S to stop everywhere and Shift+W for the word highlight', () => {
+  it('ships Shift+Z / X / C for the speed, Shift+↓ / ↑ for the volume, the arrow keys for skipping, Shift+Space / Shift+Enter for the position, Shift+O for the options panel, Shift+P for player layout, Shift+S to stop everywhere and Shift+W for the word highlight', () => {
     expect(DEFAULTS.shortcuts).toEqual({
       speedReset: 'Shift+Z',
       speedDown: 'Shift+X',

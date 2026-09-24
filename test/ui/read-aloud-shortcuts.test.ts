@@ -1286,7 +1286,7 @@ describe('deepActiveElement', () => {
   });
 });
 
-describe('player position shortcut', () => {
+describe('player layout shortcut', () => {
   it('cycles and saves top, bottom, floating, top while the plugin player is open', () => {
     const isPluginPlayerOpen = vi.fn(() => true);
     const { shortcuts, prefs, resolve, reader } = setup({ isPluginPlayerOpen });
@@ -1330,7 +1330,7 @@ describe('held speed actions', () => {
   });
 });
 
-describe('player position key guards and customization', () => {
+describe('player layout key guards and customization', () => {
   it('leaves the key alone when the plugin player is closed, disabled or unavailable', () => {
     for (const isPluginPlayerOpen of [undefined, () => false]) {
       const { shortcuts, prefs, resolve } = setup({ isPluginPlayerOpen });

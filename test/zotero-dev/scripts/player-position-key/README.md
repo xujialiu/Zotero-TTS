@@ -1,11 +1,11 @@
-# Player position shortcut verification kit (issues #122, #124)
+# Player layout shortcut verification kit (issues #122, #124, #136)
 
 [Case](../../cases/player-position-key.md) · [Checklist index](../../README.md) · [Runner](../_shared/README.md)
 
 | Script | What it checks | What it expects | Params it reads |
 |---|---|---|---|
 | `01-cycle-and-guards.js` | Trusted Shift+P from reader and player focus, all three layouts, open-player guard, repeat/editable/extra-modifier fallthrough, manager state and frame/settings agreement | `top → A → B → top`; one transition per press; no action when closed/disabled/no reader/editable/extra modifier; active paused state, voice, speed and position retained | fixture state from player-controls setup |
-| `02-recorder-persistence.js` | Shortcut row labels/help, remap, clear, restore defaults, manual starting layout, saved layout across reopen and reinstall | Player position row/help visible; remap works immediately; default Shift+P is restored; saved layout/user flag survives reopen and reinstall | fixture state; named preference snapshots |
+| `02-recorder-persistence.js` | Shortcut row labels/help, remap, clear, restore defaults, manual starting layout, saved layout across reopen and reinstall | Player layout row/help visible; remap works immediately; default Shift+P is restored; saved layout/user flag survives reopen and reinstall | fixture state; named preference snapshots |
 | `03-reinstall-persistence.js` | In-place reinstall reader recovery and saved B layout across reattach/reopen | Both reader internals return; preference/user flag, diagnostic layout and both frame layouts remain B; reopened players are open and paused | fixture state; persistence state |
 | `04-renderer-height.js` | Isolated installed `player-controls.js` renderer across expanded A/top → B and collapsed A → B | Every expanded callback describes the new floating DOM at 202px; unchanged expanded snapshot remains 202px; collapsed frame/content are 108px; no stale 34px callback | `root`; fixture state; `fixturesDir` via runner params |
 | `05-shortcut-geometry.js` | Focused trusted Shift+P cycles on disposable PDF/EPUB readers, expanded and collapsed rectangles, paused and playing state | Three expanded cycles per reader: 34 → 202 → 34; collapsed: 34 → 108 → 34; all controls fit; manager/controller, voice, speed, position, active segment and paused state retained | fixture state; named preference snapshot |

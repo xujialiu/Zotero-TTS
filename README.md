@@ -270,10 +270,10 @@ doing:
   sentence pauses do not flash a notice. A voice-switching notice takes
   priority while a new voice is being prepared.
 
-- **Player position — `Shift+P`** cycles Top bar → Bottom bar → Floating
+- **Player layout — `Shift+P`** cycles Top bar → Bottom bar → Floating
   panel while the plugin player is open, playing or paused. All players
-  share the position, and it is remembered after restart. Holding the key
-  switches only once; typing in a text field leaves the position alone.
+  share the layout, and it is remembered after restart. Holding the key
+  switches only once; typing in a text field leaves the layout alone.
 - **Faster / slower — `Shift+C` / `Shift+X`** support holding the key to
   repeat at your system's keyboard rate, in 0.05× steps within 0.5×–3×.
 - **Custom keys** — record another binding, clear it, or restore defaults
