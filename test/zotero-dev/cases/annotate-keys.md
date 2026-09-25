@@ -30,11 +30,14 @@ at the end; nothing else is touched.
    returned just before the press (the current sentence, or the previous
    one while under half and under 3 s into the current);
    `_internalReader._state.readAloudState.annotationPopup` non-null and
-   naming that annotation's id. Playback keeps going (`paused` false).
+   naming that annotation (its `annotation.id` is the item's Zotero
+   *key*, not the numeric id). Playback keeps going (`paused` false).
 3. **Shift+U with the popup open.** The same annotation's type becomes
    `underline`; no new annotation.
-4. **Shift+U while paused, popup closed** (close it first: Escape, or
-   `_updateReadAloudUIState({annotationPopup: null})`). One more
+4. **Shift+U while paused, popup closed** (close it first with Zotero's
+   own `_internalReader.dismissReadAloudAnnotationPopup()`, reader.js
+   84511, and skip to a segment without an annotation — one that has
+   one reopens its popup instead). One more
    annotation, `annotationType` `underline`.
 5. **No session.** With the player closed (`manager.active` false),
    Shift+H: `keydown()` 0 from the plugin (the key falls through), no new
