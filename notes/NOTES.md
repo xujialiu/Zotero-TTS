@@ -631,3 +631,4 @@ then) and is in the git history before that day.
 - Verified live: a reinstall over a half-closed reader window starts every step, and Zotero's own session save trips on the entry (issue #143)
 - A leftover `loadVoices` hook left the player empty, and the fix takes Zotero's methods from the class (issue #131)
 - The paragraph pause is the whole pause, and neither Zotero number reaches the gap any more (issue #142)
+- A rare skip at high speed made reproducible: the Engine's word clock replayed on measured delays (issue #144)
