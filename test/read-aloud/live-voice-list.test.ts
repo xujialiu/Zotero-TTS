@@ -8,18 +8,21 @@ function fixture(overrides: Partial<Parameters<typeof createLiveVoiceList>[0]> =
   /** What each run of Zotero's loadVoices was asked: its remote list or not (reader.js:82310). */
   const remote: boolean[] = [];
   const resolveVoice = vi.fn();
-  const manager = {
-    active: true, _voice: playing, selectedVoiceID: playing.id, _allVoices: [playing],
-    _controller: { position: 7 }, _options: {}, _devMode: false,
-    _resolveVoice: resolveVoice, _stateChanged: vi.fn(),
-    deactivate() { this.active = false; },
+  // Zotero's ReadAloudManager: both methods live on the class, none on the
+  // instance (reader.js:82310)
+  class ReadAloudManager {
+    active = true; _voice = playing; selectedVoiceID = playing.id; _allVoices: Array<{ id: string; [key: string]: any }> = [playing];
+    _controller = { position: 7 }; _options = {}; _devMode = false;
+    _resolveVoice = resolveVoice; _stateChanged = vi.fn();
+    deactivate() { this.active = false; }
     async loadVoices(loadRemote: boolean) {
       remote.push(loadRemote);
       await new Promise<void>(resolve => requests.push(resolve));
       this._allVoices = listed;
       this._resolveVoice(); this._stateChanged();
-    },
-  };
+    }
+  }
+  const manager = new ReadAloudManager();
   const reader = { _internalReader: { _readAloudManager: manager, _state: { readAloudState: { popupOpen: true } } } };
   const error = vi.fn(), ended = vi.fn();
   const lists = createLiveVoiceList({ readers: () => [reader], stage: () => ({}),
@@ -111,6 +114,26 @@ describe('live player voice choices', () => {
     f.lists.dispose();
     f.manager.deactivate(); await Promise.resolve();
     expect(f.ended).toHaveBeenCalledOnce();
+  });
+  // A tab open across updates can carry an earlier instance's hook (#131):
+  // taken for Zotero's own, it never fills the stage, and every shutdown
+  // put it back for the next version to take again
+  it('builds the list with Zotero’s own loadVoices when an earlier instance’s hook is left on the manager', async () => {
+    const f = fixture();
+    const native = Object.getPrototypeOf(f.manager).loadVoices;
+    const leftover = f.manager.loadVoices;
+    expect(leftover).not.toBe(native);
+    const error = vi.fn();
+    const lists = createLiveVoiceList({ readers: () => [f.reader], stage: () => ({}),
+      voiceTiers: () => () => null, protectedVoices: () => [], ownsInterface: () => true, error });
+    expect(lists.attach(f.reader)).toBe(true);
+    const job = lists.refresh(); f.requests.shift()!(); await job;
+    expect(error).not.toHaveBeenCalled();
+    expect(lists.inspect(f.reader)?.applied).toBe(1);
+    // Its shutdown leaves Zotero's own, not the leftover
+    lists.dispose();
+    expect(Object.hasOwn(f.manager, 'loadVoices')).toBe(false);
+    expect(f.manager.loadVoices).toBe(native);
   });
   it('invalidates a closed player so reopening cannot start a removed provider from its old list', () => {
     const f = fixture();

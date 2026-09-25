@@ -31,7 +31,7 @@ interface LiveVoiceListDeps {
 /** Discover on a separate receiver, then publish choices without touching
  * the active controller, voice, position, or persisted selection (#121). */
 export function createLiveVoiceList(deps: LiveVoiceListDeps) {
-  type Entry = { reader: any; manager: any; original: AnyFn; own?: PropertyDescriptor; hook: AnyFn;
+  type Entry = { reader: any; manager: any; original: AnyFn; hook: AnyFn;
     revision: number; applied: number; loading: number; retained: number; undoEnd?: () => void;
     /** The last load: what Zotero asked for, and whether the remote list was loaded. */
     asked: boolean | null; remote: boolean | null };
@@ -92,20 +92,34 @@ export function createLiveVoiceList(deps: LiveVoiceListDeps) {
     } finally { entry.loading--; }
   }
 
+  /**
+   * Zotero's own method, from the manager's class: Zotero never sets either
+   * one on the manager itself (reader.js:82310), so whatever is there is a
+   * hook — an earlier instance's, when the tab stayed open across an update.
+   * Taken for Zotero's own, that one never fills the stage (issue #131).
+   */
+  function native(manager: any, name: string): AnyFn | null {
+    for (let proto = Object.getPrototypeOf(manager); proto; proto = Object.getPrototypeOf(proto)) {
+      const own = Object.getOwnPropertyDescriptor(proto, name);
+      if (own) return typeof own.value === 'function' ? own.value : null;
+    }
+    return null;
+  }
+
   function attach(reader: any): boolean {
     if (disposed || entries.has(reader)) return !disposed;
     const manager = waive(reader?._internalReader?._readAloudManager);
-    if (typeof manager?.loadVoices !== 'function') return false;
-    const original = manager.loadVoices;
-    const entry: Entry = { reader, manager, original, own: Object.getOwnPropertyDescriptor(manager, 'loadVoices'),
+    const original = manager && native(manager, 'loadVoices');
+    if (!original) return false;
+    const entry: Entry = { reader, manager, original,
       hook: original, revision: 0, applied: 0, loading: 0, retained: 0, asked: null, remote: null };
     entry.hook = exported((asked: boolean) => {
       const job = load(entry, asked);
       return deps.promise ? deps.promise(reader, job) : job;
     }, manager);
     manager.loadVoices = entry.hook;
-    if (typeof manager.deactivate === 'function') {
-      const own = Object.getOwnPropertyDescriptor(manager, 'deactivate'), inner = manager.deactivate;
+    const inner = native(manager, 'deactivate');
+    if (inner) {
       const hook = exported(function (this: unknown, ...args: unknown[]) {
         const result = Reflect.apply(inner, this, args);
         entry.revision++;
@@ -114,8 +128,9 @@ export function createLiveVoiceList(deps: LiveVoiceListDeps) {
       }, manager);
       manager.deactivate = hook;
       entry.undoEnd = () => {
-        if (manager.deactivate !== hook) return;
-        if (own) Object.defineProperty(manager, 'deactivate', own); else delete manager.deactivate;
+        // Delete, never restore what was found: that is how a leftover hook
+        // was carried to the next version (issue #131)
+        if (manager.deactivate === hook) delete manager.deactivate;
       };
     }
     entries.set(reader, entry);
@@ -140,9 +155,7 @@ export function createLiveVoiceList(deps: LiveVoiceListDeps) {
     entries.delete(reader);
     if (deps.isDead?.(entry.manager)) return;
     entry.undoEnd?.();
-    if (entry.manager.loadVoices !== entry.hook) return;
-    if (entry.own) Object.defineProperty(entry.manager, 'loadVoices', entry.own);
-    else delete entry.manager.loadVoices;
+    if (entry.manager.loadVoices === entry.hook) delete entry.manager.loadVoices;
   }
   return { attach, detach, refresh, inspect,
     invalidate() {

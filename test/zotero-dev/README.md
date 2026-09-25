@@ -42,6 +42,7 @@ opens a fixture ends with item 3.26's teardown ([playback](cases/playback.md)).
 ### The plugin and its settings pane
 
 - [Install, in-place reinstall and reload](cases/plugin-lifecycle.md) — 1.1, 5.6, 5.7, 5.9
+- [A tab open across an update keeps building its voice list (issue #131)](cases/update-open-tab-voices.md)
 - [The settings pane: its layout, the About group and the help icons](cases/settings-pane.md) — 1.2, 1.4
 - [The plugin's strings in Zotero's language](cases/localization.md) — 1.10–1.12
 - [The plugin's icon](cases/plugin-icon.md) — 1.13
