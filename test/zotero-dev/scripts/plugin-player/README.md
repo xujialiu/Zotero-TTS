@@ -82,21 +82,31 @@ Limits:
 - **Close a reader WINDOW with `reader.close()`, never `reader._window.close()`
   — found live 2026-09-24 (beta6, #134 run).** The latter skips `uninit()`
   and `_onClose()` (`xpcom/reader.js` `ReaderWindow.close()`), leaving a dead
-  entry in `Zotero.Reader._readers` whose Proxy-wrapped getters throw
-  `can't access dead object` unpredictably (some properties, like `itemID`,
-  read fine; others, like anything touching `_internalReader`, do not).
-  Zotero's OWN `Reader.open()` touches `.itemID` on every entry via
-  `.find()` too, so the dead entry then poisons EVERY later `open()` for
-  that same itemID, `openInWindow` or not. Worse: several startup steps
+  entry in `Zotero.Reader._readers` that throws `can't access dead object`
+  on any read through its `_internalReader` or `_iframeWindow` — those two
+  are themselves dead wrappers — while the entry's own properties, like
+  `itemID`, read fine (one it lacks, like `tabID` on a reader window, is
+  looked up on the dead internal reader by `ReaderInstance`'s Proxy and
+  throws too). Zotero's OWN `Reader.open()`
+  touches `.itemID` on every entry via `.find()` too, so the dead entry
+  then poisons EVERY later `open()` for that same itemID, `openInWindow` or
+  not — **this is still true in 1.14.4-beta7 and unfixed, so the advice
+  above still stands.** Before 1.14.4-beta7, several startup steps
   (`sentence in view`, `live voice choices`, `voice switching`, `Read Aloud
-  shortcuts`, `Read Aloud memory`, `highlight colors`) loop
+  shortcuts`, `Read Aloud memory`, `highlight colors`) looped
   `Zotero.Reader._readers` with NO per-reader try/catch (unlike `plugin
-  player`'s own `attach()`), so ONE dead entry fails the WHOLE step at the
-  next reinstall/reload — reproduced, then disproved by removing the entry
-  (`Zotero.Reader._readers.splice(index, 1)`, found by `_window.closed ===
-  true`) and reinstalling clean. Not a #134 regression: `plugin player`
-  itself was `ok` throughout; unrelated to the Player's own code. A tab
-  closed via `Zotero_Tabs.close(tabID)` instead leaves a harmless
+  player`'s own `attach()`), so ONE dead entry failed the WHOLE step at the
+  next reinstall/reload — reproduced on beta6, then disproved by removing
+  the entry (`Zotero.Reader._readers.splice(index, 1)`, found by
+  `_window.closed === true`) and reinstalling clean. **Since 1.14.4-beta7
+  (issue #143, `read-aloud/reader-access.ts`'s `forEachReader`) every
+  startup walk visits each reader on its own and silently skips a gone
+  one, so no startup step fails on it any more** — verified live
+  2026-09-25 by reinstalling over a live dead entry and reading
+  `startup()` all `ok`, `failed: []`
+  (`plugin-lifecycle` kit, item 5.9). Not a #134 regression: `plugin
+  player` itself was `ok` throughout; unrelated to the Player's own code. A
+  tab closed via `Zotero_Tabs.close(tabID)` instead leaves a harmless
   `_isTabClosed: true` entry that reads fine — expected Zotero bookkeeping,
   not this bug.
 - **A reader's `popupOpen` is `reader._internalReader._state.readAloudState

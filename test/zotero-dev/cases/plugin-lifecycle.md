@@ -45,23 +45,33 @@ and 5.9, added after the split.
    (`Zotero.Reader.open(itemID, null, { openInWindow: true })`), wait for
    its `_internalReader`, and close it with `reader._window.close()`, the
    script path that skips Zotero's `reader.close()`. The entry stays in
-   `Zotero.Reader._readers`: `_window.closed` true and
-   `Components.utils.isDeadWrapper(reader._internalReader)` true. Open a
-   second fixture as a tab, so that a live reader is listed after it.
-   Then reinstall the build in place:
+   `Zotero.Reader._readers`: `_window.closed` true, and
+   `Components.utils.isDeadWrapper` true for both its `_internalReader`
+   and its `_iframeWindow` (2026-09-25). Open a second fixture as a tab,
+   so that a live reader is listed after it, and select it so that its
+   pages render. Then reinstall the build in place:
    - `startup()` all `ok`, `failed: []`, the bare `[zotero-tts] started`;
-     no `can't access dead object` among the errors from the install on.
+     no `can't access dead object` in the debug log from the reinstall's
+     `stopped` on. While the entry stays listed, Zotero's own session
+     save logs one now and then (`chrome://zotero/content/xpcom/reader.js`,
+     no stack; three in the eight minutes before the splice on
+     2026-09-25). That error is Zotero's, not the plugin's.
    - `highlight()`, `autoScroll()`, `sentenceInView()`, `skippedLines()`,
      `textSettings()` and `playerVoiceList()` each answer with one row per
      listed reader: `{ "gone": true }` for the closed window's, and for
-     the tab an object that is neither that nor an error's text (patched
-     only if its pages are rendered, as 5.6 says).
+     the tab an object that is neither that nor an error's text.
+   - The tab listed after the gone reader is attached: `liveVoiceList()`
+     gives it a non-null entry, and the gone reader `null`; `highlight()`
+     shows its PDF view `patched: true` (only if its pages are rendered,
+     as 5.6 says).
    - A fixture tab opened after the reinstall is attached through the
      `renderToolbar` listener: `pluginPlayer()` lists it with `failed:
      null`; its document holds `#ztts-player-toggle` and
      `#ztts-player-style` before any open; the plugin's button opens the
      Player (`open: true`), and `.read-aloud-popup` reads computed
-     `display: none`.
+     `display: none`. Shift+Space, a plugin key, opens the Player there
+     too: in 216 ms on an idle reader, and 11.9 s once on a reader
+     loading its first voice list (2026-09-25).
 
    Before the fix (1.14.4-beta6, 2026-09-24), `failed` named Read Aloud
    memory, highlight colors, sentence in view, live voice choices, voice
