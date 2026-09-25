@@ -32,7 +32,7 @@
  *   without a click or key press in the reader no longer plays silently.
  *
  * And what the plugin adds: the pause between sentences of the pane's
- * settings (gap.ts, issue #44), and the "Preparing…" notice after 300 ms of
+ * settings (gap.ts, issues #44 and #142), and the "Preparing…" notice after 300 ms of
  * waiting for audio (issue #120).
  */
 
@@ -560,7 +560,7 @@ export class EngineSession<Clip extends EngineClip = EngineClip> {
       this.position++;
       let gap: number;
       try {
-        gap = gapBefore(this.currentSegment, this.voice?.sentenceDelay ?? 0, this.speed, this.deps.pauses());
+        gap = gapBefore(this.currentSegment, this.speed, this.deps.pauses());
       } catch (e) {
         // A broken setting must not stall the reading: the voice's own delay, as Read Aloud waits
         this.deps.log?.(e);

@@ -33,6 +33,16 @@ playing, pausing, skipping, and what happens when audio fails. It is never
 visible. Said alone, it is the plugin's own; Zotero's is Read Aloud's engine.
 _Avoid_: controller, manager, backend, player
 
+**Pause between sentences**:
+The silence before the next sentence of the same paragraph, set in the
+pane for every voice, at 1× speed. Off means none.
+_Avoid_: sentence delay, gap
+
+**Pause between paragraphs**:
+The whole silence where a paragraph begins, in place of the pause between
+sentences there, not added to it. Off means none.
+_Avoid_: extra pause, paragraph delay
+
 **Handoff**:
 The reading passing from one voice to another without stopping: at a word
 both voices time, otherwise at the start of the next sentence.

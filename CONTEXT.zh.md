@@ -1,4 +1,4 @@
-<!-- translated-from: CONTEXT.md sha256:481d1a568300 -->
+<!-- translated-from: CONTEXT.md sha256:b404cec8f5e5 -->
 # Zotero-TTS
 
 [English](CONTEXT.md) · **简体中文**
@@ -24,6 +24,14 @@ _避免_：chunk
 **Engine（引擎）**：
 句段与高亮之间的一切：获取句段的音频、预读、解码、变速、句间停顿、播放、暂停、跳读，以及音频出错时怎么办。它永远不可见。单说时指插件自己的引擎；Zotero 的是朗读的引擎。
 _避免_：controller、manager、backend、player
+
+**Pause between sentences（句与句之间停顿）**：
+同一段里下一句之前的停顿，在设置中为所有语音统一设定，按 1 倍速计。关闭即不停顿。
+_避免_：sentence delay、gap
+
+**Pause between paragraphs（段落之间停顿）**：
+段落开头的整段停顿，在这里代替句与句之间停顿，而不是加在它上面。关闭即不停顿。
+_避免_：extra pause、paragraph delay
 
 **Handoff（交接）**：
 朗读从一个语音转到另一个语音而不停下：在两个语音都有时间戳的某个词处，否则在下一句开头。

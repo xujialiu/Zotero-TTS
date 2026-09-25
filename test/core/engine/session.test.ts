@@ -93,7 +93,7 @@ describe('EngineSession: sentence to sentence', () => {
     expect(t.log.list().slice(2)).toEqual(['BufferingChange:Four five.', 'BufferingChange:Four five.', 'ActiveSegmentChange:Four five.']);
   });
 
-  it('waits the sentence setting plus the paragraph setting before a paragraph, each divided by the speed', async () => {
+  it('waits the paragraph setting alone before a paragraph, divided by the speed', async () => {
     const t = setup({ settings: pauses(300, 400) });
     t.session.bind({ voice: t.v, segments: t.list, backwardStopIndex: 2, forwardStopIndex: null });
     t.session.setSpeed(2);
@@ -101,20 +101,18 @@ describe('EngineSession: sentence to sentence', () => {
     await t.clock.advance(0);
     await t.clock.advance((seconds('Six seven eight.') / 2) * 1000);
     expect(t.session.position).toBe(3);
-    await t.clock.advance(349);
+    await t.clock.advance(199);
     expect(t.audio.started).toHaveLength(1);
     await t.clock.advance(1);
     expect(t.audio.started).toHaveLength(2);
     expect(t.audio.started[1].rate).toBe(2);
   });
 
-  it('waits the voice’s own delay, and Zotero’s 200 before a paragraph, while both switches are off', async () => {
+  it('waits nothing while both switches are off, whatever the voice’s own delay', async () => {
     const t = setup({ settings: pauses(null, null), sentenceDelay: 300 });
     t.open(2);
     await t.clock.advance(0);
-    await t.clock.advance(seconds('Six seven eight.') * 1000 + 499);
-    expect(t.audio.started).toHaveLength(1);
-    await t.clock.advance(1);
+    await t.clock.advance(seconds('Six seven eight.') * 1000);
     expect(t.audio.started).toHaveLength(2);
   });
 

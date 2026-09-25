@@ -386,12 +386,13 @@ provider (or Zotero's Standard / Premium), language, voice.
   tab, set from the player's slider, the shortcuts or the settings slider.
   Off, Zotero keeps a speed per document language.
 - *Pause between sentences* — how long every voice waits before the next
-  sentence, whatever its provider, at 1× speed; reading faster shortens it in
-  step. On at 0 by default, so every voice runs sentence to sentence. Off,
-  each voice pauses as Zotero sets it.
-- *Extra pause between paragraphs* — added on top where a paragraph
-  begins, at 1× speed, shortened in step with the speed. On at 200 ms by
-  default. Off, Zotero's own pause, the same at every speed.
+  sentence of the same paragraph, whatever its provider, at 1× speed;
+  reading faster shortens it in step. On at 0 by default, so every voice
+  runs sentence to sentence. Off, no pause.
+- *Pause between paragraphs* — the whole pause where a paragraph begins, in
+  place of the pause between sentences there, even when it is the shorter
+  one; at 1× speed, shortened in step with the speed. On at 200 ms by
+  default. Off, no pause.
 - *Remove enclosing brackets when reading* — on by default for every voice,
   with `<> []` as the default pairs. A pair is removed wherever it encloses
   text, and the words inside are read: `He cast [Fireball] at the wolf.` is

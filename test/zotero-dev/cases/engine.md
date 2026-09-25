@@ -62,9 +62,9 @@ credit left, item 21's out-of-credits path runs instead of the sentences.
    boundary (issue #44): at the defaults `gaps.last` is `{ms: 0,
    paragraph: false}` between sentences and `{ms: round(200/speed),
    paragraph: true}` before a paragraph; sentence 1000 and paragraph 400
-   at 2× give `ms` 500 and 700 from the next boundary; both switches off
-   give the voice's own delay (0 for a plugin voice), plus 200 before a
-   paragraph at every speed. A pause inside the gap drops the rest of it:
+   at 2× give `ms` 500 and 200 from the next boundary (issue #142: the
+   paragraph pause alone); both switches off give 0 everywhere at every
+   speed. A pause inside the gap drops the rest of it:
    `inGap` false at once, and Play starts the next sentence from 0.
 
 ### 4

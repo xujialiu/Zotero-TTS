@@ -16,46 +16,48 @@ describe('pauseSettingsOf', () => {
 });
 
 describe('computeGap', () => {
-  // Premium Voice 1 today: sentenceDelay 300, +200 before a paragraph
-  const premium = { nativeSentence: 300 };
+  const zeros = settings([false, 0], [false, 0]);
 
-  it('hands Zotero its own number through, unscaled, while both switches are off', () => {
-    expect(computeGap({ ...premium, scheduled: 300, paragraph: false, speed: 1, settings: zoteros })).toBe(300);
-    expect(computeGap({ ...premium, scheduled: 500, paragraph: true, speed: 1, settings: zoteros })).toBe(500);
-    expect(computeGap({ ...premium, scheduled: 500, paragraph: true, speed: 2, settings: zoteros })).toBe(500);
-    expect(computeGap({ nativeSentence: 0, scheduled: 200, paragraph: true, speed: 3, settings: zoteros })).toBe(200);
+  it('at the defaults runs sentence to sentence and waits 200 before a paragraph at 1×', () => {
+    expect(computeGap({ paragraph: false, speed: 1, settings: defaults })).toBe(0);
+    expect(computeGap({ paragraph: true, speed: 1, settings: defaults })).toBe(200);
   });
 
-  it('at the defaults runs sentence to sentence and keeps 200 before a paragraph at 1×', () => {
-    expect(computeGap({ ...premium, scheduled: 300, paragraph: false, speed: 1, settings: defaults })).toBe(0);
-    expect(computeGap({ ...premium, scheduled: 500, paragraph: true, speed: 1, settings: defaults })).toBe(200);
-    expect(computeGap({ nativeSentence: 0, scheduled: 0, paragraph: false, speed: 1, settings: defaults })).toBe(0);
-    expect(computeGap({ nativeSentence: 0, scheduled: 200, paragraph: true, speed: 1, settings: defaults })).toBe(200);
+  it('waits the paragraph setting alone before a paragraph, not added to the sentence setting', () => {
+    const on = settings([true, 300], [true, 600]);
+    expect(computeGap({ paragraph: false, speed: 1, settings: on })).toBe(300);
+    expect(computeGap({ paragraph: true, speed: 1, settings: on })).toBe(600);
   });
 
-  it('divides an enabled part by the speed, rounded to whole milliseconds', () => {
+  it('plays a paragraph pause set below the sentence pause as set', () => {
+    const on = settings([true, 500], [true, 200]);
+    expect(computeGap({ paragraph: false, speed: 1, settings: on })).toBe(500);
+    expect(computeGap({ paragraph: true, speed: 1, settings: on })).toBe(200);
+  });
+
+  it('divides the setting by the speed, rounded to whole milliseconds', () => {
     const on = settings([true, 1000], [true, 400]);
-    expect(computeGap({ ...premium, scheduled: 300, paragraph: false, speed: 2, settings: on })).toBe(500);
-    expect(computeGap({ ...premium, scheduled: 500, paragraph: true, speed: 2, settings: on })).toBe(700);
-    expect(computeGap({ nativeSentence: 0, scheduled: 200, paragraph: true, speed: 1.5, settings: defaults })).toBe(133);
-    expect(computeGap({ nativeSentence: 0, scheduled: 0, paragraph: false, speed: 1.7, settings: settings([true, 300], [false, 0]) })).toBe(176);
+    expect(computeGap({ paragraph: false, speed: 2, settings: on })).toBe(500);
+    expect(computeGap({ paragraph: true, speed: 2, settings: on })).toBe(200);
+    expect(computeGap({ paragraph: true, speed: 1.5, settings: defaults })).toBe(133);
+    expect(computeGap({ paragraph: false, speed: 1.7, settings: settings([true, 300], [false, 0]) })).toBe(176);
   });
 
-  it('mixes: one part the setting, the other Zotero’s own', () => {
-    // Sentence set, paragraph left to Zotero: the extra is what Zotero added, unscaled
-    expect(computeGap({ ...premium, scheduled: 500, paragraph: true, speed: 2, settings: settings([true, 0], [false, 0]) })).toBe(200);
-    // Paragraph set, sentence left to Zotero: the voice's own 300, unscaled, plus the setting scaled
-    expect(computeGap({ ...premium, scheduled: 500, paragraph: true, speed: 2, settings: settings([false, 0], [true, 400]) })).toBe(500);
-    expect(computeGap({ ...premium, scheduled: 300, paragraph: false, speed: 2, settings: settings([false, 0], [true, 400]) })).toBe(300);
+  it('waits nothing where a switch is off, whatever the other switch and the speed', () => {
+    expect(computeGap({ paragraph: false, speed: 1, settings: zeros })).toBe(0);
+    expect(computeGap({ paragraph: true, speed: 3, settings: zeros })).toBe(0);
+    expect(computeGap({ paragraph: false, speed: 1, settings: settings([false, 1000], [true, 400]) })).toBe(0);
+    expect(computeGap({ paragraph: true, speed: 1, settings: settings([false, 1000], [true, 400]) })).toBe(400);
+    expect(computeGap({ paragraph: true, speed: 1, settings: settings([true, 1000], [false, 400]) })).toBe(0);
+    expect(computeGap({ paragraph: false, speed: 2, settings: settings([true, 1000], [false, 400]) })).toBe(500);
   });
 
-  it('counts a speed that is not a positive number as 1×, and a delay that is not a number as none', () => {
+  it('counts a speed that is not a positive number as 1×, and a setting that is not a number as none', () => {
     const on = settings([true, 300], [true, 200]);
     for (const speed of [0, -1, NaN, Infinity, undefined as unknown as number]) {
-      expect(computeGap({ nativeSentence: 0, scheduled: 0, paragraph: false, speed, settings: on })).toBe(300);
+      expect(computeGap({ paragraph: false, speed, settings: on })).toBe(300);
     }
-    expect(computeGap({ nativeSentence: NaN, scheduled: NaN, paragraph: true, speed: 1, settings: zoteros })).toBe(0);
-    expect(computeGap({ nativeSentence: -50, scheduled: -50, paragraph: false, speed: 1, settings: zoteros })).toBe(0);
-    expect(computeGap({ nativeSentence: 0, scheduled: 0, paragraph: false, speed: 1, settings: settings([true, NaN], [true, -5]) })).toBe(0);
+    expect(computeGap({ paragraph: false, speed: 1, settings: settings([true, NaN], [true, -5]) })).toBe(0);
+    expect(computeGap({ paragraph: true, speed: 1, settings: settings([true, NaN], [true, -5]) })).toBe(0);
   });
 });

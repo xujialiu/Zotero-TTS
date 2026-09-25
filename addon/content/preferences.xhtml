@@ -399,10 +399,10 @@
       <label class="ztts-help" value="?" data-l10n-id="ztts-help-one-speed" data-l10n-attrs="help"/>
     </hbox>
     <!-- The gap before the next sentence, for every voice in the player, at
-         1× speed; the paragraph row is added on top where a paragraph begins
-         (read-aloud/pauses.ts, issue #44). A switch off leaves that part to
-         Zotero. Both bound: the settings never edit the voice list, so no
-         reading guard (issue #11) -->
+         1× speed; the paragraph row is the whole gap where a paragraph
+         begins, in place of the sentence row (core/engine/gap.ts, issues #44,
+         #142). A switch off means no pause. Both bound: the settings never
+         edit the voice list, so no reading guard (issue #11) -->
     <hbox align="center">
       <checkbox data-l10n-id="ztts-sentence-pause"
                 preference="extensions.zotero.zotero-tts.readAloud.sentenceDelayEnabled"/>

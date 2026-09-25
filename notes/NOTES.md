@@ -630,3 +630,4 @@ then) and is in the git history before that day.
 - A reader whose window is gone: what dies, what reads fine, and the walks that stopped at it (issue #143)
 - Verified live: a reinstall over a half-closed reader window starts every step, and Zotero's own session save trips on the entry (issue #143)
 - A leftover `loadVoices` hook left the player empty, and the fix takes Zotero's methods from the class (issue #131)
+- The paragraph pause is the whole pause, and neither Zotero number reaches the gap any more (issue #142)

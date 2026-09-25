@@ -177,9 +177,9 @@ describe('LruMap', () => {
 
 describe('gapBefore', () => {
   const settings = { sentence: { enabled: true, ms: 300 }, paragraph: { enabled: false, ms: 0 } };
-  it('adds Zotero’s paragraph extra before a paragraph when its switch is off', () => {
-    expect(gapBefore({ anchor: 'paragraphStart' }, 0, 1, settings)).toBe(500);
-    expect(gapBefore({ anchor: null }, 0, 2, settings)).toBe(150);
-    expect(gapBefore(null, 100, 1, settings)).toBe(300);
+  it('waits nothing before a paragraph while its switch is off, and ignores the voice’s own delay', () => {
+    expect(gapBefore({ anchor: 'paragraphStart' }, 1, settings)).toBe(0);
+    expect(gapBefore({ anchor: null }, 2, settings)).toBe(150);
+    expect(gapBefore(null, 1, settings)).toBe(300);
   });
 });
