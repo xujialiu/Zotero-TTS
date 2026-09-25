@@ -553,6 +553,7 @@ export function createEngine(deps: EngineDeps): Engine {
               clipDuration: session.clip?.duration ?? null,
               gaps: { count: session.gaps, last: session.lastGap },
               notices: { ...session.noticeCounts },
+              wordClock: { ...session.wordClock },
               handoff: session.handoff ? { target: session.handoff.target.id, pending: session.handoff.pending } : null,
               store: session.store
                 ? {

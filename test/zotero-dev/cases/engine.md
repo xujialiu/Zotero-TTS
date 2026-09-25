@@ -18,7 +18,8 @@ the player closed); `session` — `voice`, `position`, `currentIndex`,
 `paused`, `speed`, `buffering`, `error`, `playing`, `inGap`,
 `skipPending`, `ended`, `activeTimestampIndex`, `playbackTime`,
 `clipDuration`, `gaps: {count, last: {ms, paragraph, speed, at}}`,
-`notices: {waits, shown, starts, failed}`, `handoff`, `store: {requests,
+`notices: {waits, shown, starts, failed}`,
+`wordClock: {ticks, shortWaits, backoffs, lastWaitMs}`, `handoff`, `store: {requests,
 clips, timings, inflight, msPerChar}`; `audio: {state, sampleRate,
 latency, gain, contexts}`; `stats: {controllers, carriedOn, started,
 ended, adopted, late, fallbacks}`. `stats.fallbacks` is 0 throughout: a
@@ -121,6 +122,31 @@ credit left, item 21's out-of-credits path runs instead of the sentences.
    too ([angle-brackets](angle-brackets.md)). Switching to Word mid-sentence
    lights the current word at once; `Shift+W`'s toast still tells a voice
    without word timing ([word-highlight-key](word-highlight-key.md)).
+
+**High-speed word boundaries (#144, item 9).** In a foreground PDF and
+EPUB fixture, use a configured voice with real word timings at 2×, 2.5×
+and 3×. Capture `ActiveWordChange` indices and the manager's word at each
+animation frame separately, along with audio time and output latency.
+Expected: `wordClock.ticks` grows, and a run that encounters an early
+boundary has `shortWaits > 0` (waits below the old 15 ms floor).
+`backoffs` counts repeated audio-clock reads; these must not move the
+word ahead of the sound. Compare the timestamp each emitted index names
+with the latency-adjusted audio position. Record omissions in each
+measurement separately; neither event nor frame coverage guarantees
+physical presentation, and arbitrary stalls are not expected to produce
+zero omissions. If ordinary playback never takes the short-retry path,
+exercise controlled timings in the live Engine and report that separately.
+
+Pause while a short retry is pending: `ticks` and the word stay fixed;
+resume and change speed: the word follows the new source, without old
+timers moving it. Close the Player: no further word-clock callbacks or
+errors. A deliberate main-thread delay longer than a word may skip it;
+afterward the Engine must select the current word, never replay a queue
+of already spoken words. Quantized-clock early arrival and bounded work
+on a frozen clock are deterministic unit checks in `session.test.ts`;
+live measurement supplements them. The owner judges perceived pace.
+Restore all preferences and fixture positions under the test WebDAV
+isolation rules, and close only the fixtures opened for this run.
 
 ### 10
 

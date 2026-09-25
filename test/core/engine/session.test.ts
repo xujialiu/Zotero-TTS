@@ -503,6 +503,32 @@ describe('EngineSession: the word, off the audio clock', () => {
     { start: 0.45, end: 0.7, charStart: 8, charEnd: 14 },
   ];
 
+  it.each([2, 2.5, 3])('lights short words promptly with a quantized audio clock at %s×', async (speed) => {
+    const t = setup({ texts: ['One two three.'] });
+    const now = t.audio.now.bind(t.audio);
+    const quantum = 128 / 48_000;
+    t.audio.now = () => Math.floor(now() / quantum) * quantum;
+    t.audio.latencySeconds = 0.0219;
+    t.fetch.timings = () => [
+      { start: 0, end: 0.08, charStart: 0, charEnd: 3 },
+      { start: 0.08, end: 0.16, charStart: 4, charEnd: 7 },
+      { start: 0.16, end: 0.24, charStart: 8, charEnd: 13 },
+    ];
+    t.open(0, true);
+    t.session.setSpeed(speed);
+    t.session.setPaused(false);
+    // The audible start is 21.9 ms. Allow a render quantum and a small
+    // retry, not another 15 ms, before each of these 80 ms words lights.
+    await t.clock.advance(26);
+    expect(t.session.activeTimestampIndex).toBe(0);
+    await t.clock.advance(80 / speed);
+    expect(t.session.activeTimestampIndex).toBe(1);
+    await t.clock.advance(80 / speed);
+    expect(t.session.activeTimestampIndex).toBe(2);
+    expect(t.log.of('ActiveWordChange')).toHaveLength(3);
+    t.session.end();
+  });
+
   it('moves to each word as its start is played, at the speed', async () => {
     const t = setup();
     t.fetch.timings = (s) => (s.text === 'One two three.' ? stamps : null);
@@ -547,6 +573,68 @@ describe('EngineSession: the word, off the audio clock', () => {
     t.audio.unstall();
     await t.clock.advance(150);
     expect(t.session.activeTimestampIndex).toBe(1);
+  });
+
+  it('bounds clock checks when sound stalls just before a word, then follows it again', async () => {
+    const t = setup();
+    t.fetch.timings = () => stamps;
+    t.open(0);
+    await t.clock.advance(199.5);
+    t.audio.stall();
+    const now = t.audio.now.bind(t.audio);
+    let reads = 0;
+    t.audio.now = () => { reads++; return now(); };
+    await t.clock.advance(1000);
+    expect(t.session.activeTimestampIndex).toBe(0);
+    // Includes the fake source's end checks: a frozen clock must not
+    // consume a thousand callbacks per second near a boundary.
+    expect(reads).toBeLessThan(100);
+    t.audio.unstall();
+    await t.clock.advance(20);
+    expect(t.session.activeTimestampIndex).toBe(1);
+    t.session.end();
+  });
+
+  it('follows the heard word after a late callback without replaying missed words', async () => {
+    const t = setup({ texts: ['One two three.'] });
+    t.fetch.timings = () => [
+      { start: 0, end: 0.08, charStart: 0, charEnd: 3 },
+      { start: 0.08, end: 0.16, charStart: 4, charEnd: 7 },
+      { start: 0.16, end: 0.24, charStart: 8, charEnd: 13 },
+    ];
+    const schedule = t.clock.setTimeout.bind(t.clock);
+    t.clock.setTimeout = (fn, ms) => schedule(fn, ms > 0 && ms < 100 ? ms + 35 : ms);
+    t.open(0, true);
+    t.session.setSpeed(3);
+    t.session.setPaused(false);
+    await t.clock.advance(0);
+    expect(t.session.activeTimestampIndex).toBe(0);
+    await t.clock.advance(65);
+    expect(t.session.activeTimestampIndex).toBe(2);
+    expect(t.log.of('ActiveWordChange')).toHaveLength(2);
+    t.session.end();
+  });
+
+  it('cancels a short retry on pause and resets stalled backoff on a new source', async () => {
+    const t = setup({ texts: ['One two three.'] });
+    t.fetch.timings = () => stamps;
+    t.open(0);
+    await t.clock.advance(199.5);
+    t.audio.stall();
+    await t.clock.advance(1000);
+    t.session.setPaused(true);
+    const ticks = t.session.wordClock.ticks;
+    await t.clock.advance(100);
+    expect(t.session.wordClock.ticks).toBe(ticks);
+    t.audio.unstall();
+    t.session.setSpeed(3);
+    t.session.setPaused(false);
+    await t.clock.advance(5);
+    expect(t.session.activeTimestampIndex).toBe(1);
+    t.session.end();
+    const endedTicks = t.session.wordClock.ticks;
+    await t.clock.advance(1000);
+    expect(t.session.wordClock.ticks).toBe(endedTicks);
   });
 
   it('on a resume, lights the word under the offset at once, as the timers of words already begun did', async () => {

@@ -60,8 +60,10 @@ export const SKIP_DEBOUNCE_MS = 600;
 export const STALL_PROBE_MS = 400;
 /** How long playback waits for audio before "Preparing…" shows (issue #120). */
 export const PREPARING_AFTER_MS = 300;
-/** The shortest wait between two looks at the audio clock for the next word. */
-export const WORD_TICK_MIN_MS = 15;
+/** Retry a just-early boundary without adding another 15 ms (issue #144). */
+export const WORD_TICK_MIN_MS = 1;
+/** A frozen audio clock backs off to the previous polling floor. */
+const WORD_TICK_STALLED_MS = 15;
 
 export type PlaybackNotice = 'idle' | 'preparing' | 'failed';
 
@@ -130,6 +132,10 @@ export class EngineSession<Clip extends EngineClip = EngineClip> {
   handoff: Handoff<Clip> | null = null;
   private wordTimer: unknown = null;
   private lastWord: number | null = null;
+  private lastWordElapsed: number | null = null;
+  private wordRetryMs = WORD_TICK_MIN_MS;
+  /** Mechanism evidence for issue #144; counts last for the reading session. */
+  readonly wordClock = { ticks: 0, shortWaits: 0, backoffs: 0, lastWaitMs: 0 };
 
   // RemoteReadAloudController (reader.js 40146-40154)
   currentIndex: number | null = null;
@@ -682,6 +688,8 @@ export class EngineSession<Clip extends EngineClip = EngineClip> {
   private startWordClock(): void {
     this.lastWord = null;
     this.clearWordClock();
+    this.lastWordElapsed = null;
+    this.wordRetryMs = WORD_TICK_MIN_MS;
     // Read Aloud's first word timers fire from a setTimeout too (reader.js 40094)
     this.wordTimer = this.deps.clock.setTimeout(() => this.wordTick(), 0);
   }
@@ -691,6 +699,14 @@ export class EngineSession<Clip extends EngineClip = EngineClip> {
     const timings = this.timings;
     if (this.ended || !this.isPlaying || !timings?.length) return;
     const elapsed = this.heardElapsed();
+    this.wordClock.ticks++;
+    // Quantization can repeat a read even while sound plays. Back off
+    // gradually, and reset as soon as audio time advances; never spin on
+    // a suspended output just before a boundary.
+    this.wordRetryMs = elapsed === this.lastWordElapsed
+      ? Math.min(WORD_TICK_STALLED_MS, this.wordRetryMs * 2)
+      : WORD_TICK_MIN_MS;
+    this.lastWordElapsed = elapsed;
     const index = wordAt(timings, this.playbackOffset, elapsed);
     if (index !== null && index !== this.lastWord) {
       this.lastWord = index;
@@ -699,7 +715,10 @@ export class EngineSession<Clip extends EngineClip = EngineClip> {
     }
     const next = untilNextWord(timings, this.playbackOffset, elapsed);
     if (next === null) return;
-    const ms = Math.max(WORD_TICK_MIN_MS, (next / this.playbackRate) * 1000);
+    const ms = Math.max(this.wordRetryMs, (next / this.playbackRate) * 1000);
+    if (ms < WORD_TICK_STALLED_MS) this.wordClock.shortWaits++;
+    if (this.wordRetryMs > WORD_TICK_MIN_MS) this.wordClock.backoffs++;
+    this.wordClock.lastWaitMs = ms;
     this.wordTimer = this.deps.clock.setTimeout(() => this.wordTick(), ms);
   }
 
