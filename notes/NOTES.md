@@ -628,3 +628,4 @@ then) and is in the git history before that day.
 ### [2026-09-25](NOTES_2026-09-25.md)
 
 - A reader whose window is gone: what dies, what reads fine, and the walks that stopped at it (issue #143)
+- Verified live: a reinstall over a half-closed reader window starts every step, and Zotero's own session save trips on the entry (issue #143)
