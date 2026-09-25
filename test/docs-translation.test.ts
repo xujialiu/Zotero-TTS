@@ -34,7 +34,7 @@ function englishPages(): string[] {
       .filter((name) => name.endsWith('.md') && !name.endsWith(SUFFIX))
       .sort()
       .map((name) => join(dir, name));
-  return ['README.md', ...inDir('docs'), ...inDir('tutorials')];
+  return ['README.md', 'CONTEXT.md', ...inDir('docs'), ...inDir('tutorials')];
 }
 
 function pin(source: string): string {
