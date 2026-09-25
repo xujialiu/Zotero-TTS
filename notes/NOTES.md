@@ -634,3 +634,4 @@ then) and is in the git history before that day.
 - A rare skip at high speed made reproducible: the Engine's word clock replayed on measured delays (issue #144)
 - A word event is not a displayed frame, and the boundary retry is already adaptive (issue #144)
 - Short boundary retries follow audio time, with backoff only while that clock repeats (issue #144)
+- Verified short retries live; a complete boundary denominator still finds occasional omitted words (issue #144)
