@@ -17,7 +17,7 @@ whose core is `MEMORY/MEMORY.md`.
   Keep paired names, descriptions and workflow references consistent when
   adding, renaming or removing an agent. Edit a shared workflow only once.
   Preserve platform-specific configuration and tool restrictions: Codex
-  uses `gpt-5.6` at maximum reasoning effort, while Claude keeps its
+  uses `gpt-5.6-luna` at maximum reasoning effort, while Claude keeps its
   native `opus`/`sonnet` models — `zotero-tester`'s Claude definition is
   `model: sonnet` with `effort: max` since 2026-09-15, by the user's
   request after two Sonnet runs verified issue #110 (the frontmatter's
@@ -28,13 +28,13 @@ whose core is `MEMORY/MEMORY.md`.
   2026-08-28, widened 2026-08-30, split 2026-09-04, a third agent
   2026-09-06, a model per agent 2026-09-08, a Codex default 2026-09-11,
   Astra delegation 2026-09-12):
-  `gpt-5.6` at maximum reasoning effort is the default for every
+  `gpt-5.6-luna` at maximum reasoning effort is the default for every
   Codex-spawned agent, including named definitions and generic
   `general-purpose` workers and reviewers. The Codex definitions pin
-  `model = "gpt-5.6"` and `model_reasoning_effort = "max"`. An
+  `model = "gpt-5.6-luna"` and `model_reasoning_effort = "max"`. An
   explicit model or reasoning-effort override is allowed only when the
   user asks for it. Claude definitions keep their native `opus`/`sonnet`
-  models because GPT-5.6 is unavailable in Claude Code; those values must not
+  models because Luna is unavailable in Claude Code; those values must not
   be copied into Codex definitions. Who hands work to them is decided
   agent by agent. Astra (`gpt-6-astra`) follows the same delegation rules
   as Fable for translation: it goes to `docs-translator`.
