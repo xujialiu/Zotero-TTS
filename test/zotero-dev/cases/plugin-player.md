@@ -79,9 +79,11 @@ top-bar default, also run [the player-controls case](player-controls.md).
    `.read-aloud-popup` and `#read-aloud` read computed `display: none` on
    every sample, taken every 50 ms from before the open until the reading
    plays. Close a reader window with `reader.close()`, never
-   `reader._window.close()`: that skips Zotero's close, leaves a dead
-   entry in `Zotero.Reader._readers`, and at the next reinstall six
-   startup steps that walk the readers fail on it (2026-09-24).
+   `reader._window.close()`: that skips Zotero's close and leaves a dead
+   entry in `Zotero.Reader._readers`, which Zotero's own `Reader.open()`
+   trips on for that item until a restart. Six startup steps failed on
+   it at the next reinstall (2026-09-24); since 1.14.4-beta7 every
+   startup walk skips it (issue #143, [plugin-lifecycle](plugin-lifecycle.md) 5.9).
 3. **A Player that cannot load refuses the reading.** Take the Player's
    resource away for the run: `setSubstitution(<the host of
    pluginPlayer().resource>, null)` on

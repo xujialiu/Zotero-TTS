@@ -5,7 +5,8 @@
 What an install, an in-place reinstall with a tab open and a plugin
 reload leave behind. Item 5.7's reload is the last thing a pass drives.
 
-Items 1.1, 5.6 and 5.7 of the checklist, under their original numbers.
+Items 1.1, 5.6 and 5.7 of the checklist, under their original numbers,
+and 5.9, added after the split.
 
 ### 1.1
 
@@ -36,6 +37,40 @@ Items 1.1, 5.6 and 5.7 of the checklist, under their original numbers.
    re-attaches only if the tab's pages are rendered at that instant — a
    background tab's canvases are discarded by pdf.js and come back when
    shown; not a fault.
+
+### 5.9
+
+9. **An in-place reinstall with a half-closed reader window listed**
+   (issue #143, 1.14.4-beta7). Open a PDF fixture in a reader window
+   (`Zotero.Reader.open(itemID, null, { openInWindow: true })`), wait for
+   its `_internalReader`, and close it with `reader._window.close()`, the
+   script path that skips Zotero's `reader.close()`. The entry stays in
+   `Zotero.Reader._readers`: `_window.closed` true and
+   `Components.utils.isDeadWrapper(reader._internalReader)` true. Open a
+   second fixture as a tab, so that a live reader is listed after it.
+   Then reinstall the build in place:
+   - `startup()` all `ok`, `failed: []`, the bare `[zotero-tts] started`;
+     no `can't access dead object` among the errors from the install on.
+   - `highlight()`, `autoScroll()`, `sentenceInView()`, `skippedLines()`,
+     `textSettings()` and `playerVoiceList()` each answer with one row per
+     listed reader: `{ "gone": true }` for the closed window's, and for
+     the tab an object that is neither that nor an error's text (patched
+     only if its pages are rendered, as 5.6 says).
+   - A fixture tab opened after the reinstall is attached through the
+     `renderToolbar` listener: `pluginPlayer()` lists it with `failed:
+     null`; its document holds `#ztts-player-toggle` and
+     `#ztts-player-style` before any open; the plugin's button opens the
+     Player (`open: true`), and `.read-aloud-popup` reads computed
+     `display: none`.
+
+   Before the fix (1.14.4-beta6, 2026-09-24), `failed` named Read Aloud
+   memory, highlight colors, sentence in view, live voice choices, voice
+   switching and Read Aloud shortcuts, and the six diagnostics threw
+   `can't access dead object`. Cleanup: only a restart or
+   `Zotero.Reader._readers.splice(i, 1)` removes the entry (the one whose
+   `_window.closed` is true), and Zotero's own `Reader.open()` fails for
+   that item until then. Splice it, then close the tabs and erase the
+   fixtures as in 3.26.
 
 ### 5.7
 

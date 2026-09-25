@@ -91,6 +91,16 @@ assets/             README media (the word-highlight GIF, popup and settings scr
   in a same-realm unit test), and `map` / `every` answer wrong the same
   way (2026-09-15, issue #110) — walk such arrays by index, and give the
   unit test a list whose `find` / `some` answer nothing.
+- **A listed reader can outlive its window** (2026-09-25, issue #143): a
+  script's `reader._window.close()` skips Zotero's `reader.close()`, so
+  the reader stays in `Zotero.Reader._readers` with its `_internalReader`
+  and `_iframeWindow` dead, and every read through them throws. The
+  reader object itself is chrome-side and never dead. Walk `_readers`
+  through `eachReader` (`src/index.ts`, over `forEachReader` in
+  `read-aloud/reader-access.ts`), never a bare loop. One bare walk whose
+  attach threw on such a reader failed its whole startup step; in the
+  shortcuts step, that cost every reader opened later its Player.
+  `test/index.test.ts` starts the whole plugin with one listed.
 - **`Zotero.Prefs.set`** writes through the type the pref is declared with in
   `prefs.js`: an int pref goes through `setIntPref`, which cannot hold a
   fraction — a `preference=`-bound number input hands it "1.5" and the pref

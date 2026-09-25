@@ -39,7 +39,7 @@ import { redeliverInterfaces, restoreInterfaces } from './read-aloud/interface-r
 import { createReadAloudMemorySync, type ReadAloudMemorySync } from './read-aloud/memory-sync';
 import { createHighlightStyling, type HighlightStyling } from './read-aloud/highlight-style';
 import { createDOMFollow } from './read-aloud/dom-follow';
-import { liveReaderValue } from './read-aloud/reader-access';
+import { forEachReader, liveReaderValue, readerGone } from './read-aloud/reader-access';
 import { createResumeGuard } from './read-aloud/resume-guard';
 import { createSelectionStart } from './read-aloud/selection-start';
 import { createSentenceInView, type SentenceInView, type SentenceInViewDeps } from './read-aloud/sentence-in-view';
@@ -600,7 +600,8 @@ function interfaceSlots(reader: any): { options: any; internal: any } | null {
 function interfaceWalkIO() {
   return {
     readers: () => (Zotero.Reader._readers ?? []) as unknown[],
-    isDead: (reader: unknown) => Components.utils.isDeadWrapper(reader),
+    // The reader object outlives its window; what dies is what it holds (issue #143)
+    isDead: (reader: unknown) => readerGone(reader, isDeadWrapper),
     isPatched: (reader: any) => hijackPatched.has(reader),
     deliver: (reader: any, iface: unknown) => {
       const slots = interfaceSlots(reader);
@@ -679,6 +680,18 @@ const windowWrapper = createWindowWrapper({
 
 function readAloudManager(reader: any) {
   return reader?._internalReader?._readAloudManager ?? null;
+}
+
+const isDeadWrapper = (value: unknown): boolean => Components.utils.isDeadWrapper(value);
+
+/**
+ * Every reader Zotero lists, each on its own (read-aloud/reader-access.ts,
+ * issue #143): the startup walks go through here, so a reader whose window
+ * is gone, or one that throws, costs only itself — never the step, nor the
+ * readers after it, nor the listener registered after the walk.
+ */
+function eachReader(visit: (reader: any) => unknown): void {
+  forEachReader(Zotero.Reader._readers ?? [], visit, { isDead: isDeadWrapper, error: (e) => Zotero.logError(e) });
 }
 
 /** Every top-level Zotero window that can host reader tabs. */
@@ -1132,7 +1145,7 @@ function startReadAloudShortcuts(pluginID: string): void {
     log: (e) => Zotero.logError(e),
   });
   for (const win of mainWindows()) watchWindow(win);
-  for (const reader of Zotero.Reader._readers) watchReader(reader);
+  eachReader(watchReader);
   // renderToolbar fires once the reader iframe exists, which is when there
   // is something to listen on; readers open before startup are covered above.
   readerOpenedListener = (event: any) => {
@@ -1231,7 +1244,7 @@ function startReadAloudMemory(): void {
     error: (e) => Zotero.logError(e),
     debug: (message) => Zotero.debug('[zotero-tts] ' + message),
   });
-  for (const reader of Zotero.Reader._readers ?? []) readAloudMemory.attach(reader);
+  eachReader((reader) => readAloudMemory?.attach(reader));
 }
 
 /** How long the line about a substitute voice stays on screen: a sentence, not a "1.3×". */
@@ -2012,7 +2025,7 @@ function startHighlightStyling(): void {
     error: (e) => Zotero.logError(e),
     debug: (message) => Zotero.debug('[zotero-tts] ' + message),
   });
-  for (const reader of Zotero.Reader._readers ?? []) highlightStyling.attach(reader);
+  eachReader((reader) => highlightStyling?.attach(reader));
 }
 
 function stopHighlightStyling(): void {
@@ -2137,11 +2150,10 @@ function startSentenceInView(): void {
   sentenceInView = createSentenceInView(deps);
   domFollowing = createDOMFollow(deps);
   followResumeGuard = createResumeGuard({ ...deps, beforeResume: pullBeforePlay });
-  for (const reader of Zotero.Reader._readers ?? []) {
-    followResumeGuard.attach(reader);
-    sentenceInView.attach(reader);
-    domFollowing.attach(reader);
-  }
+  // One walk per module: one module's throw on a reader does not keep the next one off it
+  eachReader((reader) => followResumeGuard?.attach(reader));
+  eachReader((reader) => sentenceInView?.attach(reader));
+  eachReader((reader) => domFollowing?.attach(reader));
   autoScrollObserver = Zotero.Prefs.registerObserver('zotero-tts.readAloud.autoScrollMode', () => {
     sentenceInView?.refresh();
     domFollowing?.refresh();
@@ -2171,7 +2183,7 @@ function startSelectionStart(): void {
     isDead: (value) => Components.utils.isDeadWrapper(value),
     error: (e) => Zotero.logError(e),
   });
-  for (const reader of Zotero.Reader._readers ?? []) selectionStart.attach(reader);
+  eachReader((reader) => selectionStart?.attach(reader));
 }
 
 // ---- A page's first line put back ------------------------------------------
@@ -2201,7 +2213,7 @@ function startSkippedLines(): void {
     error: (e) => Zotero.logError(e),
     debug: (message) => Zotero.debug('[zotero-tts] ' + message),
   });
-  for (const reader of Zotero.Reader._readers ?? []) skippedLines.attach(reader);
+  eachReader((reader) => skippedLines?.attach(reader));
 }
 
 function stopSkippedLines(): void {
@@ -2223,7 +2235,7 @@ function startSystemVoiceHiding(): void {
     error: (e) => Zotero.logError(e),
     debug: (message) => Zotero.debug('[zotero-tts] ' + message),
   });
-  for (const reader of Zotero.Reader._readers ?? []) systemVoiceHiding.attach(reader);
+  eachReader((reader) => systemVoiceHiding?.attach(reader));
 }
 
 function stopSystemVoiceHiding(): void {
@@ -2260,7 +2272,7 @@ function startProviderTiers(): void {
     error: (e) => Zotero.logError(e),
     debug: (message) => Zotero.debug('[zotero-tts] ' + message),
   });
-  for (const reader of Zotero.Reader._readers ?? []) providerTiers.attach(reader);
+  eachReader((reader) => providerTiers?.attach(reader));
 }
 
 function stopProviderTiers(): void {
@@ -2301,7 +2313,7 @@ function startEngine(): void {
     error: (e) => Zotero.logError(e),
     debug: (message) => Zotero.debug('[zotero-tts] ' + message),
   });
-  for (const reader of Zotero.Reader._readers ?? []) engine.attach(reader);
+  eachReader((reader) => engine?.attach(reader));
   // The pane's field and the volume keys both write the pref; this is the one path from it to the sound (issue #62)
   volumeObserver = Zotero.Prefs.registerObserver(VOLUME_OBSERVER, () => engine?.setVolume(loadSettings(prefs).readAloud.volume));
 }
@@ -2341,7 +2353,7 @@ function startVoicePick(): void {
     isDead: value => Components.utils.isDeadWrapper(value),
     error: error => Zotero.logError(error),
   });
-  for (const reader of Zotero.Reader._readers ?? []) playerVoiceList.attach(reader);
+  eachReader((reader) => playerVoiceList?.attach(reader));
   if (!engine) return;
   voicePick = createVoicePick({
     engine,
@@ -2353,7 +2365,7 @@ function startVoicePick(): void {
     debug: message => Zotero.debug(`[zotero-tts] ${message}`),
     notice: (reader, kind, voice) => voiceNotices?.notice(reader, kind, voice),
   });
-  for (const reader of Zotero.Reader._readers ?? []) voicePick.attach(reader);
+  eachReader((reader) => voicePick?.attach(reader));
 }
 
 function stopVoicePick(): void {
@@ -2381,7 +2393,7 @@ function startLiveVoiceList(): void {
     error: e => Zotero.logError(e),
   });
   liveVoiceList = lists;
-  for (const reader of Zotero.Reader._readers ?? []) lists.attach(reader);
+  eachReader((reader) => lists.attach(reader));
   let queued = false;
   for (const key of Object.keys(flattenSettings(loadSettings(prefs))).filter(editsPlayerList)) {
     liveListObservers.push(Zotero.Prefs.registerObserver('zotero-tts.' + key, () => {
@@ -2415,7 +2427,7 @@ function startTextSettings(): void {
     isDead: (value) => Components.utils.isDeadWrapper(value),
     error: (e) => Zotero.logError(e),
   });
-  for (const reader of Zotero.Reader._readers ?? []) textSettings.attach(reader);
+  eachReader((reader) => textSettings?.attach(reader));
 }
 
 function stopTextSettings(): void {
@@ -2548,7 +2560,7 @@ async function startup({ id, version, rootURI }: StartupParams): Promise<void> {
           dead: (value) => Components.utils.isDeadWrapper(value),
           error: (error) => Zotero.logError(error),
         });
-        for (const reader of Zotero.Reader._readers) pluginPlayer.attach(reader);
+        eachReader((reader) => pluginPlayer?.attach(reader));
       }],
       ['Read Aloud memory', startReadAloudMemory],
       // Awaited: the database rows must be in memory before the sampler and
@@ -2685,6 +2697,15 @@ function safe(fn: () => unknown): unknown {
   } catch (e) {
     return String(e);
   }
+}
+
+/**
+ * A per-reader diagnostic's rows, each behind its own guard (issue #143): a
+ * reader whose window is gone reads `{ gone: true }`, a row that throws its
+ * error, and the other readers' rows still come back.
+ */
+function readerRows(row: (reader: any) => unknown): unknown[] {
+  return (Zotero.Reader._readers ?? []).map((r: any) => safe(() => (readerGone(r, isDeadWrapper) ? { gone: true } : row(r))));
 }
 
 /** A language tag named as the popup's dropdown names it, in the app's locale — what the pane hands the voice browser too. */
@@ -2887,7 +2908,7 @@ const diagnostics = {
       1,
     );
   },
-  highlight: () => JSON.stringify((Zotero.Reader._readers ?? []).map((r: any) => highlightStyling?.inspect(r) ?? null), null, 1),
+  highlight: () => JSON.stringify(readerRows((r) => highlightStyling?.inspect(r) ?? null), null, 1),
   /**
    * The whole-sentence follow on a PDF (read-aloud/sentence-in-view.ts,
    * issue #83): per reader the view kind, whether its prototype is patched,
@@ -2898,11 +2919,11 @@ const diagnostics = {
    * N: scrollTop A -> B` line per scroll issued; a sentence wholly on
    * screen leaves the call to Zotero (`handled` false, no line).
    */
-  autoScroll: () => JSON.stringify((Zotero.Reader._readers ?? []).map((r: any) => {
+  autoScroll: () => JSON.stringify(readerRows((r) => {
     const dom = domFollowing?.inspect(r);
     return dom?.patched ? dom : sentenceInView?.inspect(r) ?? null;
   }), null, 1),
-  sentenceInView: () => JSON.stringify((Zotero.Reader._readers ?? []).map((r: any) => sentenceInView?.inspect(r) ?? null), null, 1),
+  sentenceInView: () => JSON.stringify(readerRows((r) => sentenceInView?.inspect(r) ?? null), null, 1),
   /**
    * A page's first line put back into the reading order
    * (read-aloud/skipped-lines.ts, issue #87): per reader whether the
@@ -2917,7 +2938,7 @@ const diagnostics = {
    * join's two ends), with one `paragraph parts joined on page N: "…" +
    * "…" (blocks a and b)` debug line per join.
    */
-  skippedLines: () => JSON.stringify((Zotero.Reader._readers ?? []).map((r: any) => skippedLines?.inspect(r) ?? null), null, 1),
+  skippedLines: () => JSON.stringify(readerRows((r) => skippedLines?.inspect(r) ?? null), null, 1),
   /**
    * The Engine (issue #133), per open reader: whether its four hooks are in
    * place (the voice's `getController`, the manager's `activeTimestamp`,
@@ -3010,7 +3031,7 @@ const diagnostics = {
     const p = preferred ?? preferredLanguages();
     return JSON.stringify({ lang, keys: k, preferred: p, key: resolveVoiceLang(lang, k, p) });
   },
-  textSettings: () => JSON.stringify((Zotero.Reader._readers ?? []).map((r: any) => textSettings?.inspect(r) ?? null), null, 1),
+  textSettings: () => JSON.stringify(readerRows((r) => textSettings?.inspect(r) ?? null), null, 1),
   /**
    * The player's voice list rebuilt on the side (issue #121), per open
    * reader, null for one not hooked: `applied`, `loading`, `retained` and
@@ -3021,7 +3042,7 @@ const diagnostics = {
    */
   liveVoiceList: () => JSON.stringify((Zotero.Reader._readers ?? []).map((r: any) => liveVoiceList?.inspect(r) ?? null)),
   readingImpact: (changes: FlatSettings | string = {}) => JSON.stringify({ sessions: readingImpact.sessions(), affected: readingImpact.affectedTabs(typeof changes === 'string' ? JSON.parse(changes) : changes) }),
-  playerVoiceList: () => JSON.stringify((Zotero.Reader._readers ?? []).map((r: any) => playerVoiceList?.inspect(r) ?? null), null, 1),
+  playerVoiceList: () => JSON.stringify(readerRows((r) => playerVoiceList?.inspect(r) ?? null), null, 1),
   /**
    * The undo logs of the modules that shadow a reader-side prototype
    * (read-aloud/proto-patches.ts): `total` entries held, `live` of them

@@ -624,3 +624,7 @@ then) and is in the git history before that day.
 - Two products writing back a carried item settle after one upload; the plugin's `null` for a missing field made an item adoptable (issue #139)
 - Zotero's own player carries the media keys, and three ways the Player left it showing or showed nothing (issue #134)
 - Verified live: Zotero's own player never shows, even across an update, and a half-closed reader window fails six startup steps (issue #134)
+
+### [2026-09-25](NOTES_2026-09-25.md)
+
+- A reader whose window is gone: what dies, what reads fine, and the walks that stopped at it (issue #143)
