@@ -3,6 +3,8 @@ import { nextSpeed, persistSpeed, readPersistedSpeed, type SpeedAction } from '.
 import { clampVolume, nextVolume, VOLUME_PREF, type VolumeAction } from '../core/read-aloud-volume';
 import { autoScrollMode, playerLayout, setPlayerLayout, PREF_PREFIX, type AutoScrollMode, type PrefsBackend } from '../core/settings';
 import {
+  ANNOTATION_TYPE,
+  isAnnotateAction,
   isHighlightAction,
   isNavigationAction,
   isVolumeAction,
@@ -176,6 +178,13 @@ export interface ReadAloudShortcutsDeps {
   showHighlightToast?(reader: unknown, levels: HighlightLevels, timing: WordTiming): void;
   /** What the manager's active word timestamp is (read-aloud/highlight-style.ts `wordTiming`). Unwired reads as none. */
   wordTiming?(reader: unknown): WordTiming;
+  /**
+   * Zotero's own H / U (reader.js 82110-82116, issue #145): annotate the
+   * segment the manager names (`getSegmentToAnnotate`) through
+   * `addAnnotationFromReadAloudSegment`, which opens the annotation popup,
+   * or retypes the one already open. False when there was no segment.
+   */
+  annotate?(reader: unknown, type: 'highlight' | 'underline'): boolean;
   log?(e: unknown): void;
 }
 
@@ -512,6 +521,8 @@ export function createReadAloudShortcuts(deps: ReadAloudShortcutsDeps): ReadAlou
     if (action === 'toggleOptions' && !optionsButton(reader)) return false;
     if (action === 'cyclePlayerLayout' && !deps.isPluginPlayerOpen?.(reader)) return false;
     if ((action === 'previousVoice' || action === 'nextVoice') && !managerOf(reader)?.active) return false;
+    // The annotate keys follow Zotero's own H and U: only with a session open
+    if (isAnnotateAction(action) && !managerOf(reader)?.active) return false;
     event.preventDefault();
     event.stopPropagation();
     // Only speed stepping repeats at the system keyboard rate.
@@ -527,6 +538,13 @@ export function createReadAloudShortcuts(deps: ReadAloudShortcutsDeps): ReadAlou
     } else if (isHighlightAction(action)) toggleWordHighlight(reader);
     else if (action === 'toggleAutoScroll') toggleAutoScroll(reader);
     else if (action === 'previousVoice' || action === 'nextVoice') deps.switchVoice?.(reader, action === 'previousVoice' ? -1 : 1);
+    else if (isAnnotateAction(action)) {
+      try {
+        deps.annotate?.(reader, ANNOTATION_TYPE[action]);
+      } catch (e) {
+        log(e);
+      }
+    }
     else adjust(reader, action);
     return true;
   }

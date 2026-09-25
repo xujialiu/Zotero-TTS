@@ -82,6 +82,10 @@ const IDS = [
   'ztts-key-clear-previousVoice',
   'ztts-key-nextVoice',
   'ztts-key-clear-nextVoice',
+  'ztts-key-highlightSentence',
+  'ztts-key-clear-highlightSentence',
+  'ztts-key-underlineSentence',
+  'ztts-key-clear-underlineSentence',
   'ztts-key-toggleWordHighlight',
   'ztts-key-clear-toggleWordHighlight',
   'ztts-key-defaults',
@@ -153,6 +157,8 @@ describe('initShortcutRows', () => {
     expect(doc.el('ztts-key-toggleAutoScroll').label).toBe('Shift+A');
     expect(doc.el('ztts-key-previousVoice').label).toBe('Shift+,');
     expect(doc.el('ztts-key-nextVoice').label).toBe('Shift+.');
+    expect(doc.el('ztts-key-highlightSentence').label).toBe('Shift+H');
+    expect(doc.el('ztts-key-underlineSentence').label).toBe('Shift+U');
     expect(doc.recording).toBe(0);
   });
 

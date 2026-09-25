@@ -63,6 +63,11 @@ first.
   calls `onOpenReadAloudVoicesPopup` (`xpcom/reader.js` 644-647).
 - **Its annotate button.** The H and U keys stay: the reader handles them
   while Read Aloud is active (82110-82116), with the focus in the document.
+  Since issue #145 the plugin has bindable keys for the same call,
+  Shift+H and Shift+U by default (`highlightSentence` /
+  `underlineSentence`): `getSegmentToAnnotate()` then
+  `addAnnotationFromReadAloudSegment(segment, type)` (84337), taken while
+  a session is open.
 - **Its credits display.** The balance row (38918-38961), each voice's time
   left (38448-38481), the urgent state under 3 minutes (82160,
   82254-82256), the purchase link (`Zotero.launchURL` of

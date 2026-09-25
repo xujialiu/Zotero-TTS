@@ -17,7 +17,8 @@ an entry of the player's first dropdown beside them, its voices under their
 own names (`af_bella` under Kokoro; issue #110 retired the Local tier and
 the `Kokoro-` prefix, as issue #9 had retired `TTS-`). Also: shortcuts for the speed (Shift+Z/X/C), for skipping by
 sentence / paragraph (arrows / Shift+arrows), for the word highlight on
-or off (Shift+W) and for stopping Read Aloud in every tab (Shift+S), one
+or off (Shift+W), for highlighting or underlining the sentence being
+read (Shift+H/U) and for stopping Read Aloud in every tab (Shift+S), one
 voice and speed across documents, settings backup/restore (file or
 WebDAV), highlight colors.
 

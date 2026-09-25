@@ -31,7 +31,9 @@ turned it off:
   voice browser follow the volume, as before.
 - **No annotate button.** Zotero's player had one for highlighting or
   underlining the sentence being read. The plugin's player has none; the H
-  and U keys still do it while reading, with the document in focus.
+  and U keys still do it while reading, with the document in focus, and
+  so do Shift+H and Shift+U, which can be rebound like every other
+  shortcut of the plugin (#145).
 - **No credits display, for now.** Zotero's player showed what is left of
   your Zotero credits, warned when little was left, and linked to buying
   more. The plugin's player shows none of that yet (#140); until it does,

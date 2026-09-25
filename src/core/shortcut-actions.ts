@@ -12,7 +12,8 @@ import { VOLUME_ACTIONS, type VolumeAction } from './read-aloud-volume';
  * "Read Aloud from Here"), or drive the player itself (its Options panel,
  * which has no method at all — ui/player-options.ts), or switch Zotero's
  * highlight between the word and the sentence (highlight-level.ts, a pref of
- * Zotero's own). Bindings live in the `shortcuts.<action>` prefs (settings.ts).
+ * Zotero's own), or highlight or underline the sentence being read the way
+ * Zotero's annotate keys do (issue #145). Bindings live in the `shortcuts.<action>` prefs (settings.ts).
  */
 
 export type { HighlightAction, SpeedAction, VolumeAction };
@@ -33,13 +34,28 @@ export type PositionAction = 'startFromSelection' | 'returnToSpoken';
  */
 export type PlayerAction = 'toggleOptions' | 'cyclePlayerLayout' | 'stopReading';
 
-export type ShortcutAction = SpeedAction | VolumeAction | NavigationAction | PositionAction | PlayerAction | HighlightAction | 'toggleAutoScroll' | 'previousVoice' | 'nextVoice';
+/** Annotate the sentence being read: Zotero's own H and U keys, bindable (issue #145). */
+export type AnnotateAction = 'highlightSentence' | 'underlineSentence';
+
+export type ShortcutAction =
+  | SpeedAction
+  | VolumeAction
+  | NavigationAction
+  | PositionAction
+  | PlayerAction
+  | HighlightAction
+  | 'toggleAutoScroll'
+  | 'previousVoice'
+  | 'nextVoice'
+  | AnnotateAction;
 
 export const NAVIGATION_ACTIONS: readonly NavigationAction[] = ['previousSentence', 'nextSentence', 'previousParagraph', 'nextParagraph'];
 
 export const POSITION_ACTIONS: readonly PositionAction[] = ['startFromSelection', 'returnToSpoken'];
 
 export const PLAYER_ACTIONS: readonly PlayerAction[] = ['toggleOptions', 'cyclePlayerLayout', 'stopReading'];
+
+export const ANNOTATE_ACTIONS: readonly AnnotateAction[] = ['highlightSentence', 'underlineSentence'];
 
 export const SHORTCUT_ACTIONS: readonly ShortcutAction[] = [
   ...SPEED_ACTIONS,
@@ -51,6 +67,7 @@ export const SHORTCUT_ACTIONS: readonly ShortcutAction[] = [
   'toggleAutoScroll',
   'previousVoice',
   'nextVoice',
+  ...ANNOTATE_ACTIONS,
 ];
 
 /** Zotero's own granularities: a paragraph is the run of segments from one `paragraphStart` anchor to the next. */
@@ -77,6 +94,16 @@ export function isPositionAction(action: ShortcutAction): action is PositionActi
 
 export function isPlayerAction(action: ShortcutAction): action is PlayerAction {
   return (PLAYER_ACTIONS as readonly string[]).includes(action);
+}
+
+/** The annotation type Zotero's addAnnotationFromReadAloudSegment takes for an annotate action. */
+export const ANNOTATION_TYPE: Record<AnnotateAction, 'highlight' | 'underline'> = {
+  highlightSentence: 'highlight',
+  underlineSentence: 'underline',
+};
+
+export function isAnnotateAction(action: ShortcutAction): action is AnnotateAction {
+  return action in ANNOTATION_TYPE;
 }
 
 export function isHighlightAction(action: ShortcutAction): action is HighlightAction {

@@ -121,6 +121,8 @@ describe('loadSettings', () => {
       toggleAutoScroll: 'Shift+A',
       previousVoice: 'Shift+,',
       nextVoice: 'Shift+.',
+      highlightSentence: 'Shift+H',
+      underlineSentence: 'Shift+U',
     });
   });
 

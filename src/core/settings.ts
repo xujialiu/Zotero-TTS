@@ -251,6 +251,8 @@ export const DEFAULTS: Settings = {
     toggleAutoScroll: 'Shift+A',
     previousVoice: 'Shift+,',
     nextVoice: 'Shift+.',
+    highlightSentence: 'Shift+H',
+    underlineSentence: 'Shift+U',
   },
   readAloud: {
     playerLayout: 'top',
@@ -394,6 +396,8 @@ export function loadSettings(prefs: PrefsBackend): Settings {
       toggleAutoScroll: str(prefs, 'shortcuts.toggleAutoScroll', DEFAULTS.shortcuts.toggleAutoScroll),
       previousVoice: str(prefs, 'shortcuts.previousVoice', DEFAULTS.shortcuts.previousVoice),
       nextVoice: str(prefs, 'shortcuts.nextVoice', DEFAULTS.shortcuts.nextVoice),
+      highlightSentence: str(prefs, 'shortcuts.highlightSentence', DEFAULTS.shortcuts.highlightSentence),
+      underlineSentence: str(prefs, 'shortcuts.underlineSentence', DEFAULTS.shortcuts.underlineSentence),
     },
     readAloud: {
       playerLayout: playerLayout(prefs),

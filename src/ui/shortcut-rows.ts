@@ -41,6 +41,8 @@ const ACTION_NAMES: Record<ShortcutAction, () => string> = {
   toggleAutoScroll: () => t('ztts-action-auto-scroll'),
   previousVoice: () => t('ztts-action-previous-voice'),
   nextVoice: () => t('ztts-action-next-voice'),
+  highlightSentence: () => t('ztts-action-highlight-sentence'),
+  underlineSentence: () => t('ztts-action-underline-sentence'),
 };
 
 /**

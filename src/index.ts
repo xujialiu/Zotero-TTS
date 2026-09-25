@@ -1142,6 +1142,15 @@ function startReadAloudShortcuts(pluginID: string): void {
       else showToast(doc, t('ztts-highlight-toast-sentence'));
     },
     wordTiming: (reader: any) => highlightStyling?.wordTiming(reader) ?? 'none',
+    // Zotero's own H / U, the annotate button's call (issue #145): the
+    // segment is the manager's own object, so its indexOf in the reader finds it
+    annotate: (reader: any, type) => {
+      const internal = reader?._internalReader;
+      const segment = internal?._readAloudManager?.getSegmentToAnnotate?.();
+      if (!segment) return false;
+      internal.addAnnotationFromReadAloudSegment(segment, type);
+      return true;
+    },
     log: (e) => Zotero.logError(e),
   });
   for (const win of mainWindows()) watchWindow(win);

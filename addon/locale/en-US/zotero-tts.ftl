@@ -615,6 +615,16 @@ ztts-voice-failed = Could not switch to { $voice }. The previous voice is kept. 
 ztts-voice-unavailable = The voice list is not ready. Open the player and try again.
 ztts-auto-scroll-toast-sentence = Auto-scroll: center each sentence
 ztts-auto-scroll-toast-outside = Auto-scroll: when outside the view
+# The annotate keys (issue #145): Zotero's own H and U, bindable
+ztts-key-highlight-sentence =
+    .value = Highlight sentence
+ztts-key-underline-sentence =
+    .value = Underline sentence
+ztts-help-key-annotate =
+    .value = ?
+    .help = While reading or paused, adds a highlight or underline annotation on the sentence being read, with its annotation popup open to add a comment. Early in a sentence, the one just finished is annotated instead. Pressing the other key while the popup is open switches between highlight and underline.
+ztts-action-highlight-sentence = Highlight sentence
+ztts-action-underline-sentence = Underline sentence
 
 ztts-strip-angle-brackets =
     .label = Remove enclosing brackets when reading

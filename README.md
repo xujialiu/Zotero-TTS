@@ -33,7 +33,7 @@ is built for the way its author reads —
 - 🧵 **No sentence cut in two** — when Zotero breaks a paragraph in the middle of a sentence, the halves are read and highlighted as one sentence. [→ Reading](#reading)
 - 🎧 **A voice browser** in the settings: every voice by provider and language, a play button for a short sample, hearts for favorites, and a switch to offer only the favorites. [→ Voice browser](#voice-browser)
 - ✨ **Word *and* sentence highlighting**, each behind a switch of its own, in your own colors and opacities — for Zotero's voices too. [→ Highlight](#highlight)
-- ⌨️ **Keyboard shortcuts** for speed, volume, jumping by sentence or paragraph, reading from the selection, the player's options panel, auto-scroll mode, the word highlight on or off, and stopping Read Aloud in every tab at once. All rebindable. [→ Shortcuts](#keyboard-shortcuts)
+- ⌨️ **Keyboard shortcuts** for speed, volume, jumping by sentence or paragraph, reading from the selection, the player's options panel, auto-scroll mode, the word highlight on or off, highlighting or underlining the sentence being read, and stopping Read Aloud in every tab at once. All rebindable. [→ Shortcuts](#keyboard-shortcuts)
 - 📌 **One voice and speed everywhere** — every document and every open tab, instead of Zotero's choice per language. [→ Reading](#reading)
 - ⏱️ **The pauses are yours** — how long every voice waits between sentences and before a paragraph, shorter as you read faster. [→ Reading](#reading)
 - 💾 **Backup and sync** — settings and reading positions as files, or through your own WebDAV folder, so your settings and bookmarks follow you between computers. [→ Backup and sync](#backup-and-sync)
@@ -293,6 +293,11 @@ you change it again; a short message says what is highlighted now. Turning
 it off never leaves the page bare: the sentence comes on. A voice without
 word timing keeps highlighting the sentence either way, and the message
 says so.
+
+**`Shift+H` / `Shift+U` highlight or underline the sentence being read**,
+playing or paused, as an annotation of the document, with its popup open
+for a comment. Early in a sentence, the one just finished is annotated
+instead. With no reading open the keys keep their usual meaning.
 
 - **Previous / next voice** — `Shift+,` / `Shift+.` cycle through the
   player's current voice list, wrapping at either end. Choosing a voice,

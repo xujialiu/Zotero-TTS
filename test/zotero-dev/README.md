@@ -122,6 +122,7 @@ opens a fixture ends with item 3.26's teardown ([playback](cases/playback.md)).
 - [The shortcut recorder](cases/shortcut-recorder.md) — 4.8
 - [Stop reading everywhere](cases/stop-key.md) — 4.9
 - [Word highlight on / off](cases/word-highlight-key.md) — 4.10
+- [Highlight and underline the sentence (issue #145, 1.15.1)](cases/annotate-keys.md)
 
 ### Positions, sync and backup
 

@@ -88,6 +88,8 @@ pref('extensions.zotero.zotero-tts.readAloud.keepFollowingWhileVisible', true);
 pref('extensions.zotero.zotero-tts.shortcuts.toggleAutoScroll', 'Shift+A');
 pref('extensions.zotero.zotero-tts.shortcuts.previousVoice', 'Shift+,');
 pref('extensions.zotero.zotero-tts.shortcuts.nextVoice', 'Shift+.');
+pref('extensions.zotero.zotero-tts.shortcuts.highlightSentence', 'Shift+H');
+pref('extensions.zotero.zotero-tts.shortcuts.underlineSentence', 'Shift+U');
 
 pref('extensions.zotero.zotero-tts.readAloud.stripAngleBrackets', true);
 pref('extensions.zotero.zotero-tts.readAloud.bracketPairs', '<> []');

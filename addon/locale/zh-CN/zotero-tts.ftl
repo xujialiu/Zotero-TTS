@@ -561,6 +561,16 @@ ztts-voice-failed = 无法切换到 { $voice }。已保留原来的声音，请�
 ztts-voice-unavailable = 声音列表尚未就绪。请打开播放器后重试。
 ztts-auto-scroll-toast-sentence = 自动滚动：每句居中
 ztts-auto-scroll-toast-outside = 自动滚动：超出视图时滚动
+# The annotate keys (issue #145): Zotero's own H and U, bindable
+ztts-key-highlight-sentence =
+    .value = 高亮句子
+ztts-key-underline-sentence =
+    .value = 下划线句子
+ztts-help-key-annotate =
+    .value = ?
+    .help = 朗读或暂停时，给正在朗读的句子添加高亮或下划线注释，并打开注释弹窗以便添加评论。刚开始读一句时，标注的是刚读完的上一句。弹窗打开时按另一个键，可在高亮和下划线之间切换。
+ztts-action-highlight-sentence = 高亮句子
+ztts-action-underline-sentence = 下划线句子
 
 ztts-strip-angle-brackets =
     .label = 朗读时去掉包围文字的括号

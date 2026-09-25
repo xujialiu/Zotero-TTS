@@ -635,3 +635,7 @@ then) and is in the git history before that day.
 - A word event is not a displayed frame, and the boundary retry is already adaptive (issue #144)
 - Short boundary retries follow audio time, with backoff only while that clock repeats (issue #144)
 - Verified short retries live; a complete boundary denominator still finds occasional omitted words (issue #144)
+
+### [2026-09-26](NOTES_2026-09-26.md)
+
+- Zotero's H and U annotate through two reader calls, and the segment must be the manager's own (issue #145)

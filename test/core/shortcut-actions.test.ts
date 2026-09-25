@@ -12,13 +12,15 @@ import {
   NAVIGATION,
   NAVIGATION_ACTIONS,
   PLAYER_ACTIONS,
+  ANNOTATE_ACTIONS,
   POSITION_ACTIONS,
   SHORTCUT_ACTIONS,
 } from '../../src/core/shortcut-actions';
 
 describe('shortcut actions', () => {
   it('lists the speed actions first, then the volume ones, then navigation, position, the player and the highlight', () => {
-    expect(SHORTCUT_ACTIONS).toEqual([...SPEED_ACTIONS, ...VOLUME_ACTIONS, ...NAVIGATION_ACTIONS, ...POSITION_ACTIONS, ...PLAYER_ACTIONS, ...HIGHLIGHT_ACTIONS, 'toggleAutoScroll', 'previousVoice', 'nextVoice']);
+    expect(SHORTCUT_ACTIONS).toEqual([...SPEED_ACTIONS, ...VOLUME_ACTIONS, ...NAVIGATION_ACTIONS, ...POSITION_ACTIONS, ...PLAYER_ACTIONS, ...HIGHLIGHT_ACTIONS, 'toggleAutoScroll', 'previousVoice', 'nextVoice', ...ANNOTATE_ACTIONS]);
+    expect(ANNOTATE_ACTIONS).toEqual(['highlightSentence', 'underlineSentence']);
     expect(HIGHLIGHT_ACTIONS).toEqual(['toggleWordHighlight']);
     expect(VOLUME_ACTIONS).toEqual(['volumeDown', 'volumeUp']);
     expect(NAVIGATION_ACTIONS).toEqual(['previousSentence', 'nextSentence', 'previousParagraph', 'nextParagraph']);
