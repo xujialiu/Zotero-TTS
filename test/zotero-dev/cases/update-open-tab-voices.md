@@ -35,13 +35,18 @@ Expected: no new `list is undefined`; the entry's `applied` counts up by
 the flips; `pluginPlayer()` for the tab lists the enabled providers and
 voices. The manager's own `loadVoices` is the new instance's hook, and the
 class's method is Zotero's (`Object.getPrototypeOf(manager).loadVoices`,
-its source starting `async loadVoices(`).
+its source starting `async loadVoices(`). A tab that carried its own
+leftover since before the run (the owner's, 2026-09-25 run) shows
+`applied: 1` right after the fix's startup, before any flip: the update's
+own rebuild of open tabs already goes through Zotero's method.
 
 ### 3. A clean shutdown leaves Zotero's own methods
 
 Reinstall the fix build in place once more and flip the switch again.
 
-Expected: as item 2 — no error, `applied` counts up. Between the two
+Expected: as item 2 — no error, `applied` counts up. The measurement
+waits for `revision` to rise by two per flip, not one: `invalidate()`
+bumps it once before `load()` starts (the kit's README, Limits). Between the two
 instances nothing is carried: the leftover planted in item 1 is nowhere on
 the manager (its own `loadVoices` and `deactivate` are the current
 instance's hooks, each once).
