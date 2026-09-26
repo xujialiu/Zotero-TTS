@@ -115,7 +115,7 @@ ${body}</body>
 // The default set is every doc the README links to, so the preview navigates,
 // plus the glossary and the decision records under docs/design/ and docs/adr/.
 function defaultFiles() {
-  const files = ['README.md', 'README.zh.md', 'CONTEXT.md', 'CONTEXT.zh.md'];
+  const files = ['README.md', 'README.zh.md', 'CONTEXT.md'];
   for (const dir of [join('test', 'zotero-dev'), 'docs']) {
     for (const entry of readdirSync(dir, { recursive: true, withFileTypes: true })) {
       if (entry.isFile() && entry.name.endsWith('.md')) {
