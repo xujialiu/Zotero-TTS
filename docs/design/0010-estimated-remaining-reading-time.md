@@ -16,8 +16,11 @@ entry's actual name. If the outermost entries are parts containing several
 chapters, the time covers the part; there is no choice of depth. Without
 reliable boundaries, only the document estimate is shown.
 
-Reading only selected content instead shows its estimated remaining time,
-labeled as selected content rather than the document or reading section.
+Selecting text currently chooses where reading starts; reading continues
+to the end of the document, so document and section estimates still apply.
+If reading is limited to selected content, its estimate is labeled as
+selected content and covers only that range. This decision does not add a
+new way to start selection-only reading.
 
 The estimates use the current speed and include the configured pauses
 between sentences and paragraphs. They exclude manual pauses and network

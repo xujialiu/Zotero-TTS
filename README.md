@@ -219,9 +219,10 @@ for every document you have listened to.
   three layouts.
 - **Estimated remaining reading time** appears in every layout, enabled by
   default under Reading settings. It shows the document and its current
-  named section, or just selected content when reading a selection. Times
-  follow your speed and improve while you listen; manual pauses and network
-  waits do not count down. Sections without reliable boundaries are omitted.
+  named section. Starting at selected text still counts to the end of the
+  document. Times follow your speed and improve while you listen; manual
+  pauses and network waits do not count down. Sections without reliable
+  boundaries are omitted.
 - **Speed controls** in the player, Settings and keyboard shortcuts change
   by 0.05×, within the existing 0.5×–3× range.
 - **A / M** shows whether this document is following the narration.

@@ -646,3 +646,5 @@ then) and is in the git history before that day.
 - Verified live: Default follows Your voices, including an empty catalog (issue #147)
 - Remaining time uses the audio clock, and sections share SDT refs with segments (issue #148; live verification deferred by the owner)
 - The remaining-time row must shorten the name without hiding the duration (issue #148)
+- Selected text supplies a start, not a reading limit (issue #148)
+- Remaining time verified in the reader, with bounded runs tested separately from selection starts (issue #148)

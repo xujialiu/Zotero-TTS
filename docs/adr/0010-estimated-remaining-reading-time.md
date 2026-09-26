@@ -58,8 +58,8 @@ section estimate unavailable. A mapped reference identifies a text
 boundary, not the semantic distinction between a part and a chapter.
 The owner chose the top-level entry regardless of that distinction, with
 its actual title as the display label and no depth selector. The adapter is
-implemented and covered by local tests; live verification is deferred at
-the owner's request.
+implemented and covered by local and live tests; the results are recorded
+in `notes/NOTES_2026-09-26.md` and the issue's verification table.
 
 ## Implementation
 
@@ -88,5 +88,20 @@ The setting `readAloud.remainingTime` uses the ordinary backup/sync path.
 The Player snapshot carries localized lines with the section name and
 duration separate, so a long name can shrink without hiding the time. Bars
 retain their height; the floating layout adds a 36 px time row, included in
-menu placement and
-drag bounds. Engine diagnostics expose the same numerical snapshot.
+menu placement and drag bounds. Engine diagnostics expose the same numerical snapshot.
+
+## Selection starts and bounded runs
+
+The installed Zotero 10.0.3 reader has one call to `manager.setSegments`
+(`resource/reader/reader.js` 84070), always with `forwardStopIndex: null`.
+`_captureReadAloudStart` (84073 onward) consumes a selection as the starting
+position; `startReadAloudAtPosition` (84239 onward) likewise starts or jumps
+there and continues through the document. Shift+Space therefore correctly
+retains document scope. The first live kit's expectation of selection
+scope from that shortcut was invalid.
+
+The Engine's bounded-run contract still accepts a non-null forward stop,
+and the estimate covers that range as agreed. Its live check supplies an
+explicit bounded run through the manager and is reported as a controlled
+contract check, not a user-facing selection-only action. Adding such an
+action would be a separate playback feature, outside this time display.

@@ -4,9 +4,9 @@
 
 The owner authorized live verification after the local checks. Follow the
 [baseline](../baseline.md) and tester workflow, including test WebDAV
-isolation and full restoration. The first pass on beta4 is partial; the
-[retained kit](../scripts/remaining-time/README.md) records its evidence
-and the follow-up checks.
+isolation and full restoration. Verified on beta6: the
+[retained kit](../scripts/remaining-time/README.md) records the completed
+checks and the first pass's corrected test assumptions.
 
 Use `test/fixtures/remaining-time/remaining-time.epub`: two top-level parts,
 with two chapters each in a single spine item. Import it as a temporary
@@ -35,9 +35,13 @@ Ordinary reading has `scope: document`; the EPUB's `sectionTitle` is
 nested chapter does not change that title. Section time is no greater than
 document time. Test segment boundaries on both sides, not just page turns.
 An absent, unresolved or unordered outline yields document time without
-section fields. A selection-limited run has `scope: selection`, no section
-fields, and ends at its forward stop. After its completion, Play continues
-with document scope as the existing Engine continues beyond the selection.
+section fields. Selecting text and pressing Shift+Space starts there and
+continues to document end; expect document scope for that actual UI path.
+Zotero currently provides no selection-only UI action. Separately supply
+a bounded run through the manager's `setSegments` contract: expect
+`scope: selection`, no section fields, and completion at its forward stop.
+After its completion, Play continues with document scope. Report this as a
+controlled contract check, not a user-facing selection-only feature.
 
 ### 3. Clocks, pace and no extra synthesis
 
