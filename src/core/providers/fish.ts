@@ -873,12 +873,14 @@ export function createFishProvider(cfg: FishConfig, deps: FishDeps): TTSProvider
         throw abortedError('Fish Audio voice list');
       }
 
-      // Default is a local catalog entry, so a transient non-authentication
-      // outage must still leave it (and any resolved manual entries) visible.
-      // Authentication failures were rejected above before reaching this
-      // fallback.
+      // Your voices includes the model's own voice, even when the account has
+      // no custom voices or its list is temporarily unavailable. Authentication
+      // failures were rejected above.
       notices = nextNotices;
-      return mergeVoices(official, own, pastedVoices, [{ id: `${MULTILINGUAL}/${DEFAULT_VOICE}`, label: DEFAULT_VOICE_LABEL, locale: MULTILINGUAL }]);
+      const defaultVoices = includeOwn
+        ? [{ id: `${MULTILINGUAL}/${DEFAULT_VOICE}`, label: DEFAULT_VOICE_LABEL, locale: MULTILINGUAL }]
+        : [];
+      return mergeVoices(official, own, pastedVoices, defaultVoices);
     },
     voiceListNotices(): VoiceListNotice[] {
       return [...notices];

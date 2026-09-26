@@ -64,8 +64,11 @@ start off. The three source switches work independently.
   published regional accent are grouped separately, such as English
   (United States), English (United Kingdom), and English (India).
   English voices without a region stay under English.
-- **Default.** The model's own voice remains available even with all three
-  sources off.
+- **Default.** The model's own voice is included with **Your voices**, even
+  if your account has no custom voices. Turn **Your voices** off to hide it.
+  With all three sources off, no Fish Audio voices are available;
+  **Test connection** still works. If a saved voice becomes unavailable,
+  choose another voice before reading.
 - **Updating the list.** **Enable** and **Test connection** reload the
   Fish Audio voice list. Repeated openings reuse the loaded list until
   Zotero restarts. A failed list reload keeps the last successful voices

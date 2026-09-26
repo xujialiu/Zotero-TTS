@@ -12,7 +12,7 @@ Zotero reads it into the pref itself. Item 1a.1 lays out both blocks of
 the section; the server block's own items are
 [Fish Speech](fish-speech.md).
 
-Items 1a.1–1a.8 and 1a.14 of the checklist, under their original numbers.
+Items 1a.1–1a.9 and 1a.14 of the checklist, under their original numbers.
 
 ### 1a.1
 
@@ -41,7 +41,8 @@ Items 1a.1–1a.8 and 1a.14 of the checklist, under their original numbers.
 2. **Test connection with nothing pasted.** Key set, `freeOnly` true,
    `voices` empty, provider off. Click `ztts-test-fish`: `Testing…` within
    2 ms, then `Connected. N voices available. Synthesis works.` The
-   count includes enabled official, own, and manual sources plus Default since #91;
+   count includes enabled official, own, and manual sources; Default is
+   included only with Your voices (#147). With all three on,
    verify more than one with an ordinary working account. The earlier
    #89 pass (2026-09-10) returned only Default. No `[zotero-tts]` line:
    the pane's probe logs nothing.
@@ -110,7 +111,8 @@ Items 1a.1–1a.8 and 1a.14 of the checklist, under their original numbers.
 
 ### 1a.8
 
-8. **The Default voice sends no reference.** Select `fish::mul/default`
+8. **The Default voice sends no reference.** Enable Your voices, then
+   select `fish::mul/default`
    — `setLanguage('mul')` **before** `selectVoice`, or Zotero's
    `_applyVoice` drops an id outside the current language, leaving the
    manager `active` with `_controller` null and no error (measured
@@ -119,6 +121,38 @@ Items 1a.1–1a.8 and 1a.14 of the checklist, under their original numbers.
    `fish: 6 word timestamps for 31 chars (s2.1-pro-free)` with no
    `(cached)` and no `Reference not found` (400) anywhere — a
    `reference_id: "default"` would have produced one.
+
+### 1a.9
+
+9. **Default belongs to Your voices (issue #147).** After the baseline
+   and test-WebDAV isolation, snapshot the Fish source switches, enable
+   state, manual IDs, global default and fixture document voice. Use the
+   free model. Close a paused owner player if the reading guard requires
+   it; record the tab and leave it closed.
+
+   - Check all eight source combinations with
+     `diagnostics.fishVoices(true)`: `sources` matches the switches and
+     `ids` includes `mul/default` exactly when `sources.own` is true.
+     No-source output is `count: 0`, `ids: []`. Official-only output
+     contains no Default. Own-only still includes Default for an account
+     without custom voices. Re-enable Your voices after disabling it:
+     Default returns even when source lists are cached.
+   - With all sources off, use Test connection once: the pane reports
+     zero voices and successful synthesis. Enabling remains possible;
+     Default must not reappear in the browser or the diagnostic.
+   - Save Default as a fixture's document voice, close its player, and
+     disable Your voices while leaving official voices available. Reopen
+     the fixture's player: the saved record remains Default, the
+     unavailable-voice prompt appears, and no controller starts on an
+     automatic substitute. Restore Your voices and reopen: Default is
+     available again. `diagnostics.documentVoices()` proves the saved
+     record and the reader selection. Existing global-default inheritance
+     and missing-voice unit tests cover new documents sharing that choice.
+   - Restore the saved switches, enable state, IDs and voice records;
+     delete the fixture and restore isolated local/sync state before
+     restoring automatic sync. No paid synthesis is needed. Unit tests
+     cover authentication failures, network outages and empty-account
+     responses; this check requires no judgment of voice quality.
 
 ### 1a.14
 

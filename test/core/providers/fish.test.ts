@@ -327,7 +327,7 @@ describe('listVoices', () => {
       ...(includeOfficial ? [{ id: `en/${ID_A}`, label: 'Official', locale: 'en' }] : []),
       ...(includeOwn ? [{ id: `en/${ID_B}`, label: 'Own', locale: 'en' }] : []),
       ...(includeManual ? [{ id: `en/${ID_C}`, label: 'Manual', locale: 'en' }] : []),
-      { id: `mul/${DEFAULT_VOICE}`, label: 'Default', locale: 'mul' },
+      ...(includeOwn ? [{ id: `mul/${DEFAULT_VOICE}`, label: 'Default', locale: 'mul' }] : []),
     ];
     expect(voices).toEqual(expected);
     expect(fetchImpl).toHaveBeenCalledTimes(Number(includeOfficial) + Number(includeOwn) + Number(includeManual));
@@ -348,9 +348,27 @@ describe('listVoices', () => {
     config.includeOwn = false;
     config.includeManual = false;
     config.voices = ID_C;
-    expect(await p.listVoices()).toEqual([{ id: `mul/${DEFAULT_VOICE}`, label: 'Default', locale: 'mul' }]);
+    expect(await p.listVoices()).toEqual([]);
     expect(p.voiceListNotices?.()).toEqual([]);
     expect(fetchImpl).toHaveBeenCalledTimes(3);
+    config.includeOwn = true;
+    expect((await p.listVoices()).map((voice) => voice.label)).toEqual(['Own', 'Default']);
+    expect(fetchImpl).toHaveBeenCalledTimes(3);
+  });
+
+  it('offers Default with Your voices even when the account has no custom voices', async () => {
+    const fetchImpl = vi.fn(async () => page([]));
+    const p = provider(fetchImpl, { includeOfficial: false, includeOwn: true, includeManual: false });
+    await expect(p.listVoices()).resolves.toEqual([{ id: `mul/${DEFAULT_VOICE}`, label: 'Default', locale: 'mul' }]);
+  });
+
+  it('does not restore Default during an outage when Your voices is off', async () => {
+    const fetchImpl = vi.fn(async () => {
+      throw new TypeError('NetworkError');
+    });
+    const p = provider(fetchImpl, { includeOwn: false });
+    await expect(p.listVoices()).resolves.toEqual([]);
+    expect(p.voiceListNotices?.()).toEqual([{ kind: 'stale', detail: expect.stringContaining('cannot reach') }]);
   });
 
   it('still authenticates with the own probe when own voices are excluded', async () => {
@@ -431,7 +449,6 @@ describe('listVoices', () => {
     const refreshing = provider(fetchImpl, { includeOwn: false, voices: `${ID_C} ${ID_B}` }, { cache, timeoutMs: 20 });
     expect(await refreshing.listVoices({ refresh: true })).toEqual([
       { id: `en/${ID_C}`, label: 'Saved manual', locale: 'en' },
-      { id: `mul/${DEFAULT_VOICE}`, label: 'Default', locale: 'mul' },
     ]);
     expect(refreshing.voiceListNotices?.()).toEqual([expect.objectContaining({ kind: 'stale' })]);
     expect(fetchImpl.mock.calls.filter(([url]) => url.endsWith(`/model/${ID_C}`))).toHaveLength(1);
