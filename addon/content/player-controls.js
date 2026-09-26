@@ -31,6 +31,7 @@ function render() {
     ${variant === 'B' ? `<div class="transport">${skipControl('previousParagraph')}${skipControl('previousSentence')}${playControl}${skipControl('nextSentence')}${skipControl('nextParagraph')}</div>` : playControl}
     <div class="voice-group" id="player-choices">${field('provider')}${field('locale')}${field('voice')}</div>
     <div class="controls"><button class="adjust" data-adjust="speed" aria-haspopup="dialog">${speedIcon}<span class="adjust-value"></span></button><button class="adjust mode"></button><button class="adjust" data-adjust="volume" aria-haspopup="dialog">${volumeIcon}<span class="adjust-value"></span></button><button class="status-button" hidden>!</button>${variant === 'B' ? '' : layoutControl}</div>
+    <div class="remaining-time" hidden></div>
   </section>`;
   document.querySelectorAll('[data-pick]').forEach(button => { button.onclick = () => openPicker(button, button.dataset.pick); });
   document.querySelectorAll('[data-adjust]').forEach(button => { button.onclick = () => openRange(button, button.dataset.adjust); });
@@ -63,9 +64,19 @@ function updateControls() {
   options.setAttribute('aria-pressed', String(!!state.expanded));
   const collapsed = variant === 'B' && !state.expanded;
   const player = $('.player');
-  const changed = player.classList.contains('collapsed') !== collapsed;
+  const hasRemaining = !!state.remaining?.length;
+  const changed = player.classList.contains('collapsed') !== collapsed || player.classList.contains('has-remaining') !== hasRemaining;
   if (changed) closePopover(false);
   player.classList.toggle('collapsed', collapsed);
+  player.classList.toggle('has-remaining', hasRemaining);
+  const remaining = $('.remaining-time');
+  remaining.hidden = !hasRemaining;
+  const lines = state.remaining || [];
+  remaining.title = lines.join(' · ');
+  remaining.setAttribute('aria-label', remaining.title);
+  remaining.replaceChildren(...lines.map(line => {
+    const span = document.createElement('span'); span.textContent = line; return span;
+  }));
   $('.voice-group').hidden = collapsed;
   if (changed) notifyHeight();
   for (const key of ['provider', 'locale', 'voice']) {

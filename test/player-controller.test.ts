@@ -22,14 +22,16 @@ function fixture() {
   const manual = vi.fn((reader: unknown) => { following.set(reader, false); });
   follow.mockImplementation((reader: unknown) => { following.set(reader, true); });
   const prefs = { get: (key: string) => values.get(key), set: (key: string, value: unknown) => { values.set(key, value); } };
+  const remainingTime = vi.fn(() => ({ status: 'ready' as const, scope: 'document' as const, seconds: 100 }));
   const controller = createPlayerController({
+    remainingTime,
     affectedTabs: changes => affectedReading(flattenSettings(loadSettings(prefs)), changes, manager.active ? [{ title: 'Paper', voices: [{ id: manager.selectedVoiceID, provider: 'fish' }] }] : []),
     prefs: { get: key => values.get(key), set: (key, value) => { values.set(key, value); } },
     labels: () => ({ fish: 'Fish Audio' }), clone: (_reader, value) => value,
     start, close, togglePaused, rememberSpeed, follow, navigate, automatic, manual, anyReading: () => manager.active,
     message: key => key,
   });
-  return { values, manager, reader, controller, start, close, togglePaused, rememberSpeed, follow, following, manual, navigate };
+  return { remainingTime, values, manager, reader, controller, start, close, togglePaused, rememberSpeed, follow, following, manual, navigate };
 }
 
 describe('player controller', () => {
@@ -123,4 +125,13 @@ describe('player controller', () => {
     expect(f.manager.setLanguage).toHaveBeenCalledWith('en', { region: 'US', persist: true });
     await expect(f.controller.command(f.reader, 'provider', 'missing')).rejects.toThrow();
   });
+});
+
+it('shows remaining time by default, and switching it off bypasses estimation immediately', () => {
+  const f = fixture();
+  expect(f.controller.snapshot(f.reader).remaining).toEqual(['ztts-time-minutes']);
+  expect(f.remainingTime).toHaveBeenCalledTimes(1);
+  f.values.set(PREF_PREFIX + 'readAloud.remainingTime', false);
+  expect(f.controller.snapshot(f.reader).remaining).toEqual([]);
+  expect(f.remainingTime).toHaveBeenCalledTimes(1);
 });

@@ -629,3 +629,16 @@ ztts-help-key-player-layout =
 ztts-document-voice-help = 新文档首次打开时使用上方选择的默认声音，此后独立保存。在播放器中更换声音只影响当前文档。
 ztts-document-voice-unavailable = 保存的声音（{ $voice }）不可用，请在播放器中选择声音后继续。
 ztts-default-voice-required = 请先在 Zotero-TTS 设置中选择默认声音。
+
+ztts-remaining-time =
+    .label = 显示预计剩余朗读时间
+ztts-help-remaining-time =
+    .value = ?
+    .help = 显示全文和当前目录部分，或所选内容还需听多久。估算随语速调整，并在朗读中逐步修正；手动暂停和网络等待期间不倒数。
+ztts-time-estimating = 估算中…
+ztts-time-unavailable = 暂无法估算
+ztts-time-finished = 已读完
+ztts-time-document = 全文
+ztts-time-selection = 所选内容
+ztts-time-minutes = { $name }：预计剩余 { $minutes } 分钟
+ztts-time-under-minute = { $name }：剩余不足 1 分钟

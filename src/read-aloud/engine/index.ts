@@ -41,6 +41,8 @@
  * from that segment with the new version.
  */
 
+import { createReadingSections } from '../reading-sections';
+import type { RemainingSnapshot } from '../../core/engine/session';
 import type { PauseSettings } from '../../core/engine/gap';
 import { EngineSession, type PlaybackNotice } from '../../core/engine/session';
 import type { EngineClock, EngineSegment, EngineVoice, FetchResult } from '../../core/engine/types';
@@ -128,6 +130,7 @@ export interface Engine {
   upcomingTexts(reader: unknown, text: string, count: number, skip: (segment: EngineSegment) => boolean): string[];
   /** Move every tab's volume. */
   setVolume(level: number): void;
+  remainingTime(reader: unknown): RemainingSnapshot;
   inspect(reader: unknown): EngineReport;
   patchCounts(): { total: number; live: number };
   /**
@@ -157,6 +160,8 @@ function accessorOwnerOf(obj: unknown, name: string): any {
 }
 
 export function createEngine(deps: EngineDeps): Engine {
+  const sectionFor = createReadingSections();
+  const estimateErrors = new WeakSet<object>();
   const patches = createProtoPatches({ exportFunction: deps.exportFunction, isDead: deps.isDead, error: deps.error });
   const clock = deps.clock ?? defaultClock;
   const microtask = deps.microtask ?? ((fn: () => void) => void Promise.resolve().then(fn));
@@ -453,6 +458,25 @@ export function createEngine(deps: EngineDeps): Engine {
     }
   }
 
+  function remainingTime(reader: unknown): RemainingSnapshot {
+    const session = tabOfReader(reader)?.session;
+    if (!session || session.ended) return { status: 'estimating', scope: 'document', seconds: null };
+    const report = (error: unknown) => {
+      if (reader && typeof reader === 'object' && !estimateErrors.has(reader)) {
+        estimateErrors.add(reader);
+        deps.error(error);
+      }
+    };
+    let section;
+    try { section = session.segments ? sectionFor(reader, session.segments, session.position) : undefined; }
+    catch (error) { report(error); }
+    try { return session.remainingTime(section); }
+    catch (error) {
+      report(error);
+      return { status: 'unavailable', scope: 'document', seconds: null };
+    }
+  }
+
   function silence(tab: Tab): void {
     tab.controller?.retire();
     tab.controller = null;
@@ -506,6 +530,8 @@ export function createEngine(deps: EngineDeps): Engine {
       }
     },
 
+    remainingTime,
+
     inspect(reader) {
       const tab = tabOfReader(reader);
       const manager = managerOf(reader);
@@ -537,6 +563,7 @@ export function createEngine(deps: EngineDeps): Engine {
         controller: held ? { ours: controllers.has(waive(held)), live: !!tab?.controller && tab.controller.object === waive(held) && tab.controller.live } : null,
         session: session
           ? {
+              remainingTime: remainingTime(reader),
               voice: session.voice?.id ?? null,
               position: session.position,
               currentIndex: session.currentIndex,

@@ -55,6 +55,8 @@ One case, one behavior. Item numbers stay stable across moves; see
 
 ## Reading
 
+- [Estimated remaining document, section and selection reading time (issue #148)](cases/remaining-time.md)
+
 - [The Engine: every voice on the plugin's own engine (issue #133)](cases/engine.md)
 - [Playback on a fixture](cases/playback.md) — 3.4, 3.26
 - [3l. Playback preparation notice (issue #120)](cases/playback-notice.md)

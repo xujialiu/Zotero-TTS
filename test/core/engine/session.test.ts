@@ -896,3 +896,90 @@ describe('EngineSession: the texts the plugin warms ahead', () => {
     expect(t.session.upcomingTexts('One.', 3, () => false)).toEqual([]);
   });
 });
+
+describe('remaining reading time', () => {
+  it('does not consume time while buffering or paused, responds to speed, and survives completion rewind', async () => {
+    const t = setup({ texts: ['One two three.'], settings: pauses(0, 0) });
+    t.fetch.hold = true;
+    t.open();
+    expect(t.session.remainingTime().seconds).toBe(1);
+    await t.clock.advance(5000);
+    expect(t.session.remainingTime().seconds).toBe(1);
+    t.fetch.respond('One two three.');
+    await t.clock.advance(0);
+    expect(t.session.remainingTime().seconds).toBeCloseTo(0.7);
+    await t.clock.advance(200);
+    t.session.setPaused(true);
+    const paused = t.session.remainingTime().seconds;
+    await t.clock.advance(1000);
+    expect(t.session.remainingTime().seconds).toBe(paused);
+    t.session.setSpeed(2);
+    expect(t.session.remainingTime().seconds).toBeCloseTo(0.25);
+    t.session.setPaused(false);
+    await t.clock.advance(250);
+    expect(t.session.remainingTime()).toMatchObject({ status: 'finished', seconds: 0 });
+    expect(t.session.position).toBe(0);
+    t.session.setPaused(false);
+    expect(t.session.remainingTime().status).toBe('ready');
+  });
+});
+
+
+it('bounds a selected reading range and freezes while its audio is still on the way', async () => {
+  const t = setup({ texts: ['One two three.', 'Four five six.', 'Seven eight nine.'], settings: pauses(0, 0) });
+  t.fetch.hold = true;
+  t.session.bind({ voice: t.v, segments: t.list, backwardStopIndex: 1, forwardStopIndex: 2 });
+  t.session.setPaused(false);
+  expect(t.session.remainingTime({ title: 'Part I', end: 3 })).toEqual({ status: 'ready', scope: 'selection', seconds: 1 });
+  await t.clock.advance(1000);
+  expect(t.session.remainingTime().seconds).toBe(1);
+  t.fetch.respond('Four five six.');
+  await t.clock.advance(701);
+  expect(t.session.remainingTime()).toEqual({ status: 'finished', scope: 'selection', seconds: 0 });
+});
+
+it('counts only the unconsumed gap and excludes the boundary after a reading section', async () => {
+  const t = setup({ texts: ['One two three.', 'Four five six.'], settings: pauses(1000, 0) });
+  t.open();
+  await t.clock.advance(0);
+  expect(t.session.remainingTime({ title: 'Part I', end: 1 }).sectionSeconds).toBeCloseTo(0.7);
+  await t.clock.advance(900);
+  expect(t.session.remainingTime().seconds).toBeCloseTo(1.5);
+  t.session.setPaused(true);
+  expect(t.session.remainingTime().seconds).toBeCloseTo(0.7);
+  await t.clock.advance(1000);
+  expect(t.session.remainingTime().seconds).toBeCloseTo(0.7);
+});
+
+it('does not generate speech for estimation and forgets the old voice pace on a new voice', async () => {
+  const t = setup({ texts: ['One two three.', 'Four five six.'], settings: pauses(0, 0) });
+  t.open(0, true);
+  for (let i = 0; i < 100; i++) t.session.remainingTime();
+  expect(t.fetch.requests).toHaveLength(0);
+  t.session.setPaused(false);
+  await t.clock.advance(0);
+  t.session.setPaused(true);
+  expect(t.session.remainingTime().seconds).toBeCloseTo(1.4);
+  t.session.bind({ voice: voice('other'), segments: t.list, backwardStopIndex: 0, forwardStopIndex: null });
+  t.session.setPaused(true);
+  expect(t.session.remainingTime().seconds).toBe(2);
+  expect(t.fetch.requests).toHaveLength(2);
+});
+
+it('returns to document scope when Play continues beyond a completed selection', async () => {
+  const t = setup({ texts: ['One two three.', 'Four five six.', 'Seven eight nine.'], settings: pauses(0, 0) });
+  t.session.bind({ voice: t.v, segments: t.list, backwardStopIndex: 1, forwardStopIndex: 2 });
+  t.session.setPaused(false);
+  await t.clock.advance(701);
+  expect(t.session.remainingTime()).toMatchObject({ scope: 'selection', status: 'finished' });
+  t.session.setPaused(false);
+  expect(t.session.remainingTime()).toMatchObject({ scope: 'document', status: 'ready' });
+});
+
+it('estimates the document when a skip moves past the selection stop', async () => {
+  const t = setup({ texts: ['One two three.', 'Four five six.', 'Seven eight nine.'], settings: pauses(0, 0) });
+  t.session.bind({ voice: t.v, segments: t.list, backwardStopIndex: 0, forwardStopIndex: 1 });
+  t.session.setPaused(true);
+  t.session.skipAhead('sentence');
+  expect(t.session.remainingTime()).toMatchObject({ status: 'ready', scope: 'document', seconds: 2 });
+});

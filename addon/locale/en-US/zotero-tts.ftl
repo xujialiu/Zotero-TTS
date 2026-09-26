@@ -684,3 +684,16 @@ ztts-help-key-player-layout =
 ztts-document-voice-help = New documents start with the default voice selected above. Each document then keeps its own voice; changing it in the player affects only that document.
 ztts-document-voice-unavailable = The saved voice ({ $voice }) is unavailable. Choose a voice in the player to continue.
 ztts-default-voice-required = Choose a default voice in Zotero-TTS settings before reading.
+
+ztts-remaining-time =
+    .label = Show estimated remaining reading time
+ztts-help-remaining-time =
+    .value = ?
+    .help = Show how much listening time remains in the document and its current named section, or in selected content. Estimates follow your speed and improve while reading; manual pauses and network waits do not count down.
+ztts-time-estimating = Estimating…
+ztts-time-unavailable = Estimate unavailable
+ztts-time-finished = Finished
+ztts-time-document = Document
+ztts-time-selection = Selection
+ztts-time-minutes = { $name }: about { $minutes } min left
+ztts-time-under-minute = { $name }: less than 1 min left

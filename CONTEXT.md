@@ -73,6 +73,25 @@ Where reading stopped in a document, kept so that reading resumes there on
 the same computer, another computer or a phone.
 _Avoid_: bookmark, progress
 
+**Estimated remaining reading time**:
+The estimated listening time left in the document, or in the selected
+content when reading only a selection, at the current speed. It includes
+pauses between sentences and paragraphs but excludes manual pauses and
+network waits.
+_Avoid_: completion time, document duration, countdown
+
+**Reading section**:
+A top-level entry in the document's table of contents, including its
+subsections. It may be a chapter, a part or another named division.
+_Avoid_: chapter (when the entry is not a chapter), spine item
+
+**Estimated remaining section reading time**:
+The estimated listening time from the current reading position to the end
+of the current reading section at the current speed. Like estimated
+remaining reading time, it includes sentence and paragraph pauses but
+excludes manual pauses and network waits.
+_Avoid_: section countdown, chapter duration
+
 **Voice catalog**:
 The voices the player offers: every enabled provider's voices, with
 favorites and the remembered choice per language.

@@ -13,6 +13,7 @@
  * for once more when playback reaches it (40359-40361).
  */
 
+import { RemainingTime } from './remaining-time';
 import { LruMap } from './lru';
 import { FetchTimer } from './read-ahead';
 import type { EngineClip, EngineClock, EngineSegment, EngineVoice, FetchResult, WordTiming } from './types';
@@ -51,6 +52,15 @@ export class ClipStore<Clip extends EngineClip> {
   readonly timer = new FetchTimer();
   /** Fetches issued, for the diagnostics and the tests. */
   requests = 0;
+  private readonly durations = new Map<number, number>();
+  private timeModel: RemainingTime | null = null;
+  get remainingTime(): RemainingTime {
+    if (!this.timeModel) {
+      this.timeModel = new RemainingTime(this.segments);
+      for (const [index, duration] of this.durations) this.timeModel.record(index, duration);
+    }
+    return this.timeModel;
+  }
   closed = false;
 
   constructor(readonly deps: ClipStoreDeps<Clip>) {}
@@ -86,6 +96,8 @@ export class ClipStore<Clip extends EngineClip> {
     this.clips.clear();
     this.timings.clear();
     this.inflight.clear();
+    this.durations.clear();
+    this.timeModel = null;
   }
 
   private async fetchAndDecode(index: number, segment: EngineSegment): Promise<Clip> {
@@ -114,6 +126,8 @@ export class ClipStore<Clip extends EngineClip> {
     }
     if (this.closed) throw new ClipError('unknown', 'closed');
     this.clips.set(index, clip);
+    this.durations.set(index, clip.duration);
+    this.timeModel?.record(index, clip.duration);
     if (result.timestamps) this.timings.set(index, result.timestamps);
     return clip;
   }

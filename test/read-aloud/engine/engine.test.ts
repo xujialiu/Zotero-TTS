@@ -305,3 +305,29 @@ describe('the Engine across a plugin update', () => {
     expect(t.manager._controller.args[1]).toBe(0);
   });
 });
+
+it('publishes the document and top-level section estimates through the real manager contract', async () => {
+  const t = await setup({ attachFirst: true });
+  t.segments.forEach((segment, i) => Object.assign(segment, { position: { start: [i, 0, 0], end: [i, 0, segment.text.length] } }));
+  Object.assign(t.reader._internalReader, { _sdt: { structure: { catalog: { outline: [{ title: 'Part I', ref: [0] }, { title: 'Part II', ref: [2] }] } } } });
+  t.open();
+  await t.clock.advance(0);
+  t.manager.pause();
+  expect(t.engine.remainingTime(t.reader)).toMatchObject({ status: 'ready', scope: 'document', sectionTitle: 'Part I' });
+  expect(t.engine.remainingTime(t.reader).sectionSeconds).toBeCloseTo(1.2);
+  const before = t.source.getAudio.mock.calls.length;
+  for (let i = 0; i < 20; i++) t.engine.remainingTime(t.reader);
+  expect(t.source.getAudio).toHaveBeenCalledTimes(before);
+  t.manager.repositionTo(2);
+  expect(t.engine.remainingTime(t.reader).sectionTitle).toBe('Part II');
+  t.engine.dispose();
+});
+
+it('keeps document time when a chapter adapter cannot read Zotero state, reporting the failure once', async () => {
+  const t = await setup({ attachFirst: true });
+  Object.defineProperty(t.reader._internalReader, '_sdt', { get() { throw new Error('outline unavailable'); } });
+  t.open();
+  for (let i = 0; i < 3; i++) expect(t.engine.remainingTime(t.reader)).toMatchObject({ status: 'ready', scope: 'document' });
+  expect(t.errors).toHaveLength(1);
+  t.engine.dispose();
+});

@@ -644,3 +644,4 @@ then) and is in the git history before that day.
 - Independent voices verified through the player and isolated settings sync (issue #146)
 - Fish Default was an unconditional catalog entry, independent of every source switch (issue #147)
 - Verified live: Default follows Your voices, including an empty catalog (issue #147)
+- Remaining time uses the audio clock, and sections share SDT refs with segments (issue #148; live verification deferred by the owner)

@@ -37,7 +37,7 @@ export function createPluginPlayer(deps: {
 }) {
   deps.prefs.setDefault?.(PREF_PREFIX + 'readAloud.playerLayout', 'top');
   const readLayout = () => playerLayout(deps.prefs);
-  const panelHeight = (expanded: boolean) => expanded ? 202 : 108;
+  const panelHeight = (expanded: boolean, remaining = false) => (expanded ? 202 : 108) + (remaining ? 36 : 0);
   let layout = readLayout();
   const live = (doc: Document) => isPlayerDocumentLive(doc, deps.dead);
   const settingsDocuments = new Set<Document>();
@@ -69,7 +69,7 @@ export function createPluginPlayer(deps: {
     /** Why this reader's Player cannot appear, if it cannot: its attach threw, or its frame never finished loading (ADR 0007). */
     failed: 'attach' | 'frame' | null;
     /** The reading this Player refused is already closed and said so. */
-    refused: boolean; lastSnapshot: string; actionError: string | null; openedAt: number; moved: boolean; expanded: boolean; menuInset: number; listener: (event: MessageEvent) => void; resize: () => void; connect: () => void; cleanup: () => void }>();
+    refused: boolean; lastSnapshot: string; actionError: string | null; openedAt: number; moved: boolean; expanded: boolean; remaining: boolean; menuInset: number; listener: (event: MessageEvent) => void; resize: () => void; connect: () => void; cleanup: () => void }>();
   function syncAppearance(doc: Document): void {
     const entry = entries.get(doc);
     if (!entry || !live(doc)) return;
@@ -130,7 +130,7 @@ export function createPluginPlayer(deps: {
     }
     entry.frame.style.cssText = 'position:fixed;z-index:10000;border:0;background:transparent;color-scheme:light;';
     if (layout === 'A') entry.frame.style.cssText += 'left:0;bottom:0;width:100%;height:34px;';
-    if (layout === 'B') entry.frame.style.cssText += 'left:10px;top:51px;width:min(300px,95vw);height:' + panelHeight(entry.expanded) + 'px;';
+    if (layout === 'B') entry.frame.style.cssText += 'left:10px;top:51px;width:min(300px,95vw);height:' + panelHeight(entry.expanded, entry.remaining) + 'px;';
     if (layout === 'top') entry.frame.style.cssText += 'left:0;top:41px;width:100%;height:34px;';
     const background = doc.defaultView?.getComputedStyle(doc.querySelector('.toolbar') ?? doc.body).backgroundColor ?? '';
     const channels = background.match(/[\d.]+/g)?.slice(0, 3).map(Number) ?? [255, 255, 255];
@@ -224,7 +224,7 @@ export function createPluginPlayer(deps: {
           const request = JSON.parse(json);
           const box = frame.getBoundingClientRect();
           const placement = floatingMenuPlacement({
-            panelTop: box.top + entry.menuInset, panelHeight: panelHeight(entry.expanded),
+            panelTop: box.top + entry.menuInset, panelHeight: panelHeight(entry.expanded, entry.remaining),
             anchorTop: box.top + Number(request.top), anchorBottom: box.top + Number(request.bottom),
             menuHeight: Number(request.height), viewportHeight: win.innerHeight,
           });
@@ -240,7 +240,7 @@ export function createPluginPlayer(deps: {
           const box = frame.getBoundingClientRect();
           entries.get(doc)!.moved = true;
           frame.style.left = Math.max(0, Math.min(win.innerWidth - box.width, box.left + dx)) + 'px';
-          frame.style.top = Math.max(0, Math.min(win.innerHeight - panelHeight(entries.get(doc)!.expanded), box.top + dy)) + 'px';
+          frame.style.top = Math.max(0, Math.min(win.innerHeight - panelHeight(entries.get(doc)!.expanded, entries.get(doc)!.remaining), box.top + dy)) + 'px';
         });
         deps.exportLayout(frame.contentWindow, changeLayout);
         unlistenKeys?.();
@@ -282,7 +282,7 @@ export function createPluginPlayer(deps: {
       paint(doc);
       void act(doc, entry.open ? 'open' : 'close');
     };
-    entries.set(doc, { frame, style, button, open: false, reader, nativeOpened: deps.snapshot(reader).opened, failed: null, refused: false, lastSnapshot: '', actionError: null, openedAt: 0, moved: false, expanded: deps.snapshot(reader).expandOnOpen, menuInset: 0, listener, resize, connect, cleanup: () => {
+    entries.set(doc, { frame, style, button, open: false, reader, nativeOpened: deps.snapshot(reader).opened, failed: null, refused: false, lastSnapshot: '', actionError: null, openedAt: 0, moved: false, remaining: false, expanded: deps.snapshot(reader).expandOnOpen, menuInset: 0, listener, resize, connect, cleanup: () => {
       clearTimeout(connectionTimer);
       for (const cleanup of [() => unlistenKeys?.(), () => button.removeEventListener('click', toggle),
         () => geometry?.disconnect(), () => changes?.disconnect(), () => scheme?.removeEventListener('change', resize)]) {
@@ -324,6 +324,7 @@ export function createPluginPlayer(deps: {
     const entry = entries.get(doc);
     if (!entry || !live(doc)) return;
     const state = deps.snapshot(entry.reader);
+    entry.remaining = !!state.remaining?.length;
     if (entry.failed) { refuse(entry, state.opened); return; }
     if (state.opened !== entry.nativeOpened) {
       entry.nativeOpened = state.opened;

@@ -65,6 +65,14 @@ export const WORD_TICK_MIN_MS = 1;
 /** A frozen audio clock backs off to the previous polling floor. */
 const WORD_TICK_STALLED_MS = 15;
 
+export interface RemainingSnapshot {
+  status: 'ready' | 'estimating' | 'unavailable' | 'finished';
+  scope: 'document' | 'selection';
+  seconds: number | null;
+  sectionSeconds?: number;
+  sectionTitle?: string;
+}
+
 export type PlaybackNotice = 'idle' | 'preparing' | 'failed';
 
 export interface SessionDeps<Clip extends EngineClip> {
@@ -107,6 +115,8 @@ export class EngineSession<Clip extends EngineClip = EngineClip> {
   segments: ArrayLike<EngineSegment> | null = null;
   store: ClipStore<Clip> | null = null;
   position = 0;
+  completed = false;
+  private completedScope: 'document' | 'selection' = 'document';
   backwardStopIndex: number | null = null;
   forwardStopIndex: number | null = null;
 
@@ -209,6 +219,8 @@ export class EngineSession<Clip extends EngineClip = EngineClip> {
     this.position = request.backwardStopIndex ?? 0;
     this.backwardStopIndex = request.backwardStopIndex;
     this.forwardStopIndex = request.forwardStopIndex;
+    this.completedScope = 'document';
+    this.completed = false;
     this.paused = false;
     this.error = null;
     this.buffering = false;
@@ -260,6 +272,7 @@ export class EngineSession<Clip extends EngineClip = EngineClip> {
       }
     }
     this.paused = paused;
+    if (!paused) this.completed = false;
     this.clearGap();
     this.speak();
   }
@@ -558,9 +571,13 @@ export class EngineSession<Clip extends EngineClip = EngineClip> {
       this.forwardStopIndex = null;
       this.deps.emit('ActiveSegmentChanging', this.currentSegment);
       this.deps.emit('ActiveSegmentChange', this.currentSegment);
+      this.completedScope = 'selection';
+      this.completed = true;
       this.deps.emit('Complete', null);
     } else if (this.position === last) {
       this.position = this.backwardStopIndex ?? 0;
+      this.completedScope = 'document';
+      this.completed = true;
       this.deps.emit('Complete', null);
     } else {
       this.position++;
@@ -591,6 +608,7 @@ export class EngineSession<Clip extends EngineClip = EngineClip> {
     this.handoff?.cancel();
     this.clearGap();
     this.position = position;
+    this.completed = false;
     this.stop();
     this.deps.emit('ActiveSegmentChanging', this.currentSegment);
     if (!this.paused) this.waitForAudio();
@@ -839,6 +857,29 @@ export class EngineSession<Clip extends EngineClip = EngineClip> {
     if (!segments || !segment) return -1;
     for (let i = 0; i < segments.length; i++) if (segments[i] === segment) return i;
     return -1;
+  }
+
+  /** Listening time, read without fetching audio or walking the document again. */
+  remainingTime(section?: { title: string; end: number }): RemainingSnapshot {
+    const scope = this.completed ? this.completedScope
+      : this.forwardStopIndex !== null && this.position < this.forwardStopIndex ? 'selection' : 'document';
+    if (this.completed) return { status: 'finished', scope, seconds: 0 };
+    if (this.ended || !this.store || !this.segments) return { status: 'estimating', scope, seconds: null };
+    if (!this.segments.length) return { status: 'unavailable', scope, seconds: null };
+    const end = scope === 'selection' ? this.forwardStopIndex! : this.segments.length;
+    const offset = this.currentIndex === this.position && !this.inGap && !this.skipPending
+      ? this.resumePoint?.offset ?? (this.isPlaying || this.paused ? this.currentPlaybackTime() : 0) : 0;
+    const gap = this.inGap && this.lastGap ? Math.max(0, this.lastGap.ms - (this.deps.clock.now() - this.lastGap.at)) / 1000 : 0;
+    const pauses = this.deps.pauses();
+    const estimate = (to: number) => this.store!.remainingTime.seconds(this.position, to, this.speed, pauses, offset);
+    const seconds = estimate(end);
+    if (seconds === null) return { status: 'unavailable', scope, seconds: null };
+    const result: RemainingSnapshot = { status: 'ready', scope, seconds: seconds + gap };
+    if (scope === 'document' && section) {
+      const remaining = estimate(section.end);
+      if (remaining !== null) { result.sectionSeconds = remaining + gap; result.sectionTitle = section.title; }
+    }
+    return result;
   }
 
   /** Whether a gap between sentences is running. */

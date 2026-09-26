@@ -114,6 +114,7 @@ export interface Settings {
     keepFollowingWhileVisible: boolean;
     /** Expand each newly shown player once, leaving manual folding alone. */
     openExpanded: boolean;
+    remainingTime: boolean;
     /** Remove configured enclosing brackets from speech text at the next reading session. */
     stripAngleBrackets: boolean;
     bracketPairs: string;
@@ -283,6 +284,7 @@ export const DEFAULTS: Settings = {
     // that swallowed a real paragraph break
     joinSplitSentences: true,
     openExpanded: true,
+    remainingTime: true,
     stripAngleBrackets: true,
     bracketPairs: '<> []',
   },
@@ -421,6 +423,7 @@ export function loadSettings(prefs: PrefsBackend): Settings {
       restoreSkippedLines: bool(prefs, 'readAloud.restoreSkippedLines', DEFAULTS.readAloud.restoreSkippedLines),
       joinSplitSentences: bool(prefs, 'readAloud.joinSplitSentences', DEFAULTS.readAloud.joinSplitSentences),
       openExpanded: bool(prefs, 'readAloud.openExpanded', DEFAULTS.readAloud.openExpanded),
+      remainingTime: bool(prefs, 'readAloud.remainingTime', DEFAULTS.readAloud.remainingTime),
       stripAngleBrackets: bool(prefs, 'readAloud.stripAngleBrackets', DEFAULTS.readAloud.stripAngleBrackets),
       bracketPairs: str(prefs, 'readAloud.bracketPairs', DEFAULTS.readAloud.bracketPairs),
     },

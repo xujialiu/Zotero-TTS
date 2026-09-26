@@ -221,7 +221,8 @@ const playerController = createPlayerController({
   },
   anyReading: () => playerStop.open().length > 0,
   affectedTabs: readingImpact.affectedTabs,
-  message: playerMessage,
+  message: (key, args) => key.startsWith('ztts-time-') ? t(key, args) : playerMessage(key),
+  remainingTime: reader => engine?.remainingTime(reader) ?? { status: 'estimating', scope: 'document', seconds: null },
 });
 function togglePlayerPaused(reader: any): void {
   reader?._internalReader?.toggleReadAloudPaused();
