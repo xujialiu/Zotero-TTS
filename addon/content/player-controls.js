@@ -72,10 +72,16 @@ function updateControls() {
   const remaining = $('.remaining-time');
   remaining.hidden = !hasRemaining;
   const lines = state.remaining || [];
-  remaining.title = lines.join(' · ');
+  remaining.title = lines.map(line => line.text).join(' · ');
   remaining.setAttribute('aria-label', remaining.title);
   remaining.replaceChildren(...lines.map(line => {
-    const span = document.createElement('span'); span.textContent = line; return span;
+    const row = document.createElement('div'); row.className = 'remaining-line';
+    if (line.name !== undefined && line.duration !== undefined) {
+      const name = document.createElement('span'); name.className = 'remaining-name'; name.textContent = line.name;
+      const duration = document.createElement('span'); duration.className = 'remaining-duration'; duration.textContent = line.duration;
+      row.append(name, duration);
+    } else row.textContent = line.text;
+    return row;
   }));
   $('.voice-group').hidden = collapsed;
   if (changed) notifyHeight();

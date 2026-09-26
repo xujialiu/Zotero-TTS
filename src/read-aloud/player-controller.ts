@@ -1,6 +1,6 @@
 import type { RemainingSnapshot } from '../core/engine/session';
 import type { L10nArgs } from '../core/l10n';
-import { remainingTimeLabels } from '../ui/remaining-time';
+import { remainingTimeLines, type RemainingTimeLine } from '../ui/remaining-time';
 import type { FlatSettings } from '../core/settings-backup';
 import { NAVIGATION_ACTIONS, type NavigationAction } from '../core/shortcut-actions';
 import { PREF_PREFIX, type PrefsBackend } from '../core/settings';
@@ -15,7 +15,7 @@ export interface PlayerSnapshot {
   provider: string; locale: string; voice: string; speed: number; volume: number; automatic: boolean;
   providers: PlayerOption[]; locales: PlayerOption[]; voices: PlayerOption[]; favorites: string[];
   error: string | null;
-  remaining?: string[];
+  remaining?: RemainingTimeLine[];
 }
 export interface PlayerControllerDeps {
   prefs: PrefsBackend;
@@ -71,7 +71,7 @@ export function createPlayerController(deps: PlayerControllerDeps) {
     const locale = locales.some(v => v.value === full) ? full : locales.some(v => v.value === m?.lang) ? String(m.lang) : '';
     return {
       expandOnOpen: pref('openExpanded') === true,
-      remaining: m && pref('remainingTime') !== false && deps.remainingTime ? remainingTimeLabels(deps.remainingTime(reader), deps.message) : [],
+      remaining: m && pref('remainingTime') !== false && deps.remainingTime ? remainingTimeLines(deps.remainingTime(reader), deps.message) : [],
       opened: popupOpen(reader) || !!m?.active,
       active: !!m?.active, playing: !!m?.active && !m?.paused, buffering: !!m?.buffering,
       provider: String(m?.selectedTier ?? ''), locale, voice: String(m?.selectedVoiceID ?? ''),

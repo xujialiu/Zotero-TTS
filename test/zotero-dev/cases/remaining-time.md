@@ -2,15 +2,16 @@
 
 # Estimated remaining reading time (issue #148)
 
-This case is drafted from the accepted design and local tests; it has not
-been run live. The owner deferred live verification until an explicit
-command. Follow the [baseline](../baseline.md) and tester workflow when
-that command arrives, including test WebDAV isolation and full restoration.
+The owner authorized live verification after the local checks. Follow the
+[baseline](../baseline.md) and tester workflow, including test WebDAV
+isolation and full restoration. The first pass on beta4 is partial; the
+[retained kit](../scripts/remaining-time/README.md) records its evidence
+and the follow-up checks.
 
 Use `test/fixtures/remaining-time/remaining-time.epub`: two top-level parts,
 with two chapters each in a single spine item. Import it as a temporary
 attachment. Use a fixture PDF with no usable outline for the fallback.
-A script kit will be retained by the tester on the first authorized run.
+Retain executed scripts and their results in the linked kit.
 
 ### 1. Default, setting and layouts
 
@@ -18,9 +19,11 @@ With no user value for `readAloud.remainingTime`, the Reading checkbox is
 on. Top bar, Bottom bar and Floating panel show an estimate without
 expanding Options. The floating panel fits both estimate lines when
 collapsed and expanded; its menus and dragging account for the added row.
-The bars retain their height. Long names are readable through the tooltip,
-and time must remain understandable at ordinary window widths. Switching
-the setting off during reading hides the estimates without stopping or
+The bars retain their height. Long names shorten with an ellipsis, with
+the full name in the tooltip. The duration suffix must remain inside the
+visible row bounds; checking only its text content or tooltip is not
+evidence that the time is visible. Check both ordinary and narrow widths.
+Switching the setting off during reading hides the estimates without stopping or
 changing reading. Switching it back on restores them. Verify the English
 and Chinese setting and messages without changing Zotero's locale live.
 

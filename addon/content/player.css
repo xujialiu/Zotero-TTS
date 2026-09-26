@@ -67,9 +67,12 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--preview-acc
 .picker-popover input[type="search"] { flex: 0 0 auto; }
 .option-list { min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
 
-.remaining-time { display: flex; flex-direction: column; justify-content: center; min-width: 100px; max-width: 230px; flex: 0 1 230px; font-size: 11px; line-height: 13px; font-variant-numeric: tabular-nums; }
+.remaining-time { display: flex; flex-direction: column; justify-content: center; min-width: 150px; max-width: 230px; flex: 0 1 230px; font-size: 11px; line-height: 13px; font-variant-numeric: tabular-nums; }
 .remaining-time[hidden] { display: none; }
-.remaining-time span { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.remaining-line { display: flex; min-width: 0; gap: 5px; white-space: nowrap; }
+.remaining-name { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; min-width: 0; }
+.remaining-duration { flex-shrink: 0; }
+.layout-B .remaining-line { justify-content: center; }
 .layout-B.has-remaining { height: 238px; grid-template-rows: 28px 28px 1fr 26px 32px; }
 .layout-B.collapsed.has-remaining { height: 144px; grid-template-rows: 28px 28px 26px 32px; }
 .layout-B .remaining-time { max-width: 100%; width: 100%; text-align: center; }

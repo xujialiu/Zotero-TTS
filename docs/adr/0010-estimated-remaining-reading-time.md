@@ -85,6 +85,8 @@ The section cache follows outline and segment identity. An outline access
 failure is logged once per reader and leaves document estimation usable.
 
 The setting `readAloud.remainingTime` uses the ordinary backup/sync path.
-The Player snapshot carries localized lines. Bars retain their height;
-the floating layout adds a 36 px time row, included in menu placement and
+The Player snapshot carries localized lines with the section name and
+duration separate, so a long name can shrink without hiding the time. Bars
+retain their height; the floating layout adds a 36 px time row, included in
+menu placement and
 drag bounds. Engine diagnostics expose the same numerical snapshot.

@@ -129,7 +129,7 @@ describe('player controller', () => {
 
 it('shows remaining time by default, and switching it off bypasses estimation immediately', () => {
   const f = fixture();
-  expect(f.controller.snapshot(f.reader).remaining).toEqual(['ztts-time-minutes']);
+  expect(f.controller.snapshot(f.reader).remaining).toEqual([{ text: 'ztts-time-summary', name: 'ztts-time-document', duration: 'ztts-time-minutes' }]);
   expect(f.remainingTime).toHaveBeenCalledTimes(1);
   f.values.set(PREF_PREFIX + 'readAloud.remainingTime', false);
   expect(f.controller.snapshot(f.reader).remaining).toEqual([]);
