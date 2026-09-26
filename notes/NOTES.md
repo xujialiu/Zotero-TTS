@@ -646,3 +646,4 @@ then) and is in the git history before that day.
 - Verified live: Default follows Your voices, including an empty catalog (issue #147)
 - An open paused player can outlive its Engine session and reject listed voices (issue #149)
 - Explicit selection rebuilds an ended session while paused (issue #149)
+- Recovery passed through the player; two probe fields needed correction (issue #149)

@@ -137,8 +137,12 @@ Do not count that guarded scenario as an ordinary supported Zotero state.
     exposes no abort operation: verify that its obsolete result is discarded
     and never plays, and explicitly record that transport limitation.
 
-
-13. **Recovery after the session ended (#149).** Pending live verification.
+13. **Recovery after the session ended (#149).** Verified on a PDF fixture
+    on macOS, 2026-09-26, beta5: Albert, stale-unpaused Ava and Samantha,
+    and retained-ID Ava all rebuilt paused at segment 2. The ordinary Fish
+    Handoff control passed. EPUB was a document-voice isolation control,
+    not a recovery target; second-provider recovery remains unit coverage.
+    See the kit README for request-counter and preparation limitations.
     On an isolated PDF or EPUB fixture, retain the current segment at a
     nonzero index, destroy its controller, and allow the Engine's cleanup
     microtask to finish. Prove the precondition with
@@ -162,8 +166,8 @@ Do not count that guarded scenario as an ordinary supported Zotero state.
     afterward: it still uses a Handoff, not recovery. Unit tests alone
     cover successful reattachment of a missing Engine, failed attachment,
     missing segments, absent targets and a native-controller fallback.
-    Only successful rebuilding reports recovery. Never strand the owner's reader for
-    this check. Restore the request counter/wrapper, erase fixture records,
+    Only successful rebuilding reports recovery. Never strand the owner's
+    reader for this check. Restore the request counter/wrapper, erase fixture records,
     and complete WebDAV cleanup before restoring automatic sync.
 
 Unit tests cover artificial timer delays, timeout exhaustion, cross-realm
