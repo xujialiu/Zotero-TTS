@@ -48,6 +48,8 @@ export interface VoicePickDeps {
 export interface VoicePickReport extends HandoffReport {
   controlsAttached: boolean;
   notice?: VoiceNotice;
+  /** Successful explicit picks that rebuilt an absent or ended session while paused. */
+  recoveries?: number;
 }
 
 export interface VoicePick {
@@ -186,7 +188,8 @@ export function createVoicePick(deps: VoicePickDeps): VoicePick {
               // The manager's own selection: the voice, the tier, the memory, and a rebuild that carries on
               Reflect.apply(manager.selectVoice, manager, [id]);
             };
-            if (id === manager.selectedVoiceID) {
+            const session = deps.engine.session(reader);
+            if (id === manager.selectedVoiceID && session && !session.ended) {
               // A re-pick of the voice reading calls a pending switch off and restarts nothing
               deps.engine.session(reader)?.handoff?.cancel();
               select(selection);
@@ -228,7 +231,7 @@ export function createVoicePick(deps: VoicePickDeps): VoicePick {
       return true;
     }
     if (!manager?.active) return false;
-    if (!session || session.ended || !manager.segments?.length) {
+    if (!manager.segments?.length) {
       existing?.cancel();
       notice(reader, 'unavailable', label(target));
       return true;
@@ -237,6 +240,34 @@ export function createVoicePick(deps: VoicePickDeps): VoicePick {
       existing?.cancel();
       deps.error(new Error('Zotero-TTS: pause before switching between different segment granularities'));
       notice(reader, 'failed', label(target));
+      return true;
+    }
+    if (!session || session.ended) {
+      existing?.cancel();
+      unwindPending(reader);
+      try {
+        // An open player can outlive its session (#149). This is a fresh
+        // explicit selection, not a handoff: pause before rebuilding so even
+        // a stale "playing" manager fetches nothing until the user presses Play.
+        Reflect.apply(manager.pause, manager, []);
+        if (!session && !deps.engine.attach(reader)) {
+          notice(reader, 'unavailable', label(target));
+          return true;
+        }
+        select(selection);
+        if (!deps.engine.bound(reader) || manager.selectedVoiceID !== target.id) {
+          // Do not leave a native fallback ready to play after a failed recovery.
+          Reflect.apply(manager._destroyController, manager, []);
+          notice(reader, 'failed', label(target));
+          return true;
+        }
+        const report = reportOf(reader);
+        if (report) report.recoveries = (report.recoveries ?? 0) + 1;
+        notice(reader, 'selected', label(target));
+      } catch (e) {
+        deps.error(e);
+        notice(reader, 'failed', label(target));
+      }
       return true;
     }
     unwindPending(reader);

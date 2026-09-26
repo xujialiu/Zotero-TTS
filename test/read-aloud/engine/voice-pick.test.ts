@@ -78,6 +78,7 @@ function setup(options: { paused?: boolean } = {}) {
       rebuilds.push(`${voice.id}:${session.bind({ voice: voiceOf(voice), segments, backwardStopIndex: session.position, forwardStopIndex: null })}`);
       session.setPaused(this.paused);
     },
+    _destroyController: vi.fn(),
     _persistCurrentVoice: vi.fn(),
     _stateChanged: vi.fn(),
     pause() {
@@ -115,7 +116,7 @@ function setup(options: { paused?: boolean } = {}) {
   session.setPaused(manager.paused);
   pick.attach(reader);
   const playing = () => audio.started.map((s) => `${s.clip.name.split(':')[0]}@${Math.round(s.offset * 1000) / 1000}`);
-  return { clock, audio, fetch, session, manager, voices, reader, pick, notices, rebuilds, playing };
+  return { engine, clock, audio, fetch, session, manager, voices, reader, pick, notices, rebuilds, playing };
 }
 
 describe('voice pick', () => {
@@ -218,16 +219,45 @@ describe('voice pick', () => {
     expect(t.manager.selectedVoiceID).toBe('a');
   });
 
-  it('switches at once when nothing is read', () => {
+  it('ignores voice shortcuts while the player is inactive', () => {
     const t = setup();
     t.manager.active = false;
     t.manager._applyVoice = vi.fn();
     t.pick.step(t.reader, 1);
     expect(t.notices).toEqual([]);
-    t.manager.active = true;
+  });
+
+  it('keeps a stranded selection paused and reports a failed rebuild', () => {
+    const t = setup();
     t.session.end();
-    t.pick.step(t.reader, 1);
+    t.manager._applyVoice = vi.fn();
+    t.manager.selectVoice('b');
+    expect(t.manager.paused).toBe(true);
+    expect(t.notices).toEqual(['failed:B']);
+    expect(t.pick.inspect(t.reader)?.recoveries).toBeUndefined();
+  });
+
+  it('does not commit a voice or use native playback when Engine attachment fails', () => {
+    const t = setup();
+    t.session.end();
+    t.engine.session = () => null;
+    t.engine.attach = vi.fn(() => false);
+    t.manager.selectVoice('b');
+    expect(t.engine.attach).toHaveBeenCalledWith(t.reader);
+    expect(t.manager.selectedVoiceID).toBe('a');
+    expect(t.manager.paused).toBe(true);
+    expect(t.manager._persistCurrentVoice).not.toHaveBeenCalled();
     expect(t.notices).toEqual(['unavailable:B']);
+  });
+
+  it.each(['missing-target', 'missing-segments'])('does not recover with %s', kind => {
+    const t = setup({ paused: true });
+    t.session.end();
+    if (kind === 'missing-segments') t.manager.segments = [];
+    t.manager.selectVoice(kind === 'missing-target' ? 'absent' : 'b');
+    expect(t.manager.selectedVoiceID).toBe('a');
+    expect(t.manager._persistCurrentVoice).not.toHaveBeenCalled();
+    expect(t.notices.at(-1)).toMatch(/^unavailable:/);
   });
 
   it('defers the memory’s own restore only inside a selection it is propagating', async () => {

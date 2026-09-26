@@ -644,3 +644,5 @@ then) and is in the git history before that day.
 - Independent voices verified through the player and isolated settings sync (issue #146)
 - Fish Default was an unconditional catalog entry, independent of every source switch (issue #147)
 - Verified live: Default follows Your voices, including an empty catalog (issue #147)
+- An open paused player can outlive its Engine session and reject listed voices (issue #149)
+- Explicit selection rebuilds an ended session while paused (issue #149)

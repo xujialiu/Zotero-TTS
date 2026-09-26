@@ -137,6 +137,35 @@ Do not count that guarded scenario as an ordinary supported Zotero state.
     exposes no abort operation: verify that its obsolete result is discarded
     and never plays, and explicitly record that transport limitation.
 
+
+13. **Recovery after the session ended (#149).** Pending live verification.
+    On an isolated PDF or EPUB fixture, retain the current segment at a
+    nonzero index, destroy its controller, and allow the Engine's cleanup
+    microtask to finish. Prove the precondition with
+    `diagnostics.engine()`: no controller, session `ended: true`, manager
+    active, segments still present. Clear the selected ID to reproduce the
+    original state, then select a listed System voice through the player's
+    voice control. Expect the selected ID to match, a new Engine controller,
+    session `ended: false`, and manager/session paused. The current segment
+    and restart index must remain unchanged; the next Play starts at that
+    sentence's opening. `diagnostics.voiceSwitch()` must report
+    `handoff.recoveries` increased by one and `handoff.notice: selected`,
+    with no unavailable notice. Count audio-source requests across the pick
+    and a bounded wait: zero new requests before Play; Play requests the
+    target voice. Repeat with the stranded manager marked unpaused, and
+    with its old selected ID retained and that same voice picked again.
+    Both recoveries must end paused. Use at least Albert, Samantha and Ava
+    when listed on macOS, and include a second provider as a control.
+    Check `diagnostics.documentVoices()`: only the fixture's record changes
+    to the explicit manual choice; the global default and a second fixture
+    record remain unchanged. Run one ordinary live-session voice change
+    afterward: it still uses a Handoff, not recovery. Unit tests alone
+    cover successful reattachment of a missing Engine, failed attachment,
+    missing segments, absent targets and a native-controller fallback.
+    Only successful rebuilding reports recovery. Never strand the owner's reader for
+    this check. Restore the request counter/wrapper, erase fixture records,
+    and complete WebDAV cleanup before restoring automatic sync.
+
 Unit tests cover artificial timer delays, timeout exhaustion, cross-realm
 array callback traps and malformed timestamp combinations. Real bridge
 verification must prove controller adoption and scheduled source stops;
