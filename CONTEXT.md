@@ -80,6 +80,15 @@ _Avoid_: voice list (the per-tab snapshot of it)
 
 ### Sources of voices
 
+**Global default voice**:
+The initial voice choice for a document that has no document voice yet.
+_Avoid_: current voice, last-used voice
+
+**Document voice**:
+The voice choice belonging to one document, including its provider.
+Separate documents under the same library item have separate choices.
+_Avoid_: book voice, tab voice
+
 **Provider**:
 One source of voices and audio the plugin can be pointed at: a service, a
 server of the user's own, or the operating system. Each has a section in

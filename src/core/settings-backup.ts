@@ -1,3 +1,4 @@
+import { documentVoiceSettings, isDocumentVoiceKey, parseDocumentVoice } from './document-voices';
 import { convertLegacySettings } from './openai-split';
 import { DEFAULTS, loadSettings, PREF_PREFIX, type PrefsBackend, type Settings } from './settings';
 
@@ -60,7 +61,7 @@ export function flattenSettings(s: Settings): FlatSettings {
 const KNOWN = flattenSettings(DEFAULTS);
 
 export function createBackup(prefs: PrefsBackend, meta: { pluginVersion?: string; exportedAt?: string; machine?: string } = {}): SettingsBackup {
-  return { format: BACKUP_FORMAT, version: BACKUP_VERSION, ...meta, settings: flattenSettings(loadSettings(prefs)) };
+  return { format: BACKUP_FORMAT, version: BACKUP_VERSION, ...meta, settings: { ...flattenSettings(loadSettings(prefs)), ...documentVoiceSettings(prefs) } };
 }
 
 export function serializeBackup(backup: SettingsBackup): string {
@@ -112,6 +113,12 @@ export function parseBackup(text: string): ParsedBackup {
   // TEMPORARY (issue #113, deleted in 2.0.0 with core/openai-split.ts): a
   // file from before the split holds one OpenAI section; read as three
   for (const [key, raw] of Object.entries(convertLegacySettings(backup.settings))) {
+    if (isDocumentVoiceKey(key)) {
+      const record = parseDocumentVoice(raw);
+      if (record) settings[key] = JSON.stringify(record);
+      else ignored.push(key);
+      continue;
+    }
     const like = KNOWN[key];
     const value = like === undefined ? undefined : coerceSetting(raw, like);
     if (value === undefined) ignored.push(key);

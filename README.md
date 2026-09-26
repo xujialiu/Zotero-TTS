@@ -323,8 +323,9 @@ Every voice Read Aloud can use, in the player's own three steps —
 provider (or Zotero's Standard / Premium), language, voice.
 
 - **▶** plays a short sample, **♥** marks a favorite.
-- A click on a row makes that voice the **default**: what Read Aloud starts
-  with, in every document.
+- A click on a row sets the **global default voice**. Each document copies
+  it on first open, then keeps its own voice. Changing the voice in the
+  player affects only that document.
 - **Speed** is the player's own slider (0.5×–3×); **Volume** is how loud
   Read Aloud plays, 100% being Zotero's own level.
 
@@ -349,9 +350,10 @@ provider (or Zotero's Standard / Premium), language, voice.
   click on one marks or unmarks that voice. While *Offer only favorite
   voices* is on, a change that would take away the voice a tab is reading
   with is refused until that tab's player is closed.
-- A click on the default row clears the default, back to Zotero's own
-  per-language choice. Pick another voice in any tab's player while the
-  settings are open and the highlight moves there.
+- A click on the default row clears the default. Choose one before reading
+  a document that has no saved voice. If a saved voice becomes unavailable,
+  choose another voice in that document's player; no replacement starts
+  automatically.
 - The **Speed** slider plays the samples at that speed, and releasing it
   makes that the speed Read Aloud starts with — at once in a document that
   is playing. Changing the speed costs nothing and leaves the pitch alone.
@@ -377,16 +379,17 @@ provider (or Zotero's Standard / Premium), language, voice.
 ### Reading
 
 <details>
-<summary><b>Expanded player, one voice everywhere, pauses, prefetch, cache, the whole sentence on screen, a page's first line, a sentence split in two</b></summary>
+<summary><b>Expanded player, document voices, pauses, prefetch, cache, the whole sentence on screen, a page's first line, a sentence split in two</b></summary>
 
 - *Open the player expanded* — show the floating panel's provider, language
   and voice rows whenever it opens. On by default. Options or Shift+O
   changes this opening only. Changes to the setting apply at the next
   opening.
 
-- *Use one voice everywhere* — one voice for every document and every open
-  tab, whatever the document's language. Off, Zotero remembers a voice per
-  document language.
+- **Document voices** — separate attachments keep separate voices, even
+  under the same library item. The global default and document voices
+  travel with settings backups and sync. Synced voice changes take effect
+  the next time reading starts; they do not change the voice mid-session.
 - *Use one speed everywhere* — one speed for every document and every open
   tab, set from the player's slider, the shortcuts or the settings slider.
   Off, Zotero keeps a speed per document language.

@@ -1,4 +1,4 @@
-<!-- translated-from: CONTEXT.md sha256:b404cec8f5e5 -->
+<!-- translated-from: CONTEXT.md sha256:e6f9788d1981 -->
 # Zotero-TTS
 
 [English](CONTEXT.md) · **简体中文**
@@ -62,6 +62,14 @@ _避免_：bookmark、progress
 _避免_：voice list（它在每个标签页里的快照）
 
 ### 语音的来源
+
+**Global default voice（全局默认语音）**：
+没有文档语音的文档所采用的初始语音选择。
+_避免_：current voice、last-used voice
+
+**Document voice（文档语音）**：
+属于一个文档的语音选择，包括其服务商。同一文库条目下的不同文档有各自独立的选择。
+_避免_：book voice、tab voice
 
 **Provider（服务商）**：
 插件可以指向的一个语音和音频来源：一项服务、用户自己的服务器，或操作系统。每个服务商在设置里有一节，并且在有语音时，在播放器里有一个条目。

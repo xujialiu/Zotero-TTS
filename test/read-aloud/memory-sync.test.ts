@@ -6,6 +6,7 @@ import { setDefaultSpeed } from '../../src/read-aloud/default-speed';
 import { createReadAloudMemorySync, READ_ALOUD_VOICES_OBSERVER, type ReadAloudMemoryDeps } from '../../src/read-aloud/memory-sync';
 import { READ_ALOUD_MEMORY_PREF, writeMemory, type ReadAloudMemory } from '../../src/read-aloud/read-aloud-memory';
 import { decodeVoiceId, pluginVoiceTier } from '../../src/read-aloud/voice-catalog';
+import { createDocumentVoices, readDefaultVoice, writeDefaultVoice } from '../../src/core/document-voices';
 
 const ISABELLA = 'openai-official::bf_v0isabella';
 const AOEDE = 'local::af_aoede';
@@ -295,6 +296,69 @@ const multilingual: ReadAloudMemory = { speed: 1.4, voice: { id: ISABELLA, lang:
 const english: ReadAloudMemory = { speed: 1.4, voice: { id: AOEDE, lang: 'en' } };
 
 describe('createReadAloudMemorySync', () => {
+  it('migrates a real global choice once and never resurrects a cleared default or guesses from a language fallback', () => {
+    const z = fakeZotero(voices, multilingual);
+    const deps = { ...z.deps, documentKey: () => 'user/ABCDEFGH' };
+    createReadAloudMemorySync(deps).dispose();
+    expect(readDefaultVoice(z.deps.prefs)?.id).toBe(ISABELLA);
+    writeDefaultVoice(z.deps.prefs, null);
+    createReadAloudMemorySync(deps).dispose();
+    expect(readDefaultVoice(z.deps.prefs)).toBeNull();
+    const fresh = fakeZotero(voices);
+    createReadAloudMemorySync({ ...fresh.deps, documentKey: () => 'user/ABCDEFGH' }).dispose();
+    expect(readDefaultVoice(fresh.deps.prefs)).toBeNull();
+  });
+  it('keeps incoming document choices out of an active session, including pause, until the next activation', () => {
+    const z = fakeZotero(voices, multilingual);
+    const r = fakeReader('en', z);
+    r.proto.activate = () => { r.manager.active = true; };
+    r.proto.deactivate = () => { r.manager.active = false; };
+    const sync = createReadAloudMemorySync({ ...z.deps, documentKey: () => 'user/ABCDEFGH' });
+    sync.attach(r.reader);
+    r.manager.activate();
+    expect(r.manager.selectedVoiceID).toBe(ISABELLA);
+    createDocumentVoices(z.deps.prefs).choose('user/ABCDEFGH', { id: AOEDE, lang: 'en' });
+    r.manager.paused = true;
+    r.internal._syncPersistedVoicesToManager();
+    expect(r.manager.selectedVoiceID).toBe(ISABELLA);
+    r.manager.deactivate();
+    r.manager.activate();
+    expect(r.manager.selectedVoiceID).toBe(AOEDE);
+  });
+  it('blocks fallback audio at activation and controller creation when the saved voice is unavailable', () => {
+    const z = fakeZotero(voices, multilingual);
+    const r = fakeReader('en', z, { voices: [AOEDE] });
+    const create = vi.fn();
+    r.proto._createController = create;
+    r.proto.activate = () => { r.manager.active = true; r.manager._createController(); };
+    r.proto._destroyController = vi.fn();
+    r.proto.pause = () => { r.manager.paused = true; };
+    const announce = vi.fn();
+    const sync = createReadAloudMemorySync({ ...z.deps, documentKey: () => 'user/ABCDEFGH', announce });
+    sync.attach(r.reader);
+    r.manager.activate();
+    r.manager._createController();
+    expect(create).not.toHaveBeenCalled();
+    expect(r.manager.selectedVoiceID).toBeNull();
+    expect(createDocumentVoices(z.deps.prefs).get('user/ABCDEFGH')?.voice.id).toBe(ISABELLA);
+    expect(announce).toHaveBeenCalledWith(r.reader, expect.stringContaining('unavailable'));
+  });
+  it('initializes at document open, keeps a local pick out of the default and other documents', () => {
+    const z = fakeZotero(voices, multilingual);
+    const a = fakeReader('en', z), b = fakeReader('en', z);
+    z.readers.push(a.reader, b.reader);
+    const sync = createReadAloudMemorySync({ ...z.deps, documentKey: r => r === a.reader ? 'user/ABCDEFGH' : 'user/BCDEFGHJ' });
+    sync.attach(a.reader);
+    sync.attach(b.reader);
+    writeDefaultVoice(z.deps.prefs, { id: AOEDE, lang: 'en' });
+    a.internal._syncPersistedVoicesToManager();
+    b.internal._syncPersistedVoicesToManager();
+    expect(a.manager.selectedVoiceID).toBe(ISABELLA);
+    a.manager.selectVoice(AOEDE);
+    expect(createDocumentVoices(z.deps.prefs).get('user/ABCDEFGH')).toMatchObject({ voice: { id: AOEDE }, manual: true });
+    expect(createDocumentVoices(z.deps.prefs).get('user/BCDEFGHJ')).toMatchObject({ voice: { id: ISABELLA }, manual: false });
+    expect(readDefaultVoice(z.deps.prefs)).toEqual({ id: AOEDE, lang: 'en' });
+  });
   it('observes the pref Zotero writes and starts from what it already stores', () => {
     const z = fakeZotero();
     const sync = createReadAloudMemorySync(z.deps);

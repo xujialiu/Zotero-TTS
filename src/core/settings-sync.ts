@@ -1,3 +1,4 @@
+import { compareDocumentVoices, isDocumentVoiceKey, parseDocumentVoice } from './document-voices';
 import { convertLegacyItems } from './openai-split';
 import { DEFAULTS, PREF_PREFIX, SWITCH_IDS, type PrefsBackend, type SwitchId } from './settings';
 import { coerceSetting, flattenSettings, type FlatSettings, type SettingValue } from './settings-backup';
@@ -362,6 +363,21 @@ export function mergeSharedSettings(local: MergeInput, remote: readonly SharedIt
     if (myTs > 0 && (!theirs || myTs > theirs.ts)) {
       next.set(key, { key, value: mine, ts: myTs, by: local.machine });
       pushed.push(key);
+    }
+  }
+
+  // Document records carry their own intent and timestamp; sync bookkeeping
+  // must never turn a downloaded or inherited choice into a manual edit.
+  const documentKeys = new Set([...Object.keys(local.values), ...remoteByKey.keys()].filter(isDocumentVoiceKey));
+  for (const key of documentKeys) {
+    const mine = parseDocumentVoice(local.values[key]);
+    const theirs = remoteByKey.get(key);
+    const other = parseDocumentVoice(theirs?.value);
+    if (mine && (!other || compareDocumentVoices(mine, other) > 0)) {
+      next.set(key, { key, value: JSON.stringify(mine), ts: mine.ts, by: local.machine });
+      pushed.push(key);
+    } else if (other && (!mine || compareDocumentVoices(other, mine) > 0)) {
+      adopt.push({ key, value: JSON.stringify(other), ts: other.ts, by: theirs!.by });
     }
   }
 

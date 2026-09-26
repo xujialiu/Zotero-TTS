@@ -116,7 +116,6 @@ describe('addon/content/preferences.xhtml', () => {
 
   it('explains the Reading switches with a ? instead of a parenthesis in the label', () => {
     const rows: Array<[string, string, string, RegExp]> = [
-      ['preference="extensions.zotero.zotero-tts.readAloud.sameForAllDocuments"', 'ztts-one-voice', 'Use one voice everywhere', /one voice per document language/],
       ['preference="extensions.zotero.zotero-tts.readAloud.globalSpeed"', 'ztts-one-speed', 'Use one speed everywhere', /one speed per document language/],
     ];
     for (const [marker, id, label, text] of rows) {

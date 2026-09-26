@@ -1,3 +1,4 @@
+import { readDefaultVoice, DEFAULT_VOICE_KEY } from '../core/document-voices';
 import type { FlatSettings } from '../core/settings-backup';
 import { initBracketRows } from './bracket-rows';
 import type { ProviderId, TTSProvider } from '../core/providers/types';
@@ -13,7 +14,7 @@ import { createWebDAVClient } from '../core/webdav';
 import { CATALOG_CAP_MS, listNamedCatalog, providerTierColumns } from '../read-aloud/catalog';
 import { FAVORITES_OBSERVER, FAVORITES_ONLY_OBSERVER, parseFavoriteVoices } from '../read-aloud/favorites';
 import { languageDisplayName } from '../read-aloud/language-dropdown';
-import { readMemory, writeMemory, READ_ALOUD_MEMORY_OBSERVER, type VoiceChoice } from '../read-aloud/read-aloud-memory';
+import { readMemory, writeMemory, READ_ALOUD_MEMORY_OBSERVER } from '../read-aloud/read-aloud-memory';
 import type { PositionEntry } from '../read-aloud/read-aloud-position';
 import { readReadAloudVoices, READ_ALOUD_VOICES_PREF } from '../core/read-aloud-speed';
 import { migrateChoices } from '../read-aloud/system-voice-choices';
@@ -469,8 +470,7 @@ async function adoptSystemVoices(prefs: PrefsBackend, deps: ProviderDeps, hooks:
 /** What the pane needs from the plugin's running state (src/index.ts hands it over). */
 export interface PaneHooks {
   affectedTabs?(changes: FlatSettings): string[];
-  /** memory-sync's spreadVoice (read-aloud/memory-sync.ts): a default picked in the browser reaches every tab that is reading. */
-  spreadVoice?(choice: VoiceChoice | null): void;
+
   /**
    * What the running plugin builds providers with (src/index.ts). It carries
    * the session's speech helper, which is one process for the whole of
@@ -578,8 +578,7 @@ export function onPaneLoad(doc: Document, hooks: PaneHooks = {}): void {
     // id when it is not — the status line's own convention.
     unmarkedDefault: () => {
       const settings = loadSettings(prefs);
-      if (!settings.readAloud.sameForAllDocuments) return null;
-      const voice = readMemory(prefs).voice;
+      const voice = readDefaultVoice(prefs);
       if (!voice || parseFavoriteVoices(settings.readAloud.favoriteVoices).includes(voice.id)) return null;
       return voiceBrowserRows.labelOf(voice.id) ?? voice.id;
     },
@@ -628,7 +627,7 @@ export function onPaneLoad(doc: Document, hooks: PaneHooks = {}): void {
     readAloudManagers: () => (Zotero.Reader._readers ?? []).map((r: any) => r?._internalReader?._readAloudManager).filter(Boolean),
     // Read on release and at every repaint of the status line, so the checkboxes below apply at once
     globalSpeed: () => loadSettings(prefs).readAloud.globalSpeed,
-    sameVoice: () => loadSettings(prefs).readAloud.sameForAllDocuments,
+    sameVoice: () => true,
     // Either "everywhere" checkbox of the Reading group flipped: the status line repaints
     watchSwitches: (onChange) => {
       const tokens = [SAME_VOICE_OBSERVER, GLOBAL_SPEED_OBSERVER].map((name) => Zotero.Prefs.registerObserver(name, onChange));
@@ -639,11 +638,9 @@ export function onPaneLoad(doc: Document, hooks: PaneHooks = {}): void {
     // the pane's slider follows while it is open. Observers fire
     // synchronously inside Zotero.Prefs.set; names are relative to extensions.zotero.
     watchMemory: (onChange) => {
-      const token = Zotero.Prefs.registerObserver(READ_ALOUD_MEMORY_OBSERVER, onChange);
-      return () => Zotero.Prefs.unregisterObserver(token);
+      const tokens = [READ_ALOUD_MEMORY_OBSERVER, 'zotero-tts.' + DEFAULT_VOICE_KEY].map(name => Zotero.Prefs.registerObserver(name, onChange));
+      return () => tokens.forEach(token => Zotero.Prefs.unregisterObserver(token));
     },
-    // A row clicked: the tabs that are reading switch at once (memory-sync)
-    spreadVoice: hooks.spreadVoice,
     // Only a favorite can be the default while the popup offers only favorites
     favoritesOnly: () => loadSettings(prefs).readAloud.favoritesOnly,
     watchFavoritesOnly: (onChange) => {

@@ -166,6 +166,25 @@ function harness(opts: { values?: Record<string, SettingValue>; state?: SyncStat
 }
 
 describe('createSettingsSyncTransport', () => {
+  it('syncs document voices individually while a player is open, preserving manual intent across repeated syncs', async () => {
+    const key = 'documentVoices.user/ABCDEFGH', other = 'documentVoices.user/BCDEFGHJ';
+    const manual = JSON.stringify({ voice: { id: 'fish::a', lang: 'en' }, manual: true, ts: 100 });
+    const inherited = JSON.stringify({ voice: { id: 'fish::b', lang: 'en' }, manual: false, ts: 900 });
+    const h = harness({ values: { [key]: manual }, remote: file(
+      item({ key, value: inherited, ts: 900 }), item({ key: other, value: inherited, ts: 900 }),
+    ) });
+    h.setReading(['Fixture']);
+    await h.transport.flush('test');
+    expect(h.store[key]).toBe(manual);
+    expect(h.store[other]).toBe(inherited);
+    expect(h.remoteItems().find(item => item.key === key)?.value).toBe(manual);
+    expect(h.transport.stats().deferred).toBe(0);
+    const uploads = h.uploads.length;
+    await h.transport.flush('repeat');
+    expect(h.uploads).toHaveLength(uploads);
+    expect(h.errors).toEqual([]);
+    h.transport.stop();
+  });
   it('does nothing over the network while the switch is off, but still stamps a change', async () => {
     const h = harness({ over: { enabled: () => false } });
     h.transport.poke('startup');

@@ -2,6 +2,12 @@
 
 ## The remembered voice (issues #35, #36, #37, #49)
 
+**Historical expectations below are superseded by issue #146.** Run
+[document voices](document-voices.md) for current voice behavior: a missing
+voice blocks reading rather than substituting, and a player choice stays
+with its document rather than spreading to other documents. These original
+numbers remain for older issue and script references.
+
 A remembered default the list does not offer, the language dropdown and
 one voice across tabs. Item 4.7 runs with two fixtures open, A speaking.
 

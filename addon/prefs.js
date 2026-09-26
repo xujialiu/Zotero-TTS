@@ -64,6 +64,7 @@ pref('extensions.zotero.zotero-tts.shortcuts.toggleOptions', 'Shift+O');
 pref('extensions.zotero.zotero-tts.shortcuts.cyclePlayerLayout', 'Shift+P');
 pref('extensions.zotero.zotero-tts.shortcuts.stopReading', 'Shift+S');
 pref('extensions.zotero.zotero-tts.shortcuts.toggleWordHighlight', 'Shift+W');
+pref('extensions.zotero.zotero-tts.readAloud.defaultVoice', '');
 pref('extensions.zotero.zotero-tts.readAloud.sameForAllDocuments', true);
 pref('extensions.zotero.zotero-tts.readAloud.globalSpeed', true);
 pref('extensions.zotero.zotero-tts.readAloud.favoriteVoices', '');

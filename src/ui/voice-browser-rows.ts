@@ -1,3 +1,4 @@
+import { readDefaultVoice } from '../core/document-voices';
 import type { FlatSettings } from '../core/settings-backup';
 import { t } from '../core/l10n';
 import { MULTILINGUAL, type ProviderId, type VoiceListNotice } from '../core/providers/types';
@@ -152,10 +153,8 @@ export interface VoiceBrowserDeps {
   /** The "one speed everywhere" switch, read when the slider is released and at every repaint of the status line; off, the slider drives the samples only. Omitted means on. */
   globalSpeed?(): boolean;
   /**
-   * The "one voice everywhere" switch (`readAloud.sameForAllDocuments`),
-   * read at every repaint of the status line; off, the remembered voice is
-   * applied nowhere (read-aloud/memory-sync.ts), so the line names the
-   * speed alone. Omitted means on.
+   * Whether to include the voice in a summary. The settings pane always
+   * includes it; omitted means included.
    */
   sameVoice?(): boolean;
   /** Calls back whenever either "everywhere" switch flips (a pref observer each), and returns the way to stop; the status line repaints. */
@@ -169,12 +168,6 @@ export interface VoiceBrowserDeps {
    * there then.
    */
   watchMemory?(onChange: () => void): () => void;
-  /**
-   * Puts a default just picked here in front of every tab that is reading
-   * (read-aloud/memory-sync.ts spreadVoice); the memory and Zotero's entry
-   * say it by then. Omitted where there is no Zotero to reach.
-   */
-  spreadVoice?(choice: VoiceChoice | null): void;
   /**
    * The "offer only favorite voices" switch (`readAloud.favoritesOnly`),
    * read on every render: while it is on, only a favorite can be the
@@ -525,7 +518,7 @@ export function initVoiceBrowserRows(
   let request = 0;
   let speed = startingSpeed(deps.prefs);
   /** The remembered voice and the listed rows that are it (defaultVoiceRows); the first row is where the browser opens. */
-  let choice = readMemory(deps.prefs).voice;
+  let choice = readDefaultVoice(deps.prefs);
   let defaults: BrowserVoice[] = [];
   /** The language column's selected entry and the default voice's row, as last rendered: what revealSelection scrolls to (issue #33). */
   let selectedLanguageEntry: any = null;
@@ -646,14 +639,7 @@ export function initVoiceBrowserRows(
     else paintStatus();
   }
 
-  /**
-   * A row clicked: its voice is the default now — the memory and Zotero's
-   * entry for its language (read-aloud/default-voice.ts), then every tab
-   * that is reading (the spreadVoice dep); the default clicked again is
-   * cleared. While only favorites are offered, a row that is not one does
-   * not react (its label is grayed and its tooltip says why); the default
-   * itself can always be cleared.
-   */
+  /** A row sets the global default only; clicking it again clears that default. */
   function onPick(voice: BrowserVoice): void {
     if (defaults.includes(voice)) {
       setDefault(null);
@@ -666,7 +652,6 @@ export function initVoiceBrowserRows(
   /** The memory observer, where there is one, has followed the write already; followChoice is idempotent for the rest. */
   function setDefault(next: Parameters<typeof setDefaultVoice>[1]): void {
     setDefaultVoice(deps.prefs, next);
-    deps.spreadVoice?.(next ? { id: next.id, lang: next.lang } : null);
     followChoice();
     paintStatus();
   }
@@ -845,7 +830,7 @@ export function initVoiceBrowserRows(
    * listed now): the highlight goes and the columns stay where they are.
    */
   function followChoice(): void {
-    const next = readMemory(deps.prefs).voice;
+    const next = readDefaultVoice(deps.prefs);
     if (sameChoice(next, choice)) return;
     choice = next;
     defaults = defaultVoiceRows(listed ?? [], choice);
@@ -918,7 +903,7 @@ export function initVoiceBrowserRows(
    */
   function refresh(): void {
     speed = startingSpeed(deps.prefs);
-    choice = readMemory(deps.prefs).voice;
+    choice = readDefaultVoice(deps.prefs);
     defaults = defaultVoiceRows(listed ?? [], choice);
     paintSpeed();
     paintStatus();

@@ -117,7 +117,9 @@ export interface Settings {
     /** Remove configured enclosing brackets from speech text at the next reading session. */
     stripAngleBrackets: boolean;
     bracketPairs: string;
-    /** One Read Aloud voice for every document and every open tab (read-aloud/memory-sync.ts); the pref name predates the speed's own switch below. */
+    /** JSON voice choice copied once to newly opened documents. */
+    defaultVoice: string;
+    /** Retained for old backups; document voices replace this switch. */
     sameForAllDocuments: boolean;
     /** One speed for every document and every open tab (read-aloud/default-speed.ts); off, Zotero keeps a speed per document language. */
     globalSpeed: boolean;
@@ -182,6 +184,8 @@ export interface Settings {
 }
 
 export interface PrefsBackend {
+  /** Full preference names below a branch; document voices are one small record per attachment. */
+  keys?(prefix: string): string[];
   get(key: string): unknown;
   set(key: string, value: unknown): void;
   /** Update a string default without replacing an explicit user value. */
@@ -258,6 +262,7 @@ export const DEFAULTS: Settings = {
     playerLayout: 'top',
     autoScrollMode: 'sentence',
     keepFollowingWhileVisible: true,
+    defaultVoice: '',
     sameForAllDocuments: true,
     globalSpeed: true,
     favoriteVoices: '',
@@ -403,6 +408,7 @@ export function loadSettings(prefs: PrefsBackend): Settings {
       playerLayout: playerLayout(prefs),
       autoScrollMode: autoScrollMode(prefs.get(PREF_PREFIX + 'readAloud.autoScrollMode')),
       keepFollowingWhileVisible: prefs.get(PREF_PREFIX + 'readAloud.keepFollowingWhileVisible') !== false,
+      defaultVoice: str(prefs, 'readAloud.defaultVoice', DEFAULTS.readAloud.defaultVoice),
       sameForAllDocuments: bool(prefs, 'readAloud.sameForAllDocuments', DEFAULTS.readAloud.sameForAllDocuments),
       globalSpeed: bool(prefs, 'readAloud.globalSpeed', DEFAULTS.readAloud.globalSpeed),
       favoriteVoices: str(prefs, 'readAloud.favoriteVoices', DEFAULTS.readAloud.favoriteVoices),
@@ -492,6 +498,7 @@ export function migrateLegacyProviderPref(prefs: PrefsBackend): boolean {
 /** The only place that touches the Zotero global; deliberately isolated here so the rest of the code depends only on PrefsBackend. */
 export function createZoteroPrefs(): PrefsBackend {
   return {
+    keys: prefix => Services.prefs.getChildList(prefix),
     get: (key) => Zotero.Prefs.get(key, true),
     set: (key, value) => Zotero.Prefs.set(key, value as never, true),
     setDefault: (key, value) => Services.prefs.getDefaultBranch('').setStringPref(key, value),

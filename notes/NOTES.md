@@ -639,3 +639,5 @@ then) and is in the git history before that day.
 ### [2026-09-26](NOTES_2026-09-26.md)
 
 - Zotero's H and U annotate through two reader calls, and the segment must be the manager's own (issue #145)
+
+- Document voices are separate settings records, and native auto-activation needs a guard (issue #146)

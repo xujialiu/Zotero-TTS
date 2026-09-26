@@ -1,3 +1,4 @@
+import { createDocumentVoices, documentVoiceSettings, readDefaultVoice, DOCUMENT_VOICE_CHANGED } from './core/document-voices';
 import { createLiveVoiceList } from './read-aloud/live-voice-list';
 import { createReadingImpact } from './read-aloud/settings-impact';
 import type { FlatSettings } from './core/settings-backup';
@@ -475,6 +476,7 @@ function readerSignedIn(reader: any): boolean {
  * a tab's slots hold — the slot always holds a clone, never this object.
  */
 function buildReaderInterface(reader: any, targetWindow: any, native: () => unknown): unknown {
+  readAloudMemory?.attach(reader);
   const composite = createRemoteInterface({
     // Zotero's own interface is kept: its Standard and Premium voices,
     // credits and audio pass through untouched, and ours are merged in
@@ -1207,6 +1209,7 @@ function startReadAloudMemory(): void {
   readAloudMemory = createReadAloudMemorySync({
     deferVoiceChange: (reader, id, restore) => voicePick?.defer(reader, id, restore) ?? false,
     isVoicePreview: reader => voicePick?.isPreviewing(reader) ?? false,
+    documentKey: documentVoiceKey,
     prefs,
     sameVoice: () => loadSettings(prefs).readAloud.sameForAllDocuments,
     globalSpeed: () => loadSettings(prefs).readAloud.globalSpeed,
@@ -1286,7 +1289,16 @@ const RESUME_PULL_MS = 2000;
 
 const EPUB_CONTENT_TYPE = 'application/epub+zip';
 
-/** The attachment behind a reader as `{ lib, key }`, and whether it is an EPUB; null when the reader has no item. */
+/** Cross-computer attachment identity; local library IDs never travel. */
+function documentVoiceKey(reader: any): string | null {
+  const item = reader?.itemID ? Zotero.Items.get(reader.itemID) : null;
+  if (!item?.key || typeof item.libraryID !== 'number') return null;
+  if (item.libraryID === Zotero.Libraries.userLibraryID) return `user/${item.key}`;
+  const library = Zotero.Libraries.get(item.libraryID);
+  return library?.libraryType === 'group' && library.groupID ? `group-${library.groupID}/${item.key}` : null;
+}
+
+/** The attachment behind a reader as `{ lib, key }`, and whether it is an EPUB. */
 function readerAttachment(reader: any): { lib: number; key: string; epub: boolean } | null {
   const item = reader?.itemID ? Zotero.Items.get(reader.itemID) : null;
   if (!item || typeof item.libraryID !== 'number' || !item.key) return null;
@@ -1907,7 +1919,7 @@ function startSettingsAutoUpload(): void {
   settingsAutoUpload = createSettingsAutoUpload({
     enabled: () => loadSettings(prefs).webdav.autoUploadSettings,
     // Every settings pref there is; the observer names are relative to extensions.zotero.
-    keys: Object.keys(flattenSettings(DEFAULTS)).map((key) => 'zotero-tts.' + key),
+    keys: [...Object.keys(flattenSettings(DEFAULTS)).map((key) => 'zotero-tts.' + key), DOCUMENT_VOICE_CHANGED],
     registerObserver: (name, handler) => Zotero.Prefs.registerObserver(name, handler),
     unregisterObserver: (token) => Zotero.Prefs.unregisterObserver(token),
     upload: async () => {
@@ -1945,7 +1957,7 @@ function startSettingsSync(): void {
   const transport = createSettingsSyncTransport({
     enabled: () => loadSettings(prefs).webdav.syncSettings,
     client: () => createWebDAVClient(loadSettings(prefs).webdav, { fetch }),
-    values: () => flattenSettings(loadSettings(prefs)),
+    values: () => ({ ...flattenSettings(loadSettings(prefs)), ...documentVoiceSettings(prefs) }),
     machine: () => machineId(prefs, defaultMachineName),
     readState: () => readSyncState(prefs),
     writeState: (state) => writeSyncState(prefs, state),
@@ -1964,7 +1976,7 @@ function startSettingsSync(): void {
         }
       }
     },
-    keys: SYNCABLE_KEYS.map((key) => ({ key, observer: 'zotero-tts.' + key })),
+    keys: [...SYNCABLE_KEYS.map((key) => ({ key, observer: 'zotero-tts.' + key })), { key: 'documentVoiceChanged', observer: DOCUMENT_VOICE_CHANGED }],
     registerObserver: (name, handler) => Zotero.Prefs.registerObserver(name, handler),
     unregisterObserver: (token) => Zotero.Prefs.unregisterObserver(token),
     setTimeout: (fn, ms) => setTimeout(fn, ms),
@@ -2272,7 +2284,7 @@ function startProviderTiers(): void {
     },
     labels: () => providerTierLabels(loadSettings(prefs)),
     // The plugin's default voice, the second step of the stranded rule
-    defaultVoice: () => readMemory(prefs).voice?.id ?? null,
+    defaultVoice: () => readDefaultVoice(prefs)?.id ?? null,
     // The language's entry is resolved as Zotero resolves it (issue #26)
     preferredLanguages,
     exportFunction: (fn, target) => Components.utils.exportFunction(fn, target),
@@ -3572,11 +3584,22 @@ const diagnostics = {
    * functions (issue #32) — so a pane that marks the wrong row can be told
    * apart from a memory that names the wrong voice.
    */
+  documentVoices: () => {
+    const readers: unknown[] = [];
+    eachReader((reader: any) => {
+      const key = documentVoiceKey(reader);
+      const manager = reader?._internalReader?._readAloudManager;
+      readers.push({ key, saved: key ? createDocumentVoices(prefs).get(key) : null,
+        selected: manager?.selectedVoiceID ?? null, active: !!manager?.active, paused: !!manager?.paused });
+    });
+    return JSON.stringify({ defaultVoice: readDefaultVoice(prefs), records: documentVoiceSettings(prefs), readers });
+  },
   defaultVoice: async () => {
     try {
-      const memory = readMemory(prefs);
+      const memory = { ...readMemory(prefs), voice: readDefaultVoice(prefs) };
       const { readAloud } = loadSettings(prefs);
-      const { globalSpeed, sameForAllDocuments: sameVoice, favoritesOnly } = readAloud;
+      const { globalSpeed, favoritesOnly } = readAloud;
+      const sameVoice = true;
       const favorites = parseFavoriteVoices(readAloud.favoriteVoices);
       // The pane's listing (ui/voice-browser-rows.ts listBrowserVoices): both catalogs, each failing on its own, the catalog capped as the pane caps it — each provider is bounded inside it (issue #55), this is the last resort
       const { voices, problems, columns } = await listBrowserVoices({
@@ -3767,7 +3790,7 @@ const diagnostics = {
     for (const [lang, entry] of Object.entries(readReadAloudVoices(prefs))) {
       zotero[lang] = { region: entry.region ?? null, voice: entry.voice ?? null, speed: entry.speed ?? null, tierVoices: entry.tierVoices ?? {} };
     }
-    const remembered = readMemory(prefs).voice?.id ?? null;
+    const remembered = readDefaultVoice(prefs)?.id ?? null;
     const readers = (Zotero.Reader._readers ?? []).map((r: any) => {
       const manager = () => r?._internalReader?._readAloudManager;
       const lists = (id: string) => {
@@ -3795,7 +3818,7 @@ const diagnostics = {
     });
     return JSON.stringify(
       {
-        memory: safe(() => readMemory(prefs)),
+        memory: safe(() => ({ ...readMemory(prefs), voice: readDefaultVoice(prefs) })),
         syncInstalled: !!readAloudMemory,
         sameForAllDocuments: loadSettings(prefs).readAloud.sameForAllDocuments,
         globalSpeed: loadSettings(prefs).readAloud.globalSpeed,
@@ -3826,7 +3849,6 @@ Zotero.ZoteroTTS = {
       pluginPlayer?.initSettings(doc);
       return onPaneLoad(doc, {
         affectedTabs: readingImpact.affectedTabs,
-        spreadVoice: (choice) => readAloudMemory?.spreadVoice(choice),
         // A rewrite of Zotero's voices pref that is not a pick must not be learned as one
         applySilently: (fn) => (readAloudMemory ? readAloudMemory.applySilently(fn) : fn()),
         // The speech helper is one process for the whole of Zotero, so the
