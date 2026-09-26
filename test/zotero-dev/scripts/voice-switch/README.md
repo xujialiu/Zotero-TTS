@@ -1,77 +1,97 @@
-# Scripts: voice switching (issues #95 and #108)
+# Scripts: voice switching (issues #95, #108, #149)
 
 [Case](../../cases/voice-switch.md) · [Checklist index](../../README.md) · [Runner](../_shared/README.md)
 
+## Issue #149 beta5 verification
+
 | Script | Checks | Expected | Params/state |
 | --- | --- | --- | --- |
-| `native-00-startup-diagnostic.js` | Startup | Installed beta version, all steps `ok`, no failed step | none |
-| `108-00-baseline-and-fixtures.js` | Named prefs, mute/sync isolation, fresh PDF/EPUB | Two fixture items, volume 0, original user flags retained | `params.fixturesDir`, `state.baseline/fixtures` |
-| `108-01-open-and-native-transport.js` | Native sentence-granularity transport and attached controls | Both native managers ready on A; `controlsAttached:true`; fixture-only transport | `state.fixtures/transport` |
-| `108-03-mixed-selections-and-failure.js` | Latest popup/locale/tier/shortcut target, pause, original re-pick, failure | Pending B -> GB -> P1 -> B; re-pick cancels without restart; failure retains original paused controller | Run before `108-02`, on the initial A voice |
-| `108-02-popup-locale-tier-parity.js` | Actual popup pointer-up, ready paused resume, locale and tier transitions | PDF/EPUB resume at char 7, offsets 0.700/0.830; GB and Premium GB hand off within the same sentence; prefs unchanged during preview | `state.transport`; results also in `state.parityResults` |
-| `108-07-resume-boundaries.js` | Play before audio is ready; missing timing; grouped paused word | Original resumes first; late audio uses a word boundary; unsafe alignment switches only at next sentence, offset 0; source position retained | `state.transport`; results also in `state.boundaryResults` |
-| `108-99-cleanup-and-restore.js` | Fixture, transport, prefs and notice teardown | No fixture items/readers; owner/tab stable; 28 prefs and user flags restored; no dead-object console error 5.5 s after closing a visible notice | `state.baseline/fixtures/transport` |
-| `kokoro-00-baseline-snapshot.js` | Named provider baseline | Original enabled flag, endpoint, headers and user flags retained in process only | `Zotero.__ztts95Kokoro` |
-| `kokoro-01-disable-sync-and-mute.js` | Isolate configured Kokoro test | Volume 0; sync/upload off; configured Kokoro temporarily enabled | Kokoro baseline |
-| `kokoro-02-open-fixture.js` | Fresh real-provider fixture | Native manager, sentence segments and listed local voices | `params.fixturesDir`, Kokoro baseline |
-| `108-04-kokoro-real-probe.js` | Correct native `voice.impl` request | Real audio bytes/timestamps, bounded to 15 s; optional warmer disabled during probe | Kokoro fixture |
-| `108-05-provider-signal-cancellation.js` | Real plugin adapter with controlled fetch | Target fetch signal aborts; no obsolete response/play; subsequent same-text request succeeds | Kokoro fixture; all fetch/pref shadows restored |
-| `kokoro-05-cleanup-and-restore.js` | Real-provider cleanup | Fixture removed; endpoint, headers, flags, memory, volume, tab and sync restored | Kokoro baseline |
+| `149-00-baseline-and-isolate.js` | Private baseline and dedicated WebDAV isolation | Destination matches; transports idle; OpenReader Position absent; host minimized | private `Zotero.__ztts149` |
+| `149-01-mute-and-import-fixtures.js` | Mute, suspend writes, import PDF/EPUB | Volume 0; two disposable items; sync switches false | `fixturesDir`; private fixtures |
+| `149-02-open-fixtures.js` | Open both fixture readers | Managers exist; owner session untouched | private fixture state |
+| `149-06-destroy-and-clear-selection.js` | Ended-session precondition at segment 2 | Active manager, null selection, no controller, Engine `ended:true` | seeded PDF player |
+| `149-07-open-provider-menu.js` | Actual provider picker | Fish Audio and System rows | seeded PDF player |
+| `149-08-system-voice-recovery.js` | Albert recovery and Play | Paused controller at segment 2; zero pre-Play requests; target audio after Play | PDF player |
+| `149-09b-finish-live-handoff.js` | Ordinary playing Fish handoff | `carriedOn` increases; same segment; no recovery | playing PDF session |
+| `149-10-stale-unpaused-samantha.js` | Direct stale-unpaused mechanism | Samantha rebuilds paused at segment 2 with no pre-Play requests | PDF fixture; diagnostic count not graded |
+| `149-11-stale-ui-ava.js` | Stale-unpaused player row | Ava rebuilds paused at segment 2; no pre-Play requests | PDF player |
+| `149-12-same-voice-retained-ava.js` | Retained-ID same-voice row | Same Ava pick rebuilds paused at segment 2 | PDF player |
+| `149-13-stale-ui-samantha.js` | Stale-unpaused Samantha row | Samantha rebuilds paused at segment 2; no pre-Play requests | PDF player |
+| `149-99-cleanup-and-restore.js` | Fixture, records, transports, prefs, host teardown | Fixtures gone; exact named state restored; host minimized | private baseline |
 
-## Run order and precautions
+Before installing beta5, run `149-00` and require matching test WebDAV,
+suspended switches, settled transports, and no OpenReader Position add-on. Run
+the install/list/startup check, then `149-01` and `149-02`. The player seed is a
+foreground step: select the PDF, call its `_loadSDT()`, open and pause Read
+Aloud, wait for 538 voices/17 segments, choose an English Fish voice, pause,
+and restore the exact baseline `readAloud.memory`. This seed remains manual
+because the first scripted refresh encountered a stale closed EPUB wrapper; no
+untested replacement script is claimed. `149-06` onward assumes that state.
 
-- Load the shared runner, verify the exact XPI/bundle identity and startup,
-  then run `108-00`, `108-01`, `108-03`, `108-02`, `108-07`, `108-99`.
-  Stop on a failure, inspect the stored result and always run cleanup.
-- The provider group runs `kokoro-00`, `kokoro-01`, `kokoro-02`, `108-04`,
-  `108-05`, `kokoro-05`. Keep it separate from the silent native group.
-- All work uses new fixture items. Never play, pause, close or reposition an
-  owner's reader. Native transport interception is restricted to fixture IDs.
-- Use document user activation and a bounded `AudioContext.resume()` before
-  measuring an old context created by an untrusted popup open. A running
-  context with a paused manager is not evidence of a missing audio device.
-- The catalog uses `sentence`, matching production. The Premium pool includes
-  a GB voice for the GB-to-Premium test; a US-only pool cannot resolve GB.
-- The real probe must pass `voice.impl`, as the native controller does.
-  Passing a native voice wrapper can hide its getters across compartments.
-  Disable optional warming for the probe so its next request cannot be
-  mistaken for the signal-test target.
-- Sync/upload are disabled before preference changes and restored last. Keep
-  original volume and user-value flags; never replace a resumed run's baseline
-  with its temporary zero. Only sanitized summaries leave process state.
-- A runner exception stops the group, but a script returning `status: FAIL`
-  also needs explicit review before continuing. Retain no failed result as PASS.
+The run used PDF `Z4PND7VY` and EPUB `3Q89U6MX`. It never played or repositioned
+the owner reader. A request wrapper did not survive the native interface rebuild
+(`installed:false` by identity); Engine session store counts are authoritative.
 
-## Scope and limits
+### Exact field results
 
-The #108 checks use real native managers/controllers and silent fixture audio,
-plus real Kokoro response bytes and the plugin's actual fetch signal. They
-prove controller adoption, audio offsets and source positions, not subjective
-listening continuity or every provider's alignment accuracy. Native official
-services expose no network abort API; their obsolete results cannot play, but
-submitted requests and quota cannot be recalled. Timer exhaustion, output-start
-cancellation races and shared-voice propagation also have unit coverage.
+| Variant | Actual action | Precondition | After pick | Requests / result |
+| --- | --- | --- | --- | --- |
+| Albert (`149-08`) | System provider row, Albert row, then Play | `selected:null`, active/paused, controller false, ended true, position 2 | Albert controller true, paused, ended false, position 2 | Engine store 0 before Play; after Play `requests:8`, `clips:8`, `timings:8`; capture later saw position 6. Wrapper calls were empty, so its `requested:false` is not used. |
+| Ava stale (`149-11`) | System Ava voice row | `selected:null`, active true, paused false, controller false, ended true, position 2 | Ava controller true, paused, ended false, position 2 | Engine requests 0; wrapper calls 0; PASS |
+| Ava retained (`149-12`) | Same Ava row after controller destruction | Ava retained, active/paused, controller false, ended true, position 2 | Same Ava controller true, paused, ended false, position 2 | Engine requests 0; wrapper calls 0; PASS |
+| Samantha stale (`149-13`) | System Samantha voice row | `selected:null`, active true, paused false, controller false, ended true, position 2 | Samantha controller true, paused, ended false, position 2 | Engine requests 0; wrapper calls 0; PASS |
+| Direct Samantha (`149-10`) | Chrome `manager.selectVoice`, no player row | Same stale-unpaused shape | Engine rebuilt and paused at position 2, zero requests | Mechanical PASS, but recovery counter did not advance; excluded from the four UI recoveries. |
 
-The older `native-*` scripts are historical #95 transport/key checks; their
-`word` catalog granularity does not establish production word highlighting.
-Other legacy script families retain their original context and must be adapted
-before reuse; they are not part of the #108 final group above.
+The stable `voiceSwitch()` report after the UI variants was
+`notice:"selected"`, `recoveries:4`: Albert, stale Ava, retained Ava, and
+stale Samantha. Its retained `last` trace belonged to the earlier ordinary
+Fish handoff. That control changed Fish `en/9fa4…` to Abel `en/8634…` while
+`playing:true` at position/currentIndex 2; after commit it remained at position
+2, with `carriedOn` `1→2`, target store `requests:4`, `clips:4`, `inflight:0`,
+and no recovery.
 
-## Runs
+The inline per-script `switchOf()` helpers filtered diagnostic rows by
+`itemID`, although `voiceSwitch()` identifies rows by array index; their
+`switch:null` fields are therefore not evidence. The aggregate direct query
+above is authoritative. Likewise, `documentVoices().records` are JSON strings;
+the helper's normalized per-script record fields were null, so the direct
+record values stated below are the evidence.
 
-[The final tester result table](https://github.com/xujialiu/Zotero-TTS/issues/108#issuecomment-5674194936)
-records the independent beta2 rerun, provider results and notice teardown
-correction, including the single-playing-reader limitation for item 7.
+The first stable `documentVoices()` comparison showed global default
+`local::af_bella`, PDF fixture Albert `manual:true`, and EPUB
+`local::af_bella` `manual:false`; later manual choices stayed on the PDF
+record. Cleanup erased both fixture records and restored the prior records.
 
-- **2026-09-15, 1.12.10-beta2:** `2026-09-15-1.12.10-beta2-voice-switch-final-r3`
-  ran all six `108-*` scripts: every row PASS, including both-format word
-  resume (`PDF .700`, `EPUB .830`), GB locale, Premium GB tier, six boundary
-  scenarios and notice teardown (`deadObjectErrors:[]`).
-- **2026-09-15, 1.12.10-beta2:** `2026-09-15-1.12.10-beta2-voice-switch-provider-r3`
-  ran the Kokoro group: real probe `48044` bytes/5 timestamps in `170 ms`,
-  provider signal abort and ordinary same-text request PASS, cleanup PASS.
-- **2026-09-15, 1.12.10-beta2:** `2026-09-15-1.12.10-beta2-voice-switch-native-r3`
-  ran `native-00` through `native-16`; all 17 scripts PASS for the existing
-  regional/menu/key, word/sentence, cancellation and overtaking regressions.
-  XPI SHA-256 `C2366AA8B3ABF1DD6035271BF9B46FD4605EEDC5C090F54299038A2E2EA0A957`;
-  bundle `3150FD3B774D20B330EB5D032E3600E080C1C6092B36AC9CFF394B481E6A4939`.
+Cleanup passed with `fixtureReadersRemaining:0`, `fixtureItemsRemaining:0`,
+`pendingClean:true`, volume `100`/user `false`, exact memory (62 chars) and
+native voice map (1257 chars), WebDAV destination/switches restored, and host
+minimized. The after position-store row count was 85, but the baseline count
+was not captured (`null`), so row-count equality is not claimed. Restoring
+switches logged settings sync `72 remote, 0 applied/deferred/pushed/skipped`,
+shared positions `16 remote, 16 merged, 0 adopted/dropped`, and positions
+`100 remote, 100 merged, 0 adopted/dropped`.
+
+One diagnostic-only dead-object error occurred before stale-wrapper pruning:
+`TypeError: can't access dead object` at
+`.../zotero-tts@xujialiu.top.xpi!/content/zotero-tts.js:18117:5`, stack
+`readAloudManager (18117:5) → voiceSwitch/<.readers (19752:19) → voiceSwitch
+(19750:27)`. Removing the stale EPUB wrapper made `diagnostics.voiceSwitch()`
+return normally; Engine recovery/audio state was unaffected. Zotero's own
+reader dead-object, locale, and guidance-panel messages also remained in the
+final error ring.
+
+The legacy `native-*`, `108-*`, and `kokoro-*` scripts remain in this folder
+as historical checks. The [independent #108 beta2 report](https://github.com/xujialiu/Zotero-TTS/issues/108#issuecomment-5674194936)
+records their last verification: six `108-*` scripts, all PASS, with PDF
+resume offset .700 and EPUB .830; the provider group proved abort and
+ordinary-request isolation. Those checks were not rerun for #149; their
+earlier run order and preparation remain in repository history. This README records the current #149 run and its preparation gap.
+
+## Run
+
+[Verification table and limitations](https://github.com/xujialiu/Zotero-TTS/issues/149#issuecomment-5845582557).
+
+2026-09-26 · 1.15.2-beta5 · XPI `218e2bb7…` · bundle `f1101efa…` · startup,
+four UI recoveries, ordinary handoff, cleanup PASS. The run does not establish
+which upstream action originally ended the session, and subjective voice
+quality/handoff gap remain human checks.

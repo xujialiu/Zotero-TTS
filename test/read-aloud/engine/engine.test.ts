@@ -1,4 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
+import { createReadAloudMemorySync } from '../../../src/read-aloud/memory-sync';
+import { createDocumentVoices, writeDefaultVoice, readDefaultVoice } from '../../../src/core/document-voices';
+import type { PrefsBackend } from '../../../src/core/settings';
+import { createVoicePick } from '../../../src/read-aloud/engine/voice-pick';
 import { createEngine } from '../../../src/read-aloud/engine';
 import { VirtualClock } from '../../core/engine/harness';
 import { fakeAudio, FakeAudioContext, loadZoteroReadAloud, NativeController, readerWindow, voicesResponse } from './zotero';
@@ -36,7 +40,7 @@ async function setup(options: { attachFirst?: boolean; voices?: Record<string, u
     onComputeRepositionIndex: (position: number) => position,
     onSetVoice: vi.fn(),
   });
-  const reader = { _internalReader: { _readAloudManager: manager }, _iframeWindow: window };
+  const reader = { _internalReader: { _readAloudManager: manager, _syncPersistedVoicesToManager() {} }, _iframeWindow: window };
   const source = {
     getAudio: vi.fn(async (segment: { text: string }, voice: { id: string }, _options?: { signal?: AbortSignal }) => {
       const error = options.fail?.(segment.text);
@@ -89,6 +93,92 @@ async function setup(options: { attachFirst?: boolean; voices?: Record<string, u
 }
 
 describe('the Engine behind Zotero 10.0.3’s manager', () => {
+  it.each([
+    { paused: true, sameVoice: false, detach: false },
+    { paused: false, sameVoice: false, detach: false },
+    { paused: false, sameVoice: true, detach: false },
+    { paused: true, sameVoice: false, detach: true },
+  ])('recovers a stranded player without reading until Play (#149): %j', async ({ paused, sameVoice, detach }) => {
+    const t = await setup({ attachFirst: true });
+    t.open(2);
+    await t.clock.advance(20);
+    if (paused) t.manager.pause();
+    t.manager._destroyController();
+    await Promise.resolve();
+    expect(t.engine.session(t.reader)?.ended).toBe(true);
+    if (detach) t.engine.detach(t.reader);
+    if (!sameVoice) {
+      t.manager._voiceID = null;
+      t.manager._voice = null;
+    }
+    const target = sameVoice ? ALLOY : NOVA;
+    const pickNotices: string[] = [];
+    const pick = createVoicePick({
+      engine: t.engine,
+      notice: (_reader, kind) => pickNotices.push(kind),
+      error: e => t.errors.push(e),
+    });
+    const values = new Map<string, unknown>();
+    const prefs: PrefsBackend = { get: key => values.get(key), set: (key, value) => { values.set(key, value); } };
+    writeDefaultVoice(prefs, { id: ALLOY, lang: 'en' });
+    const documents = createDocumentVoices(prefs);
+    documents.open('user/OTHERDOC');
+    const other = documents.get('user/OTHERDOC');
+    const memory = createReadAloudMemorySync({
+      prefs, documentKey: () => 'user/THISBOOK',
+      sameVoice: () => false, globalSpeed: () => false,
+      registerObserver: () => null, unregisterObserver: () => {},
+      readers: () => [t.reader], isVoicePreview: reader => pick.isPreviewing(reader),
+      error: e => t.errors.push(e),
+    });
+    memory.attach(t.reader);
+    pick.attach(t.reader);
+    pickNotices.length = 0;
+    t.source.getAudio.mockClear();
+    t.manager.selectVoice(target);
+    expect(t.manager.selectedVoiceID).toBe(target);
+    expect(t.manager.paused).toBe(true);
+    expect(t.engine.owns(t.manager._controller)).toBe(true);
+    expect(t.engine.session(t.reader)?.ended).toBe(false);
+    expect(t.engine.session(t.reader)?.position).toBe(2);
+    expect(t.manager.activeSegment).toBe(t.segments[2]);
+    await t.clock.advance(100);
+    expect(t.source.getAudio).not.toHaveBeenCalled();
+    expect(pickNotices).toEqual(['selected']);
+    expect(pick.inspect(t.reader)?.recoveries).toBe(1);
+    expect(documents.get('user/THISBOOK')).toMatchObject({ voice: { id: target, lang: 'en' }, manual: true });
+    expect(documents.get('user/OTHERDOC')).toEqual(other);
+    expect(readDefaultVoice(prefs)).toEqual({ id: ALLOY, lang: 'en' });
+    t.manager.play();
+    await t.clock.advance(0);
+    expect(t.source.getAudio).toHaveBeenCalledWith(t.segments[2], expect.objectContaining({ id: target }), undefined);
+    expect(t.errors).toEqual([]);
+    pick.dispose();
+    memory.dispose();
+    t.engine.dispose();
+  });
+
+  it('removes a native fallback if recovery cannot rebuild on the Engine (#149)', async () => {
+    const t = await setup({ attachFirst: true });
+    t.open(2);
+    t.manager.pause();
+    t.manager._destroyController();
+    await Promise.resolve();
+    const target = t.manager.allVoices.find((voice: any) => voice.id === NOVA);
+    const fallback = new NativeController(target);
+    target.getController = () => fallback;
+    const notices: string[] = [];
+    const pick = createVoicePick({ engine: t.engine, notice: (_r, kind) => notices.push(kind), error: e => t.errors.push(e) });
+    pick.attach(t.reader);
+    t.manager.selectVoice(NOVA);
+    expect(notices.at(-1)).toBe('failed');
+    expect(t.manager.paused).toBe(true);
+    expect(t.manager._controller).toBe(null);
+    expect(fallback.destroyed).toBe(true);
+    pick.dispose();
+    t.engine.dispose();
+  });
+
   it('answers the first controller of a tab even when attached before the voice list landed', async () => {
     const t = await setup({ attachFirst: true });
     t.open(0);

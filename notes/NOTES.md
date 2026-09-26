@@ -648,3 +648,7 @@ then) and is in the git history before that day.
 - The remaining-time row must shorten the name without hiding the duration (issue #148)
 - Selected text supplies a start, not a reading limit (issue #148)
 - Remaining time verified in the reader, with bounded runs tested separately from selection starts (issue #148)
+
+- An open paused player can outlive its Engine session and reject listed voices (issue #149)
+- Explicit selection rebuilds an ended session while paused (issue #149)
+- Recovery passed through the player; two probe fields needed correction (issue #149)
