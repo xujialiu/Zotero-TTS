@@ -643,3 +643,4 @@ then) and is in the git history before that day.
 - Document voices are separate settings records, and native auto-activation needs a guard (issue #146)
 - Independent voices verified through the player and isolated settings sync (issue #146)
 - Fish Default was an unconditional catalog entry, independent of every source switch (issue #147)
+- Verified live: Default follows Your voices, including an empty catalog (issue #147)
