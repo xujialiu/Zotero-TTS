@@ -12,3 +12,15 @@ under the README's limits. The run archive that once held every executed
 script (`../runs/`) was removed on 2026-09-14 and is in the git history
 before that day. The rule is MEMORY/testing.md's "Retain live test methods
 incrementally".
+
+Keep fixtures in `test/fixtures/`. Each kit records its execution order,
+expected results, permitted state changes, cleanup and runs. The tester
+writes the kit during the run; the main session reviews it. Retain run
+tables on the issue, or in that day's NOTES entry for a full pass. Older
+links to archived reports or scripts refer to the git history before
+2026-09-14.
+
+Never save credentials or raw preference backups in this repository.
+The tester writes only under `test/zotero-dev/scripts/`. Backfill existing
+kits during the next full pass the user requests, using scripts that
+actually ran; do not rerun checks solely to populate directories.
