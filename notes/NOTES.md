@@ -641,3 +641,4 @@ then) and is in the git history before that day.
 - Zotero's H and U annotate through two reader calls, and the segment must be the manager's own (issue #145)
 
 - Document voices are separate settings records, and native auto-activation needs a guard (issue #146)
+- Independent voices verified through the player and isolated settings sync (issue #146)

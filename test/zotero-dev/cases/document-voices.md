@@ -1,5 +1,7 @@
 # Independent document voices (issue #146)
 
+[Scripts](../scripts/document-voices/README.md)
+
 Run the baseline first. Isolate both plugins' WebDAV destinations with the
 dedicated test configuration before installation or state changes. Privately
 snapshot the global default, migration marker, legacy voice/speed memory,
@@ -53,3 +55,12 @@ bundle includes this diagnostic, not just its version string.
 Clock ties, malformed imports and migration-once rules are also covered by
 unit tests. Perceptual voice quality is human-only; the live run verifies
 actual selected IDs and synthesis paths.
+
+Verified on 2026-09-26 with 1.15.2-beta2 (`30d5770`): the initial fixtures
+were standalone PDF and EPUB attachments, not siblings under one parent;
+attachment identity is independent of the parent in the adapter. Missing
+voice and no-default checks observed no controller, no active fallback,
+and unchanged Fish timing-log counts, not an HTTP request counter. Global
+speed was still enabled; propagation and initial-speed migration are
+covered by unit tests. The issue's closing report gives the observed
+values for all ten items and the restored state.
