@@ -305,8 +305,10 @@ describe('createReadAloudMemorySync', () => {
     createReadAloudMemorySync(deps).dispose();
     expect(readDefaultVoice(z.deps.prefs)).toBeNull();
     const fresh = fakeZotero(voices);
-    createReadAloudMemorySync({ ...fresh.deps, documentKey: () => 'user/ABCDEFGH' }).dispose();
+    const sync = createReadAloudMemorySync({ ...fresh.deps, documentKey: () => 'user/ABCDEFGH' });
     expect(readDefaultVoice(fresh.deps.prefs)).toBeNull();
+    expect(sync.memory().speed).toBe(1.4);
+    sync.dispose();
   });
   it('keeps incoming document choices out of an active session, including pause, until the next activation', () => {
     const z = fakeZotero(voices, multilingual);

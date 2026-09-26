@@ -244,8 +244,9 @@ export function createReadAloudMemorySync(deps: ReadAloudMemoryDeps): ReadAloudM
     return deps.documentKey ? { ...stored, voice: readDefaultVoice(deps.prefs) } : stored;
   };
   const initial = memory();
-  if (!deps.documentKey && initial.speed === null && initial.voice === null) {
-    const guessed = memoryFromVoices(snapshot);
+  if (initial.speed === null && (deps.documentKey || initial.voice === null)) {
+    const native = memoryFromVoices(snapshot);
+    const guessed = deps.documentKey ? { speed: native.speed, voice: initial.voice } : native;
     if (guessed.speed !== null || guessed.voice !== null) writeMemory(deps.prefs, guessed);
   }
   deps.debug?.(`read-aloud memory: ${describeMemory(memory())}`);
