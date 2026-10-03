@@ -38,6 +38,34 @@ export class WebDAVError extends Error {
 
 export const WEBDAV_TIMEOUT_MS = 15_000;
 
+/** Caps how much of a response body is read into memory; a malicious or misconfigured
+ * server replying with an unbounded body must not be able to exhaust it. */
+const MAX_RESPONSE_BYTES = 10 * 1024 * 1024;
+
+/** response.text(), but stops once the body passes MAX_RESPONSE_BYTES. */
+async function readLimitedText(response: Response, what: string): Promise<string> {
+  const declared = response.headers.get('content-length');
+  if (declared && Number(declared) > MAX_RESPONSE_BYTES) {
+    throw new WebDAVError('http', `${what} reply is larger than ${MAX_RESPONSE_BYTES} bytes.`);
+  }
+  if (!response.body) return response.text();
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let text = '';
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > MAX_RESPONSE_BYTES) {
+      await reader.cancel();
+      throw new WebDAVError('http', `${what} reply is larger than ${MAX_RESPONSE_BYTES} bytes.`);
+    }
+    text += decoder.decode(value, { stream: true });
+  }
+  return text + decoder.decode();
+}
+
 /** The folder URL with exactly one trailing slash; rejects anything that is not http(s). */
 export function normalizeWebDAVURL(url: string): string {
   const trimmed = url.trim();
@@ -184,7 +212,7 @@ export function createWebDAVClient(cfg: WebDAVConfig, deps: { fetch: typeof fetc
       const response = await request('GET', target);
       if (response.status === 404) throw new WebDAVError('not-found', `No backup on the server yet (${target} not found).`, 404);
       if (!response.ok) throw failed('Download', response);
-      return response.text();
+      return readLimitedText(response, 'Download');
     },
 
     async list() {
@@ -193,7 +221,7 @@ export function createWebDAVClient(cfg: WebDAVConfig, deps: { fetch: typeof fetc
         throw new WebDAVError('not-found', `The folder ${url} does not exist. It is created on the first upload.`, 404);
       }
       if (!response.ok) throw failed('PROPFIND', response);
-      return parseMultistatus(await response.text());
+      return parseMultistatus(await readLimitedText(response, 'PROPFIND'));
     },
   };
 }
